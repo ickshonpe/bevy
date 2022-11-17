@@ -1,7 +1,7 @@
 //! This module contains the bundles used in Bevy's UI
 
 use crate::{
-    widget::{Button, ImageMode},
+    widget::Button,
     CalculatedSize, FocusPolicy, Interaction, Node, Style, UiColor, UiImage, CAMERA_UI,
 };
 use bevy_ecs::bundle::Bundle;
@@ -38,8 +38,6 @@ pub struct ImageBundle {
     pub node: Node,
     /// Describes the style including flexbox settings
     pub style: Style,
-    /// Configures how the image should scale
-    pub image_mode: ImageMode,
     /// The calculated size based on the given image
     pub calculated_size: CalculatedSize,
     /// The color of the node
