@@ -6,6 +6,7 @@ use bevy_ecs::{
     reflect::ReflectComponent,
     system::{Query, Res},
 };
+use bevy_math::{Vec2, Rect, vec2};
 use bevy_reflect::{Reflect, ReflectDeserialize, ReflectSerialize};
 use bevy_render::texture::Image;
 use bevy_text::Text;
@@ -37,4 +38,37 @@ pub fn image_node_system(
             }
         }
     }
+}
+
+pub fn fit_image_with_aspect_ratio( 
+    image_size: Vec2, target_size: Vec2
+) -> [Vec2; 2] {
+    let a = image_size.x / image_size.y;
+    let Vec2 { x: tw, y: th } = target_size;
+    if th < tw {
+        let h = (tw / a).min(th);
+        let size = vec2(h * a, h);
+        [0.5 * (target_size.y - size.y) * Vec2::Y, size]
+    } else {
+        let w = (th * a).min(tw);
+        let size = vec2(w, w / a);
+        [0.5 * (target_size.x - size.x) * Vec2::X, size]
+
+    }
+}
+
+pub fn fit_image_with_aspect_ratio_2( 
+    image_size: Vec2, target_size: Vec2
+) -> Vec2 {
+    let a = image_size.x / image_size.y;
+    let Vec2 { x: tw, y: th } = target_size;
+    let size: Vec2 = if th < tw {
+        let h = (tw / a).min(th);
+        [h * a, h]
+    } else {
+        let w = (th * a).min(tw);
+        [w, w / a]
+    }.into();
+    let min = 0.5 * (target_size - size);
+    size
 }

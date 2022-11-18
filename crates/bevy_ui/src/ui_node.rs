@@ -450,6 +450,16 @@ impl From<Color> for BackgroundColor {
     }
 }
 
+/// Controls the image's aspect ratio
+#[derive(Component, Default, Copy, Clone, Debug, Reflect)]
+pub enum AspectRatioMode {
+    /// The image's aspect ratio is controlled by flex
+    Flex,
+    /// Use the aspect ratio of the source texture.
+    #[default]
+    Image,
+}
+
 /// The 2D texture displayed for this UI node
 #[derive(Component, Clone, Debug, Reflect)]
 #[reflect(Component, Default)]
@@ -460,6 +470,8 @@ pub struct UiImage {
     pub flip_x: bool,
     /// Whether the image should be flipped along its y-axis
     pub flip_y: bool,
+    /// Controls the image's aspect ratio
+    pub aspect_ratio: AspectRatioMode,
 }
 
 impl Default for UiImage {
@@ -468,6 +480,7 @@ impl Default for UiImage {
             texture: DEFAULT_IMAGE_HANDLE.typed(),
             flip_x: false,
             flip_y: false,
+            aspect_ratio: AspectRatioMode::Image
         }
     }
 }

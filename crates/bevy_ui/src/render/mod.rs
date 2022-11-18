@@ -5,6 +5,8 @@ use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
 pub use pipeline::*;
 pub use render_pass::*;
 
+use crate::widget::{fit_image_with_aspect_ratio, fit_image_with_aspect_ratio_2};
+use crate::{CalculatedSize, Val, Size};
 use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage, UiStack};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
@@ -214,24 +216,50 @@ pub fn extract_uinodes(
             &BackgroundColor,
             Option<&UiImage>,
             &ComputedVisibility,
+            Option<&CalculatedSize>,
             Option<&CalculatedClip>,
         )>,
     >,
+    query: Extract<Query<&CalculatedSize, Or<(Changed<CalculatedSize>, Changed<UiImage>)>>>,
 ) {
     let scale_factor = windows.scale_factor(WindowId::primary()) as f32;
     extracted_uinodes.uinodes.clear();
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, transform, color, maybe_image, visibility, clip)) =
+        if let Ok((uinode, transform, color, maybe_image, 
+            visibility, calculated_size, clip)) =
             uinode_query.get(*entity)
         {
             if !visibility.is_visible() {
                 continue;
             }
-            let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
-                (image.texture.clone_weak(), image.flip_x, image.flip_y)
+            
+            let (image, flip_x, flip_y, [translation, size]) = if let Some(image) = maybe_image {
+                let out = match (image.aspect_ratio, calculated_size) {
+                    (
+                        crate::AspectRatioMode::Image, 
+                        Some(&CalculatedSize { 
+                            size: Size { 
+                                width: Val::Px(width),
+                                height: Val::Px(height)
+                            }
+                        })
+                    ) => fit_image_with_aspect_ratio((width, height).into(), uinode.calculated_size),
+                    _ =>  [Vec2::ZERO, uinode.calculated_size]
+                    
+                };
+                (image.texture.clone_weak(), image.flip_x, image.flip_y, out)
             } else {
-                (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), false, false)
+                (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), false, false, [Vec2::ZERO, uinode.calculated_size])
             };
+            if let Ok(calc_size) = query.get(*entity) {
+                println!("-------------------------------");
+                println!("aspect ratio mode = {:?}", maybe_image.map(|ui_image| ui_image.aspect_ratio));
+                println!("calc clip: {:?}", clip);
+                println!("node size: {:?}", uinode.calculated_size);
+                println!("image size: {:?}", calc_size);
+                println!("offset: {:?}", translation);
+                println!("output size: {:?}", size);
+            }
             // Skip loading images
             if !images.contains(&image) {
                 continue;
@@ -239,15 +267,17 @@ pub fn extract_uinodes(
             // Skip completely transparent nodes
             if color.0.a() == 0.0 {
                 continue;
-            }
-
+            }          
+            let mut transform = *transform;
+            transform.translation_mut().x -= translation.x;
+            transform.translation_mut().y -= translation.y;
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
                 transform: transform.compute_matrix(),
                 background_color: color.0,
                 rect: Rect {
                     min: Vec2::ZERO,
-                    max: uinode.calculated_size,
+                    max: size,
                 },
                 image,
                 atlas_size: None,
