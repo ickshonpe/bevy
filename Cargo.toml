@@ -1443,6 +1443,10 @@ category = "UI (User Interface)"
 wasm = true
 
 [[example]]
+name = "constraints"
+path = "examples/ui/constraints.rs"
+
+[[example]]
 name = "window_fallthrough"
 path = "examples/ui/window_fallthrough.rs"
 

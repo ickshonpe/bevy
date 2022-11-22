@@ -1,4 +1,4 @@
-use crate::{CalculatedSize, Size, Style, UiScale, Val};
+use crate::{CalculatedSize, Size, Style, UiScale, Val, Node};
 use bevy_asset::Assets;
 use bevy_ecs::{
     entity::Entity,
@@ -25,9 +25,9 @@ fn scale_value(value: f32, factor: f64) -> f32 {
 
 /// Defines how `min_size`, `size`, and `max_size` affects the bounds of a text
 /// block.
-pub fn text_constraint(min_size: Val, size: Val, max_size: Val, scale_factor: f64) -> f32 {
-    // Needs support for percentages
+pub fn text_constraint(node_size: f32, min_size: Val, size: Val, max_size: Val, scale_factor: f64) -> f32 {
     match (min_size, size, max_size) {
+        (_, _, Val::Percent(_)) => scale_value(node_size, scale_factor),
         (_, _, Val::Px(max)) => scale_value(max, scale_factor),
         (Val::Px(min), _, _) => scale_value(min, scale_factor),
         (Val::Undefined, Val::Px(size), Val::Undefined) | (Val::Auto, Val::Px(size), Val::Auto) => {
@@ -58,9 +58,10 @@ pub fn text_system(
     mut font_atlas_set_storage: ResMut<Assets<FontAtlasSet>>,
     mut text_pipeline: ResMut<TextPipeline>,
     mut text_queries: ParamSet<(
-        Query<Entity, Or<(Changed<Text>, Changed<Style>)>>,
+        Query<Entity, Or<(Changed<Text>, Changed<Style>, Changed<Node>)>>,
         Query<Entity, (With<Text>, With<Style>)>,
         Query<(
+            &Node,
             &Text,
             &Style,
             &mut CalculatedSize,
@@ -85,6 +86,7 @@ pub fn text_system(
             queued_text.entities.push(entity);
         }
     } else {
+        println!("scale factor: {}", scale_factor);
         // If the scale factor has changed, queue all text
         for entity in text_queries.p1().iter() {
             queued_text.entities.push(entity);
@@ -100,21 +102,39 @@ pub fn text_system(
     let mut new_queue = Vec::new();
     let mut query = text_queries.p2();
     for entity in queued_text.entities.drain(..) {
-        if let Ok((text, style, mut calculated_size, text_layout_info)) = query.get_mut(entity) {
+        if let Ok((node, text, style, mut calculated_size, text_layout_info)) = query.get_mut(entity) {
+            println!("Entity: {:?}, node size: {:?}, style.size: {:?}, calculated_size: {:?}", entity, node.size(), style.size, calculated_size);
+           
             let node_size = Vec2::new(
+            if 0. < node.size().x {
                 text_constraint(
+                    node.size().x,
                     style.min_size.width,
                     style.size.width,
                     style.max_size.width,
                     scale_factor,
-                ),
+                )
+            //    node.size().x 
+            } else {
+                
+                f32::MAX
+            },
+            if 0. < node.size().y {
                 text_constraint(
+                    node.size().y,
                     style.min_size.height,
                     style.size.height,
                     style.max_size.height,
                     scale_factor,
-                ),
-            );
+                )
+            //    node.size().y 
+            } else {
+                
+                f32::MAX
+            });
+            
+        
+            println!("bounds = {node_size}");
 
             match text_pipeline.queue_text(
                 &fonts,
@@ -142,6 +162,7 @@ pub fn text_system(
                         width: Val::Px(scale_value(info.size.x, inv_scale_factor)),
                         height: Val::Px(scale_value(info.size.y, inv_scale_factor)),
                     };
+                    println!("out: calculated size: {:?}", calculated_size);
                     match text_layout_info {
                         Some(mut t) => *t = info,
                         None => {

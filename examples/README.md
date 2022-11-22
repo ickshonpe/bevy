@@ -313,7 +313,7 @@ Example | Description
 --- | ---
 [Button](../examples/ui/button.rs) | Illustrates creating and updating a button
 [Font Atlas Debug](../examples/ui/font_atlas_debug.rs) | Illustrates how FontAtlases are populated (used to optimize text rendering internally)
-[Percentage Text Constraints](../examples/ui/percentage_text_constraints.rs) | Demonstrates using min/max size constraints with text
+[Percentage Text Constraints](../examples/ui/constraints.rs) | Demonstrates using min/max size constraints with text
 [Text](../examples/ui/text.rs) | Illustrates creating and updating text
 [Text Debug](../examples/ui/text_debug.rs) | An example for debugging text layout
 [Transparency UI](../examples/ui/transparency_ui.rs) | Demonstrates transparency for UI
