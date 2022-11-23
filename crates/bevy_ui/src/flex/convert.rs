@@ -32,8 +32,8 @@ pub fn from_val_size(
     }
 }
 
-pub fn from_style(scale_factor: f64, value: &Style) -> taffy::style::Style {
-    taffy::style::Style {
+pub fn from_style(scale_factor: f64, value: &Style) -> taffy::style::FlexboxLayout {
+    taffy::style::FlexboxLayout {
         display: value.display.into(),
         position_type: value.position_type.into(),
         flex_direction: value.flex_direction.into(),
@@ -52,10 +52,7 @@ pub fn from_style(scale_factor: f64, value: &Style) -> taffy::style::Style {
         size: from_val_size(scale_factor, value.size),
         min_size: from_val_size(scale_factor, value.min_size),
         max_size: from_val_size(scale_factor, value.max_size),
-        aspect_ratio: match value.aspect_ratio {
-            Some(value) => taffy::number::Number::Defined(value),
-            None => taffy::number::Number::Undefined,
-        },
+        aspect_ratio: value.aspect_ratio,
     }
 }
 
