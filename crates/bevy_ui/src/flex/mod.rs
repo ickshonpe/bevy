@@ -1,6 +1,6 @@
 mod convert;
 
-use crate::{CalculatedSize, Node, Style, UiScale};
+use crate::{CalculatedSize, Node, Style, UiScale, UiImage};
 use bevy_ecs::{
     entity::Entity,
     event::EventReader,
@@ -77,6 +77,7 @@ impl FlexSurface {
         style: &Style,
         calculated_size: CalculatedSize,
         scale_factor: f64,
+        preserve_aspect_ratio: bool,
     ) {
         let taffy = &mut self.taffy;
         let taffy_style = convert::from_style(scale_factor, style);
@@ -94,8 +95,30 @@ impl FlexSurface {
                         size.height = height;
                     }
                     (Number::Defined(width), Number::Defined(height)) => {
-                        size.width = width;
-                        size.height = height;
+                        if preserve_aspect_ratio {
+                            let h = width * size.height / size.width;
+                            let w = height * size.width / size.height;
+                            if width * h < w * height {
+                                if w <= width {
+                                    size.width = w;
+                                    size.height = height;
+                                } else {
+                                    size.width = width;
+                                    size.height = h;
+                                }
+                            } else {
+                                if h <= height {
+                                    size.width = width;
+                                    size.height = h;
+                                } else {
+                                    size.width = width;
+                                    size.height = h;
+                                }
+                            }            
+                        } else {
+                            size.width = width;
+                            size.height = height;
+                        }            
                     }
                 }
                 size
@@ -216,11 +239,15 @@ pub fn flex_node_system(
     mut scale_factor_events: EventReader<WindowScaleFactorChanged>,
     mut flex_surface: ResMut<FlexSurface>,
     root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
-    node_query: Query<(Entity, &Style, Option<&CalculatedSize>), (With<Node>, Changed<Style>)>,
-    full_node_query: Query<(Entity, &Style, Option<&CalculatedSize>), With<Node>>,
+    node_query: Query<(Entity, &Style, Option<&CalculatedSize>, Option<&UiImage>), (With<Node>, Changed<Style>)>,
+    full_node_query: Query<(Entity, &Style, Option<&CalculatedSize>, Option<&UiImage>), With<Node>>,
     changed_size_query: Query<
-        (Entity, &Style, &CalculatedSize),
+        (Entity, &Style, &CalculatedSize, Option<&UiImage>),
         (With<Node>, Changed<CalculatedSize>),
+    >,
+    changed_image_query: Query<
+        (Entity, &Style, &CalculatedSize, &UiImage),
+        (With<Node>, Changed<UiImage>),
     >,
     children_query: Query<(Entity, &Children), (With<Node>, Changed<Children>)>,
     removed_children: RemovedComponents<Children>,
@@ -245,21 +272,25 @@ pub fn flex_node_system(
     fn update_changed<F: ReadOnlyWorldQuery>(
         flex_surface: &mut FlexSurface,
         scaling_factor: f64,
-        query: Query<(Entity, &Style, Option<&CalculatedSize>), F>,
+        query: Query<(Entity, &Style, Option<&CalculatedSize>, Option<&UiImage>), F>,
     ) {
         // update changed nodes
-        for (entity, style, calculated_size) in &query {
+        for (entity, style, calculated_size, ui_image) in &query {
             // TODO: remove node from old hierarchy if its root has changed
             if let Some(calculated_size) = calculated_size {
-                flex_surface.upsert_leaf(entity, style, *calculated_size, scaling_factor);
+                flex_surface.upsert_leaf(entity, style, *calculated_size, scaling_factor, ui_image.map_or(false, |ui_image| ui_image.preserve_aspect_ratio));
             } else {
                 flex_surface.upsert_node(entity, style, scaling_factor);
             }
         }
     }
 
-    for (entity, style, calculated_size) in &changed_size_query {
-        flex_surface.upsert_leaf(entity, style, *calculated_size, scale_factor);
+    for (entity, style, calculated_size, ui_image) in &changed_size_query {
+        flex_surface.upsert_leaf(entity, style, *calculated_size, scale_factor, ui_image.map_or(false, |ui_image| ui_image.preserve_aspect_ratio));
+    }
+
+    for (entity, style, calculated_size, ui_image) in &changed_image_query {
+        flex_surface.upsert_leaf(entity, style, *calculated_size, scale_factor, ui_image.preserve_aspect_ratio);
     }
 
     // clean up removed nodes

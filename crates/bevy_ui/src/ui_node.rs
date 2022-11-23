@@ -460,6 +460,8 @@ pub struct UiImage {
     pub flip_x: bool,
     /// Whether the image should be flipped along its y-axis
     pub flip_y: bool,
+    /// Whether the image's aspect ratio should be preserved
+    pub preserve_aspect_ratio: bool,
 }
 
 impl Default for UiImage {
@@ -468,6 +470,7 @@ impl Default for UiImage {
             texture: DEFAULT_IMAGE_HANDLE.typed(),
             flip_x: false,
             flip_y: false,
+            preserve_aspect_ratio: true,
         }
     }
 }
