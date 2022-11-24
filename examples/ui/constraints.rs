@@ -10,6 +10,7 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.insert_resource(UiScale { scale: 2.0 } );
     commands
         .spawn(Camera2dBundle::default());
     commands
@@ -18,7 +19,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas auctor, nunc ac faucibus fringilla.",
                 TextStyle { 
                     font: asset_server.load("fonts/FiraSans-Bold.ttf"), 
-                    font_size: 60.0, 
+                    font_size: 30.0, 
                     color: Color::WHITE
                 },
             ).with_alignment(TextAlignment::CENTER),
