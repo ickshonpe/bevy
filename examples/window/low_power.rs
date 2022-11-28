@@ -124,7 +124,7 @@ pub(crate) mod test_setup {
     pub(crate) fn update_text(
         mut frame: Local<usize>,
         mode: Res<ExampleMode>,
-        mut query: Query<&mut Text, With<ModeText>>,
+        mut query: Query<&mut TextBlock, With<ModeText>>,
     ) {
         *frame += 1;
         let mode = match *mode {

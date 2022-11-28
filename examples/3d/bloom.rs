@@ -100,7 +100,7 @@ fn setup_scene(
 
 fn update_bloom_settings(
     mut camera: Query<&mut BloomSettings>,
-    mut text: Query<&mut Text>,
+    mut text: Query<&mut TextBlock>,
     keycode: Res<Input<KeyCode>>,
     time: Res<Time>,
 ) {

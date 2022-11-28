@@ -5,6 +5,7 @@ use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
 pub use pipeline::*;
 pub use render_pass::*;
 
+use crate::prelude::Text;
 use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage, UiStack};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
@@ -25,7 +26,7 @@ use bevy_render::{
     Extract, RenderApp, RenderStage,
 };
 use bevy_sprite::{SpriteAssetEvents, TextureAtlas};
-use bevy_text::{Text, TextLayoutInfo};
+use bevy_text::{TextBlock, TextLayoutInfo};
 use bevy_transform::components::GlobalTransform;
 use bevy_utils::FloatOrd;
 use bevy_utils::HashMap;

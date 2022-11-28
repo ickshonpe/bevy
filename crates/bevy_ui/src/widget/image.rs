@@ -1,11 +1,10 @@
-use crate::{CalculatedSize, Size, UiImage, Val};
+use crate::{CalculatedSize, Size, UiImage, Val, prelude::Text};
 use bevy_asset::Assets;
 use bevy_ecs::{
     query::Without,
     system::{Query, Res},
 };
 use bevy_render::texture::Image;
-use bevy_text::Text;
 
 /// Updates calculated size of the node based on the image provided
 pub fn update_image_calculated_size_system(

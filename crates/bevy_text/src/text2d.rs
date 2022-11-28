@@ -22,8 +22,8 @@ use bevy_utils::HashSet;
 use bevy_window::{WindowId, WindowScaleFactorChanged, Windows};
 
 use crate::{
-    Font, FontAtlasSet, FontAtlasWarning, HorizontalAlign, Text, TextError, TextLayoutInfo,
-    TextPipeline, TextSettings, VerticalAlign, YAxisOrientation,
+    Font, FontAtlasSet, FontAtlasWarning, HorizontalAlign, TextBlock, TextError, TextLayoutInfo,
+    TextPipeline, TextSettings, VerticalAlign, YAxisOrientation, TextAlignment,
 };
 
 /// The calculated size of text drawn in 2D scene.
@@ -54,11 +54,13 @@ impl Default for Text2dBounds {
     }
 }
 
+pub type Text2d = TextBlock<TextAlignment>;
+
 /// The bundle of components needed to draw text in a 2D scene via a 2D `Camera2dBundle`.
 /// [Example usage.](https://github.com/bevyengine/bevy/blob/latest/examples/2d/text2d.rs)
 #[derive(Bundle, Clone, Debug, Default)]
 pub struct Text2dBundle {
-    pub text: Text,
+    pub text: Text2d,
     pub transform: Transform,
     pub global_transform: GlobalTransform,
     pub text_2d_size: Text2dSize,
@@ -75,7 +77,7 @@ pub fn extract_text2d_sprite(
         Query<(
             Entity,
             &ComputedVisibility,
-            &Text,
+            &Text2d,
             &TextLayoutInfo,
             &GlobalTransform,
             &Text2dSize,
@@ -166,8 +168,8 @@ pub fn update_text2d_layout(
     mut text_pipeline: ResMut<TextPipeline>,
     mut text_query: Query<(
         Entity,
-        Changed<Text>,
-        &Text,
+        Changed<Text2d>,
+        &Text2d,
         Option<&Text2dBounds>,
         &mut Text2dSize,
         Option<&mut TextLayoutInfo>,

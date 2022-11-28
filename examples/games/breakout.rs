@@ -343,7 +343,7 @@ fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>) {
     }
 }
 
-fn update_scoreboard(scoreboard: Res<Scoreboard>, mut query: Query<&mut Text>) {
+fn update_scoreboard(scoreboard: Res<Scoreboard>, mut query: Query<&mut TextBlock>) {
     let mut text = query.single_mut();
     text.sections[1].value = scoreboard.score.to_string();
 }

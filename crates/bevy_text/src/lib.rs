@@ -21,7 +21,7 @@ pub use text2d::*;
 pub mod prelude {
     #[doc(hidden)]
     pub use crate::{
-        Font, HorizontalAlign, Text, Text2dBundle, TextAlignment, TextError, TextSection,
+        Font, HorizontalAlign, TextBlock, Text2dBundle, TextAlignment, TextError, TextSection, Text2d,
         TextStyle, VerticalAlign,
     };
 }
@@ -73,7 +73,7 @@ impl Plugin for TextPlugin {
     fn build(&self, app: &mut App) {
         app.add_asset::<Font>()
             .add_asset::<FontAtlasSet>()
-            .register_type::<Text>()
+            .register_type::<Text2d>()
             .register_type::<TextSection>()
             .register_type::<Vec<TextSection>>()
             .register_type::<TextStyle>()

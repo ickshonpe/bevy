@@ -1,4 +1,4 @@
-use crate::{CalculatedSize, Size, Style, UiScale, Val};
+use crate::{CalculatedSize, Size, Style, UiScale, Val, prelude::Text, Node, node_bundles};
 use bevy_asset::Assets;
 use bevy_ecs::{
     entity::Entity,
@@ -9,8 +9,8 @@ use bevy_math::Vec2;
 use bevy_render::texture::Image;
 use bevy_sprite::TextureAtlas;
 use bevy_text::{
-    Font, FontAtlasSet, FontAtlasWarning, Text, TextError, TextLayoutInfo, TextPipeline,
-    TextSettings, YAxisOrientation,
+    Font, FontAtlasSet, FontAtlasWarning, TextError, TextLayoutInfo, TextPipeline,
+    TextSettings, YAxisOrientation, HorizontalAlign, TextAlignment,
 };
 use bevy_window::Windows;
 
@@ -59,9 +59,10 @@ pub fn text_system(
     mut font_atlas_set_storage: ResMut<Assets<FontAtlasSet>>,
     mut text_pipeline: ResMut<TextPipeline>,
     mut text_queries: ParamSet<(
-        Query<Entity, Or<(Changed<Text>, Changed<Style>)>>,
-        Query<Entity, (With<Text>, With<Style>)>,
+        Query<Entity, Or<(Changed<Text>, Changed<Style>, Changed<Node>)>>,
+        Query<Entity, (With<Text>, With<Style>, Changed<Node>)>,
         Query<(
+            &Node,
             &Text,
             &Style,
             &mut CalculatedSize,
@@ -101,27 +102,33 @@ pub fn text_system(
     let mut new_queue = Vec::new();
     let mut query = text_queries.p2();
     for entity in queued_text.entities.drain(..) {
-        if let Ok((text, style, mut calculated_size, text_layout_info)) = query.get_mut(entity) {
-            let node_size = Vec2::new(
-                text_constraint(
-                    style.min_size.width,
-                    style.size.width,
-                    style.max_size.width,
-                    scale_factor,
-                ),
-                text_constraint(
-                    style.min_size.height,
-                    style.size.height,
-                    style.max_size.height,
-                    scale_factor,
-                ),
-            );
+        if let Ok((node, text, style, mut calculated_size, text_layout_info)) = query.get_mut(entity) {
+            // let node_size = Vec2::new(
+            //     text_constraint(
+            //         style.min_size.width,
+            //         style.size.width,
+            //         style.max_size.width,
+            //         scale_factor,
+            //     ),
+            //     text_constraint(
+            //         style.min_size.height,
+            //         style.size.height,
+            //         style.max_size.height,
+            //         scale_factor,
+            //     ),
+            // );
+
+            let node_size = node.size();
+            
 
             match text_pipeline.queue_text(
                 &fonts,
                 &text.sections,
                 scale_factor,
-                text.alignment,
+                TextAlignment {
+                    vertical: bevy_text::VerticalAlign::Top,
+                    horizontal: text.alignment,
+                },
                 node_size,
                 &mut font_atlas_set_storage,
                 &mut texture_atlases,
@@ -157,3 +164,5 @@ pub fn text_system(
 
     queued_text.entities = new_queue;
 }
+
+

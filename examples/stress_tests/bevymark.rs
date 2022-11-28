@@ -247,7 +247,7 @@ fn collision_system(windows: Res<Windows>, mut bird_query: Query<(&mut Bird, &Tr
 fn counter_system(
     diagnostics: Res<Diagnostics>,
     counter: Res<BevyCounter>,
-    mut query: Query<&mut Text, With<StatsText>>,
+    mut query: Query<&mut TextBlock, With<StatsText>>,
 ) {
     let mut text = query.single_mut();
 

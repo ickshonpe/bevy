@@ -8,12 +8,12 @@ use crate::Font;
 
 #[derive(Component, Debug, Default, Clone, Reflect)]
 #[reflect(Component, Default)]
-pub struct Text {
+pub struct TextBlock<A> where A: 'static + Send + Sync + Default + Reflect + Copy + Clone {
     pub sections: Vec<TextSection>,
-    pub alignment: TextAlignment,
+    pub alignment: A,
 }
 
-impl Text {
+impl <A> TextBlock<A> where A: 'static + Send + Sync + Default + Reflect + Copy + Clone {
     /// Constructs a [`Text`] with a single section.
     ///
     /// ```
@@ -87,7 +87,7 @@ impl Text {
     }
 
     /// Returns this [`Text`] with a new [`TextAlignment`].
-    pub const fn with_alignment(mut self, alignment: TextAlignment) -> Self {
+    pub const fn with_alignment(mut self, alignment: A) -> Self {
         self.alignment = alignment;
         self
     }
@@ -186,11 +186,12 @@ impl Default for TextAlignment {
 }
 
 /// Describes horizontal alignment preference for positioning & bounds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Reflect, Serialize, Deserialize)]
 #[reflect(Serialize, Deserialize)]
 pub enum HorizontalAlign {
     /// Leftmost character is immediately to the right of the render position.<br/>
     /// Bounds start from the render position and advance rightwards.
+    #[default]
     Left,
     /// Leftmost & rightmost characters are equidistant to the render position.<br/>
     /// Bounds start from the render position and advance equally left & right.

@@ -22,7 +22,7 @@ fn button_system(
         (&Interaction, &mut BackgroundColor, &Children),
         (Changed<Interaction>, With<Button>),
     >,
-    mut text_query: Query<&mut Text>,
+    mut text_query: Query<&mut TextBlock>,
 ) {
     for (interaction, mut color, children) in &mut interaction_query {
         let mut text = text_query.get_mut(children[0]).unwrap();

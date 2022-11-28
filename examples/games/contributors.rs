@@ -163,7 +163,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 fn select_system(
     mut timer: ResMut<SelectionState>,
     mut contributor_selection: ResMut<ContributorSelection>,
-    mut text_query: Query<&mut Text, With<ContributorDisplay>>,
+    mut text_query: Query<&mut TextBlock, With<ContributorDisplay>>,
     mut query: Query<(&Contributor, &mut Sprite, &mut Transform)>,
     time: Res<Time>,
 ) {
@@ -202,7 +202,7 @@ fn select(
     sprite: &mut Sprite,
     contributor: &Contributor,
     transform: &mut Transform,
-    text: &mut Text,
+    text: &mut TextBlock,
 ) {
     sprite.color = Color::hsla(
         contributor.hue,

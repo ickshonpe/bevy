@@ -327,7 +327,7 @@ fn setup_sticks(
                 parent.spawn((
                     Text2dBundle {
                         transform: Transform::from_xyz(0., STICK_BOUNDS_SIZE + 2., 4.),
-                        text: Text::from_sections([
+                        text: TextBlock::from_sections([
                             TextSection {
                                 value: format!("{:.3}", 0.),
                                 style: style.clone(),
@@ -400,7 +400,7 @@ fn setup_triggers(
                 parent.spawn((
                     Text2dBundle {
                         transform: Transform::from_xyz(0., 0., 1.),
-                        text: Text::from_section(
+                        text: TextBlock::from_section(
                             format!("{:.3}", 0.),
                             TextStyle {
                                 font: font.clone(),
@@ -469,7 +469,7 @@ fn update_buttons(
 
 fn update_button_values(
     mut events: EventReader<GamepadEvent>,
-    mut query: Query<(&mut Text, &TextWithButtonValue)>,
+    mut query: Query<(&mut TextBlock, &TextWithButtonValue)>,
 ) {
     for event in events.iter() {
         if let GamepadEventType::ButtonChanged(button_type, value) = event.event_type {
@@ -485,7 +485,7 @@ fn update_button_values(
 fn update_axes(
     mut events: EventReader<GamepadEvent>,
     mut query: Query<(&mut Transform, &MoveWithAxes)>,
-    mut text_query: Query<(&mut Text, &TextWithAxes)>,
+    mut text_query: Query<(&mut TextBlock, &TextWithAxes)>,
 ) {
     for event in events.iter() {
         if let GamepadEventType::AxisChanged(axis_type, value) = event.event_type {
@@ -511,7 +511,7 @@ fn update_axes(
 
 fn update_connected(
     gamepads: Res<Gamepads>,
-    mut query: Query<&mut Text, With<ConnectedGamepadsText>>,
+    mut query: Query<&mut TextBlock, With<ConnectedGamepadsText>>,
 ) {
     if !gamepads.is_changed() {
         return;

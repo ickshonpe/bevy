@@ -9,7 +9,7 @@ use bevy_render::{
     prelude::{Color, ComputedVisibility},
     view::Visibility,
 };
-use bevy_text::{Text, TextAlignment, TextSection, TextStyle};
+use bevy_text::{TextBlock, TextSection, TextStyle, HorizontalAlign};
 use bevy_transform::prelude::{GlobalTransform, Transform};
 
 /// The basic UI node
@@ -95,6 +95,8 @@ pub struct ImageBundle {
     pub z_index: ZIndex,
 }
 
+pub type Text = TextBlock<HorizontalAlign>;
+
 /// A UI node that is text
 #[derive(Bundle, Clone, Debug)]
 pub struct TextBundle {
@@ -132,7 +134,7 @@ impl TextBundle {
     /// See [`Text::from_section`] for usage.
     pub fn from_section(value: impl Into<String>, style: TextStyle) -> Self {
         Self {
-            text: Text::from_section(value, style),
+            text: TextBlock::from_section(value, style),
             ..Default::default()
         }
     }
@@ -142,13 +144,13 @@ impl TextBundle {
     /// See [`Text::from_sections`] for usage.
     pub fn from_sections(sections: impl IntoIterator<Item = TextSection>) -> Self {
         Self {
-            text: Text::from_sections(sections),
+            text: TextBlock::from_sections(sections),
             ..Default::default()
         }
     }
 
     /// Returns this [`TextBundle`] with a new [`TextAlignment`] on [`Text`].
-    pub const fn with_text_alignment(mut self, alignment: TextAlignment) -> Self {
+    pub const fn with_text_alignment(mut self, alignment: HorizontalAlign) -> Self {
         self.text.alignment = alignment;
         self
     }

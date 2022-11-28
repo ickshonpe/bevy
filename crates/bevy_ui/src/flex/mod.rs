@@ -1,6 +1,6 @@
 mod convert;
 
-use crate::{CalculatedSize, Node, Style, UiScale};
+use crate::{CalculatedSize, Node, Style, UiScale, UiImage};
 use bevy_ecs::{
     entity::Entity,
     event::EventReader,
@@ -77,30 +77,36 @@ impl FlexSurface {
         style: &Style,
         calculated_size: CalculatedSize,
         scale_factor: f64,
+        preserve_aspect_ratio: bool,
     ) {
         let taffy = &mut self.taffy;
         let taffy_style = convert::from_style(scale_factor, style);
-        let measure = taffy::node::MeasureFunc::Boxed(Box::new(
-            move |constraints: taffy::geometry::Size<Number>| {
-                let mut size = convert::from_f32_size(scale_factor, calculated_size.size);
-                match (constraints.width, constraints.height) {
-                    (Number::Undefined, Number::Undefined) => {}
-                    (Number::Defined(width), Number::Undefined) => {
-                        size.height = width * size.height / size.width;
-                        size.width = width;
+            let measure = taffy::node::MeasureFunc::Boxed(Box::new(
+                move |constraints: taffy::geometry::Size<Number>| {
+                    let mut size = convert::from_f32_size(scale_factor, calculated_size.size);
+                    match (constraints.width, constraints.height) {
+                        (Number::Undefined, Number::Undefined) => {}
+                        (Number::Defined(width), Number::Undefined) => {
+                            if preserve_aspect_ratio {
+                                size.height = width * size.height / size.width;
+                            }
+                            size.width = width;
+                        }
+                        (Number::Undefined, Number::Defined(height)) => {
+                            if preserve_aspect_ratio {
+                                size.width = height * size.width / size.height;
+                            }
+                            size.height = height;
+                        }
+                        (Number::Defined(width), Number::Defined(height)) => {
+                            size.width = width;
+                            size.height = height;
+                        }
                     }
-                    (Number::Undefined, Number::Defined(height)) => {
-                        size.width = height * size.width / size.height;
-                        size.height = height;
-                    }
-                    (Number::Defined(width), Number::Defined(height)) => {
-                        size.width = width;
-                        size.height = height;
-                    }
-                }
-                size
-            },
-        ));
+                    size
+                },
+            ));
+        
 
         if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
             self.taffy.set_style(*taffy_node, taffy_style).unwrap();
@@ -216,10 +222,10 @@ pub fn flex_node_system(
     mut scale_factor_events: EventReader<WindowScaleFactorChanged>,
     mut flex_surface: ResMut<FlexSurface>,
     root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
-    node_query: Query<(Entity, &Style, Option<&CalculatedSize>), (With<Node>, Changed<Style>)>,
-    full_node_query: Query<(Entity, &Style, Option<&CalculatedSize>), With<Node>>,
+    node_query: Query<(Entity, &Style, Option<&CalculatedSize>, Option<&UiImage>), (With<Node>, Changed<Style>)>,
+    full_node_query: Query<(Entity, &Style, Option<&CalculatedSize>, Option<&UiImage>), With<Node>>,
     changed_size_query: Query<
-        (Entity, &Style, &CalculatedSize),
+        (Entity, &Style, &CalculatedSize, Option<&UiImage>),
         (With<Node>, Changed<CalculatedSize>),
     >,
     children_query: Query<(Entity, &Children), (With<Node>, Changed<Children>)>,
@@ -245,21 +251,21 @@ pub fn flex_node_system(
     fn update_changed<F: ReadOnlyWorldQuery>(
         flex_surface: &mut FlexSurface,
         scaling_factor: f64,
-        query: Query<(Entity, &Style, Option<&CalculatedSize>), F>,
+        query: Query<(Entity, &Style, Option<&CalculatedSize>, Option<&UiImage>), F>,
     ) {
         // update changed nodes
-        for (entity, style, calculated_size) in &query {
+        for (entity, style, calculated_size, image) in &query {
             // TODO: remove node from old hierarchy if its root has changed
             if let Some(calculated_size) = calculated_size {
-                flex_surface.upsert_leaf(entity, style, *calculated_size, scaling_factor);
+                flex_surface.upsert_leaf(entity, style, *calculated_size, scaling_factor, image.is_some());
             } else {
                 flex_surface.upsert_node(entity, style, scaling_factor);
             }
         }
     }
 
-    for (entity, style, calculated_size) in &changed_size_query {
-        flex_surface.upsert_leaf(entity, style, *calculated_size, scale_factor);
+    for (entity, style, calculated_size, is_ui_image) in &changed_size_query {
+        flex_surface.upsert_leaf(entity, style, *calculated_size, scale_factor, is_ui_image.is_some());
     }
 
     // clean up removed nodes
