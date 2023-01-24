@@ -59,6 +59,68 @@ impl Default for FlexSurface {
     }
 }
 
+fn preserve_aspect_ratio_measure_func(
+    size: Size<f32>, constraints: Size<Option<f32>>, _available: Size<AvailableSpace>,
+) -> Size<f32>{
+    let mut size = convert::from_f32_size(scale_factor, calculated_size.size);
+    match (constraints.width, constraints.height) {
+        (None, None) => {}
+        (Some(width), None) => {
+            size.height = width * size.height / size.width;
+            size.width = width;
+        }
+        (None, Some(height)) => {
+            size.width = height * size.width / size.height;
+            size.height = height;
+        }
+        (Some(width), Some(height)) => {
+            size.width = width;
+            size.height = height;
+        }
+    }
+    size
+}
+
+fn exact_size_measure_func(
+    size: Size<f32>, constraints: Size<Option<f32>>, _available: Size<AvailableSpace>,
+) -> Size<f32> {
+    let mut size = convert::from_f32_size(scale_factor, size);
+    match (constraints.width, constraints.height) {
+        (None, None) => {}
+        (Some(width), None) => {
+            size.width = width;
+        }
+        (None, Some(height)) => {
+            size.height = height;
+        }
+        (Some(width), Some(height)) => {
+            size.width = width;
+            size.height = height;
+        }
+    }
+    size
+}
+
+fn fill_measure_func(
+    size: Size<f32>, constraints: Size<Option<f32>>, _available: Size<AvailableSpace>,
+) -> Size<f32> {
+    let mut size = Size { width: 0., height: 0. };
+    match (constraints.width, constraints.height) {
+        (None, None) => {}
+        (Some(width), None) => {
+            size.width = width;
+        }
+        (None, Some(height)) => {
+            size.height = height;
+        }
+        (Some(width), Some(height)) => {
+            size.width = width;
+            size.height = height;
+        }
+    }
+    size
+}
+
 impl FlexSurface {
     pub fn upsert_node(&mut self, entity: Entity, style: &Style, scale_factor: f64) {
         let mut added = false;
@@ -82,40 +144,49 @@ impl FlexSurface {
         scale_factor: f64,
     ) {
         let taffy = &mut self.taffy;
-        let taffy_style = convert::from_style(scale_factor, style);
-        let measure = taffy::node::MeasureFunc::Boxed(Box::new(
-            move |constraints: Size<Option<f32>>, _available: Size<AvailableSpace>| {
-                let mut size = convert::from_f32_size(scale_factor, calculated_size.size);
-                match (constraints.width, constraints.height) {
-                    (None, None) => {}
-                    (Some(width), None) => {
-                        if calculated_size.preserve_aspect_ratio {
-                            size.height = width * size.height / size.width;
+        let taffy_style = convert::from_style(scale_factor, style); 
+        let preserve_aspect_ratio = matches!(calculated_size.measure_mode, MeasureMode::PreserveAspectRatio);
+        if matches!(calculated_size.measure_mode, MeasureMode:PreserveAspectRatio | MeasureMode::Exact) {
+            let measure = taffy::node::MeasureFunc::Boxed(Box::new(
+                move |constraints: Size<Option<f32>>, _available: Size<AvailableSpace>| {
+                    let mut size = convert::from_f32_size(scale_factor, calculated_size.size);
+                    match (constraints.width, constraints.height) {
+                        (None, None) => {}
+                        (Some(width), None) => {
+                            if preserve_aspect_ratio {
+                                size.height = width * size.height / size.width;
+                            }
+                            size.width = width;
                         }
-                        size.width = width;
-                    }
-                    (None, Some(height)) => {
-                        if calculated_size.preserve_aspect_ratio {
-                            size.width = height * size.width / size.height;
+                        (None, Some(height)) => {
+                            if preserve_aspect_ratio {
+                                size.width = height * size.width / size.height;
+                            }
+                            size.height = height;
                         }
-                        size.height = height;
+                        (Some(width), Some(height)) => {
+                            size.width = width;
+                            size.height = height;
+                        }
                     }
-                    (Some(width), Some(height)) => {
-                        size.width = width;
-                        size.height = height;
-                    }
-                }
-                size
-            },
-        ));
-
-        if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
-            self.taffy.set_style(*taffy_node, taffy_style).unwrap();
-            self.taffy.set_measure(*taffy_node, Some(measure)).unwrap();
+                    size
+                },
+            ));      
+            if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
+                self.taffy.set_style(*taffy_node, taffy_style).unwrap();
+                self.taffy.set_measure(*taffy_node, Some(measure)).unwrap();
+            } else {
+                let taffy_node = taffy.new_leaf(taffy_style).unwrap();
+                self.entity_to_taffy.insert(entity, taffy_node);
+            }          
         } else {
-            let taffy_node = taffy.new_leaf(taffy_style).unwrap();
-            self.entity_to_taffy.insert(entity, taffy_node);
-        }
+            if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
+                self.taffy.set_style(*taffy_node, taffy_style).unwrap();                
+            } else {
+                let taffy_node = taffy.new_leaf(taffy_style).unwrap();
+                self.entity_to_taffy.insert(entity, taffy_node);
+            }
+        }        
     }
 
     pub fn update_children(&mut self, entity: Entity, children: &Children) {

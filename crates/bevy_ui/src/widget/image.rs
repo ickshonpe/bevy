@@ -1,4 +1,4 @@
-use crate::{CalculatedSize, Size, UiImage, Val};
+use crate::{CalculatedSize, Size, UiImage, Val, MeasureMode};
 use bevy_asset::Assets;
 use bevy_ecs::{
     query::Without,
@@ -21,7 +21,7 @@ pub fn update_image_calculated_size_system(
             // Update only if size has changed to avoid needless layout calculations
             if size != calculated_size.size {
                 calculated_size.size = size;
-                calculated_size.preserve_aspect_ratio = true;
+                calculated_size.measure_mode = image.measure_mode;
             }
         }
     }

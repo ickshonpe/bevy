@@ -548,20 +548,30 @@ impl Default for FlexWrap {
     }
 }
 
+/// The method used to determiine widgets size within the UI Layout
+pub enum MeasureMode {
+    /// Attempt to preserve the aspect ratio of the item.
+    PreserveAspectRatio,
+    /// Attempt to preserve the aspect size of the item.
+    Exact,
+    /// Stretch or shrink the item to fit the available space.
+    Fit,
+}
+
 /// The calculated size of the node
 #[derive(Component, Copy, Clone, Debug, Reflect)]
 #[reflect(Component)]
 pub struct CalculatedSize {
     /// The size of the node
     pub size: Size,
-    /// Whether to attempt to preserve the aspect ratio when determining the layout for this item
-    pub preserve_aspect_ratio: bool,
+    /// The method used to determine the widgets size within the UI Layout
+    pub measure_mode: MeasureMode,
 }
 
 impl CalculatedSize {
     const DEFAULT: Self = Self {
         size: Size::DEFAULT,
-        preserve_aspect_ratio: false,
+        measure_mode: MeasureMode::Exact,
     };
 }
 
@@ -605,6 +615,8 @@ pub struct UiImage {
     pub flip_x: bool,
     /// Whether the image should be flipped along its y-axis
     pub flip_y: bool,
+    /// How the image should be sized to fit within the UI layout
+    pub measure_mode: MeasureMode,
 }
 
 impl Default for UiImage {
@@ -613,6 +625,7 @@ impl Default for UiImage {
             texture: DEFAULT_IMAGE_HANDLE.typed(),
             flip_x: false,
             flip_y: false,
+            measure_mode: MeasureMode::PreserveAspectRatio
         }
     }
 }
