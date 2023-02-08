@@ -65,9 +65,29 @@ pub enum YAxisOrientation {
     BottomToTop,
 }
 
+pub struct FontSystem(pub (crate) cosmic_text::FontSystem);
+pub struct SwashCache(pub (crate) cosmic_text::SwashCache);
+
+impl FromWorld for SwashCache {
+    fn from_world(world: &mut World) -> Self {
+        let font_system = world.get_resource::<FontSystem>().unwrap();
+        Self(cosmic_text::SwashCache::new(&font_system.0))
+    }
+}
+
+impl FromWorld for FontSystem {
+    fn from_world(world: &mut World) -> Self {
+        Self(cosmic_text::FontSystem::new())
+    }
+}
+
 impl Plugin for TextPlugin {
     fn build(&self, app: &mut App) {
-        app.add_asset::<Font>()
+
+        app
+            .init_resource::<FontSystem>()
+            .init_resource::<SwashCache>()
+            .add_asset::<Font>()
             .add_asset::<FontAtlasSet>()
             .register_type::<Text>()
             .register_type::<TextSection>()
