@@ -26,6 +26,6 @@ bevy_utils = { path = "../bevy_utils", version = "0.9.0" }
 
 # other
 anyhow = "1.0.4"
-cosmic-text = "0.7.0"
+cosmic-text = { git = "https://github.com/ickshonpe/cosmic-text.git", branch = "static-hacks" }
 thiserror = "1.0"
 serde = {version = "1", features = ["derive"]}
