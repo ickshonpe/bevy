@@ -2,6 +2,7 @@
 
 use bevy_ecs::prelude::*;
 use bevy_hierarchy::prelude::*;
+use bevy_render::view::ComputedVisibility;
 
 use crate::{Node, ZIndex};
 
@@ -28,7 +29,8 @@ struct StackingContextEntry {
 /// Generates the render stack for UI nodes.
 pub fn ui_stack_system(
     mut ui_stack: ResMut<UiStack>,
-    root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
+    root_node_query: Query<Entity, Without<Parent>>,
+    visibility_query: Query<(&Node, &ComputedVisibility)>,
     zindex_query: Query<&ZIndex, With<Node>>,
     children_query: Query<&Children>,
 ) {
@@ -48,7 +50,7 @@ pub fn ui_stack_system(
 
     ui_stack.uinodes.clear();
     ui_stack.uinodes.reserve(total_entry_count);
-    fill_stack_recursively(&mut ui_stack.uinodes, &mut global_context);
+    fill_stack_recursively(&mut ui_stack.uinodes, &mut global_context, &visibility_query);
 }
 
 fn insert_context_hierarchy(
@@ -90,14 +92,18 @@ fn insert_context_hierarchy(
     });
 }
 
-fn fill_stack_recursively(result: &mut Vec<Entity>, stack: &mut StackingContext) {
+fn fill_stack_recursively(result: &mut Vec<Entity>, stack: &mut StackingContext, visibility_query: &Query<(&Node, &ComputedVisibility)>) {
     // sort entries by ascending z_index, while ensuring that siblings
     // with the same local z_index will keep their ordering.
     stack.entries.sort_by_key(|e| e.z_index);
 
     for entry in &mut stack.entries {
-        result.push(entry.entity);
-        fill_stack_recursively(result, &mut entry.stack);
+        if let Ok((node, visibility)) = visibility_query.get(entry.entity) {
+            if visibility.is_visible() && node.size().x != 0. && node.size().y != 0.  {
+                result.push(entry.entity);        
+            }
+        }
+        fill_stack_recursively(result, &mut entry.stack, visibility_query);
     }
 }
 

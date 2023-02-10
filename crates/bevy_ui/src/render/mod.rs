@@ -23,7 +23,7 @@ use bevy_render::{
     render_resource::*,
     renderer::{RenderDevice, RenderQueue},
     texture::Image,
-    view::{ComputedVisibility, ExtractedView, ViewUniforms},
+    view::{ExtractedView, ViewUniforms},
     Extract, RenderApp, RenderSet,
 };
 use bevy_sprite::{SpriteAssetEvents, TextureAtlas};
@@ -187,18 +187,17 @@ pub fn extract_uinodes(
             &GlobalTransform,
             &BackgroundColor,
             Option<&UiImage>,
-            &ComputedVisibility,
             Option<&CalculatedClip>,
         )>,
     >,
 ) {
     extracted_uinodes.uinodes.clear();
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, transform, color, maybe_image, visibility, clip)) =
+        if let Ok((uinode, transform, color, maybe_image, clip)) =
             uinode_query.get(*entity)
         {
-            // Skip invisible and completely transparent nodes
-            if !visibility.is_visible() || color.0.a() == 0.0 {
+            // Skip completely transparent nodes
+            if color.0.a() == 0.0 {
                 continue;
             }
 
@@ -298,7 +297,6 @@ pub fn extract_text_uinodes(
             &GlobalTransform,
             &Text,
             &TextLayoutInfo,
-            &ComputedVisibility,
             Option<&CalculatedClip>,
         )>,
     >,
@@ -310,16 +308,9 @@ pub fn extract_text_uinodes(
         .unwrap_or(1.0);
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, global_transform, text, text_layout_info, visibility, clip)) =
+        if let Ok((uinode, global_transform, text, text_layout_info, clip)) =
             uinode_query.get(*entity)
         {
-            if !visibility.is_visible() {
-                continue;
-            }
-            // Skip if size is set to zero (e.g. when a parent is set to `Display::None`)
-            if uinode.size() == Vec2::ZERO {
-                continue;
-            }
             let text_glyphs = &text_layout_info.glyphs;
             let alignment_offset = (uinode.size() / -2.0).extend(0.0);
 

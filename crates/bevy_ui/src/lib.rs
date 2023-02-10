@@ -14,7 +14,7 @@ pub mod node_bundles;
 pub mod update;
 pub mod widget;
 
-use bevy_render::{camera::CameraUpdateSystem, extract_component::ExtractComponentPlugin};
+use bevy_render::{camera::CameraUpdateSystem, extract_component::ExtractComponentPlugin, view::VisibilitySystems};
 pub use flex::*;
 pub use focus::*;
 pub use geometry::*;
@@ -135,7 +135,11 @@ impl Plugin for UiPlugin {
                     .in_set(UiSystem::Flex)
                     .before(TransformSystem::TransformPropagate),
             )
-            .add_system(ui_stack_system.in_set(UiSystem::Stack))
+            .add_system(
+                ui_stack_system
+                    .in_set(UiSystem::Stack)
+                    .before(VisibilitySystems::VisibilityPropagate)
+            )
             .add_system(
                 update_clipping_system
                     .after(TransformSystem::TransformPropagate)

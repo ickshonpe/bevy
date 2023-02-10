@@ -4,9 +4,9 @@ use bevy_ecs::{
     change_detection::DetectChangesMut,
     entity::Entity,
     prelude::{Component, With},
-    query::WorldQuery,
+    query::{WorldQuery, Changed},
     reflect::ReflectComponent,
-    system::{Local, Query, Res},
+    system::{Local, Query, Res, ParamSet},
 };
 use bevy_input::{mouse::MouseButton, touch::Touches, Input};
 use bevy_math::Vec2;
@@ -123,7 +123,6 @@ pub struct NodeQuery {
     relative_cursor_position: Option<&'static mut RelativeCursorPosition>,
     focus_policy: Option<&'static FocusPolicy>,
     calculated_clip: Option<&'static CalculatedClip>,
-    computed_visibility: Option<&'static ComputedVisibility>,
 }
 
 /// The system that sets Interaction for all UI elements based on the mouse cursor activity
@@ -137,11 +136,25 @@ pub fn ui_focus_system(
     mouse_button_input: Res<Input<MouseButton>>,
     touches_input: Res<Touches>,
     ui_stack: Res<UiStack>,
-    mut node_query: Query<NodeQuery>,
     primary_window: Query<Entity, With<PrimaryWindow>>,
+    mut queries: ParamSet<(
+    Query<(&ComputedVisibility, &mut Interaction), (Changed<ComputedVisibility>, With<Node>)>,
+    Query<NodeQuery>,
+    )>,
+
 ) {
     let primary_window = primary_window.iter().next();
 
+    // Nodes that are not rendered should not be interactable
+    for (visibility, mut interaction) in queries.p0().iter_mut() {
+        if !visibility.is_visible() {
+            // Reset their interaction to None to avoid strange stuck state
+            // We cannot simply set the interaction to None, as that will trigger change detection repeatedly
+            interaction.set_if_neq(Interaction::None);
+        }
+    }
+
+    let mut node_query = queries.p1();
     // reset entities that were both clicked and released in the last frame
     for entity in state.entities_to_reset.drain(..) {
         if let Ok(mut interaction) = node_query.get_component_mut::<Interaction>(entity) {
@@ -199,19 +212,6 @@ pub fn ui_focus_system(
         .rev()
         .filter_map(|entity| {
             if let Ok(node) = node_query.get_mut(*entity) {
-                // Nodes that are not rendered should not be interactable
-                if let Some(computed_visibility) = node.computed_visibility {
-                    if !computed_visibility.is_visible() {
-                        // Reset their interaction to None to avoid strange stuck state
-                        if let Some(mut interaction) = node.interaction {
-                            // We cannot simply set the interaction to None, as that will trigger change detection repeatedly
-                            interaction.set_if_neq(Interaction::None);
-                        }
-
-                        return None;
-                    }
-                }
-
                 let position = node.global_transform.translation();
                 let ui_position = position.truncate();
                 let extents = node.node.size() / 2.0;
