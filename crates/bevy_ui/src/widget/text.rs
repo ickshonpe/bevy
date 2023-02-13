@@ -18,20 +18,6 @@ fn scale_value(value: f32, factor: f64) -> f32 {
     (value as f64 * factor) as f32
 }
 
-/// Defines how `min_size`, `size`, and `max_size` affects the bounds of a text
-/// block.
-pub fn text_constraint(min_size: Val, size: Val, max_size: Val, scale_factor: f64) -> f32 {
-    // Needs support for percentages
-    match (min_size, size, max_size) {
-        (_, _, Val::Px(max)) => scale_value(max, scale_factor),
-        (Val::Px(min), _, _) => scale_value(min, scale_factor),
-        (Val::Undefined, Val::Px(size), Val::Undefined) | (Val::Auto, Val::Px(size), Val::Auto) => {
-            scale_value(size, scale_factor)
-        }
-        _ => f32::MAX,
-    }
-}
-
 /// Updates the layout and size information whenever the text or style is changed.
 /// This information is computed by the `TextPipeline` on insertion, then stored.
 ///
@@ -131,6 +117,8 @@ pub fn text_system(
                         text.linebreak_behaviour,
                         Vec2::splat(f32::INFINITY),
                     );
+
+                    
                         
                     match text_pipeline.queue_sections(
                         section_glyphs,
