@@ -89,34 +89,68 @@ impl FlexSurface {
         let measure = taffy::node::MeasureFunc::Boxed(Box::new(
             move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
                 println!("measuring measure func");
+                println!("* calculated_min_size: {:?}", calculated_size.min_size);
                 println!("* calculated_size: {:?}", calculated_size.size);
                 println!("* calculated_max_size: {:?}", calculated_size.max_size);
                 println!("* constraints: {:?}", constraints);
                 println!("* available: {:?}", available);
+                println!("* measuremode: {:?}", calculated_size.mode);
                 let mut size = Size {
                     width: (scale_factor * calculated_size.size.x as f64) as f32,
                     height: (scale_factor * calculated_size.size.y as f64) as f32,
                 };
-                match (constraints.width, constraints.height) {
-                    (None, None) => {}
-                    (Some(width), None) => {
-                        if calculated_size.preserve_aspect_ratio {
-                            size.height = width * size.height / size.width;
+                match calculated_size.mode {
+                    crate::MeasureMode::PreserveAspectRatio => {
+                        match (constraints.width, constraints.height) {
+                            (None, None) => {}
+                            (Some(width), None) => {
+                                size.height = width * size.height / size.width;
+                                size.width = width;
+                            }
+                            (None, Some(height)) => {
+                                size.width = height * size.width / size.height;
+                                size.height = height;
+                            }
+                            (Some(width), Some(height)) => {
+                                size.width = width;
+                                size.height = height;
+                            }
                         }
-                        size.width = width;
-                    }
-                    (None, Some(height)) => {
-                        if calculated_size.preserve_aspect_ratio {
-                            size.width = height * size.width / size.height;
+                        size
+                    },
+                    crate::MeasureMode::Text => {
+                        match (constraints.width, constraints.height) {
+                            (None, None) => {}
+                            (Some(width), None) => {
+                                size.width = width;
+                            }
+                            (None, Some(height)) => {
+                                size.height = height;
+                            }
+                            (Some(width), Some(height)) => {
+                                size.width = width;
+                                size.height = height;
+                            }
                         }
-                        size.height = height;
-                    }
-                    (Some(width), Some(height)) => {
-                        size.width = width;
-                        size.height = height;
-                    }
+                        size
+                    },
+                    crate::MeasureMode::Fill => {
+                        match (constraints.width, constraints.height) {
+                            (None, None) => {}
+                            (Some(width), None) => {
+                                size.width = width;
+                            }
+                            (None, Some(height)) => {
+                                size.height = height;
+                            }
+                            (Some(width), Some(height)) => {
+                                size.width = width;
+                                size.height = height;
+                            }
+                        }
+                        size
+                    },
                 }
-                size
             },
         ));
         if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {

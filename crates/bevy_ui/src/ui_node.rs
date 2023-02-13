@@ -559,6 +559,17 @@ impl Default for FlexWrap {
     }
 }
 
+/// Determines how the measure func should determine the size of the node
+#[derive(Copy, Clone, Default, PartialEq, Eq, Debug, Reflect)]
+#[reflect(PartialEq)]
+pub enum MeasureMode {
+    PreserveAspectRatio,
+    Text,
+    #[default]
+    Fill,
+}
+
+
 /// The calculated size of the node
 #[derive(Component, Copy, Clone, Debug, Reflect)]
 #[reflect(Component)]
@@ -568,7 +579,7 @@ pub struct CalculatedSize {
     pub size: Vec2,
     pub max_size: Vec2,
     /// Whether to attempt to preserve the aspect ratio when determining the layout for this item
-    pub preserve_aspect_ratio: bool,
+    pub mode: MeasureMode,
 }
 
 impl CalculatedSize {
@@ -576,7 +587,7 @@ impl CalculatedSize {
         min_size: Vec2::ZERO,
         size: Vec2::ZERO,
         max_size: Vec2::ZERO,
-        preserve_aspect_ratio: false,
+        mode: MeasureMode::Fill,
     };
 }
 
