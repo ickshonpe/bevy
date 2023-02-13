@@ -107,6 +107,14 @@ pub fn text_system(
                         text.linebreak_behaviour,
                         Vec2::splat(f32::INFINITY),
                     );
+
+                    let ideal_size = text_pipeline.compute_size(
+                        &sections,
+                        &scaled_fonts,
+                        text.alignment,
+                        text.linebreak_behaviour,
+                        Vec2::new(target_size.x, f32::INFINITY),
+                    );
                     
                     let section_glyphs = 
                     if max_size.x < target_size.x {
@@ -162,6 +170,7 @@ pub fn text_system(
                                 scale_value(info.size.x, inv_scale_factor),
                                 scale_value(info.size.y, inv_scale_factor),
                             );
+                            calculated_size.ideal_height = Some(scale_value(ideal_size.y, inv_scale_factor));
                             
                             match text_layout_info {
                                 Some(mut t) => *t = info,

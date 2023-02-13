@@ -86,6 +86,10 @@ impl FlexSurface {
         let taffy_style = convert::from_style(scale_factor, style);
         let measure = taffy::node::MeasureFunc::Boxed(Box::new(
             move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
+                println!("MEASUREFUNC");
+                println!("* constraints: {:?}", constraints);
+                println!("* available: {:?}", available);
+                println!("* calculated_size: {:#?}", calculated_size);
                 let mut size = Size {
                     width: (scale_factor * calculated_size.size.x as f64) as f32,
                     height: (scale_factor * calculated_size.size.y as f64) as f32,
@@ -119,52 +123,54 @@ impl FlexSurface {
                         size
                     },
                     crate::MeasureMode::Text => {
-                        match (constraints.width, constraints.height) {
-                            (None, None) => {
-                                match available.width {
-                                    AvailableSpace::Definite(definite_width) => {
-                                        if definite_width < max_size.width {
-                                            size.width = definite_width;
-                                        } else {
-                                            size.width = max_size.width;
-                                        }
-                                    },
-                                    AvailableSpace::MinContent => {
-                                        size.width = min_size.width;
-                                    },
-                                    AvailableSpace::MaxContent => {
+                    match constraints.width {
+                        None => {
+                            match available.width {
+                                AvailableSpace::Definite(definite_width) => {
+                                    if definite_width < max_size.width {
+                                        size.width = definite_width;
+                                    } else {
                                         size.width = max_size.width;
-                                    },
-                                }
-                            }
-                            (Some(width), None) => {
-                                size.width = width;
-                            }
-                            (None, Some(height)) => {
-                                match available.width {
-                                    AvailableSpace::Definite(definite_width) => {
-                                        if definite_width < max_size.width {
-                                            size.width = definite_width;
-                                        } else {
-                                            size.width = max_size.width;
-                                        }
-                                    },
-                                    AvailableSpace::MinContent => {
-                                        size.width = min_size.width;
-                                    },
-                                    AvailableSpace::MaxContent => {
-                                        size.width = max_size.width;
-                                    },
-                                }
-                                size.height = height;
-                            }
-                            (Some(width), Some(height)) => {
-                                size.width = width;
-                                size.height = height;
+                                    }
+                                },
+                                AvailableSpace::MinContent => {
+                                    size.width = min_size.width;
+                                },
+                                AvailableSpace::MaxContent => {
+                                    size.width = max_size.width;
+                                },
                             }
                         }
-                        size
-                    },
+                        Some(width) => {
+                            size.width = width;
+                            
+                        }
+                    }
+                    
+                    match constraints.height {
+                        Some(height) => {
+                            if height < size.height {
+                                size.height = height;
+                            }
+                        },
+                        None => {
+
+                        },
+                    }
+                    if size.height < max_size.height {
+                        size.height = max_size.height;
+                    }
+                    if let Some(ideal_height) = calculated_size.ideal_height {
+                        if size.height < ideal_height {
+                            if let AvailableSpace::Definite(definite_height) = available.height {
+                                if ideal_height <= definite_height {
+                                    size.height = ideal_height;
+                                }
+                            }
+                        }
+                    }
+                    size
+                },
                     crate::MeasureMode::Fill => {
                         match (constraints.width, constraints.height) {
                             (None, None) => {}
@@ -182,6 +188,7 @@ impl FlexSurface {
                         size
                     },
                 };
+                println!("* out: {:#?}", out);
                 out
             },
         ));

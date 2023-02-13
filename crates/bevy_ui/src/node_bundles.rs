@@ -2,7 +2,7 @@
 
 use crate::{
     widget::Button, BackgroundColor, CalculatedSize, FocusPolicy, Interaction, Node, Style,
-    UiImage, ZIndex,
+    UiImage, ZIndex, MeasureMode,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_render::{
@@ -96,7 +96,7 @@ pub struct ImageBundle {
 }
 
 /// A UI node that is text
-#[derive(Bundle, Clone, Debug, Default)]
+#[derive(Bundle, Clone, Debug)]
 pub struct TextBundle {
     /// Describes the size of the node
     pub node: Node,
@@ -124,6 +124,22 @@ pub struct TextBundle {
     pub computed_visibility: ComputedVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
+}
+
+impl Default for TextBundle {
+    fn default() -> Self {
+        Self { 
+            node: Default::default(), 
+            style: Default::default(), 
+            text: Default::default(),
+            focus_policy: Default::default(), 
+            transform: Default::default(), global_transform: Default::default(), visibility: Default::default(),
+            computed_visibility: Default::default(),
+            calculated_size: CalculatedSize {
+                mode: MeasureMode::Text,
+                ..Default::default()
+            }, z_index: Default::default() }
+    }
 }
 
 impl TextBundle {

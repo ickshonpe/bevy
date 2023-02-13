@@ -578,6 +578,7 @@ pub struct CalculatedSize {
     pub min_size: Vec2,
     pub size: Vec2,
     pub max_size: Vec2,
+    pub ideal_height: Option<f32>,
     /// Whether to attempt to preserve the aspect ratio when determining the layout for this item
     pub mode: MeasureMode,
 }
@@ -587,6 +588,7 @@ impl CalculatedSize {
         min_size: Vec2::ZERO,
         size: Vec2::ZERO,
         max_size: Vec2::ZERO,
+        ideal_height: None,
         mode: MeasureMode::Fill,
     };
 }

@@ -121,7 +121,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                         style: Style {
                                             flex_direction: FlexDirection::Column,
                                             flex_grow: 1.0,
-                                            max_size: Size::UNDEFINED,
                                             align_items: AlignItems::Center,
                                             ..default()
                                         },
@@ -144,7 +143,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                             )
                                             .with_style(Style {
                                                 flex_shrink: 0.,
-                                                size: Size::new(Val::Undefined, Val::Px(20.)),
+                                                size: Size::height(Val::Px(20.)),
                                                 ..default()
                                             }),
                                         );
