@@ -1,4 +1,4 @@
-use crate::{CalculatedSize, Style, UiScale, Val, Node};
+use crate::{CalculatedSize, Style, UiScale, Val, Node, MeasureMode};
 use bevy_asset::Assets;
 use bevy_ecs::{
     entity::Entity,
@@ -84,24 +84,14 @@ pub fn text_system(
     let mut query = text_queries.p2();
     for entity in queued_text_ids.drain(..) {
         if let Ok((node, text, style, mut calculated_size, text_layout_info)) = query.get_mut(entity) {
-            println!("text_system computing text");
-            println!("* node size in: {:?}", node.size());
-            println!("* calculated size in: {:?}", calculated_size.size);
-            let node_size = node.size();
-
+            let target_size = node.size() * scale_factor as f32;
+            calculated_size.mode = MeasureMode::Text;
             match text_pipeline.compute_sections(
                 &fonts,
                 &text.sections,
                 scale_factor,
             ) {
                 Ok((sections, scaled_fonts)) => {
-                    let section_glyphs = text_pipeline.compute_section_glyphs(
-                        &sections,
-                        text.alignment,
-                        text.linebreak_behaviour,
-                        node_size,
-                    ).unwrap();
-
                     let min_size = text_pipeline.compute_size(
                         &sections,
                         &scaled_fonts,
@@ -117,21 +107,40 @@ pub fn text_system(
                         text.linebreak_behaviour,
                         Vec2::splat(f32::INFINITY),
                     );
+                    
+                    let section_glyphs = 
+                    if max_size.x < target_size.x {
+                        text_pipeline.compute_section_glyphs(
+                            &sections,
+                            text.alignment,
+                            text.linebreak_behaviour,
+                            max_size,
+                        ).unwrap()
+                    } else {
+                        text_pipeline.compute_section_glyphs(
+                            &sections,
+                            text.alignment,
+                            text.linebreak_behaviour,
+                            target_size,
+                        ).unwrap()
+                    };
 
+                    let out =
+                        text_pipeline.queue_sections(
+                            section_glyphs,
+                            &scaled_fonts, 
+                            &fonts, 
+                            &sections, 
+                            &mut font_atlas_set_storage,
+                            &mut texture_atlases,
+                            &mut textures,
+                            text_settings.as_ref(),
+                            &mut font_atlas_warning,
+                    YAxisOrientation::TopToBottom,
+                        );
                     
                         
-                    match text_pipeline.queue_sections(
-                        section_glyphs,
-                        &scaled_fonts, 
-                        &fonts, 
-                        &sections, 
-                        &mut font_atlas_set_storage,
-                        &mut texture_atlases,
-                        &mut textures,
-                        text_settings.as_ref(),
-                        &mut font_atlas_warning,
-                YAxisOrientation::TopToBottom,
-                    ) {
+                    match out {
                         Err(TextError::NoSuchFont) => {
                             // There was an error processing the text layout, let's add this entity to the
                             // queue for further processing
@@ -153,9 +162,7 @@ pub fn text_system(
                                 scale_value(info.size.x, inv_scale_factor),
                                 scale_value(info.size.y, inv_scale_factor),
                             );
-                            println!("* calculated_min_size out: {:?}", calculated_size.max_size);
-                            println!("* calculated_size out: {:?}", calculated_size.size);
-                            println!("* calculated_max_size out: {:?}", calculated_size.max_size);
+                            
                             match text_layout_info {
                                 Some(mut t) => *t = info,
                                 None => {

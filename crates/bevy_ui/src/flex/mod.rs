@@ -82,24 +82,24 @@ impl FlexSurface {
         calculated_size: CalculatedSize,
         scale_factor: f64,
     ) {
-        println!("upsert_leaft");
-        println!("* calculated_size: {:?}", calculated_size);
         let taffy = &mut self.taffy;
         let taffy_style = convert::from_style(scale_factor, style);
         let measure = taffy::node::MeasureFunc::Boxed(Box::new(
             move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
-                println!("measuring measure func");
-                println!("* calculated_min_size: {:?}", calculated_size.min_size);
-                println!("* calculated_size: {:?}", calculated_size.size);
-                println!("* calculated_max_size: {:?}", calculated_size.max_size);
-                println!("* constraints: {:?}", constraints);
-                println!("* available: {:?}", available);
-                println!("* measuremode: {:?}", calculated_size.mode);
                 let mut size = Size {
                     width: (scale_factor * calculated_size.size.x as f64) as f32,
                     height: (scale_factor * calculated_size.size.y as f64) as f32,
                 };
-                match calculated_size.mode {
+                let min_size = Size {
+                    width: (scale_factor * calculated_size.min_size.x as f64) as f32,
+                    height: (scale_factor * calculated_size.min_size.y as f64) as f32,
+                };
+                let max_size = Size {
+                    width: (scale_factor * calculated_size.max_size.x as f64) as f32,
+                    height: (scale_factor * calculated_size.max_size.y as f64) as f32,
+                };
+                
+                let out = match calculated_size.mode {
                     crate::MeasureMode::PreserveAspectRatio => {
                         match (constraints.width, constraints.height) {
                             (None, None) => {}
@@ -120,11 +120,42 @@ impl FlexSurface {
                     },
                     crate::MeasureMode::Text => {
                         match (constraints.width, constraints.height) {
-                            (None, None) => {}
+                            (None, None) => {
+                                match available.width {
+                                    AvailableSpace::Definite(definite_width) => {
+                                        if definite_width < max_size.width {
+                                            size.width = definite_width;
+                                        } else {
+                                            size.width = max_size.width;
+                                        }
+                                    },
+                                    AvailableSpace::MinContent => {
+                                        size.width = min_size.width;
+                                    },
+                                    AvailableSpace::MaxContent => {
+                                        size.width = max_size.width;
+                                    },
+                                }
+                            }
                             (Some(width), None) => {
                                 size.width = width;
                             }
                             (None, Some(height)) => {
+                                match available.width {
+                                    AvailableSpace::Definite(definite_width) => {
+                                        if definite_width < max_size.width {
+                                            size.width = definite_width;
+                                        } else {
+                                            size.width = max_size.width;
+                                        }
+                                    },
+                                    AvailableSpace::MinContent => {
+                                        size.width = min_size.width;
+                                    },
+                                    AvailableSpace::MaxContent => {
+                                        size.width = max_size.width;
+                                    },
+                                }
                                 size.height = height;
                             }
                             (Some(width), Some(height)) => {
@@ -150,7 +181,8 @@ impl FlexSurface {
                         }
                         size
                     },
-                }
+                };
+                out
             },
         ));
         if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
@@ -354,9 +386,13 @@ pub fn flex_node_system(
             to_logical(layout.size.height),
         );
         // only trigger change detection when the new value is different
-        if node.calculated_size != new_size {
-            node.calculated_size = new_size;
-        }
+        // if node.calculated_size != new_size {
+        //     node.calculated_size = new_size;
+        // }
+
+        // trigger change detection even when the new value is the smae
+        node.calculated_size = new_size;
+
         let mut new_position = transform.translation;
         new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
         new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
