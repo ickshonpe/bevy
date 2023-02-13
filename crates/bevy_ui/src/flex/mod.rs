@@ -82,10 +82,17 @@ impl FlexSurface {
         calculated_size: CalculatedSize,
         scale_factor: f64,
     ) {
+        println!("upsert_leaft");
+        println!("* calculated_size: {:?}", calculated_size);
         let taffy = &mut self.taffy;
         let taffy_style = convert::from_style(scale_factor, style);
         let measure = taffy::node::MeasureFunc::Boxed(Box::new(
-            move |constraints: Size<Option<f32>>, _available: Size<AvailableSpace>| {
+            move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
+                println!("measuring measure func");
+                println!("* calculated_size: {:?}", calculated_size.size);
+                println!("* calculated_max_size: {:?}", calculated_size.max_size);
+                println!("* constraints: {:?}", constraints);
+                println!("* available: {:?}", available);
                 let mut size = Size {
                     width: (scale_factor * calculated_size.size.x as f64) as f32,
                     height: (scale_factor * calculated_size.size.y as f64) as f32,
