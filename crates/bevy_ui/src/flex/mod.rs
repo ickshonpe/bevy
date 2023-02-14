@@ -103,6 +103,7 @@ impl FlexSurface {
                     height: (scale_factor * calculated_size.max_size.y as f64) as f32,
                 };
                 
+                
                 let out = match calculated_size.mode {
                     crate::MeasureMode::PreserveAspectRatio => {
                         match (constraints.width, constraints.height) {
@@ -142,8 +143,21 @@ impl FlexSurface {
                             }
                         }
                         Some(width) => {
-                            size.width = width;
-                            
+                            match available.width {
+                                AvailableSpace::Definite(definite_width) => {
+                                    if definite_width < width {
+                                        size.width = definite_width;
+                                    } else {
+                                        size.width = width;
+                                    }
+                                },
+                                AvailableSpace::MinContent => {
+                                    size.width = min_size.width;
+                                },
+                                AvailableSpace::MaxContent => {
+                                    size.width = max_size.width;
+                                },
+                            }
                         }
                     }
                     
@@ -158,15 +172,16 @@ impl FlexSurface {
                         },
                     }
                     if size.height < max_size.height {
+                        size.width = max_size.width;
                         size.height = max_size.height;
                     }
+                   
                     if let Some(ideal_height) = calculated_size.ideal_height {
+                        let ideal_height =(scale_factor * ideal_height as f64) as f32;
                         if size.height < ideal_height {
-                            if let AvailableSpace::Definite(definite_height) = available.height {
-                                if ideal_height <= definite_height {
-                                    size.height = ideal_height;
-                                }
-                            }
+                            
+                            size.height = ideal_height;
+                            
                         }
                     }
                     size

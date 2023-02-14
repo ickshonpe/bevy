@@ -20,6 +20,7 @@ pub struct Node {
     pub(crate) calculated_size: Vec2,
 }
 
+
 impl Node {
     /// The calculated node size as width and height in pixels
     /// automatically calculated by [`super::flex::flex_node_system`]
@@ -35,6 +36,35 @@ impl Node {
 }
 
 impl Default for Node {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+/// Describes the size of a UI node
+#[derive(Component, Debug, Clone, Reflect)]
+#[reflect(Component, Default)]
+pub struct InnerNode {
+    /// The size of the node as width and height in pixels
+    /// automatically calculated by [`super::flex::flex_node_system`]
+    pub(crate) calculated_size: Vec2,
+}
+
+impl InnerNode {
+    /// The calculated node size as width and height in pixels
+    /// automatically calculated by [`super::flex::flex_node_system`]
+    pub fn size(&self) -> Vec2 {
+        self.calculated_size
+    }
+}
+
+impl InnerNode {
+    pub const DEFAULT: Self = Self {
+        calculated_size: Vec2::ZERO,
+    };
+}
+
+impl Default for InnerNode {
     fn default() -> Self {
         Self::DEFAULT
     }
@@ -578,6 +608,7 @@ pub struct CalculatedSize {
     pub min_size: Vec2,
     pub size: Vec2,
     pub max_size: Vec2,
+    pub ideal_width: Option<f32>,
     pub ideal_height: Option<f32>,
     /// Whether to attempt to preserve the aspect ratio when determining the layout for this item
     pub mode: MeasureMode,
@@ -588,6 +619,7 @@ impl CalculatedSize {
         min_size: Vec2::ZERO,
         size: Vec2::ZERO,
         max_size: Vec2::ZERO,
+        ideal_width: None,
         ideal_height: None,
         mode: MeasureMode::Fill,
     };
