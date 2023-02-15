@@ -1,3 +1,4 @@
+
 use crate::{CalculatedSize, Style, UiScale, Val, Node, MeasureMode};
 use bevy_asset::Assets;
 use bevy_ecs::{
@@ -84,7 +85,13 @@ pub fn text_system(
     let mut query = text_queries.p2();
     for entity in queued_text_ids.drain(..) {
         if let Ok((node, text, style, mut calculated_size, text_layout_info)) = query.get_mut(entity) {
-            let target_size = node.size() * scale_factor as f32;
+            println!("* TEXT SYSTEM *");
+            println!("target_size: {:?}", node.size());
+
+            let target_size = Vec2::new(
+                scale_value(node.size().x, scale_factor),
+                scale_value(node.size().y, scale_factor),
+            );
             calculated_size.mode = MeasureMode::Text;
             match text_pipeline.compute_sections(
                 &fonts,
@@ -92,7 +99,7 @@ pub fn text_system(
                 scale_factor,
             ) {
                 Ok((sections, scaled_fonts)) => {
-                    let min_size = text_pipeline.compute_size(
+                    let a_size = text_pipeline.compute_size(
                         &sections,
                         &scaled_fonts,
                         text.alignment,
@@ -100,7 +107,7 @@ pub fn text_system(
                         Vec2::new(0., f32::INFINITY),
                     );
 
-                    let max_size = text_pipeline.compute_size(
+                    let b_size = text_pipeline.compute_size(
                         &sections,
                         &scaled_fonts,
                         text.alignment,
@@ -108,34 +115,42 @@ pub fn text_system(
                         Vec2::splat(f32::INFINITY),
                     );
 
-                    let ideal_height = text_pipeline.compute_size(
+                    let min_x = a_size.x.min(b_size.x);
+                    let max_x = a_size.x.max(b_size.x);
+                    let min_y = a_size.y.min(b_size.y);
+                    let max_y = a_size.y.max(b_size.y);
+                    let min_size = Vec2::new(min_x, min_y);
+                    let max_size = Vec2::new(max_x, max_y);
+
+                    let ideal = text_pipeline.compute_size(
                         &sections,
                         &scaled_fonts,
                         text.alignment,
                         text.linebreak_behaviour,
                         Vec2::new(target_size.x, f32::INFINITY),
-                    ).y;
-                    
-                    let section_glyphs = 
-                    if max_size.x <= target_size.x {
-                        println!("x target: {}", target_size);
-                        println!("max: {}", max_size);
+                    );
+                    let ideal_height = ideal.y;
+                    // let section_glyphs = 
+                    // // if max_size.x <= target_size.x {
+                    // //     println!("x target: {}", target_size);
+                    // //     println!("max: {}", max_size);
+                    // //     text_pipeline.compute_section_glyphs(SS
+                    // //         &sections,
+                    // //         text.alignment,
+                    // //         text.linebreak_behaviour,
+                    // //         max_size,
+                    // //     ).unwrap()
+                    // // } else {
+                    // //     println!("x max: {}", max_size);
+                    // //     println!("target: {}", target_size);
+                    let section_glyphs =
                         text_pipeline.compute_section_glyphs(
                             &sections,
                             text.alignment,
                             text.linebreak_behaviour,
-                            max_size,
-                        ).unwrap()
-                    } else {
-                        println!("x max: {}", max_size);
-                        println!("target: {}", target_size);
-                        text_pipeline.compute_section_glyphs(
-                            &sections,
-                            text.alignment,
-                            text.linebreak_behaviour,
-                            target_size,
-                        ).unwrap()
-                    };
+                            Vec2::new(target_size.x, f32::INFINITY),
+                        ).unwrap();
+                    //};
 
                     let out =
                         text_pipeline.queue_sections(
@@ -162,6 +177,7 @@ pub fn text_system(
                             panic!("Fatal error when processing text: {e}.");
                         }
                         Ok(info) => {
+                            calculated_size.mode = MeasureMode::Text2;
                             calculated_size.min_size = Vec2::new(
                                 scale_value(min_size.x, inv_scale_factor),
                                 scale_value(min_size.y, inv_scale_factor),
@@ -174,7 +190,7 @@ pub fn text_system(
                                 scale_value(info.size.x, inv_scale_factor),
                                 scale_value(info.size.y, inv_scale_factor),
                             );
-                            calculated_size.ideal_height = Some(scale_value(ideal_height, inv_scale_factor));
+                            calculated_size.ideal_height = scale_value(ideal_height, inv_scale_factor);
                             
                             match text_layout_info {
                                 Some(mut t) => *t = info,

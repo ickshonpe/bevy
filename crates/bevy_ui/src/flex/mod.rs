@@ -87,9 +87,9 @@ impl FlexSurface {
         let measure = taffy::node::MeasureFunc::Boxed(Box::new(
             move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
                 println!("MEASUREFUNC");
-                println!("* constraints: {:?}", constraints);
-                println!("* available: {:?}", available);
-                println!("* calculated_size: {:#?}", calculated_size);
+                // println!("* constraints: {:?}", constraints);
+                // println!("* available: {:?}", available);
+                // println!("* calculated_size: {:#?}", calculated_size);
                 let mut size = Size {
                     width: (scale_factor * calculated_size.size.x as f64) as f32,
                     height: (scale_factor * calculated_size.size.y as f64) as f32,
@@ -102,7 +102,11 @@ impl FlexSurface {
                     width: (scale_factor * calculated_size.max_size.x as f64) as f32,
                     height: (scale_factor * calculated_size.max_size.y as f64) as f32,
                 };
-                
+                let ideal_height = (scale_factor * calculated_size.ideal_height as f64) as f32;
+                println!("size: {:?}", size);
+                println!("min_size: {:?}", min_size);
+                println!("max_size: {:?}", max_size);
+                println!("ideal_height: {:?}", ideal_height);
                 
                 let out = match calculated_size.mode {
                     crate::MeasureMode::PreserveAspectRatio => {
@@ -159,8 +163,9 @@ impl FlexSurface {
                                 },
                             }
                         }
-                    }
-                    
+                    };
+                   
+
                     match constraints.height {
                         Some(height) => {
                             if height < size.height {
@@ -176,12 +181,33 @@ impl FlexSurface {
                         size.height = max_size.height;
                     }
                    
-                    if let Some(ideal_height) = calculated_size.ideal_height {
-                        let ideal_height =(scale_factor * ideal_height as f64) as f32;
-                        if size.height < ideal_height {
-                            
+                    
+                    if size.height < ideal_height {
+                        
+                        size.height = ideal_height;
+                        
+                    }
+                    size
+                },
+                crate::MeasureMode::Text2 => {
+                    println!("Text2: width: {:?}, height: {:?}", constraints.width, constraints.height);
+                    match (constraints.width, constraints.height) {
+                        (None, None) => {
+
+                            size.width = max_size.width;
                             size.height = ideal_height;
-                            
+                        }
+                        (Some(width), None) => {
+                            size.width = width;
+                            size.height = ideal_height;
+                        }
+                        (None, Some(height)) => {
+                            size.height = height;
+                            size.width = max_size.width;
+                        }
+                        (Some(width), Some(height)) => {
+                            size.width = width;
+                            size.height = height;
                         }
                     }
                     size
@@ -203,6 +229,7 @@ impl FlexSurface {
                         size
                     },
                 };
+                size.width += 10.;
                 println!("* out: {:#?}", out);
                 out
             },
@@ -407,13 +434,13 @@ pub fn flex_node_system(
             to_logical(layout.size.width),
             to_logical(layout.size.height),
         );
-        // only trigger change detection when the new value is different
-        // if node.calculated_size != new_size {
-        //     node.calculated_size = new_size;
-        // }
+        //only trigger change detection when the new value is different
+        if node.calculated_size != new_size {
+            node.calculated_size = new_size;
+        }
 
         // trigger change detection even when the new value is the smae
-        node.calculated_size = new_size;
+        //node.calculated_size = new_size;
 
         let mut new_position = transform.translation;
         new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);

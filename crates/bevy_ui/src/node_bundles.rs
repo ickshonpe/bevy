@@ -136,7 +136,7 @@ impl Default for TextBundle {
             transform: Default::default(), global_transform: Default::default(), visibility: Default::default(),
             computed_visibility: Default::default(),
             calculated_size: CalculatedSize {
-                mode: MeasureMode::Text,
+                mode: MeasureMode::Text2,
                 ..Default::default()
             }, z_index: Default::default() }
     }

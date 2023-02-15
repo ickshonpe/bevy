@@ -277,7 +277,9 @@ pub struct Style {
     pub flex_grow: f32,
     /// How to shrink if there's not enough space available
     pub flex_shrink: f32,
-    /// The initial size of the item
+    /// The initial length of the main axis, before other properties are applied.
+    /// 
+    /// `flex_basis` overrides `size` if both are set, but it obeys the bounds defined by `min_size` and `max_size`.
     pub flex_basis: Val,
     /// The ideal size of the flexbox
     ///
@@ -595,6 +597,7 @@ impl Default for FlexWrap {
 pub enum MeasureMode {
     PreserveAspectRatio,
     Text,
+    Text2,
     #[default]
     Fill,
 }
@@ -608,8 +611,8 @@ pub struct CalculatedSize {
     pub min_size: Vec2,
     pub size: Vec2,
     pub max_size: Vec2,
-    pub ideal_width: Option<f32>,
-    pub ideal_height: Option<f32>,
+    pub ideal_width: f32,
+    pub ideal_height: f32,
     /// Whether to attempt to preserve the aspect ratio when determining the layout for this item
     pub mode: MeasureMode,
 }
@@ -619,8 +622,8 @@ impl CalculatedSize {
         min_size: Vec2::ZERO,
         size: Vec2::ZERO,
         max_size: Vec2::ZERO,
-        ideal_width: None,
-        ideal_height: None,
+        ideal_width: 0.,
+        ideal_height: 0.,
         mode: MeasureMode::Fill,
     };
 }
