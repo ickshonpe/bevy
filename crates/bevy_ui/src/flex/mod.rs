@@ -417,7 +417,12 @@ pub fn flex_node_system(
         );
         //only trigger change detection when the new value is different
         if node.calculated_size != new_size {
-            node.calculated_size = new_size;
+            println!();
+            println!("* Compute layouts node modified *");
+            println!("layout size {:?}", layout.size);
+            println!("node size {:?} -> {:?}", node.calculated_size, new_size);
+            println!();
+            node.calculated_size = new_size;            
         }
 
         // trigger change detection even when the new value is the smae
@@ -437,4 +442,6 @@ pub fn flex_node_system(
             transform.translation = new_position;
         }
     }
+
+    
 }

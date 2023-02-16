@@ -9,14 +9,19 @@ pub fn measure_text(
     ideal_height: f32,
     available: Size<AvailableSpace>,
 ) -> Size<f32> {
-    println!("Text2: width: {:?}, height: {:?}", constraints.width, constraints.height);
+    println!("Constaints: {:?}", constraints);
+    println!("available space: {:?}", available);
     match (constraints.width, constraints.height) {
         (None, None) => {
+            // with no constraints
+            // ask for maximum width space for text with no wrapping
             size.width = max_size.width;
-            size.height = ideal_height;
+            size.height = min_size.height;
         }
         (Some(width), None) => {
+            // with no height constraint
             size.width = width;
+            //size.height = max_size.height;
             size.height = ideal_height;
         }
         (None, Some(height)) => {
@@ -28,5 +33,7 @@ pub fn measure_text(
             size.height = height;
         }
     }
+    size.width = size.width.ceil();
+    size.height = size.height.ceil();
     size
 }

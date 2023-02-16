@@ -126,14 +126,26 @@ pub fn text_system(
                     let min_size = Vec2::new(min_x, min_y);
                     let max_size = Vec2::new(max_x, max_y);
 
-                    let ideal = text_pipeline.compute_size(
-                        &sections,
-                        &scaled_fonts,
-                        text.alignment,
-                        text.linebreak_behaviour,
-                        Vec2::new(target_size.x, f32::INFINITY),
-                    );
+                    let ideal =
+                    if node.size() == Vec2::ZERO {
+                        Vec2::new(max_size.x, min_size.y)
+                    } else {
+                        text_pipeline.compute_size(
+                            &sections,
+                            &scaled_fonts,
+                            text.alignment,
+                            text.linebreak_behaviour,
+                            Vec2::new(target_size.x, f32::INFINITY),
+                        )
+                    };
+
+
                     let ideal_height = ideal.y;
+                    println!("min {:?}", min_size);
+                    println!("max {:?}", max_size);
+                    println!("ideal {:?}", ideal);
+
+                    
                     // let section_glyphs = 
                     // // if max_size.x <= target_size.x {
                     // //     println!("x target: {}", target_size);
@@ -148,13 +160,22 @@ pub fn text_system(
                     // //     println!("x max: {}", max_size);
                     // //     println!("target: {}", target_size);
                     let section_glyphs =
-                        text_pipeline.compute_section_glyphs(
-                            &sections,
-                            text.alignment,
-                            text.linebreak_behaviour,
-                            Vec2::new(target_size.x, f32::INFINITY),
-                        ).unwrap();
-                    //};
+                        if node.size() == Vec2::ZERO {
+                            text_pipeline.compute_section_glyphs(
+                                &sections,
+                                text.alignment,
+                                text.linebreak_behaviour,
+                                Vec2::splat(f32::INFINITY),
+                            ).unwrap()
+                        } else {
+                            text_pipeline.compute_section_glyphs(
+                                &sections,
+                                text.alignment,
+                                text.linebreak_behaviour,
+                                Vec2::new(target_size.x, f32::INFINITY),
+                            ).unwrap()
+                        };
+                    
 
                     let out =
                         text_pipeline.queue_sections(
