@@ -1,6 +1,7 @@
 mod convert;
+pub mod measure;
 
-use crate::{CalculatedSize, Node, Style, UiScale};
+use crate::{CalculatedSize, Node, Style, UiScale, measure::measure_text};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -86,7 +87,7 @@ impl FlexSurface {
         let taffy_style = convert::from_style(scale_factor, style);
         let measure = taffy::node::MeasureFunc::Boxed(Box::new(
             move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
-                println!("MEASUREFUNC");
+                println!("* MEASUREFUNC *");
                 // println!("* constraints: {:?}", constraints);
                 // println!("* available: {:?}", available);
                 // println!("* calculated_size: {:#?}", calculated_size);
@@ -190,27 +191,7 @@ impl FlexSurface {
                     size
                 },
                 crate::MeasureMode::Text2 => {
-                    println!("Text2: width: {:?}, height: {:?}", constraints.width, constraints.height);
-                    match (constraints.width, constraints.height) {
-                        (None, None) => {
-
-                            size.width = max_size.width;
-                            size.height = ideal_height;
-                        }
-                        (Some(width), None) => {
-                            size.width = width;
-                            size.height = ideal_height;
-                        }
-                        (None, Some(height)) => {
-                            size.height = height;
-                            size.width = max_size.width;
-                        }
-                        (Some(width), Some(height)) => {
-                            size.width = width;
-                            size.height = height;
-                        }
-                    }
-                    size
+                    measure_text(constraints, size, min_size, max_size, ideal_height, available)
                 },
                     crate::MeasureMode::Fill => {
                         match (constraints.width, constraints.height) {
