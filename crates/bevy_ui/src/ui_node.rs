@@ -597,7 +597,6 @@ impl Default for FlexWrap {
 pub enum MeasureMode {
     PreserveAspectRatio,
     Text,
-    Text2,
     #[default]
     Fill,
 }
@@ -613,6 +612,7 @@ pub struct CalculatedSize {
     pub max_size: Vec2,
     pub ideal_width: f32,
     pub ideal_height: f32,
+    pub ready: bool,
     /// Whether to attempt to preserve the aspect ratio when determining the layout for this item
     pub mode: MeasureMode,
 }
@@ -625,6 +625,7 @@ impl CalculatedSize {
         ideal_width: 0.,
         ideal_height: 0.,
         mode: MeasureMode::Fill,
+        ready: false,
     };
 }
 

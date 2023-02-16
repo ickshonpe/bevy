@@ -131,7 +131,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 .with_children(|parent| {
                                     // List items
                                     for i in 0..30 {
-                                        parent.spawn((
+                                        parent.spawn(
                                             TextBundle::from_section(
                                                 format!("Item {i}"),
                                                 TextStyle {
@@ -145,8 +145,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                                 flex_shrink: 0.,
                                                 size: Size::height(Val::Px(20.)),
                                                 ..default()
-                                            }),
-                                            BackgroundColor(Color::NAVY),
+                                            }
                                         ));
                                     }
                                 });

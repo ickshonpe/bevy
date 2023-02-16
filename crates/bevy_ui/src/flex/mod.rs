@@ -87,10 +87,6 @@ impl FlexSurface {
         let taffy_style = convert::from_style(scale_factor, style);
         let measure = taffy::node::MeasureFunc::Boxed(Box::new(
             move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
-                println!("* MEASUREFUNC *");
-                // println!("* constraints: {:?}", constraints);
-                // println!("* available: {:?}", available);
-                // println!("* calculated_size: {:#?}", calculated_size);
                 let mut size = Size {
                     width: (scale_factor * calculated_size.size.x as f64) as f32,
                     height: (scale_factor * calculated_size.size.y as f64) as f32,
@@ -103,12 +99,7 @@ impl FlexSurface {
                     width: (scale_factor * calculated_size.max_size.x as f64) as f32,
                     height: (scale_factor * calculated_size.max_size.y as f64) as f32,
                 };
-                let ideal_height = (scale_factor * calculated_size.ideal_height as f64) as f32;
-                println!("size: {:?}", size);
-                println!("min_size: {:?}", min_size);
-                println!("max_size: {:?}", max_size);
-                println!("ideal_height: {:?}", ideal_height);
-                
+                let ideal_height = (scale_factor * calculated_size.ideal_height as f64) as f32;                
                 let out = match calculated_size.mode {
                     crate::MeasureMode::PreserveAspectRatio => {
                         match (constraints.width, constraints.height) {
@@ -128,69 +119,7 @@ impl FlexSurface {
                         }
                         size
                     },
-                    crate::MeasureMode::Text => {
-                    match constraints.width {
-                        None => {
-                            match available.width {
-                                AvailableSpace::Definite(definite_width) => {
-                                    if definite_width < max_size.width {
-                                        size.width = definite_width;
-                                    } else {
-                                        size.width = max_size.width;
-                                    }
-                                },
-                                AvailableSpace::MinContent => {
-                                    size.width = min_size.width;
-                                },
-                                AvailableSpace::MaxContent => {
-                                    size.width = max_size.width;
-                                },
-                            }
-                        }
-                        Some(width) => {
-                            match available.width {
-                                AvailableSpace::Definite(definite_width) => {
-                                    if definite_width < width {
-                                        size.width = definite_width;
-                                    } else {
-                                        size.width = width;
-                                    }
-                                },
-                                AvailableSpace::MinContent => {
-                                    size.width = min_size.width;
-                                },
-                                AvailableSpace::MaxContent => {
-                                    size.width = max_size.width;
-                                },
-                            }
-                        }
-                    };
-                   
-
-                    match constraints.height {
-                        Some(height) => {
-                            if height < size.height {
-                                size.height = height;
-                            }
-                        },
-                        None => {
-
-                        },
-                    }
-                    if size.height < max_size.height {
-                        size.width = max_size.width;
-                        size.height = max_size.height;
-                    }
-                   
-                    
-                    if size.height < ideal_height {
-                        
-                        size.height = ideal_height;
-                        
-                    }
-                    size
-                },
-                crate::MeasureMode::Text2 => {
+                crate::MeasureMode::Text => {
                     measure_text(constraints, size, min_size, max_size, ideal_height, available)
                 },
                     crate::MeasureMode::Fill => {
@@ -210,8 +139,6 @@ impl FlexSurface {
                         size
                     },
                 };
-                size.width += 10.;
-                println!("* out: {:#?}", out);
                 out
             },
         ));
@@ -417,11 +344,6 @@ pub fn flex_node_system(
         );
         //only trigger change detection when the new value is different
         if node.calculated_size != new_size {
-            println!();
-            println!("* Compute layouts node modified *");
-            println!("layout size {:?}", layout.size);
-            println!("node size {:?} -> {:?}", node.calculated_size, new_size);
-            println!();
             node.calculated_size = new_size;            
         }
 
