@@ -7,7 +7,7 @@ pub fn measure_text(
     min_size: Size<f32>,
     max_size: Size<f32>,
     ideal_height: f32,
-    available: Size<AvailableSpace>,
+    _available: Size<AvailableSpace>,
 ) -> Size<f32> {
     match (constraints.width, constraints.height) {
         (None, None) => {
@@ -19,8 +19,6 @@ pub fn measure_text(
         (Some(width), None) => {
             size.width = width;
             size.height = ideal_height;
-            //size.height = min_size.height;
-            //size.height = height;
         }
         (None, Some(height)) => {
             size.height = height;
