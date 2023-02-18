@@ -80,66 +80,89 @@ impl FlexSurface {
         &mut self,
         entity: Entity,
         style: &Style,
-        calculated_size: CalculatedSize,
+        calculated_size: &CalculatedSize,
         scale_factor: f64,
     ) {
         let taffy = &mut self.taffy;
         let taffy_style = convert::from_style(scale_factor, style);
+        let m = calculated_size.measure.dyn_clone();
         let measure = taffy::node::MeasureFunc::Boxed(Box::new(
-            move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
-                let mut size = Size {
-                    width: (scale_factor * calculated_size.size.x as f64) as f32,
-                    height: (scale_factor * calculated_size.size.y as f64) as f32,
-                };
-                let min_size = Size {
-                    width: (scale_factor * calculated_size.min_size.x as f64) as f32,
-                    height: (scale_factor * calculated_size.min_size.y as f64) as f32,
-                };
-                let max_size = Size {
-                    width: (scale_factor * calculated_size.max_size.x as f64) as f32,
-                    height: (scale_factor * calculated_size.max_size.y as f64) as f32,
-                };
-                let ideal_height = (scale_factor * calculated_size.ideal_height as f64) as f32;                
-                let out = match calculated_size.mode {
-                    crate::MeasureMode::PreserveAspectRatio => {
-                        match (constraints.width, constraints.height) {
-                            (None, None) => {}
-                            (Some(width), None) => {
-                                size.height = width * size.height / size.width;
-                                size.width = width;
-                            }
-                            (None, Some(height)) => {
-                                size.width = height * size.width / size.height;
-                                size.height = height;
-                            }
-                            (Some(width), Some(height)) => {
-                                size.width = width;
-                                size.height = height;
-                            }
+            // move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
+            //     let mut size = Size {
+            //         width: (scale_factor * calculated_size.size.x as f64) as f32,
+            //         height: (scale_factor * calculated_size.size.y as f64) as f32,
+            //     };
+            //     let min_size = Size {
+            //         width: (scale_factor * calculated_size.min_size.x as f64) as f32,
+            //         height: (scale_factor * calculated_size.min_size.y as f64) as f32,
+            //     };
+            //     let max_size = Size {
+            //         width: (scale_factor * calculated_size.max_size.x as f64) as f32,
+            //         height: (scale_factor * calculated_size.max_size.y as f64) as f32,
+            //     };
+            //     let ideal_height = (scale_factor * calculated_size.ideal_height as f64) as f32;                
+            //     let out = match calculated_size.mode {
+            //         crate::MeasureMode::PreserveAspectRatio => {
+            //             match (constraints.width, constraints.height) {
+            //                 (None, None) => {}
+            //                 (Some(width), None) => {
+            //                     size.height = width * size.height / size.width;
+            //                     size.width = width;
+            //                 }
+            //                 (None, Some(height)) => {
+            //                     size.width = height * size.width / size.height;
+            //                     size.height = height;
+            //                 }
+            //                 (Some(width), Some(height)) => {
+            //                     size.width = width;
+            //                     size.height = height;
+            //                 }
+            //             }
+            //             size
+            //         },
+            //     crate::MeasureMode::Text => {
+            //         measure_text(constraints, size, min_size, max_size, ideal_height, available)
+            //     },
+            //         crate::MeasureMode::Fill => {
+            //             match (constraints.width, constraints.height) {
+            //                 (None, None) => {}
+            //                 (Some(width), None) => {
+            //                     size.width = width;
+            //                 }
+            //                 (None, Some(height)) => {
+            //                     size.height = height;
+            //                 }
+            //                 (Some(width), Some(height)) => {
+            //                     size.width = width;
+            //                     size.height = height;
+            //                 }
+            //             }
+            //             size
+            //         },
+            //     };
+            //     out
+            move |constraints: Size<Option<f32>>, available_space: Size<AvailableSpace>| {
+                let size = m.measure(
+                    constraints.width.map(|w| (w as f64 / scale_factor) as f32),
+                    constraints.height.map(|h| (h as f64 / scale_factor) as f32),
+                    match available_space.width {
+                        AvailableSpace::Definite(w) => {
+                            AvailableSpace::Definite((w as f64 / scale_factor) as f32)
                         }
-                        size
+                        s => s,
                     },
-                crate::MeasureMode::Text => {
-                    measure_text(constraints, size, min_size, max_size, ideal_height, available)
-                },
-                    crate::MeasureMode::Fill => {
-                        match (constraints.width, constraints.height) {
-                            (None, None) => {}
-                            (Some(width), None) => {
-                                size.width = width;
-                            }
-                            (None, Some(height)) => {
-                                size.height = height;
-                            }
-                            (Some(width), Some(height)) => {
-                                size.width = width;
-                                size.height = height;
-                            }
+                    match available_space.height {
+                        AvailableSpace::Definite(h) => {
+                            AvailableSpace::Definite((h as f64 / scale_factor) as f32)
                         }
-                        size
+                        s => s,
                     },
-                };
-                out
+                );
+                taffy::geometry::Size {
+                    width: (size.x as f64 * scale_factor) as f32,
+                    height: (size.y as f64 * scale_factor) as f32,
+                }
+
             },
         ));
         if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
@@ -296,7 +319,7 @@ pub fn flex_node_system(
         for (entity, style, calculated_size) in &query {
             // TODO: remove node from old hierarchy if its root has changed
             if let Some(calculated_size) = calculated_size {
-                flex_surface.upsert_leaf(entity, style, *calculated_size, scaling_factor);
+                flex_surface.upsert_leaf(entity, style, calculated_size, scaling_factor);
             } else {
                 flex_surface.upsert_node(entity, style, scaling_factor);
             }
@@ -311,7 +334,7 @@ pub fn flex_node_system(
     }
 
     for (entity, style, calculated_size) in &changed_size_query {
-        flex_surface.upsert_leaf(entity, style, *calculated_size, scale_factor);
+        flex_surface.upsert_leaf(entity, style, calculated_size, scale_factor);
     }
 
     // clean up removed nodes
