@@ -19,6 +19,7 @@ fn scale_value(value: f32, factor: f64) -> f32 {
     (value as f64 * factor) as f32
 }
 
+#[derive(Clone)]
 pub struct TextMeasure {
     pub size: Vec2,
     pub min_size: Vec2,
@@ -241,7 +242,10 @@ pub fn text_system(
                                     // );
                                     // calculated_size.ideal_height = scale_value(ideal_height, inv_scale_factor);
                                     let measure = TextMeasure {
-                                        size: todo!(),
+                                        size: Vec2::new(
+                                                scale_value(info.size.x, inv_scale_factor),
+                                                scale_value(info.size.y, inv_scale_factor),
+                                            ),
                                         min_size: Vec2::new(
                                             scale_value(min_size.x, inv_scale_factor),
                                             scale_value(min_size.y, inv_scale_factor),
@@ -252,7 +256,7 @@ pub fn text_system(
                                         ),
                                         ideal_height: ideal.y,
                                     };
-                                    calculated_size.measure = measure;
+                                    calculated_size.measure = Box::new(measure);
 
                                     match text_layout_info {
                                         Some(mut t) => *t = info,

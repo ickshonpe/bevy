@@ -15,8 +15,8 @@ impl Default for CalculatedSize {
     fn default() -> Self {
         Self {
             size: Default::default(),
-            measure: Box::new(|w: Option<f32>, h: Option<f32>, _, _| {
-                Vec2::new(w.unwrap_or(0.), h.unwrap_or(0.))
+            measure: Box::new(BasicMeasure {
+                size: Default::default(),
             }),
         }
     }
@@ -71,25 +71,25 @@ impl Measure for BasicMeasure {
     }
 }
 
-// impl<F> Measure for F
-// where
-//     F: Fn(Option<f32>, Option<f32>, AvailableSpace, AvailableSpace) -> Vec2
-//         + Send
-//         + Sync
-//         + 'static
-//         + Clone,
-// {
-//     fn measure(
-//         &self,
-//         max_width: Option<f32>,
-//         max_height: Option<f32>,
-//         available_width: AvailableSpace,
-//         available_height: AvailableSpace,
-//     ) -> Vec2 {
-//         self(max_width, max_height, available_width, available_height)
-//     }
+impl<F> Measure for F
+where
+    F: Fn(Option<f32>, Option<f32>, AvailableSpace, AvailableSpace) -> Vec2
+        + Send
+        + Sync
+        + 'static
+        + Clone,
+{
+    fn measure(
+        &self,
+        max_width: Option<f32>,
+        max_height: Option<f32>,
+        available_width: AvailableSpace,
+        available_height: AvailableSpace,
+    ) -> Vec2 {
+        self(max_width, max_height, available_width, available_height)
+    }
 
-//     fn dyn_clone(&self) -> Box<dyn Measure> {
-//         Box::new(self.clone())
-//     }
-// }
+    fn dyn_clone(&self) -> Box<dyn Measure> {
+        Box::new(self.clone())
+    }
+}
