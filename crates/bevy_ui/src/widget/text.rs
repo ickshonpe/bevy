@@ -241,20 +241,12 @@ pub fn text_system(
                                     //     scale_value(info.size.y, inv_scale_factor),
                                     // );
                                     // calculated_size.ideal_height = scale_value(ideal_height, inv_scale_factor);
+                                    let inv_scale = |v: Vec2| Vec2::new(scale_value(v.x, inv_scale_factor), scale_value(v.y, inv_scale_factor));
                                     let measure = TextMeasure {
-                                        size: Vec2::new(
-                                                scale_value(info.size.x, inv_scale_factor),
-                                                scale_value(info.size.y, inv_scale_factor),
-                                            ),
-                                        min_size: Vec2::new(
-                                            scale_value(min_size.x, inv_scale_factor),
-                                            scale_value(min_size.y, inv_scale_factor),
-                                        ),
-                                        max_size: Vec2::new(
-                                            scale_value(max_size.x, inv_scale_factor),
-                                            scale_value(max_size.y, inv_scale_factor),
-                                        ),
-                                        ideal_height: ideal.y,
+                                        size: inv_scale(info.size),
+                                        min_size: inv_scale(info.size), 
+                                        max_size: inv_scale(info.size),
+                                        ideal_height: scale_value(ideal.y, inv_scale_factor),
                                     };
                                     calculated_size.measure = Box::new(measure);
 
