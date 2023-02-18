@@ -100,7 +100,7 @@ impl FlexSurface {
             //         width: (scale_factor * calculated_size.max_size.x as f64) as f32,
             //         height: (scale_factor * calculated_size.max_size.y as f64) as f32,
             //     };
-            //     let ideal_height = (scale_factor * calculated_size.ideal_height as f64) as f32;                
+            //     let ideal_height = (scale_factor * calculated_size.ideal_height as f64) as f32;
             //     let out = match calculated_size.mode {
             //         crate::MeasureMode::PreserveAspectRatio => {
             //             match (constraints.width, constraints.height) {
@@ -162,7 +162,6 @@ impl FlexSurface {
                     width: (size.x as f64 * scale_factor) as f32,
                     height: (size.y as f64 * scale_factor) as f32,
                 }
-
             },
         ));
         if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
@@ -367,7 +366,7 @@ pub fn flex_node_system(
         );
         //only trigger change detection when the new value is different
         if node.calculated_size != new_size {
-            node.calculated_size = new_size;            
+            node.calculated_size = new_size;
         }
 
         // trigger change detection even when the new value is the smae
@@ -387,6 +386,4 @@ pub fn flex_node_system(
             transform.translation = new_position;
         }
     }
-
-    
 }

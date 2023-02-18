@@ -145,8 +145,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                                 flex_shrink: 0.,
                                                 size: Size::height(Val::Px(20.)),
                                                 ..default()
-                                            }
-                                        ));
+                                            }),
+                                        );
                                     }
                                 });
                         });

@@ -33,4 +33,3 @@ pub fn measure_text(
     size.height = size.height.ceil();
     size
 }
-

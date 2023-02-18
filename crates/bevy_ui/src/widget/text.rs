@@ -1,4 +1,4 @@
-use crate::{BasicMeasure, CalculatedSize, Node, Style, UiScale, Val, Measure};
+use crate::{BasicMeasure, CalculatedSize, Measure, Node, Style, UiScale, Val};
 use bevy_asset::Assets;
 use bevy_ecs::{
     entity::Entity,
@@ -65,9 +65,6 @@ impl Measure for TextMeasure {
         Box::new(self.clone())
     }
 }
-
-
-
 
 /// Updates the layout and size information whenever the text or style is changed.
 /// This information is computed by the `TextPipeline` on insertion, then stored.
@@ -138,11 +135,7 @@ pub fn text_system(
                 scale_value(node.size().x, scale_factor),
                 scale_value(node.size().y, scale_factor),
             );
-            match text_pipeline.compute_sections(
-                &fonts,
-                &text.sections,
-                scale_factor,
-            ) {
+            match text_pipeline.compute_sections(&fonts, &text.sections, scale_factor) {
                 Ok((sections, scaled_fonts)) => {
                     let a_size = text_pipeline.compute_size(
                         &sections,
@@ -167,8 +160,7 @@ pub fn text_system(
                     let min_size = Vec2::new(min_x, min_y);
                     let max_size = Vec2::new(max_x, max_y);
 
-                    let ideal =
-                    if node.size() == Vec2::ZERO {
+                    let ideal = if node.size() == Vec2::ZERO {
                         Vec2::new(max_size.x, min_size.y)
                     } else {
                         text_pipeline.compute_size(
@@ -179,137 +171,81 @@ pub fn text_system(
                             Vec2::new(target_size.x, f32::INFINITY),
                         )
                     };
-                    
-                    // let ideal_height = ideal.y;
-                    // calculated_size.min_size = Vec2::new(
-                    //     scale_value(min_size.x, inv_scale_factor),
-                    //     scale_value(min_size.y, inv_scale_factor),
-                    // );
-                    // calculated_size.max_size = Vec2::new(
-                    //     scale_value(max_size.x, inv_scale_factor),
-                    //     scale_value(max_size.y, inv_scale_factor),
-                    // );
-                    
-//                    calculated_size.ideal_height = scale_value(ideal_height, inv_scale_factor);
 
-                    //if calculated_size.ready {
-                        let section_glyphs =
-                            if node.size() == Vec2::ZERO {
-                                text_pipeline.compute_section_glyphs(
-                                    &sections,
-                                    text.alignment,
-                                    text.linebreak_behaviour,
-                                    Vec2::splat(f32::INFINITY),
-                                ).unwrap()
-                            } else {
-                                text_pipeline.compute_section_glyphs(
-                                    &sections,
-                                    text.alignment,
-                                    text.linebreak_behaviour,
-                                    Vec2::new(target_size.x, f32::INFINITY),
-                                ).unwrap()
-                            };
-                        
-                        let out =
-                            text_pipeline.queue_sections(
-                                section_glyphs,
-                                &scaled_fonts, 
-                                &fonts, 
-                                &sections, 
-                                &mut font_atlas_set_storage,
-                                &mut texture_atlases,
-                                &mut textures,
-                                text_settings.as_ref(),
-                                &mut font_atlas_warning,
+                    let section_glyphs = if node.size() == Vec2::ZERO {
+                        text_pipeline
+                            .compute_section_glyphs(
+                                &sections,
+                                text.alignment,
+                                text.linebreak_behaviour,
+                                Vec2::splat(f32::INFINITY),
+                            )
+                            .unwrap()
+                    } else {
+                        text_pipeline
+                            .compute_section_glyphs(
+                                &sections,
+                                text.alignment,
+                                text.linebreak_behaviour,
+                                Vec2::new(target_size.x, f32::INFINITY),
+                            )
+                            .unwrap()
+                    };
+
+                    let out = text_pipeline.queue_sections(
+                        section_glyphs,
+                        &scaled_fonts,
+                        &fonts,
+                        &sections,
+                        &mut font_atlas_set_storage,
+                        &mut texture_atlases,
+                        &mut textures,
+                        text_settings.as_ref(),
+                        &mut font_atlas_warning,
                         YAxisOrientation::TopToBottom,
-                            );
-                            match out {
-                                Err(TextError::NoSuchFont) => {
-                                    // There was an error processing the text layout, let's add this entity to the
-                                    // queue for further processing
-                                    new_queue.push(entity);
-                                }
-                                Err(e @ TextError::FailedToAddGlyph(_)) => {
-                                    panic!("Fatal error when processing text: {e}.");
-                                }
-                                Ok(info) => {
-                                    // calculated_size.ready = false;
-                                    // calculated_size.mode = MeasureMode::Text;
+                    );
+                    match out {
+                        Err(TextError::NoSuchFont) => {
+                            // There was an error processing the text layout, let's add this entity to the
+                            // queue for further processing
+                            new_queue.push(entity);
+                        }
+                        Err(e @ TextError::FailedToAddGlyph(_)) => {
+                            panic!("Fatal error when processing text: {e}.");
+                        }
+                        Ok(info) => {
+                            let inv_scale = |v: Vec2| {
+                                Vec2::new(
+                                    scale_value(v.x, inv_scale_factor),
+                                    scale_value(v.y, inv_scale_factor),
+                                )
+                            };
+                            let measure = TextMeasure {
+                                size: inv_scale(info.size),
+                                min_size: inv_scale(info.size),
+                                max_size: inv_scale(info.size),
+                                ideal_height: scale_value(ideal.y, inv_scale_factor),
+                            };
+                            calculated_size.measure = Box::new(measure);
 
-                                    // calculated_size.size = Vec2::new(
-                                    //     scale_value(info.size.x, inv_scale_factor),
-                                    //     scale_value(info.size.y, inv_scale_factor),
-                                    // );
-                                    // calculated_size.ideal_height = scale_value(ideal_height, inv_scale_factor);
-                                    let inv_scale = |v: Vec2| Vec2::new(scale_value(v.x, inv_scale_factor), scale_value(v.y, inv_scale_factor));
-                                    let measure = TextMeasure {
-                                        size: inv_scale(info.size),
-                                        min_size: inv_scale(info.size), 
-                                        max_size: inv_scale(info.size),
-                                        ideal_height: scale_value(ideal.y, inv_scale_factor),
-                                    };
-                                    calculated_size.measure = Box::new(measure);
-
-                                    match text_layout_info {
-                                        Some(mut t) => *t = info,
-                                        None => {
-                                            commands.entity(entity).insert(info);
-                                        }
-                                    }
+                            match text_layout_info {
+                                Some(mut t) => *t = info,
+                                None => {
+                                    commands.entity(entity).insert(info);
                                 }
                             }
-                    //} else {
-                       // calculated_size.ready = true;
-                        // let size =  if node.size() == Vec2::ZERO {
-                        //     text_pipeline.compute_size(
-                        //         &sections,
-                        //         &scaled_fonts,
-                        //         text.alignment,
-                        //         text.linebreak_behaviour,
-                        //         Vec2::splat(f32::INFINITY),
-                        //     )
-                        // } else {
-                        //     text_pipeline.compute_size(
-                        //         &sections,
-                        //         &scaled_fonts,
-                        //         text.alignment,
-                        //         text.linebreak_behaviour,
-                        //         Vec2::new(target_size.x, f32::INFINITY),
-                        //     )
-                        // };
-                        
-                        // calculated_size.size = Vec2::new(
-                        //     scale_value(size.x, inv_scale_factor),
-                        //     scale_value(size.y, inv_scale_factor),
-                        // );
-                        // new_queue.push(entity);
-
-                  //  }                    
-                },
+                        }
+                    }
+                }
                 Err(TextError::NoSuchFont) => {
                     new_queue.push(entity);
-                },
+                }
                 Err(e @ TextError::FailedToAddGlyph(_)) => {
                     panic!("Fatal error when processing text: {e}.");
                 }
             };
-                // Ok(info) => {
-                //     calculated_size.measure = Box::new(BasicMeasure {
-                //         size: Vec2::new(
-                //             scale_value(info.size.x, inv_scale_factor),
-                //             scale_value(info.size.y, inv_scale_factor),
-                //         ),
-                //     });
-                //     match text_layout_info {
-                //         Some(mut t) => *t = info,
-                //         None => {
-                //             commands.entity(entity).insert(info);
-                //         }
-                //     }
-                // }
-            }
         }
-    //}
+    }
 
     *queued_text_ids = new_queue;
 }

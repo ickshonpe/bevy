@@ -20,7 +20,6 @@ pub struct Node {
     pub(crate) calculated_size: Vec2,
 }
 
-
 impl Node {
     /// The calculated node size as width and height in pixels
     /// automatically calculated by [`super::flex::flex_node_system`]
@@ -278,7 +277,7 @@ pub struct Style {
     /// How to shrink if there's not enough space available
     pub flex_shrink: f32,
     /// The initial length of the main axis, before other properties are applied.
-    /// 
+    ///
     /// `flex_basis` overrides `size` if both are set, but it obeys the bounds defined by `min_size` and `max_size`.
     pub flex_basis: Val,
     /// The ideal size of the flexbox

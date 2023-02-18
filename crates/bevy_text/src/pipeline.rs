@@ -1,4 +1,4 @@
-use ab_glyph::{PxScale, ScaleFont, PxScaleFont, FontArc};
+use ab_glyph::{FontArc, PxScale, PxScaleFont, ScaleFont};
 use bevy_asset::{Assets, Handle, HandleId};
 use bevy_ecs::component::Component;
 use bevy_ecs::system::Resource;
@@ -7,7 +7,7 @@ use bevy_render::texture::Image;
 use bevy_sprite::TextureAtlas;
 use bevy_utils::HashMap;
 
-use glyph_brush_layout::{FontId, SectionText, SectionGlyph};
+use glyph_brush_layout::{FontId, SectionGlyph, SectionText};
 
 use crate::{
     error::TextError, glyph_brush::GlyphBrush, scale_value, BreakLineOn, Font, FontAtlasSet,
@@ -166,8 +166,10 @@ impl TextPipeline {
         linebreak_behaviour: BreakLineOn,
         bounds: Vec2,
     ) -> Vec2 {
-        if let Ok(section_glyphs) = self.brush
-            .compute_glyphs(sections, bounds, text_alignment, linebreak_behaviour) {
+        if let Ok(section_glyphs) =
+            self.brush
+                .compute_glyphs(sections, bounds, text_alignment, linebreak_behaviour)
+        {
             let mut min_x: f32 = std::f32::MAX;
             let mut min_y: f32 = std::f32::MAX;
             let mut max_x: f32 = std::f32::MIN;
@@ -200,9 +202,8 @@ impl TextPipeline {
         text_settings: &TextSettings,
         font_atlas_warning: &mut FontAtlasWarning,
         y_axis_orientation: YAxisOrientation,
-
     ) -> Result<TextLayoutInfo, TextError> {
-         if section_glyphs.is_empty() {
+        if section_glyphs.is_empty() {
             return Ok(TextLayoutInfo::default());
         }
 
