@@ -71,25 +71,25 @@ impl Measure for BasicMeasure {
     }
 }
 
-impl<F> Measure for F
-where
-    F: Fn(Option<f32>, Option<f32>, AvailableSpace, AvailableSpace) -> Vec2
-        + Send
-        + Sync
-        + 'static
-        + Clone,
-{
-    fn measure(
-        &self,
-        max_width: Option<f32>,
-        max_height: Option<f32>,
-        available_width: AvailableSpace,
-        available_height: AvailableSpace,
-    ) -> Vec2 {
-        self(max_width, max_height, available_width, available_height)
-    }
+// impl<F> Measure for F
+// where
+//     F: Fn(Option<f32>, Option<f32>, AvailableSpace, AvailableSpace) -> Vec2
+//         + Send
+//         + Sync
+//         + 'static
+//         + Clone,
+// {
+//     fn measure(
+//         &self,
+//         max_width: Option<f32>,
+//         max_height: Option<f32>,
+//         available_width: AvailableSpace,
+//         available_height: AvailableSpace,
+//     ) -> Vec2 {
+//         self(max_width, max_height, available_width, available_height)
+//     }
 
-    fn dyn_clone(&self) -> Box<dyn Measure> {
-        Box::new(self.clone())
-    }
-}
+//     fn dyn_clone(&self) -> Box<dyn Measure> {
+//         Box::new(self.clone())
+//     }
+// }

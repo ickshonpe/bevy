@@ -1,4 +1,4 @@
-use crate::{BasicMeasure, CalculatedSize, Node, Style, UiScale, Val};
+use crate::{BasicMeasure, CalculatedSize, Node, Style, UiScale, Val, Measure};
 use bevy_asset::Assets;
 use bevy_ecs::{
     entity::Entity,
@@ -13,10 +13,60 @@ use bevy_text::{
     TextSettings, YAxisOrientation,
 };
 use bevy_window::{PrimaryWindow, Window};
+use taffy::prelude::AvailableSpace;
 
 fn scale_value(value: f32, factor: f64) -> f32 {
     (value as f64 * factor) as f32
 }
+
+pub struct TextMeasure {
+    pub size: Vec2,
+    pub min_size: Vec2,
+    pub max_size: Vec2,
+    pub ideal_height: f32,
+}
+
+impl Measure for TextMeasure {
+    fn measure(
+        &self,
+        max_width: Option<f32>,
+        max_height: Option<f32>,
+        _: AvailableSpace,
+        _: AvailableSpace,
+    ) -> Vec2 {
+        let mut size = self.size;
+        match (max_width, max_height) {
+            (None, None) => {
+                // with no constraints
+                // ask for maximum width space for text with no wrapping
+                size.x = self.max_size.x;
+                size.y = self.min_size.y;
+            }
+            (Some(width), None) => {
+                size.x = width;
+                size.y = self.ideal_height;
+            }
+            (None, Some(height)) => {
+                size.y = height;
+                size.x = self.max_size.x;
+            }
+            (Some(width), Some(height)) => {
+                size.x = width;
+                size.y = height;
+            }
+        }
+        size.x = size.x.ceil();
+        size.y = size.y.ceil();
+        size
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Measure> {
+        Box::new(self.clone())
+    }
+}
+
+
+
 
 /// Updates the layout and size information whenever the text or style is changed.
 /// This information is computed by the `TextPipeline` on insertion, then stored.
@@ -87,7 +137,6 @@ pub fn text_system(
                 scale_value(node.size().x, scale_factor),
                 scale_value(node.size().y, scale_factor),
             );
-            calculated_size.mode = MeasureMode::Text;
             match text_pipeline.compute_sections(
                 &fonts,
                 &text.sections,
@@ -129,19 +178,20 @@ pub fn text_system(
                             Vec2::new(target_size.x, f32::INFINITY),
                         )
                     };
-                    let ideal_height = ideal.y;
-                    calculated_size.min_size = Vec2::new(
-                        scale_value(min_size.x, inv_scale_factor),
-                        scale_value(min_size.y, inv_scale_factor),
-                    );
-                    calculated_size.max_size = Vec2::new(
-                        scale_value(max_size.x, inv_scale_factor),
-                        scale_value(max_size.y, inv_scale_factor),
-                    );
                     
-                    calculated_size.ideal_height = scale_value(ideal_height, inv_scale_factor);
+                    // let ideal_height = ideal.y;
+                    // calculated_size.min_size = Vec2::new(
+                    //     scale_value(min_size.x, inv_scale_factor),
+                    //     scale_value(min_size.y, inv_scale_factor),
+                    // );
+                    // calculated_size.max_size = Vec2::new(
+                    //     scale_value(max_size.x, inv_scale_factor),
+                    //     scale_value(max_size.y, inv_scale_factor),
+                    // );
+                    
+//                    calculated_size.ideal_height = scale_value(ideal_height, inv_scale_factor);
 
-                    if calculated_size.ready {
+                    //if calculated_size.ready {
                         let section_glyphs =
                             if node.size() == Vec2::ZERO {
                                 text_pipeline.compute_section_glyphs(
@@ -182,13 +232,28 @@ pub fn text_system(
                                     panic!("Fatal error when processing text: {e}.");
                                 }
                                 Ok(info) => {
-                                    calculated_size.ready = false;
-                                    calculated_size.mode = MeasureMode::Text;
-                                    calculated_size.size = Vec2::new(
-                                        scale_value(info.size.x, inv_scale_factor),
-                                        scale_value(info.size.y, inv_scale_factor),
-                                    );
-                                    calculated_size.ideal_height = scale_value(ideal_height, inv_scale_factor);
+                                    // calculated_size.ready = false;
+                                    // calculated_size.mode = MeasureMode::Text;
+
+                                    // calculated_size.size = Vec2::new(
+                                    //     scale_value(info.size.x, inv_scale_factor),
+                                    //     scale_value(info.size.y, inv_scale_factor),
+                                    // );
+                                    // calculated_size.ideal_height = scale_value(ideal_height, inv_scale_factor);
+                                    let measure = TextMeasure {
+                                        size: todo!(),
+                                        min_size: Vec2::new(
+                                            scale_value(min_size.x, inv_scale_factor),
+                                            scale_value(min_size.y, inv_scale_factor),
+                                        ),
+                                        max_size: Vec2::new(
+                                            scale_value(max_size.x, inv_scale_factor),
+                                            scale_value(max_size.y, inv_scale_factor),
+                                        ),
+                                        ideal_height: ideal.y,
+                                    };
+                                    calculated_size.measure = measure;
+
                                     match text_layout_info {
                                         Some(mut t) => *t = info,
                                         None => {
@@ -197,33 +262,33 @@ pub fn text_system(
                                     }
                                 }
                             }
-                    } else {
-                        calculated_size.ready = true;
-                        let size =  if node.size() == Vec2::ZERO {
-                            text_pipeline.compute_size(
-                                &sections,
-                                &scaled_fonts,
-                                text.alignment,
-                                text.linebreak_behaviour,
-                                Vec2::splat(f32::INFINITY),
-                            )
-                        } else {
-                            text_pipeline.compute_size(
-                                &sections,
-                                &scaled_fonts,
-                                text.alignment,
-                                text.linebreak_behaviour,
-                                Vec2::new(target_size.x, f32::INFINITY),
-                            )
-                        };
+                    //} else {
+                       // calculated_size.ready = true;
+                        // let size =  if node.size() == Vec2::ZERO {
+                        //     text_pipeline.compute_size(
+                        //         &sections,
+                        //         &scaled_fonts,
+                        //         text.alignment,
+                        //         text.linebreak_behaviour,
+                        //         Vec2::splat(f32::INFINITY),
+                        //     )
+                        // } else {
+                        //     text_pipeline.compute_size(
+                        //         &sections,
+                        //         &scaled_fonts,
+                        //         text.alignment,
+                        //         text.linebreak_behaviour,
+                        //         Vec2::new(target_size.x, f32::INFINITY),
+                        //     )
+                        // };
                         
-                        calculated_size.size = Vec2::new(
-                            scale_value(size.x, inv_scale_factor),
-                            scale_value(size.y, inv_scale_factor),
-                        );
-                        new_queue.push(entity);
+                        // calculated_size.size = Vec2::new(
+                        //     scale_value(size.x, inv_scale_factor),
+                        //     scale_value(size.y, inv_scale_factor),
+                        // );
+                        // new_queue.push(entity);
 
-                    }                    
+                  //  }                    
                 },
                 Err(TextError::NoSuchFont) => {
                     new_queue.push(entity);
@@ -232,23 +297,23 @@ pub fn text_system(
                     panic!("Fatal error when processing text: {e}.");
                 }
             };
-                Ok(info) => {
-                    calculated_size.measure = Box::new(BasicMeasure {
-                        size: Vec2::new(
-                            scale_value(info.size.x, inv_scale_factor),
-                            scale_value(info.size.y, inv_scale_factor),
-                        ),
-                    });
-                    match text_layout_info {
-                        Some(mut t) => *t = info,
-                        None => {
-                            commands.entity(entity).insert(info);
-                        }
-                    }
-                }
+                // Ok(info) => {
+                //     calculated_size.measure = Box::new(BasicMeasure {
+                //         size: Vec2::new(
+                //             scale_value(info.size.x, inv_scale_factor),
+                //             scale_value(info.size.y, inv_scale_factor),
+                //         ),
+                //     });
+                //     match text_layout_info {
+                //         Some(mut t) => *t = info,
+                //         None => {
+                //             commands.entity(entity).insert(info);
+                //         }
+                //     }
+                // }
             }
         }
-    }
+    //}
 
     *queued_text_ids = new_queue;
 }

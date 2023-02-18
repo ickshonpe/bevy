@@ -2,7 +2,7 @@
 
 use crate::{
     widget::Button, BackgroundColor, CalculatedSize, FocusPolicy, Interaction, Node, Style,
-    UiImage, ZIndex, MeasureMode,
+    UiImage, ZIndex, 
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_render::{
@@ -135,10 +135,8 @@ impl Default for TextBundle {
             focus_policy: Default::default(), 
             transform: Default::default(), global_transform: Default::default(), visibility: Default::default(),
             computed_visibility: Default::default(),
-            calculated_size: CalculatedSize {
-                mode: MeasureMode::Text,
-                ..Default::default()
-            }, z_index: Default::default() }
+            calculated_size: CalculatedSize::default(),
+            z_index: Default::default() }
     }
 }
 

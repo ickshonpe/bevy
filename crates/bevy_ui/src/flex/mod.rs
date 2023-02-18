@@ -1,7 +1,7 @@
 mod convert;
 pub mod measure;
 
-use crate::{CalculatedSize, Node, Style, UiScale, measure::measure_text};
+use crate::{CalculatedSize, Node, Style, UiScale};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
