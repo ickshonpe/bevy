@@ -74,7 +74,7 @@ impl Measure for TextMeasure {
 /// [`ResMut<Assets<Image>>`](Assets<Image>) -- This system only adds new [`Image`] assets.
 /// It does not modify or observe existing ones.
 #[allow(clippy::too_many_arguments)]
-pub fn text_system(
+pub fn text_size_system(
     mut commands: Commands,
     mut queued_text_ids: Local<Vec<Entity>>,
     mut last_scale_factor: Local<f64>,
@@ -172,70 +172,70 @@ pub fn text_system(
                         )
                     };
 
-                    let section_glyphs = if node.size() == Vec2::ZERO {
-                        text_pipeline
-                            .compute_section_glyphs(
-                                &sections,
-                                text.alignment,
-                                text.linebreak_behaviour,
-                                Vec2::splat(f32::INFINITY),
-                            )
-                            .unwrap()
-                    } else {
-                        text_pipeline
-                            .compute_section_glyphs(
-                                &sections,
-                                text.alignment,
-                                text.linebreak_behaviour,
-                                Vec2::new(target_size.x, f32::INFINITY),
-                            )
-                            .unwrap()
+                    // let section_glyphs = if node.size() == Vec2::ZERO {
+                    //     text_pipeline
+                    //         .compute_section_glyphs(
+                    //             &sections,
+                    //             text.alignment,
+                    //             text.linebreak_behaviour,
+                    //             Vec2::splat(f32::INFINITY),
+                    //         )
+                    //         .unwrap()
+                    // } else {
+                    //     text_pipeline
+                    //         .compute_section_glyphs(
+                    //             &sections,
+                    //             text.alignment,
+                    //             text.linebreak_behaviour,
+                    //             Vec2::new(target_size.x, f32::INFINITY),
+                    //         )
+                    //         .unwrap()
+                    // };
+
+                    // let out = text_pipeline.queue_sections(
+                    //     section_glyphs,
+                    //     &scaled_fonts,
+                    //     &fonts,
+                    //     &sections,
+                    //     &mut font_atlas_set_storage,
+                    //     &mut texture_atlases,
+                    //     &mut textures,
+                    //     text_settings.as_ref(),
+                    //     &mut font_atlas_warning,
+                    //     YAxisOrientation::TopToBottom,
+                    // );
+                    // match out {
+                    //     Err(TextError::NoSuchFont) => {
+                    //         // There was an error processing the text layout, let's add this entity to the
+                    //         // queue for further processing
+                    //         new_queue.push(entity);
+                    //     }
+                    //     Err(e @ TextError::FailedToAddGlyph(_)) => {
+                    //         panic!("Fatal error when processing text: {e}.");
+                    //     }
+                    //     Ok(info) => {
+                    let inv_scale = |v: Vec2| {
+                        Vec2::new(
+                            scale_value(v.x, inv_scale_factor),
+                            scale_value(v.y, inv_scale_factor),
+                        )
                     };
+                    let measure = TextMeasure {
+                        size: Vec2::ZERO,
+                        min_size: inv_scale(min_size),
+                        max_size: inv_scale(max_size),
+                        ideal_height: scale_value(ideal.y, inv_scale_factor),
+                    };
+                    calculated_size.measure = Box::new(measure);
 
-                    let out = text_pipeline.queue_sections(
-                        section_glyphs,
-                        &scaled_fonts,
-                        &fonts,
-                        &sections,
-                        &mut font_atlas_set_storage,
-                        &mut texture_atlases,
-                        &mut textures,
-                        text_settings.as_ref(),
-                        &mut font_atlas_warning,
-                        YAxisOrientation::TopToBottom,
-                    );
-                    match out {
-                        Err(TextError::NoSuchFont) => {
-                            // There was an error processing the text layout, let's add this entity to the
-                            // queue for further processing
-                            new_queue.push(entity);
-                        }
-                        Err(e @ TextError::FailedToAddGlyph(_)) => {
-                            panic!("Fatal error when processing text: {e}.");
-                        }
-                        Ok(info) => {
-                            let inv_scale = |v: Vec2| {
-                                Vec2::new(
-                                    scale_value(v.x, inv_scale_factor),
-                                    scale_value(v.y, inv_scale_factor),
-                                )
-                            };
-                            let measure = TextMeasure {
-                                size: inv_scale(info.size),
-                                min_size: inv_scale(min_size),
-                                max_size: inv_scale(max_size),
-                                ideal_height: scale_value(ideal.y, inv_scale_factor),
-                            };
-                            calculated_size.measure = Box::new(measure);
-
-                            match text_layout_info {
-                                Some(mut t) => *t = info,
-                                None => {
-                                    commands.entity(entity).insert(info);
-                                }
-                            }
-                        }
-                    }
+                    //         match text_layout_info {
+                    //             Some(mut t) => *t = info,
+                    //             None => {
+                    //                 commands.entity(entity).insert(info);
+                    //             }
+                    //         }
+                    // //     }
+                    // }
                 }
                 Err(TextError::NoSuchFont) => {
                     new_queue.push(entity);
@@ -250,7 +250,7 @@ pub fn text_system(
     *queued_text_ids = new_queue;
 }
 
-pub fn text_size_system(
+pub fn text_system(
     mut commands: Commands,
     mut queued_text_ids: Local<Vec<Entity>>,
     mut last_scale_factor: Local<f64>,
