@@ -222,8 +222,8 @@ pub fn text_system(
                             };
                             let measure = TextMeasure {
                                 size: inv_scale(info.size),
-                                min_size: inv_scale(info.size),
-                                max_size: inv_scale(info.size),
+                                min_size: inv_scale(min_size),
+                                max_size: inv_scale(max_size),
                                 ideal_height: scale_value(ideal.y, inv_scale_factor),
                             };
                             calculated_size.measure = Box::new(measure);
@@ -398,8 +398,8 @@ pub fn text_size_system(
                             };
                             let measure = TextMeasure {
                                 size: inv_scale(info.size),
-                                min_size: inv_scale(info.size),
-                                max_size: inv_scale(info.size),
+                                min_size: inv_scale(min_size),
+                                max_size: inv_scale(max_size),
                                 ideal_height: scale_value(ideal.y, inv_scale_factor),
                             };
                             calculated_size.measure = Box::new(measure);
