@@ -1,3 +1,5 @@
+use std::mem::size_of;
+
 use crate::{CalculatedSize, Measure, Node, UiScale};
 use bevy_asset::Assets;
 use bevy_ecs::{
@@ -88,13 +90,12 @@ pub fn text_size_system(
     mut font_atlas_set_storage: ResMut<Assets<FontAtlasSet>>,
     mut text_pipeline: ResMut<TextPipeline>,
     mut text_queries: ParamSet<(
-        Query<Entity, Or<(Changed<Text>, Changed<Node>)>>,
+        Query<Entity, Changed<Text>>,
         Query<Entity, (With<Text>, With<Node>)>,
         Query<(
             &Node,
             &Text,
             &mut CalculatedSize,
-            Option<&mut TextLayoutInfo>,
         )>,
     )>,
 ) {
@@ -130,13 +131,13 @@ pub fn text_size_system(
     let mut new_queue = Vec::new();
     let mut query = text_queries.p2();
     for entity in queued_text_ids.drain(..) {
-        if let Ok((node, text, mut calculated_size, text_layout_info)) = query.get_mut(entity) {
+        if let Ok((node, text, mut calculated_size)) = query.get_mut(entity) {
             let target_size = Vec2::new(
                 scale_value(node.size().x, scale_factor),
                 scale_value(node.size().y, scale_factor),
             );
             match text_pipeline.compute_sections(&fonts, &text.sections, scale_factor) {
-                Ok((sections, scaled_fonts)) => {
+                Ok((sections, scaled_fonts)) => { 
                     let a_size = text_pipeline.compute_size(
                         &sections,
                         &scaled_fonts,
@@ -172,48 +173,6 @@ pub fn text_size_system(
                         )
                     };
 
-                    // let section_glyphs = if node.size() == Vec2::ZERO {
-                    //     text_pipeline
-                    //         .compute_section_glyphs(
-                    //             &sections,
-                    //             text.alignment,
-                    //             text.linebreak_behaviour,
-                    //             Vec2::splat(f32::INFINITY),
-                    //         )
-                    //         .unwrap()
-                    // } else {
-                    //     text_pipeline
-                    //         .compute_section_glyphs(
-                    //             &sections,
-                    //             text.alignment,
-                    //             text.linebreak_behaviour,
-                    //             Vec2::new(target_size.x, f32::INFINITY),
-                    //         )
-                    //         .unwrap()
-                    // };
-
-                    // let out = text_pipeline.queue_sections(
-                    //     section_glyphs,
-                    //     &scaled_fonts,
-                    //     &fonts,
-                    //     &sections,
-                    //     &mut font_atlas_set_storage,
-                    //     &mut texture_atlases,
-                    //     &mut textures,
-                    //     text_settings.as_ref(),
-                    //     &mut font_atlas_warning,
-                    //     YAxisOrientation::TopToBottom,
-                    // );
-                    // match out {
-                    //     Err(TextError::NoSuchFont) => {
-                    //         // There was an error processing the text layout, let's add this entity to the
-                    //         // queue for further processing
-                    //         new_queue.push(entity);
-                    //     }
-                    //     Err(e @ TextError::FailedToAddGlyph(_)) => {
-                    //         panic!("Fatal error when processing text: {e}.");
-                    //     }
-                    //     Ok(info) => {
                     let inv_scale = |v: Vec2| {
                         Vec2::new(
                             scale_value(v.x, inv_scale_factor),
@@ -228,14 +187,6 @@ pub fn text_size_system(
                     };
                     calculated_size.measure = Box::new(measure);
 
-                    //         match text_layout_info {
-                    //             Some(mut t) => *t = info,
-                    //             None => {
-                    //                 commands.entity(entity).insert(info);
-                    //             }
-                    //         }
-                    // //     }
-                    // }
                 }
                 Err(TextError::NoSuchFont) => {
                     new_queue.push(entity);
@@ -251,7 +202,6 @@ pub fn text_size_system(
 }
 
 pub fn text_system(
-    mut commands: Commands,
     mut queued_text_ids: Local<Vec<Entity>>,
     mut last_scale_factor: Local<f64>,
     mut textures: ResMut<Assets<Image>>,
@@ -270,7 +220,7 @@ pub fn text_system(
             &Node,
             &Text,
             &mut CalculatedSize,
-            Option<&mut TextLayoutInfo>,
+            &mut TextLayoutInfo,
         )>,
     )>,
 ) {
@@ -306,7 +256,7 @@ pub fn text_system(
     let mut new_queue = Vec::new();
     let mut query = text_queries.p2();
     for entity in queued_text_ids.drain(..) {
-        if let Ok((node, text, mut calculated_size, text_layout_info)) = query.get_mut(entity) {
+        if let Ok((node, text, mut calculated_size, mut text_layout_info)) = query.get_mut(entity) {
             let target_size = Vec2::new(
                 scale_value(node.size().x, scale_factor),
                 scale_value(node.size().y, scale_factor),
@@ -403,13 +353,7 @@ pub fn text_system(
                                 ideal_height: scale_value(ideal.y, inv_scale_factor),
                             };
                             calculated_size.measure = Box::new(measure);
-
-                            match text_layout_info {
-                                Some(mut t) => *t = info,
-                                None => {
-                                    commands.entity(entity).insert(info);
-                                }
-                            }
+                            *text_layout_info = info;
                         }
                     }
                 }

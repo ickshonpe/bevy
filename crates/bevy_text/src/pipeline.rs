@@ -143,7 +143,6 @@ impl TextPipeline {
                 Ok(section)
             })
             .collect::<Result<Vec<_>, _>>()?;
-
         Ok((sections, scaled_fonts))
     }
 

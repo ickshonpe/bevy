@@ -124,6 +124,7 @@ pub struct TextBundle {
     pub computed_visibility: ComputedVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
+    pub text_layout_info: bevy_text::TextLayoutInfo,
 }
 
 impl Default for TextBundle {
@@ -139,6 +140,7 @@ impl Default for TextBundle {
             computed_visibility: Default::default(),
             calculated_size: CalculatedSize::default(),
             z_index: Default::default(),
+            text_layout_info: Default::default(),
         }
     }
 }
