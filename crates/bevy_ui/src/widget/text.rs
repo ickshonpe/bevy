@@ -1,5 +1,3 @@
-use std::mem::size_of;
-
 use crate::{CalculatedSize, Measure, Node, UiScale};
 use bevy_asset::Assets;
 use bevy_ecs::{
@@ -92,11 +90,7 @@ pub fn text_size_system(
     mut text_queries: ParamSet<(
         Query<Entity, Changed<Text>>,
         Query<Entity, (With<Text>, With<Node>)>,
-        Query<(
-            &Node,
-            &Text,
-            &mut CalculatedSize,
-        )>,
+        Query<(&Node, &Text, &mut CalculatedSize)>,
     )>,
 ) {
     // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621
@@ -137,7 +131,7 @@ pub fn text_size_system(
                 scale_value(node.size().y, scale_factor),
             );
             match text_pipeline.compute_sections(&fonts, &text.sections, scale_factor) {
-                Ok((sections, scaled_fonts)) => { 
+                Ok((sections, scaled_fonts)) => {
                     let a_size = text_pipeline.compute_size(
                         &sections,
                         &scaled_fonts,
@@ -186,7 +180,6 @@ pub fn text_size_system(
                         ideal_height: scale_value(ideal.y, inv_scale_factor),
                     };
                     calculated_size.measure = Box::new(measure);
-
                 }
                 Err(TextError::NoSuchFont) => {
                     new_queue.push(entity);
@@ -216,12 +209,7 @@ pub fn text_system(
     mut text_queries: ParamSet<(
         Query<Entity, Or<(Changed<Text>, Changed<Node>)>>,
         Query<Entity, (With<Text>, With<Node>)>,
-        Query<(
-            &Node,
-            &Text,
-            &mut CalculatedSize,
-            &mut TextLayoutInfo,
-        )>,
+        Query<(&Node, &Text, &mut CalculatedSize, &mut TextLayoutInfo)>,
     )>,
 ) {
     // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621
