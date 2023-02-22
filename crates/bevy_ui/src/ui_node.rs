@@ -41,6 +41,113 @@ impl Default for Node {
 }
 
 /// An enum that describes possible types of value in flexbox layout options
+/// 
+/// The variants of [`Val`] represent different concepts depending on the context.
+/// 
+/// ## Val fields
+/// ### `flex_basis`
+/// Represents the initial length of the main axis, before other properties are applied.
+/// 
+/// Overrides `size` on the main axis, but obeys the bounds set by `min_size` and `max_size`.
+/// 
+/// | `flex_basis`| interpretation |
+/// |-------|-------|
+/// |`Auto`, `Undefined`|The size of the node is automatically determined by the layout engine.|
+/// |`Px`|The length of the main axis in pixels.|
+/// |`Percent`|The size of the node in percent of the parent's size.|
+/// 
+/// ## Size fields
+/// The default value for the fields of the [`Size`] struct is `Val::Auto`.
+/// 
+/// ### `size`
+/// 
+/// Represents the desired size of a node. 
+/// 
+/// The values of `size` are bounded by the values of `min_size` and `max_size`.
+/// 
+/// |`height`, `width` | interpretation|
+/// |---|---|
+/// | `Auto`| The size of the node is automatically determined by the layout engine.
+/// | `Px`| The size of the node in pixels.
+/// | `Percent`| The size of the node in percent of the parent's size.
+/// | `Undefined`| Zero size, equivalent to Px(0.).
+/// 
+/// ### `min_size`
+/// 
+/// Represents the minimum size of a node.
+/// 
+/// The values of `min_size` override the values of `max_size`.
+/// 
+/// |`width`, `height`| interpretation |
+/// |---|---|
+/// |`Auto`, `Undefined|No minimum size.
+/// |`Px|The minimum size of the node in pixels.
+/// |`Percent|The minimum size of the node in percent of the parent's size.
+/// 
+/// ### `max_size`
+/// 
+/// Represents the maximum size of a node.
+/// 
+/// The values of `max_size` are overridden by the values of `min_size`.
+/// 
+/// |`width`, `height` | interpretation |
+/// |---|---|
+/// | `Auto`, `Undefined`| No maximum size.
+/// | `Px`| The maximum size of the node in pixels.
+/// | `Percent`| The maximum size of the node in percent of the parent's size.
+/// 
+/// ## UiRect fields
+/// The default value for the fields of the [`UiRect`] struct is `Val::Undefined`.
+/// 
+/// ### `margin`
+/// 
+/// Represents extra space around a node
+/// 
+/// | `left`, `right`, `top`, `bottom` | interpretation |
+/// |---|---|
+/// | `Auto` | The size of the margin is automatically determined by the layout engine.
+/// | `Px` | The thickness of the margin in pixels.
+/// | `Percent` | The thickness of the margin in percent of the parent's size.
+/// | `Undefined`| No Margin, equivalent to Px(0.).  
+/// 
+/// ### `padding`
+/// 
+/// Represents space between the edge of a node and its contents
+/// 
+/// | `left`, `right`, `top`, `bottom` | interpretation |
+/// |---|---|
+/// | `Auto`, `Undefined` | No padding, equivalent to Px(0.).
+/// | `Px` | The thickness of the padding in pixels.
+/// | `Percent`| The thickness of the padding in percent of the parent's width.
+/// 
+/// ### `border`
+/// 
+/// Represents the thickness of a line along the edge of a node
+/// 
+/// | `left`, `right`, `top`, `bottom` | interpretation |
+/// |---|---|
+/// | `Auto`, `Undefined`| No border, equivalent to Px(0.).
+/// | `Px` | The thickness of the border in pixels.
+/// | `Percent` | The thickness of the border in percent of the parent's size.
+/// 
+/// ### `position`
+/// 
+/// A relative position represents an offset relative to the element itself.
+/// 
+/// An absolute position represents an offset relative to the parent.
+///   
+/// | `left`, `right`, `top`, `bottom` | interpretation |
+/// |--------|---------------|
+/// |`Auto`  | The offset is determined automatically.|
+/// |`Px`| The offset in that direction in pixels.|
+/// |`Percent` | The offset in that direction in percent of the parent's size|
+/// |`Undefined`| Equivalent to `Px(0.)`.|
+///    
+/// If both `top` and `bottom` are specified, `top` overrides `bottom`.
+/// 
+/// If both `left` and `right` are specified:
+/// * With `Direction::LeftToRight`, `left` overrides `right`.
+/// * With `Direction::RightToLeft`, `right` overrides `left`.
 #[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect)]
 #[reflect(PartialEq, Serialize, Deserialize)]
 pub enum Val {
