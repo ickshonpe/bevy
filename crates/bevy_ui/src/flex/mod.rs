@@ -14,7 +14,7 @@ use bevy_log::warn;
 use bevy_math::Vec2;
 use bevy_transform::components::Transform;
 use bevy_utils::HashMap;
-use bevy_window::{PrimaryWindow, Window, WindowResolution, WindowScaleFactorChanged};
+use bevy_window::{Window, WindowResolution, WindowScaleFactor, WindowScaleFactorChanged};
 use std::fmt;
 use taffy::{
     prelude::{AvailableSpace, Size},
@@ -221,7 +221,8 @@ pub enum FlexError {
 
 #[allow(clippy::too_many_arguments)]
 pub fn flex_node_system(
-    primary_window: Query<(Entity, &Window), With<PrimaryWindow>>,
+    //primary_window: Query<(Entity, &Window), With<PrimaryWindow>>,
+    window_scale_factor: WindowScaleFactor,
     windows: Query<(Entity, &Window)>,
     ui_scale: Res<UiScale>,
     mut scale_factor_events: EventReader<WindowScaleFactorChanged>,
@@ -240,12 +241,7 @@ pub fn flex_node_system(
 ) {
     // assume one window for time being...
     // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621
-    let (primary_window_entity, logical_to_physical_factor) =
-        if let Ok((entity, primary_window)) = primary_window.get_single() {
-            (entity, primary_window.resolution.scale_factor())
-        } else {
-            return;
-        };
+    let Some((primary_window_entity, logical_to_physical_factor)) = window_scale_factor.primary() else { return };
 
     // update window root nodes
     for (entity, window) in windows.iter() {

@@ -20,7 +20,7 @@ use bevy_render::{
 use bevy_sprite::{Anchor, ExtractedSprite, ExtractedSprites, TextureAtlas};
 use bevy_transform::prelude::{GlobalTransform, Transform};
 use bevy_utils::HashSet;
-use bevy_window::{PrimaryWindow, Window, WindowScaleFactorChanged};
+use bevy_window::{PrimaryWindow, Window, WindowScaleFactor, WindowScaleFactorChanged};
 
 use crate::{
     Font, FontAtlasSet, FontAtlasWarning, Text, TextError, TextLayoutInfo, TextPipeline,
@@ -77,7 +77,7 @@ pub struct Text2dBundle {
 pub fn extract_text2d_sprite(
     mut extracted_sprites: ResMut<ExtractedSprites>,
     texture_atlases: Extract<Res<Assets<TextureAtlas>>>,
-    windows: Extract<Query<&Window, With<PrimaryWindow>>>,
+    window_scale_factor: Extract<WindowScaleFactor>,
     text2d_query: Extract<
         Query<(
             Entity,
@@ -90,10 +90,7 @@ pub fn extract_text2d_sprite(
     >,
 ) {
     // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621
-    let scale_factor = windows
-        .get_single()
-        .map(|window| window.resolution.scale_factor() as f32)
-        .unwrap_or(1.0);
+    let scale_factor = window_scale_factor.get() as f32;
 
     for (entity, computed_visibility, text, text_layout_info, anchor, text_transform) in
         text2d_query.iter()

@@ -12,7 +12,7 @@ use bevy_text::{
     Font, FontAtlasSet, FontAtlasWarning, Text, TextError, TextLayoutInfo, TextPipeline,
     TextSettings, YAxisOrientation,
 };
-use bevy_window::{PrimaryWindow, Window};
+use bevy_window::WindowScaleFactor;
 
 fn scale_value(value: f32, factor: f64) -> f32 {
     (value as f64 * factor) as f32
@@ -46,7 +46,7 @@ pub fn text_system(
     mut last_scale_factor: Local<f64>,
     mut textures: ResMut<Assets<Image>>,
     fonts: Res<Assets<Font>>,
-    windows: Query<&Window, With<PrimaryWindow>>,
+    window_scale_factor: WindowScaleFactor,
     text_settings: Res<TextSettings>,
     mut font_atlas_warning: ResMut<FontAtlasWarning>,
     ui_scale: Res<UiScale>,
@@ -65,10 +65,7 @@ pub fn text_system(
     )>,
 ) {
     // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621
-    let window_scale_factor = windows
-        .get_single()
-        .map(|window| window.resolution.scale_factor())
-        .unwrap_or(1.);
+    let window_scale_factor = window_scale_factor.get();
 
     let scale_factor = ui_scale.scale * window_scale_factor;
 

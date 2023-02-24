@@ -1,6 +1,8 @@
 use bevy_ecs::{
     entity::{Entity, EntityMap, MapEntities, MapEntitiesError},
     prelude::{Component, ReflectComponent},
+    query::With,
+    system::{Query, SystemParam},
 };
 use bevy_math::{DVec2, IVec2, Vec2};
 use bevy_reflect::{std_traits::ReflectDefault, FromReflect, Reflect};
@@ -826,4 +828,26 @@ pub enum WindowLevel {
     Normal,
     /// The window will always be on top of normal windows.
     AlwaysOnTop,
+}
+
+#[derive(SystemParam)]
+pub struct WindowScaleFactor<'w, 's> {
+    pub primary_window: Query<'w, 's, (Entity, &'static Window), With<PrimaryWindow>>,
+}
+
+impl<'w, 's> WindowScaleFactor<'w, 's> {
+    // returns the id and scale factor of the primary window
+    pub fn primary(&self) -> Option<(Entity, f64)> {
+        self.primary_window
+            .get_single()
+            .ok()
+            .map(|(id, window)| (id, window.resolution.scale_factor()))
+    }
+
+    // returns the scale factor of the primary window
+    pub fn get(&self) -> f64 {
+        self.primary()
+            .map(|(_, scale_factor)| scale_factor)
+            .unwrap_or(1.0)
+    }
 }
