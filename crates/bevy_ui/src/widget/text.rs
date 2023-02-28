@@ -63,30 +63,38 @@ pub fn text_system(
             Option<&mut TextLayoutInfo>,
         )>,
     )>,
+    // True if text computation was skipped the previous frame.
+    mut skipped: Local<bool>,
 ) {
     // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621
-    let window_scale_factor = windows
+    let Ok(window_scale_factor) = windows
         .get_single()
         .map(|window| window.resolution.scale_factor())
-        .unwrap_or(1.);
+        else {
+            // If no primary window is found, skip text computation.
+            *skipped = true;
+            return;
+        };
 
     let scale_factor = ui_scale.scale * window_scale_factor;
 
     let inv_scale_factor = 1. / scale_factor;
 
     #[allow(clippy::float_cmp)]
-    if *last_scale_factor == scale_factor {
+    if *last_scale_factor == scale_factor || !*skipped {
         // Adds all entities where the text or the style has changed to the local queue
         for entity in text_queries.p0().iter() {
             queued_text_ids.push(entity);
         }
     } else {
-        // If the scale factor has changed, queue all text
+        // If the scale factor has changed or no window was found last frame, queue all text
         for entity in text_queries.p1().iter() {
             queued_text_ids.push(entity);
         }
         *last_scale_factor = scale_factor;
     }
+    
+    *skipped = false;
 
     if queued_text_ids.is_empty() {
         return;
