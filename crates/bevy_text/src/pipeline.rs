@@ -11,7 +11,7 @@ use glyph_brush_layout::{FontId, SectionText};
 
 use crate::{
     error::TextError, glyph_brush::GlyphBrush, scale_value, BreakLineOn, Font, FontAtlasSet,
-    FontAtlasWarning, PositionedGlyph, TextAlignment, TextSection, TextSettings, YAxisOrientation,
+    FontAtlasWarning, PositionedGlyph, TextAlignment, TextSection, TextSettings, YAxisOrientation, geometry::TextGeometry,
 };
 
 #[derive(Default, Resource)]
@@ -185,6 +185,38 @@ impl TextPipeline {
         scale_factor: f64,
         text_alignment: TextAlignment,
         linebreak_behaviour: BreakLineOn,
-    ) {
+    ) -> Result<TextGeometry, TextError> {
+        let mut scaled_fonts = Vec::new();
+        sections
+            .iter()
+            .map(|section| {
+                let font = fonts
+                    .get(&section.style.font)
+                    .ok_or(TextError::NoSuchFont)?;
+                let font_id = self.get_or_insert_font_id(&section.style.font, font);
+                let font_size = scale_value(section.style.font_size, scale_factor);
+
+                let px_scale_font = ab_glyph::Font::into_scaled(font.font.clone(), font_size);
+                scaled_fonts.push(px_scale_font);
+
+                // has a life time only to hold the reference to the text
+                Ok(SectionText {
+                    // inner value just a usize index
+                    font_id,
+                    // just size of the font
+                    scale: PxScale::from(font_size),
+                    // reference to the text
+                    text: &section.value,
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .and_then(|sections: Vec<SectionText>| {
+                // need to work with this
+                self.brush.compute_glyphs(&sections, Vec2::splat(std::f32::MAX), text_alignment, linebreak_behaviour)
+            })
+            .map(|section_glyphs| {
+                TextGeometry {}
+            })
     }
 }
+

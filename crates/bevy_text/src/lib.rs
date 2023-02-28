@@ -7,6 +7,7 @@ mod glyph_brush;
 mod pipeline;
 mod text;
 mod text2d;
+mod geometry;
 
 pub use error::*;
 pub use font::*;

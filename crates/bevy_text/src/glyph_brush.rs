@@ -38,6 +38,7 @@ impl GlyphBrush {
         text_alignment: TextAlignment,
         linebreak_behaviour: BreakLineOn,
     ) -> Result<Vec<SectionGlyph>, TextError> {
+        // position translated in rendering, default is zero
         let geom = SectionGeometry {
             bounds: (bounds.x, bounds.y),
             ..Default::default()
@@ -49,6 +50,33 @@ impl GlyphBrush {
             .h_align(text_alignment.into())
             .line_breaker(lbb)
             .calculate_glyphs(&self.fonts, &geom, sections);
+
+
+        Ok(section_glyphs)
+    }
+
+    pub fn calculate_geometry_glyphs<S: ToSectionText>(
+        &self,
+        sections: &[S],
+        bounds: Vec2,
+        text_alignment: TextAlignment,
+        linebreak_behaviour: BreakLineOn,
+    ) -> Result<Vec<SectionGlyph>, TextError> {
+        // position translated in rendering, default is zero
+        let geom = SectionGeometry {
+            bounds: (bounds.x, bounds.y),
+            ..Default::default()
+        };
+
+        let lbb: BuiltInLineBreaker = linebreak_behaviour.into();
+
+        let section_glyphs = Layout::default()
+            .h_align(text_alignment.into())
+            .line_breaker(lbb)
+            .calculate_glyphs(&self.fonts, &geom, sections);
+
+        
+
         Ok(section_glyphs)
     }
 
