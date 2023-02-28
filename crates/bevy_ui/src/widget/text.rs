@@ -87,7 +87,7 @@ pub fn text_system(
             queued_text_ids.push(entity);
         }
     } else {
-        // If the scale factor has changed or no window was found last frame, queue all text
+        // Queue all text if the scale factor has changed or text computation was skipped last frame
         for entity in text_queries.p1().iter() {
             queued_text_ids.push(entity);
         }
