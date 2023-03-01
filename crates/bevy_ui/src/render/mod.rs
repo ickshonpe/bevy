@@ -61,6 +61,7 @@ pub enum RenderUiSystem {
 }
 
 pub fn build_ui_render(app: &mut App) {
+    app.insert_resource(SelectedExtractedView::Old);
     load_internal_asset!(app, UI_SHADER_HANDLE, "ui.wgsl", Shader::from_wgsl);
 
     let render_app = match app.get_sub_app_mut(RenderApp) {
@@ -249,42 +250,123 @@ const UI_CAMERA_TRANSFORM_OFFSET: f32 = -0.1;
 #[derive(Component)]
 pub struct DefaultCameraView(pub Entity);
 
+#[derive(Copy, Clone, Resource)]
+pub enum SelectedExtractedView {
+    Old,
+    New,
+    Trans,
+}
+
+impl SelectedExtractedView {
+    pub fn next(self) -> SelectedExtractedView {
+        use SelectedExtractedView::*;
+        match self {
+            Old => New,
+            New => Trans,
+            Trans => Old,
+        }
+    }
+}
+
 pub fn extract_default_ui_camera_view<T: Component>(
     mut commands: Commands,
-    query: Extract<Query<(Entity, &Camera, Option<&UiCameraConfig>), With<T>>>,
+    selected_extracted_view: Extract<Res<SelectedExtractedView>>,
+    query: Extract<Query<(
+        Entity, 
+        &Camera, 
+        Option<&UiCameraConfig>), 
+        With<T>>>,
 ) {
     for (entity, camera, camera_ui) in &query {
         // ignore cameras with disabled ui
         if matches!(camera_ui, Some(&UiCameraConfig { show_ui: false, .. })) {
             continue;
         }
-        if let (Some(logical_size), Some((physical_origin, _)), Some(physical_size)) = (
+        if let (Some(logical_size), Some((viewport_min, viewport_max)), Some(viewport_size), Some(target_size)) = (
             camera.logical_viewport_size(),
             camera.physical_viewport_rect(),
             camera.physical_viewport_size(),
+            camera.physical_target_size(),
         ) {
+            println!("***");
+            println!("\tlogical_size: {logical_size}");
+            println!("\tviewport_min: {viewport_min}");
+            println!("\tviewport_max: {viewport_max}");
+            println!("\tviewport_size: {viewport_size}");
+            println!("\ttarget_size: {target_size}");
+
             // use a projection matrix with the origin in the top left instead of the bottom left that comes with OrthographicProjection
             let projection_matrix =
                 Mat4::orthographic_rh(0.0, logical_size.x, logical_size.y, 0.0, 0.0, UI_CAMERA_FAR);
+
+            
+            
+            let original_extracted_view = 
+            ExtractedView {
+                projection: projection_matrix,
+                transform: GlobalTransform::from_xyz(
+                    0.0,
+                    0.0,
+                    UI_CAMERA_FAR + UI_CAMERA_TRANSFORM_OFFSET,
+                ),
+                view_projection: None,
+                hdr: camera.hdr,
+                viewport: UVec4::new(
+                    viewport_min.x,
+                    viewport_min.y,
+                    viewport_size.x,
+                    viewport_size.y,
+                ),
+                color_grading: Default::default(),
+            };
+            let new_extracted_view =
+            ExtractedView {
+                projection: camera.projection_matrix(),
+                     transform: GlobalTransform::from_xyz(
+                    0.0,
+                    0.0,
+                    UI_CAMERA_FAR + UI_CAMERA_TRANSFORM_OFFSET,
+                ),
+                view_projection: None,
+                hdr: camera.hdr,
+                viewport: UVec4::new(
+                    viewport_min.x,
+                    viewport_min.y,
+                    viewport_size.x,
+                    viewport_size.y,
+                ),
+                color_grading: Default::default(),
+            };
+
+            let new_extracted_view_trans =
+            ExtractedView {
+                projection: camera.projection_matrix(),
+                     transform: GlobalTransform::from_xyz(
+                    (logical_size.x as f32) / 2.0,
+                    (logical_size.y as f32) / 2.0,
+                    UI_CAMERA_FAR + UI_CAMERA_TRANSFORM_OFFSET,
+                ),
+                view_projection: None,
+                hdr: camera.hdr,
+                viewport: UVec4::new(
+                    viewport_min.x,
+                    viewport_min.y,
+                    viewport_size.x,
+                    viewport_size.y,
+                ),
+                color_grading: Default::default(),
+            };
+
+            let extracted_view = match **selected_extracted_view {
+                SelectedExtractedView::Old => original_extracted_view,
+                SelectedExtractedView::New => new_extracted_view,
+                SelectedExtractedView::Trans => new_extracted_view_trans,
+            };
+
             let default_camera_view = commands
-                .spawn(ExtractedView {
-                    projection: projection_matrix,
-                    transform: GlobalTransform::from_xyz(
-                        0.0,
-                        0.0,
-                        UI_CAMERA_FAR + UI_CAMERA_TRANSFORM_OFFSET,
-                    ),
-                    view_projection: None,
-                    hdr: camera.hdr,
-                    viewport: UVec4::new(
-                        physical_origin.x,
-                        physical_origin.y,
-                        physical_size.x,
-                        physical_size.y,
-                    ),
-                    color_grading: Default::default(),
-                })
+                .spawn(extracted_view)
                 .id();
+            
             commands.get_or_spawn(entity).insert((
                 DefaultCameraView(default_camera_view),
                 RenderPhase::<TransparentUi>::default(),
