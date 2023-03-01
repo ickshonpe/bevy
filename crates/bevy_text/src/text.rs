@@ -10,6 +10,13 @@ use crate::Font;
 #[derive(Component, Debug, Clone, Reflect)]
 #[reflect(Component, Default)]
 pub struct Text {
+    /// Changes to any section will cause the entire text to be redrawn.
+    /// If you only wish to change to the colors of a text you can use `bypass_change_dection` to avoid expensive redraws:
+    ///
+    /// # Example
+    /// ```ignore
+    /// text.bypass_change_detection().text.sections[0].style.color = new_color;
+    /// ```
     pub sections: Vec<TextSection>,
     /// The text's internal alignment.
     /// Should not affect its position within a container.
