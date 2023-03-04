@@ -15,6 +15,7 @@ pub mod camera_config;
 pub mod node_bundles;
 pub mod update;
 pub mod widget;
+mod positions;
 
 #[cfg(feature = "bevy_text")]
 use bevy_render::camera::CameraUpdateSystem;
@@ -22,6 +23,7 @@ use bevy_render::extract_component::ExtractComponentPlugin;
 pub use flex::*;
 pub use focus::*;
 pub use geometry::*;
+use positions::update_node_positions;
 pub use render::*;
 pub use ui_node::*;
 
@@ -151,6 +153,11 @@ impl Plugin for UiPlugin {
             update_clipping_system
                 .after(TransformSystem::TransformPropagate)
                 .in_base_set(CoreSet::PostUpdate),
+        )
+        .add_system(
+            update_node_positions
+                .after(TransformSystem::TransformPropagate)
+                .in_base_set(CoreSet::PostUpdate),      
         );
 
         crate::render::build_ui_render(app);

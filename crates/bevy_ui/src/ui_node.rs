@@ -40,6 +40,35 @@ impl Default for Node {
     }
 }
 
+/// Describes the position of a UI node
+#[derive(Component, Debug, Clone, Reflect)]
+#[reflect(Component, Default)]
+pub struct NodePosition {
+    /// The calculated node position as width and height in pixels
+    /// automatically calculated by [`super::flex::flex_node_system`]
+    pub(crate) calculated_position: Vec2,
+}
+
+impl NodePosition {
+    /// The calculated node position as width and height in pixels
+    /// automatically calculated by [`super::flex::flex_node_system`]
+    pub fn position(&self) -> Vec2 {
+        self.calculated_position
+    }
+}
+
+impl NodePosition {
+    pub const DEFAULT: Self = Self {
+        calculated_position: Vec2::ZERO,
+    };
+}
+
+impl Default for NodePosition {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
 /// An enum that describes possible types of value in flexbox layout options
 #[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect)]
 #[reflect(PartialEq, Serialize, Deserialize)]

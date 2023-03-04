@@ -8,6 +8,7 @@ use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
 pub use render_pass::*;
 
+use crate::NodePosition;
 use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage, UiStack};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
@@ -189,6 +190,7 @@ pub fn extract_uinodes(
     uinode_query: Extract<
         Query<(
             &Node,
+            &NodePosition,
             &GlobalTransform,
             &BackgroundColor,
             Option<&UiImage>,
@@ -199,7 +201,7 @@ pub fn extract_uinodes(
 ) {
     extracted_uinodes.uinodes.clear();
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, transform, color, maybe_image, visibility, clip)) =
+        if let Ok((uinode, node_position, transform, color, maybe_image, visibility, clip)) =
             uinode_query.get(*entity)
         {
             // Skip invisible and completely transparent nodes
@@ -219,7 +221,7 @@ pub fn extract_uinodes(
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
-                transform: transform.compute_matrix(),
+                transform: Mat4::from_translation(node_position.calculated_position.extend(0.)),
                 color: color.0,
                 rect: Rect {
                     min: Vec2::ZERO,
