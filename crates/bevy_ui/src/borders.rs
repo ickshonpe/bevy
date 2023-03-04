@@ -1,6 +1,7 @@
 use crate::BorderColor;
 use crate::Node;
 use crate::Style;
+use crate::UiRect;
 use crate::Val;
 use bevy_ecs::prelude::Bundle;
 use bevy_ecs::prelude::Component;
@@ -14,6 +15,7 @@ use bevy_hierarchy::Parent;
 use bevy_math::Rect;
 use bevy_math::Vec2;
 use bevy_reflect::Reflect;
+use smallvec::SmallVec;
 
 /// Stores the calculated border geometry
 #[derive(Component, Copy, Clone, Debug, Reflect)]
@@ -111,4 +113,53 @@ pub fn calculate_borders_system(
             };
         }
     }
+}
+
+pub fn calculate_borders(
+    border: UiRect,
+    node_size: Vec2,
+    parent_width: Option<f32>,
+) -> SmallVec<[Rect; 4]> {
+    let parent_width = parent_width.unwrap_or(0.);
+    let left = resolve_thickness(border.left, parent_width);
+    let right = resolve_thickness(border.right, parent_width);
+    let top = resolve_thickness(border.top, parent_width);
+    let bottom = resolve_thickness(border.bottom, parent_width);
+
+    // calculate border rects, ensuring that they don't overlap
+    let max = 0.5 * node_size;
+    let min = -max;
+    let inner_min = min + Vec2::new(left, top);
+    let inner_max = (max - Vec2::new(right, bottom)).max(inner_min);
+
+    let border_rects = [
+        // Left border
+        Rect {
+            min,
+            max: Vec2::new(inner_min.x, max.y),
+        },
+        // Right border
+        Rect {
+            min: Vec2::new(inner_max.x, min.y),
+            max,
+        },
+        // Top border
+        Rect {
+            min: Vec2::new(inner_min.x, min.y),
+            max: Vec2::new(inner_max.x, inner_min.y),
+        },
+        // Bottom border
+        Rect {
+            min: Vec2::new(inner_min.x, inner_max.y),
+            max: Vec2::new(inner_max.x, max.y),
+        },
+    ];
+
+    let mut out = SmallVec::new();
+    for edge in border_rects.into_iter() {
+        if edge.min.x < edge.max.x && edge.min.y < edge.max.y {
+            out.push(edge);
+        } 
+    }
+    out
 }
