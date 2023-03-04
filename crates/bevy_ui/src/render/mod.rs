@@ -191,7 +191,6 @@ pub fn extract_uinodes(
         Query<(
             &Node,
             &NodePosition,
-            &GlobalTransform,
             &BackgroundColor,
             Option<&UiImage>,
             &ComputedVisibility,
@@ -201,7 +200,7 @@ pub fn extract_uinodes(
 ) {
     extracted_uinodes.uinodes.clear();
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, node_position, transform, color, maybe_image, visibility, clip)) =
+        if let Ok((uinode, node_position, color, maybe_image, visibility, clip)) =
             uinode_query.get(*entity)
         {
             // Skip invisible and completely transparent nodes
@@ -304,7 +303,7 @@ pub fn extract_text_uinodes(
     uinode_query: Extract<
         Query<(
             &Node,
-            &GlobalTransform,
+            &NodePosition,
             &Text,
             &TextLayoutInfo,
             &ComputedVisibility,
@@ -319,7 +318,7 @@ pub fn extract_text_uinodes(
         .unwrap_or(1.0);
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, global_transform, text, text_layout_info, visibility, clip)) =
+        if let Ok((uinode, node_position, text, text_layout_info, visibility, clip)) =
             uinode_query.get(*entity)
         {
             if !visibility.is_visible() {
@@ -351,7 +350,7 @@ pub fn extract_text_uinodes(
                 let atlas_size = Some(atlas.size);
 
                 // NOTE: Should match `bevy_text::text2d::extract_text2d_sprite`
-                let extracted_transform = global_transform.compute_matrix()
+                let extracted_transform = Mat4::from_translation(node_position.calculated_position.extend(0.))
                     * Mat4::from_scale(Vec3::splat(scale_factor.recip()))
                     * Mat4::from_translation(
                         alignment_offset * scale_factor + text_glyph.position.extend(0.),
