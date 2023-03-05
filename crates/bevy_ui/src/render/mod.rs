@@ -350,9 +350,9 @@ pub fn extract_text_uinodes(
 
                 // NOTE: Should match `bevy_text::text2d::extract_text2d_sprite`
                 let extracted_transform = global_transform.compute_matrix()
-                    * Mat4::from_scale(Vec3::splat(scale_factor.recip()))
+                    //* Mat4::from_scale(Vec3::splat(scale_factor.recip()))
                     * Mat4::from_translation(
-                        alignment_offset * scale_factor + text_glyph.position.extend(0.),
+                        alignment_offset + text_glyph.position.extend(0.),
                     );
 
                 extracted_uinodes.uinodes.push(ExtractedUiNode {

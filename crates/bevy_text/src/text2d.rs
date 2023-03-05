@@ -126,7 +126,7 @@ pub fn extract_text2d_sprite(
                 Transform::from_translation((alignment_offset + text_glyph.position).extend(0.));
 
             let transform = *text_transform
-                * GlobalTransform::from_scale(Vec3::splat(scale_factor.recip()))
+                //* GlobalTransform::from_scale(Vec3::splat(scale_factor.recip()))
                 * glyph_transform;
 
             extracted_sprites.sprites.push(ExtractedSprite {
@@ -210,9 +210,13 @@ pub fn update_text2d_layout(
                 Err(e @ TextError::FailedToAddGlyph(_)) => {
                     panic!("Fatal error when processing text: {e}.");
                 }
-                Ok(info) => match text_layout_info {
-                    Some(mut t) => *t = info,
+                Ok(mut info) => match text_layout_info {
+                    Some(mut t) => {
+                        info.scale(1. / scale_factor as f32);
+                        *t = info
+                    },
                     None => {
+                        info.scale(1. / scale_factor as f32);
                         commands.entity(entity).insert(info);
                     }
                 },

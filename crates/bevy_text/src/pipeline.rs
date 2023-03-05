@@ -29,6 +29,16 @@ pub struct TextLayoutInfo {
     pub size: Vec2,
 }
 
+impl TextLayoutInfo {
+    pub fn scale(&mut self, scale_factor: f32) {
+        self.size *= scale_factor;
+        for glyph in &mut self.glyphs {
+            glyph.position *= scale_factor;
+           // glyph.size *= scale_factor;
+        }
+    }
+}
+
 impl TextPipeline {
     pub fn get_or_insert_font_id(&mut self, handle: &Handle<Font>, font: &Font) -> FontId {
         let brush = &mut self.brush;
