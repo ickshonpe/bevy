@@ -134,11 +134,15 @@ pub fn text_system(
                 Err(e @ TextError::FailedToAddGlyph(_)) => {
                     panic!("Fatal error when processing text: {e}.");
                 }
-                Ok(info) => {
+                Ok(mut info) => {
                     calculated_size.size = Vec2::new(
                         scale_value(info.size.x, inv_scale_factor),
                         scale_value(info.size.y, inv_scale_factor),
                     );
+                    for glyph in &mut info.glyphs {
+                        glyph.position *= inv_scale_factor as f32;
+                        glyph.size *= inv_scale_factor as f32;
+                    }
                     match text_layout_info {
                         Some(mut t) => *t = info,
                         None => {

@@ -19,6 +19,8 @@ pub struct TextureAtlas {
     pub size: Vec2,
     /// The specific areas of the atlas where each texture can be found
     pub textures: Vec<Rect>,
+    /// UV coordinates for each texture in the atlas
+    pub uvs: Vec<Rect>,
     /// Mapping from texture handle to index
     pub(crate) texture_handles: Option<HashMap<Handle<Image>, usize>>,
 }
@@ -73,6 +75,7 @@ impl TextureAtlas {
             size: dimensions,
             texture_handles: None,
             textures: Vec::new(),
+            uvs: Vec::new(),
         }
     }
 
@@ -115,10 +118,18 @@ impl TextureAtlas {
         }
 
         let grid_size = Vec2::new(columns as f32, rows as f32);
-
+        let size = ((tile_size + current_padding) * grid_size) - current_padding;
+        let mut uvs = Vec::new();
+        for sprite in sprites.iter() {
+            uvs.push(Rect {
+                min: sprite.min / size,
+                max: sprite.max / size,
+            });
+        }
         TextureAtlas {
             size: ((tile_size + current_padding) * grid_size) - current_padding,
             textures: sprites,
+            uvs,
             texture,
             texture_handles: None,
         }
@@ -133,6 +144,10 @@ impl TextureAtlas {
     /// from the top-left corner of the texture to the bottom-right corner
     pub fn add_texture(&mut self, rect: Rect) -> usize {
         self.textures.push(rect);
+        self.uvs.push(Rect {
+            min: rect.min / self.size,
+            max: rect.max / self.size,
+        });
         self.textures.len() - 1
     }
 
