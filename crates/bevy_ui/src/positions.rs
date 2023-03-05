@@ -9,7 +9,7 @@ pub fn update_node_positions(
 ) {
     for (mut node_position, global_transform) in node_query.iter_mut() {
         if global_transform.is_changed() {
-            node_position.calculated_position = global_transform.translation().truncate();
+            node_position.calculated_position = global_transform.translation();
         }        
     }
 }
