@@ -744,6 +744,9 @@ impl Default for ZIndex {
     }
 }
 
+#[derive(Component, Copy, Clone, Default, Debug, Reflect)]
+pub struct NodeOrder(pub u32);
+
 #[cfg(test)]
 mod tests {
     use crate::ValArithmeticError;
