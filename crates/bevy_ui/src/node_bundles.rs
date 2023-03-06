@@ -66,6 +66,8 @@ impl Default for NodeBundle {
 }
 
 /// A UI node that is an image
+/// 
+/// Image nodes should not be given child UI nodes, as the UI layout system will not be able to properly determine the size of the node.
 #[derive(Bundle, Clone, Debug, Default)]
 pub struct ImageBundle {
     /// Describes the logical size of the node
@@ -105,6 +107,8 @@ pub struct ImageBundle {
 
 #[cfg(feature = "bevy_text")]
 /// A UI node that is text
+/// 
+/// Text nodes should not be given child nodes, as the UI layout system will not be able to properly determine the size of the node.
 #[derive(Bundle, Clone, Debug)]
 pub struct TextBundle {
     /// Describes the logical size of the node
