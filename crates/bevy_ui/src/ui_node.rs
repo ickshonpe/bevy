@@ -1,5 +1,6 @@
 use crate::{Size, UiRect};
 use bevy_asset::Handle;
+use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
 use bevy_math::{Rect, Vec2, Vec3};
 use bevy_reflect::prelude::*;
@@ -41,29 +42,31 @@ impl Default for Node {
 }
 
 /// Describes the position of a UI node
-#[derive(Component, Debug, Clone, Reflect)]
+#[derive(Component, Debug, Clone, Deref, DerefMut, Reflect)]
 #[reflect(Component, Default)]
-pub struct NodePosition {
-    /// The calculated node position as width and height in pixels
-    /// automatically calculated by [`super::flex::flex_node_system`]
-    pub(crate) calculated_position: Vec3,
+pub struct LocalPosition(pub Vec2);
+
+
+impl LocalPosition {
+    pub const DEFAULT: Self = Self(Vec2::ZERO);
 }
 
-impl NodePosition {
-    /// The calculated node position as width and height in pixels
-    /// automatically calculated by [`super::flex::flex_node_system`]
-    pub fn position(&self) -> Vec3 {
-        self.calculated_position
+impl Default for LocalPosition {
+    fn default() -> Self {
+        Self::DEFAULT
     }
 }
 
-impl NodePosition {
-    pub const DEFAULT: Self = Self {
-        calculated_position: Vec3::ZERO,
-    };
+/// Describes the position of a UI node
+#[derive(Component, Debug, Clone, Deref, DerefMut, Reflect)]
+#[reflect(Component, Default)]
+pub struct GlobalPosition(pub Vec2);
+
+impl GlobalPosition {
+    pub const DEFAULT: Self = Self(Vec2::ZERO);
 }
 
-impl Default for NodePosition {
+impl Default for GlobalPosition {
     fn default() -> Self {
         Self::DEFAULT
     }

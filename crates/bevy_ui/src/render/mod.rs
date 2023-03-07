@@ -6,8 +6,9 @@ use bevy_render::ExtractSchedule;
 pub use pipeline::*;
 pub use render_pass::*;
 
+use crate::GlobalPosition;
 use crate::NodeOrder;
-use crate::NodePosition;
+use crate::LocalPosition;
 use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
@@ -167,7 +168,7 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
 
 pub struct ExtractedUiNode {
     pub order: u32,
-    pub position: Vec3,
+    pub position: Vec2,
     pub color: Color,
     pub uvs: Rect,
     pub image: Handle<Image>,
@@ -189,7 +190,7 @@ pub fn extract_uinodes(
         Query<(
             &Node,
             &NodeOrder,
-            &NodePosition,
+            &GlobalPosition,
             &BackgroundColor,
             Option<&UiImage>,
             &ComputedVisibility,
@@ -216,7 +217,7 @@ pub fn extract_uinodes(
 
         extracted_uinodes.uinodes.push(ExtractedUiNode {
             order,
-            position: node_position.calculated_position,
+            position: node_position.0,
             color: color.0,
             uvs: Rect {
                 min: Vec2::ZERO,
@@ -297,7 +298,7 @@ pub fn extract_text_uinodes(
         Query<(
             &Node,
             &NodeOrder,
-            &NodePosition,
+            &GlobalPosition,
             &Text,
             &TextLayoutInfo,
             &ComputedVisibility,
@@ -314,7 +315,7 @@ pub fn extract_text_uinodes(
             continue;
         }
         let text_glyphs = &text_layout_info.glyphs;
-        let target = node_position.calculated_position + (uinode.size() / -2.0).extend(0.0);
+        let target = node_position.0 + (uinode.size() / -2.0);
 
         let mut color = Color::WHITE;
         let mut current_section = usize::MAX;
@@ -334,7 +335,7 @@ pub fn extract_text_uinodes(
             let uvs = atlas.uvs[index];
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 order,
-                position: target + text_glyph.position.extend(0.),
+                position: target + text_glyph.position,
                 color,
                 uvs,
                 image: texture,
@@ -437,12 +438,12 @@ pub fn prepare_uinodes(
                     uvs.max.y ,
                 )
         ];
-        let rect_size = extracted_uinode.size.extend(1.0);
+        let rect_size = extracted_uinode.size;
 
         // Specify the corners of the node
         let positions = QUAD_VERTEX_POSITIONS
             .map(|pos| 
-                extracted_uinode.position + pos * rect_size
+                extracted_uinode.position + pos.truncate() * rect_size
                 //(extracted_uinode.transform * (pos * rect_size).extend(1.)).xyz()
             );
         let mut positions_clipped = positions;
@@ -475,10 +476,10 @@ pub fn prepare_uinodes(
             };
 
             positions_clipped = [
-                positions[0] + positions_diff[0].extend(0.),
-                positions[1] + positions_diff[1].extend(0.),
-                positions[2] + positions_diff[2].extend(0.),
-                positions[3] + positions_diff[3].extend(0.),
+                positions[0] + positions_diff[0],
+                positions[1] + positions_diff[1],
+                positions[2] + positions_diff[2],
+                positions[3] + positions_diff[3],
             ];
 
             let transformed_rect_size = rect_size;
@@ -515,13 +516,13 @@ pub fn prepare_uinodes(
         let color = extracted_uinode.color.as_linear_rgba_f32();
         for i in QUAD_INDICES {
             ui_meta.vertices.push(UiVertex {
-                position: positions_clipped[i].into(),
+                position: positions_clipped[i].extend(0.).into(),
                 uv: uvs[i].into(),
                 color,
             });
         }
 
-        last_z = extracted_uinode.position.z;
+        last_z = 0.; //extracted_uinode.position.z;
         end += QUAD_INDICES.len() as u32;
     }
 

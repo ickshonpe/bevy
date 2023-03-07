@@ -1,6 +1,6 @@
 mod convert;
 
-use crate::{CalculatedSize, Node, Style, UiScale};
+use crate::{CalculatedSize, Node, Style, UiScale, LocalPosition};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -239,7 +239,7 @@ pub fn flex_node_system(
     >,
     children_query: Query<(Entity, &Children), (With<Node>, Changed<Children>)>,
     mut removed_children: RemovedComponents<Children>,
-    mut node_transform_query: Query<(Entity, &mut Node, &mut Transform, Option<&Parent>)>,
+    mut node_transform_query: Query<(Entity, &mut Node, &mut LocalPosition, Option<&Parent>)>,
     mut removed_nodes: RemovedComponents<Node>,
 ) {
     // assume one window for time being...
@@ -307,7 +307,7 @@ pub fn flex_node_system(
     let to_logical = |v| (physical_to_logical_factor * v as f64) as f32;
 
     // PERF: try doing this incrementally
-    for (entity, mut node, mut transform, parent) in &mut node_transform_query {
+    for (entity, mut node, mut position, parent) in &mut node_transform_query {
         let layout = flex_surface.get_layout(entity).unwrap();
         
         let new_size = Vec2::new(
@@ -319,18 +319,21 @@ pub fn flex_node_system(
         if node.calculated_size != new_size {
             node.calculated_size = new_size;
         }
-        let mut new_position = transform.translation;
-        new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
-        new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
+        position.0 = Vec2::new(
+            to_logical(layout.location.x + layout.size.width / 2.0),
+            to_logical(layout.location.y + layout.size.height / 2.0)
+        );
         if let Some(parent) = parent {
             if let Ok(parent_layout) = flex_surface.get_layout(**parent) {
-                new_position.x -= to_logical(parent_layout.size.width / 2.0);
-                new_position.y -= to_logical(parent_layout.size.height / 2.0);
+                position.0.x -= to_logical(parent_layout.size.width / 2.0);
+                position.0.y -= to_logical(parent_layout.size.height / 2.0);
             }
         }
-        // only trigger change detection when the new value is different
-        if transform.translation != new_position {
-            transform.translation = new_position;
-        }
     }
+}
+
+fn propagate_ui_positions(
+
+) {
+
 }
