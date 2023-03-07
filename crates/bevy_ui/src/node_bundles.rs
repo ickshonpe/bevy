@@ -2,7 +2,7 @@
 
 use crate::{
     widget::Button, BackgroundColor, CalculatedSize, FocusPolicy, Interaction, Node, Style,
-    UiImage, ZIndex, NodeOrder,
+    UiImage, ZIndex, NodeOrder, NodePosition,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_render::{
@@ -23,6 +23,8 @@ pub struct NodeBundle {
     /// Nodes with a higher order will be rendered on top of those with a lower order. 
     /// This field is automatically managed by the UI layout system.
     pub node_order: NodeOrder,
+    /// Describes the position of the node
+    pub node_position: NodePosition,
     /// Describes the style including flexbox settings
     pub style: Style,
     /// The background color, which serves as a "fill" for this node
@@ -54,6 +56,7 @@ impl Default for NodeBundle {
             background_color: Color::NONE.into(),
             node: Default::default(),
             node_order: Default::default(),
+            node_position: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
             transform: Default::default(),
@@ -75,6 +78,8 @@ pub struct ImageBundle {
     /// Nodes with a higher order will be rendered on top of those with a lower order. 
     /// This field is automatically managed by the UI layout system.
     pub node_order: NodeOrder,
+    /// Describes the position of the node
+    pub node_position: NodePosition,
     /// Describes the style including flexbox settings
     pub style: Style,
     /// The calculated size based on the given image
@@ -116,6 +121,8 @@ pub struct TextBundle {
     /// Nodes with a higher order will be rendered on top of those with a lower order. 
     /// This field is automatically managed by the UI layout system.
     pub node_order: NodeOrder,
+    /// Describes the position of the node
+    pub node_position: NodePosition,
     /// Describes the style including flexbox settings
     pub style: Style,
     /// Contains the text of the node
@@ -154,6 +161,7 @@ impl Default for TextBundle {
             background_color: BackgroundColor(Color::NONE),
             node: Default::default(),
             node_order: Default::default(),
+            node_position: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
             transform: Default::default(),
@@ -214,6 +222,8 @@ pub struct ButtonBundle {
     /// Nodes with a higher order will be rendered on top of those with a lower order. 
     /// This field is automatically managed by the UI layout system.
     pub node_order: NodeOrder,
+    /// Describes the position of the node
+    pub node_position: NodePosition,
     /// Marker component that signals this node is a button
     pub button: Button,
     /// Describes the style including flexbox settings
@@ -252,6 +262,7 @@ impl Default for ButtonBundle {
             focus_policy: FocusPolicy::Block,
             node: Default::default(),
             node_order: Default::default(),
+            node_position: Default::default(),
             button: Default::default(),
             style: Default::default(),
             interaction: Default::default(),

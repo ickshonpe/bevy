@@ -1,7 +1,7 @@
 use crate::{Size, UiRect};
 use bevy_asset::Handle;
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
-use bevy_math::{Rect, Vec2};
+use bevy_math::{Rect, Vec2, Vec3};
 use bevy_reflect::prelude::*;
 use bevy_render::{
     color::Color,
@@ -35,6 +35,35 @@ impl Node {
 }
 
 impl Default for Node {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+/// Describes the position of a UI node
+#[derive(Component, Debug, Clone, Reflect)]
+#[reflect(Component, Default)]
+pub struct NodePosition {
+    /// The calculated node position as width and height in pixels
+    /// automatically calculated by [`super::flex::flex_node_system`]
+    pub(crate) calculated_position: Vec3,
+}
+
+impl NodePosition {
+    /// The calculated node position as width and height in pixels
+    /// automatically calculated by [`super::flex::flex_node_system`]
+    pub fn position(&self) -> Vec3 {
+        self.calculated_position
+    }
+}
+
+impl NodePosition {
+    pub const DEFAULT: Self = Self {
+        calculated_position: Vec3::ZERO,
+    };
+}
+
+impl Default for NodePosition {
     fn default() -> Self {
         Self::DEFAULT
     }
