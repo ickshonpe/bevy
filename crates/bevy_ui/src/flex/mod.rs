@@ -1,6 +1,6 @@
 mod convert;
 
-use crate::{CalculatedSize, Node, Style, UiScale, NodeOrder};
+use crate::{CalculatedSize, Node, Style, UiScale};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
