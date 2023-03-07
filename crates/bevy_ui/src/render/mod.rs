@@ -423,9 +423,7 @@ pub fn prepare_uinodes(
     let mut end = 0;
     let mut current_batch_handle = Default::default();
     let mut last_z = 0.0;
-    println!("begin");
     for extracted_uinode in &extracted_uinodes.uinodes {
-        println!("ui_node # {}", extracted_uinode.order);
         if current_batch_handle != extracted_uinode.image {
             if start != end {
                 commands.spawn(UiBatch {

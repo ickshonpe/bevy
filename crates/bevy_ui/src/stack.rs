@@ -3,7 +3,7 @@
 use bevy_ecs::prelude::*;
 use bevy_hierarchy::prelude::*;
 
-use crate::{Node, ZIndex};
+use crate::{Node, ZIndex, NodeOrder};
 
 /// The current UI stack, which contains all UI nodes ordered by their depth.
 ///
@@ -31,6 +31,7 @@ pub fn ui_stack_system(
     root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
     zindex_query: Query<&ZIndex, With<Node>>,
     children_query: Query<&Children>,
+    mut node_order_query: Query<&mut NodeOrder>,
 ) {
     let mut global_context = StackingContext::default();
 
@@ -49,6 +50,9 @@ pub fn ui_stack_system(
     ui_stack.uinodes.clear();
     ui_stack.uinodes.reserve(total_entry_count);
     fill_stack_recursively(&mut ui_stack.uinodes, &mut global_context);
+    for (i, node) in ui_stack.uinodes.iter().enumerate() {
+        node_order_query.get_mut(*node).unwrap().0 = i as u32;
+    }
 }
 
 fn insert_context_hierarchy(

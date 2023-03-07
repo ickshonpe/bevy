@@ -239,7 +239,7 @@ pub fn flex_node_system(
     >,
     children_query: Query<(Entity, &Children), (With<Node>, Changed<Children>)>,
     mut removed_children: RemovedComponents<Children>,
-    mut node_transform_query: Query<(Entity, &mut Node, &mut NodeOrder, &mut Transform, Option<&Parent>)>,
+    mut node_transform_query: Query<(Entity, &mut Node, &mut Transform, Option<&Parent>)>,
     mut removed_nodes: RemovedComponents<Node>,
 ) {
     // assume one window for time being...
@@ -306,9 +306,8 @@ pub fn flex_node_system(
 
     let to_logical = |v| (physical_to_logical_factor * v as f64) as f32;
 
-    let mut order = 0;
     // PERF: try doing this incrementally
-    for (entity, mut node, mut node_order, mut transform, parent) in &mut node_transform_query {
+    for (entity, mut node, mut transform, parent) in &mut node_transform_query {
         let layout = flex_surface.get_layout(entity).unwrap();
         
         let new_size = Vec2::new(
