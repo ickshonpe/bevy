@@ -90,7 +90,7 @@ impl FlexSurface {
             move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
                 println!("constraints: {:?}", constraints);
                 println!("available: {:?}", available);
-                let size = available.map(|a| a.into_option()).map(|v| v.unwrap_or(10.));
+                let size = available.map(|a| a.into_option()).map(|v| v.unwrap_or(0.));
                 println!("size: {size:?}");
                 size
             },
@@ -175,8 +175,15 @@ without UI components as a child of an entity with UI components, results may be
 
     pub fn compute_window_layouts(&mut self) {
         for window_node in self.window_nodes.values() {
+            let size = self.taffy.style(*window_node).unwrap().size
+                .map(|v| match v {
+                    taffy::style::Dimension::Points(n) => AvailableSpace::Definite(n),
+                    taffy::style::Dimension::Percent(_) => AvailableSpace::MaxContent,
+                    taffy::style::Dimension::Auto => AvailableSpace::MaxContent,
+                });
+            
             self.taffy
-                .compute_layout(*window_node, Size::MAX_CONTENT)
+                .compute_layout(*window_node, size)
                 .unwrap();
         }
     }
