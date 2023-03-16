@@ -90,7 +90,7 @@ impl FlexSurface {
             move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
                 println!("constraints: {:?}", constraints);
                 println!("available: {:?}", available);
-                let size = available.map(|a| a.into_option()).map(|v| v.unwrap_or(f32::INFINITY));
+                let size = available.map(|a| a.into_option()).map(|v| v.unwrap_or(100.));
                 println!("size: {size:?}");
                 size
             },
