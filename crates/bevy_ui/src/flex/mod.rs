@@ -90,7 +90,9 @@ impl FlexSurface {
             move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
                 println!("constraints: {:?}", constraints);
                 println!("available: {:?}", available);
-                available.map(|a| a.into_option()).map(|v| v.unwrap_or(10.))
+                let size = available.map(|a| a.into_option()).map(|v| v.unwrap_or(10.));
+                println!("size: {size:?}");
+                size
             },
         ));
         if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
