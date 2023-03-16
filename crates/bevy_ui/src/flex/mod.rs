@@ -87,6 +87,8 @@ impl FlexSurface {
         let taffy_style = convert::from_style(scale_factor, style);
         let measure = taffy::node::MeasureFunc::Boxed(Box::new(
             move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
+                println!("constraints: {:?}", constraints);
+                println!("available: {:?}", available);
                 available.map(|a| a.into_option()).map(|v| v.unwrap_or(10.))
             },
         ));
