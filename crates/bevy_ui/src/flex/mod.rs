@@ -83,6 +83,7 @@ impl FlexSurface {
         calculated_size: CalculatedSize,
         scale_factor: f64,
     ) {
+        println!("updating measure func");
         let taffy = &mut self.taffy;
         let taffy_style = convert::from_style(scale_factor, style);
         let measure = taffy::node::MeasureFunc::Boxed(Box::new(
