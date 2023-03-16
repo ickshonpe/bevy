@@ -136,7 +136,7 @@ without UI components as a child of an entity with UI components, results may be
             .window_nodes
             .entry(window)
             .or_insert_with(|| taffy.new_leaf(taffy::style::Style::default()).unwrap());
-        let prev_size = taffy.style(*node).unwrap().size;
+        let prev_size = taffy.style(*node).unwrap().min_size;
         let size = taffy::geometry::Size {
             width: taffy::style::Dimension::Points(
                 window_resolution.physical_width() as f32
