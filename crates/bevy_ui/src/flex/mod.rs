@@ -238,7 +238,10 @@ pub fn flex_node_system(
 
     // update window root nodes
     for (entity, window) in windows.iter() {
-        flex_surface.update_window(entity, &window.resolution);
+        let changed = flex_surface.update_window(entity, &window.resolution);
+        if changed {
+            println!("WINDOW CHANGED");
+        }
     }
 
     let scale_factor = logical_to_physical_factor * ui_scale.scale;
