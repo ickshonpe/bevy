@@ -150,6 +150,7 @@ without UI components as a child of an entity with UI components, results may be
             .set_style(
                 *node,
                 taffy::style::Style {
+                    flex_direction: taffy::style::FlexDirection::Column,
                     size,
                     ..Default::default()
                 },
