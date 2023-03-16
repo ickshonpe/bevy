@@ -246,13 +246,7 @@ pub fn flex_node_system(
             return;
         };
 
-    // update window root nodes
-    for (entity, window) in windows.iter() {
-        let changed = flex_surface.update_window(entity, &window.resolution);
-        if changed {
-            println!("WINDOW CHANGED");
-        }
-    }
+   
 
     let scale_factor = logical_to_physical_factor * ui_scale.scale;
 
@@ -272,7 +266,13 @@ pub fn flex_node_system(
         }
     }
 
-    if !scale_factor_events.is_empty() || ui_scale.is_changed() {
+    let mut changed = false;
+     // update window root nodes
+     for (entity, window) in windows.iter() {
+        changed |= flex_surface.update_window(entity, &window.resolution);
+    }
+
+    if !scale_factor_events.is_empty() || ui_scale.is_changed() || changed {
         scale_factor_events.clear();
         update_changed(&mut flex_surface, scale_factor, full_node_query);
     } else {
