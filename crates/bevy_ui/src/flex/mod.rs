@@ -86,31 +86,8 @@ impl FlexSurface {
         let taffy = &mut self.taffy;
         let taffy_style = convert::from_style(scale_factor, style);
         let measure = taffy::node::MeasureFunc::Boxed(Box::new(
-            move |constraints: Size<Option<f32>>, _available: Size<AvailableSpace>| {
-                let mut size = Size {
-                    width: (scale_factor * calculated_size.size.x as f64) as f32,
-                    height: (scale_factor * calculated_size.size.y as f64) as f32,
-                };
-                match (constraints.width, constraints.height) {
-                    (None, None) => {}
-                    (Some(width), None) => {
-                        if calculated_size.preserve_aspect_ratio {
-                            size.height = width * size.height / size.width;
-                        }
-                        size.width = width;
-                    }
-                    (None, Some(height)) => {
-                        if calculated_size.preserve_aspect_ratio {
-                            size.width = height * size.width / size.height;
-                        }
-                        size.height = height;
-                    }
-                    (Some(width), Some(height)) => {
-                        size.width = width;
-                        size.height = height;
-                    }
-                }
-                size
+            move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
+                available.map(|a| a.into_option()).map(|v| v.unwrap_or(10.))
             },
         ));
         if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
@@ -148,29 +125,34 @@ without UI components as a child of an entity with UI components, results may be
         }
     }
 
-    pub fn update_window(&mut self, window: Entity, window_resolution: &WindowResolution) {
+    pub fn update_window(&mut self, window: Entity, window_resolution: &WindowResolution) -> bool {
         let taffy = &mut self.taffy;
         let node = self
             .window_nodes
             .entry(window)
             .or_insert_with(|| taffy.new_leaf(taffy::style::Style::default()).unwrap());
+        let prev_size = taffy.style(*node).unwrap().size;
+        let size = taffy::geometry::Size {
+            width: taffy::style::Dimension::Points(
+                window_resolution.physical_width() as f32
+            ),
+            height: taffy::style::Dimension::Points(
+                window_resolution.physical_height() as f32,
+            ),
+        };
 
-        taffy
+        self.taffy
             .set_style(
                 *node,
                 taffy::style::Style {
-                    size: taffy::geometry::Size {
-                        width: taffy::style::Dimension::Points(
-                            window_resolution.physical_width() as f32
-                        ),
-                        height: taffy::style::Dimension::Points(
-                            window_resolution.physical_height() as f32,
-                        ),
-                    },
+                    size,
                     ..Default::default()
                 },
             )
             .unwrap();
+
+        size != prev_size
+        
     }
 
     pub fn set_window_children(
