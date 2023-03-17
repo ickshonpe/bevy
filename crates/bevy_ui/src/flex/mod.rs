@@ -23,6 +23,9 @@ use taffy::{
 };
 
 #[derive(Resource)]
+pub struct AlwaysUpdate;
+
+#[derive(Resource)]
 pub struct FlexSurface {
     entity_to_taffy: HashMap<Entity, taffy::node::Node>,
     window_nodes: HashMap<Entity, taffy::node::Node>,
@@ -218,6 +221,7 @@ pub fn flex_node_system(
     mut removed_children: RemovedComponents<Children>,
     mut node_transform_query: Query<(Entity, &mut Node, &mut Transform, Option<&Parent>)>,
     mut removed_nodes: RemovedComponents<Node>,
+    always_update: Option<Res<AlwaysUpdate>>,
 ) {
     // assume one window for time being...
     // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621
@@ -251,7 +255,7 @@ pub fn flex_node_system(
         }
     }
 
-    if !scale_factor_events.is_empty() || ui_scale.is_changed() {
+    if !scale_factor_events.is_empty() || ui_scale.is_changed() || always_update.is_some() {
         scale_factor_events.clear();
         update_changed(&mut flex_surface, scale_factor, full_node_query);
     } else {
