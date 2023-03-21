@@ -107,6 +107,7 @@ pub fn measure_text_system(
     let mut query = text_queries.p2();
     for entity in queued_text.drain(..) {
         if let Ok((text, mut calculated_size)) = query.get_mut(entity) {
+            println!("creating text measure");
             match text_pipeline.compute_auto_text_measure(
                 &fonts,
                 &text.sections,
@@ -187,6 +188,7 @@ pub fn text_system(
         if let Ok((node, text, mut calculated_size, mut text_layout_info)) =
             text_query.get_mut(entity)
         {
+            println!("processing text");
             let node_size = Vec2::new(
                 scale_value(node.size().x, scale_factor),
                 scale_value(node.size().y, scale_factor),
