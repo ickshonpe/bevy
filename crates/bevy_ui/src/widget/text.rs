@@ -74,7 +74,7 @@ impl Measure for AutoTextMeasure2 {
         available_width: AvailableSpace,
         available_height: AvailableSpace,
     ) -> Vec2 {
-        println!("\n* measure func *");
+        println!("\n* measure func2 *");
         println!("max_width: {max_width:?}");
         println!("max_height: {max_height:?}");
         println!("available_width: {available_width:?}");
@@ -83,7 +83,7 @@ impl Measure for AutoTextMeasure2 {
             max_width.unwrap_or_else(|| match available_width {
                 AvailableSpace::Definite(x) => x,
                 AvailableSpace::MaxContent => f32::INFINITY,
-                AvailableSpace::MinContent => 0.,
+                AvailableSpace::MinContent => f32::INFINITY,
             }),
             max_height.unwrap_or_else(|| match available_height {
                 AvailableSpace::Definite(y) => y,
