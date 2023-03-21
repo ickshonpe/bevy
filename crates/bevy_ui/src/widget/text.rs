@@ -32,19 +32,26 @@ impl Measure for AutoTextMeasure {
         available_width: AvailableSpace,
         available_height: AvailableSpace,
     ) -> Vec2 {
+        println!("measuring text");
+        println!("max_width: {max_width:?}");
+        println!("max_height: {max_height:?}");
+        println!("available_width: {available_width:?}");
+        println!("available_height: {available_height:?}");
         let bounds = Vec2::new(
             max_width.unwrap_or_else(|| match available_width {
                 AvailableSpace::Definite(x) => x,
                 AvailableSpace::MaxContent => f32::INFINITY,
-                AvailableSpace::MinContent => f32::INFINITY,
+                AvailableSpace::MinContent => 0.,
             }),
             max_height.unwrap_or_else(|| match available_height {
                 AvailableSpace::Definite(y) => y,
                 AvailableSpace::MaxContent => f32::INFINITY,
-                AvailableSpace::MinContent => f32::INFINITY,
+                AvailableSpace::MinContent => 0.,
             }),
         );
+        print!("bounds: {bounds:?}");
         let size = self.auto_text_info.compute_size(bounds);
+        println!("size out: {size:?}");
         size
     }
 
