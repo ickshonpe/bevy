@@ -233,7 +233,7 @@ pub fn text_system(
                 scale_value(node.size().x, scale_factor),
                 scale_value(node.size().y, scale_factor),
             );
-
+            println!("bounds: {:?}", node_size);
             match text_pipeline.queue_text(
                 &fonts,
                 &text.sections,
