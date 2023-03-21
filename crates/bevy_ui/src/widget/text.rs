@@ -67,6 +67,13 @@ pub struct AutoTextMeasure2 {
     pub auto_text_info: AutoTextInfo,
 }
 
+
+#[derive(Clone)]
+pub struct AutoTextMeasure3 {
+    pub auto_text_info: AutoTextInfo,
+}
+
+
 impl Measure for AutoTextMeasure2 {
     fn measure(
         &self,
@@ -90,6 +97,55 @@ impl Measure for AutoTextMeasure2 {
             (None, None, Definite(dw), Definite(dh)) => Vec2::new(dw, dh),
             (Some(w), Some(h), Definite(_), Definite(_)) => Vec2::new(w, h), 
         };
+        println!("bounds: {bounds:?}");
+        let size = self.auto_text_info.compute_size(bounds);
+        println!("size out: {size:?}");
+        size
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Measure> {
+        Box::new(self.clone())
+    }
+}
+
+
+impl Measure for AutoTextMeasure3 {
+    fn measure(
+        &self,
+        max_width: Option<f32>,
+        max_height: Option<f32>,
+        available_width: AvailableSpace,
+        available_height: AvailableSpace,
+    ) -> Vec2 {
+        println!("\n* measure func2 *");
+        println!("max_width: {max_width:?}");
+        println!("max_height: {max_height:?}");
+        println!("available_width: {available_width:?}");
+        println!("available_height: {available_height:?}");
+
+        use AvailableSpace::*;
+        let (mut width, mut height) = match (available_width, available_height) {
+            (Definite(dw), Definite(dh)) => (dw, dh),
+            (MaxContent, Definite(dh)) => (f32::INFINITY, dh),
+            (MinContent, Definite(dh)) => (0., dh),
+            (Definite(dw), MaxContent) => (dw, f32::INFINITY),
+            (Definite(dw), MinContent) => (dw, 0.),
+            (MaxContent, MaxContent) => (f32::INFINITY, f32::INFINITY),
+            (MinContent, MinContent) => (0., 0.),
+            (MaxContent, MinContent) => (f32::INFINITY, 0.),
+            (MinContent, MaxContent) => (0., f32::INFINITY),
+        };
+    
+        if let Some(max_w) = max_width {
+            width = width.min(max_w);
+        }
+    
+        if let Some(max_h) = max_height {
+            height = height.min(max_h);
+        }
+    
+        let bounds = Vec2::new(width, height);
+        
         println!("bounds: {bounds:?}");
         let size = self.auto_text_info.compute_size(bounds);
         println!("size out: {size:?}");
@@ -156,7 +212,7 @@ pub fn measure_text_system(
                 text.linebreak_behaviour,
             ) {
                 Ok(measure) => {
-                    calculated_size.measure = Box::new(AutoTextMeasure2 {
+                    calculated_size.measure = Box::new(AutoTextMeasure3 {
                         auto_text_info: measure,
                     });
                 }
