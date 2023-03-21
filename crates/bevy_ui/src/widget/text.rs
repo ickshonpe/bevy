@@ -1,4 +1,5 @@
 use crate::{CalculatedSize, Measure, Node, UiScale};
+use bevy_a11y::accesskit::DefaultActionVerb;
 use bevy_asset::Assets;
 use bevy_ecs::{
     entity::Entity,
@@ -79,18 +80,16 @@ impl Measure for AutoTextMeasure2 {
         println!("max_height: {max_height:?}");
         println!("available_width: {available_width:?}");
         println!("available_height: {available_height:?}");
-        let bounds = Vec2::new(
-            max_width.unwrap_or_else(|| match available_width {
-                AvailableSpace::Definite(x) => x,
-                AvailableSpace::MaxContent => f32::INFINITY,
-                AvailableSpace::MinContent => f32::INFINITY,
-            }),
-            max_height.unwrap_or_else(|| match available_height {
-                AvailableSpace::Definite(y) => y,
-                AvailableSpace::MaxContent => f32::INFINITY,
-                AvailableSpace::MinContent => f32::INFINITY,
-            }),
-        );
+        
+        use AvailableSpace::*;
+        let bounds = match (max_width, max_height, available_width, available_height) {
+            (_, _, MaxContent, _) | (_, _, _, MaxContent)  => Vec2::new(f32::INFINITY, f32::INFINITY),
+            (_, _, MinContent, _) | (_, _, _, MinContent) => Vec2::new(0., f32::INFINITY),
+            (None, Some(h), Definite(dw), Definite(_dh)) => Vec2::new(dw, h),
+            (Some(w), None, Definite(_dw), Definite(dh)) => Vec2::new(w, dh),
+            (None, None, Definite(dw), Definite(dh)) => Vec2::new(dw, dh),
+            (Some(w), Some(h), Definite(_), Definite(_)) => Vec2::new(w, h), 
+        };
         println!("bounds: {bounds:?}");
         let size = self.auto_text_info.compute_size(bounds);
         println!("size out: {size:?}");
