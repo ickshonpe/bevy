@@ -60,6 +60,48 @@ impl Measure for AutoTextMeasure {
     }
 }
 
+
+#[derive(Clone)]
+pub struct AutoTextMeasure2 {
+    pub auto_text_info: AutoTextInfo,
+}
+
+impl Measure for AutoTextMeasure2 {
+    fn measure(
+        &self,
+        max_width: Option<f32>,
+        max_height: Option<f32>,
+        available_width: AvailableSpace,
+        available_height: AvailableSpace,
+    ) -> Vec2 {
+        println!("\n* measure func *");
+        println!("max_width: {max_width:?}");
+        println!("max_height: {max_height:?}");
+        println!("available_width: {available_width:?}");
+        println!("available_height: {available_height:?}");
+        let bounds = Vec2::new(
+            max_width.unwrap_or_else(|| match available_width {
+                AvailableSpace::Definite(x) => x,
+                AvailableSpace::MaxContent => f32::INFINITY,
+                AvailableSpace::MinContent => 0.,
+            }),
+            max_height.unwrap_or_else(|| match available_height {
+                AvailableSpace::Definite(y) => y,
+                AvailableSpace::MaxContent => f32::INFINITY,
+                AvailableSpace::MinContent => f32::INFINITY,
+            }),
+        );
+        println!("bounds: {bounds:?}");
+        let size = self.auto_text_info.compute_size(bounds);
+        println!("size out: {size:?}");
+        size
+    }
+
+    fn dyn_clone(&self) -> Box<dyn Measure> {
+        Box::new(self.clone())
+    }
+}
+
 /// Creates a `Measure` for text nodes that allows the UI to determine the appropriate amount of space
 /// to provide for the text given the fonts, the text itself and the constraints of the layout.
 pub fn measure_text_system(
@@ -115,7 +157,7 @@ pub fn measure_text_system(
                 text.linebreak_behaviour,
             ) {
                 Ok(measure) => {
-                    calculated_size.measure = Box::new(AutoTextMeasure {
+                    calculated_size.measure = Box::new(AutoTextMeasure2 {
                         auto_text_info: measure,
                     });
                 }
