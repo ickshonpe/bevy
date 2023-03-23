@@ -195,7 +195,7 @@ impl TextPipeline {
                 let font = fonts
                     .get(&section.style.font)
                     .ok_or(TextError::NoSuchFont)?;
-                let font_id = self.get_or_insert_font_id(&section.style.font, font);
+                //let font_id = self.get_or_insert_font_id(&section.style.font, font);
                 let font_size = scale_value(section.style.font_size, scale_factor);
                 auto_fonts.push(font.font.clone());
                 let px_scale_font = ab_glyph::Font::into_scaled(font.font.clone(), font_size);
@@ -210,15 +210,29 @@ impl TextPipeline {
                 Ok(section)
             })
             .collect::<Result<Vec<_>, _>>()?;
-
-        Ok(AutoTextInfo {
+        let text_shaper = TextShaper {
             fonts: auto_fonts,
             scaled_fonts,
             sections,
             text_alignment,
             linebreak_behaviour: linebreak_behaviour.into(),
+        };
+        let min_content_size = text_shaper.compute_size(Vec2::new(0.0, f32::INFINITY));
+        let max_content_size = text_shaper.compute_size(Vec2::new(f32::INFINITY, f32::INFINITY));
+        Ok(AutoTextInfo {
+            min: (min_content_size.x, max_content_size.y).into(),
+            max: (max_content_size.x, min_content_size.y).into(),
+            shaper: text_shaper,
         })
+
     }
+}
+
+#[derive(Clone)]
+pub struct AutoTextInfo {
+    pub min: Vec2,
+    pub max: Vec2,
+    pub shaper: TextShaper,
 }
 
 #[derive(Clone)]
@@ -229,7 +243,7 @@ pub struct AutoTextSection {
 }
 
 #[derive(Clone)]
-pub struct AutoTextInfo {
+pub struct TextShaper {
     pub fonts: Vec<ab_glyph::FontArc>,
     pub scaled_fonts: Vec<ab_glyph::PxScaleFont<ab_glyph::FontArc>>,
     pub sections: Vec<AutoTextSection>,
@@ -237,7 +251,7 @@ pub struct AutoTextInfo {
     pub linebreak_behaviour: glyph_brush_layout::BuiltInLineBreaker,
 }
 
-impl AutoTextInfo {
+impl TextShaper {
     pub fn compute_size(&self, bounds: Vec2) -> Vec2 {
         let geom = SectionGeometry {
             bounds: (bounds.x, bounds.y),
