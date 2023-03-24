@@ -785,48 +785,28 @@ impl Measure for AutoTextMeasureR {
         let max = self.info.max;
         println!("min: {min:?}");
         println!("max: {max:?}");
-
         
         use AvailableSpace::*;
-        let size =
-            match (width, height) {
-                (Some(width), Some(height)) => {
-                    Vec2::new(width, height)
-                },
-                (Some(width), None) => {
-                    let y = match available_height {
-                        Definite(h) => h.min(max.y).max(min.y),
-                        MinContent => min.y,
-                        MaxContent => max.y,
-                    };                    
-                    self.info.shaper.compute_size((width, y).into())
-                },
-                (None, Some(height)) => {
-                    let _x = match available_width {
-                        Definite(w) => w.min(max.x).max(min.x),
-                        MinContent => min.x,
-                        MaxContent => max.x,
-                    };
-                    self.info.shaper.compute_size((max.x, height).into())                  
-                },
-                _ => {
-                    let x = match available_width {
-                        Definite(w) => w.min(max.x).max(min.x),
-                        MinContent => min.x,
-                        MaxContent => max.x,
-                    };
 
-                    let y = match available_height {
-                        Definite(h) => h.min(max.y).max(min.y),
-                        MinContent => min.y,
-                        MaxContent => max.y,
-                    };
-                    
-                    self.info.shaper.compute_size((x, y).into())
-                    //Vec2::new(x, y)
-                }
-            }.ceil();
-        println!("out: {size:?}");
+        if let (Some(w), Some(h)) = (width, height) {
+            return Vec2::new(w, h);
+        }
+
+        let min_line_length = min.x;
+        let max_line_length = max.x;
+
+        let inline_size = 
+            width.unwrap_or_else(|| match available_width {
+                Definite(w) => w.min(max_line_length).max(min_line_length),
+                MinContent => min_line_length,
+                MaxContent => max_line_length,
+            });
+        let block_size = 
+            width.unwrap_or_else(||
+                self.info.shaper.compute_size((inline_size, f32::INFINITY).into()).y
+        );
+
+        let size: Vec2 = (inline_size.ceil(), block_size.ceil()).into();
         size
     }
 
@@ -849,7 +829,7 @@ impl Measure for AutoTextMeasureQ {
         available_width: AvailableSpace,
         available_height: AvailableSpace,
     ) -> Vec2 {
-        println!("\n* measure func Q *");
+        println!("\n* measure func QQ *");
         println!("max_width: {width:?}");
         println!("max_height: {height:?}");
         println!("available_width: {available_width:?}");
@@ -959,7 +939,7 @@ pub fn measure_text_system(
                 text.linebreak_behaviour,
             ) {
                 Ok(measure) => {
-                    calculated_size.measure = Box::new(AutoTextMeasureQ {
+                    calculated_size.measure = Box::new(AutoTextMeasureR {
                         info: measure,
                     });
                 }
