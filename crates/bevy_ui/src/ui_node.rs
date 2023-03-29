@@ -31,8 +31,10 @@ impl Node {
     /// Returns the logical pixel coordinates of the UI node.
     #[inline]
     pub fn logical_rect(&self, node_transform: &NodeTransform) -> Rect {
-        let size = self.size() * node_transform.scale();
-        Rect::from_center_size(node_transform.translation(), size)
+        Rect {
+            min: node_transform.translation(),
+            max: node_transform.translation() + self.size() * node_transform.scale(),
+        }
     }
 
     /// Returns the physical pixel coordinates of the UI node.
@@ -54,8 +56,7 @@ impl Node {
             .inverse()
             .transform_point3(point.extend(0.))
             .truncate();
-        let s = self.size() / 2.;
-        d.x.abs() <= s.x && d.y.abs() <= s.y
+        0. <= d.x && d.x <= self.size().x && 0. <= d.y && d.y <= self.size().y
     }
 
     #[inline]
@@ -65,7 +66,7 @@ impl Node {
             .inverse()
             .transform_point3(point.extend(0.))
             .truncate();
-        d / self.size() + Vec2::new(0.5, 0.5)
+        d / self.size()
     }
 }
 

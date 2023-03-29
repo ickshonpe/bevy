@@ -367,10 +367,10 @@ impl Default for UiMeta {
 }
 
 const QUAD_VERTEX_POSITIONS: [Vec3; 4] = [
-    Vec3::new(-0.5, -0.5, 0.0),
-    Vec3::new(0.5, -0.5, 0.0),
-    Vec3::new(0.5, 0.5, 0.0),
-    Vec3::new(-0.5, 0.5, 0.0),
+    Vec3::new(0., 0., 0.),
+    Vec3::new(1., 0., 0.),
+    Vec3::new(1., 1., 0.),
+    Vec3::new(0., 1., 0.),
 ];
 
 const QUAD_INDICES: [usize; 6] = [0, 2, 3, 0, 1, 2];

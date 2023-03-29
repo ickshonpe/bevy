@@ -376,10 +376,9 @@ pub fn flex_node_system(
             let new_position =
                 Vec2::new(layout.location.x, layout.location.y) * physical_to_logical_factor;
 
-            let size_displacement = 0.5 * new_size.extend(0.);
-            let new_transform = Mat4::from_translation(new_position.extend(0.) + size_displacement);
+           
 
-            let mut calculated_transform = inherited_transform * new_transform;
+            let mut calculated_transform = inherited_transform * Mat4::from_translation(new_position.extend(0.));
 
             if let Some(translation) = maybe_translation {
                 calculated_transform *= Mat4::from_translation(translation.0.extend(0.));
@@ -405,7 +404,7 @@ pub fn flex_node_system(
                 for child in children.iter() {
                     update_node_geometry_recursively(
                         flex_surface,
-                        calculated_transform * Mat4::from_translation(-size_displacement),
+                        calculated_transform,
                         *child,
                         node_geometry_query,
                         children_query,
