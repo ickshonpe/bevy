@@ -1726,6 +1726,16 @@ category = "UI (User Interface)"
 wasm = true
 
 [[example]]
+name = "multi_windows_ui"
+path = "examples/ui/multi_windows_ui.rs"
+
+[package.metadata.example.multi_windows_ui]
+name = "Multi Window UI"
+description = "Illustrates UI in multiple windows."
+category = "UI (User Interface)"
+wasm = true
+
+[[example]]
 name = "window_fallthrough"
 path = "examples/ui/window_fallthrough.rs"
 
