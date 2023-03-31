@@ -50,6 +50,8 @@ pub struct UiPlugin;
 /// The label enum labeling the types of systems in the Bevy UI
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub enum UiSystem {
+    /// After this label, the [`LayoutContext`] components have been updated
+    Context,
     /// After this label, the ui flex state has been updated
     Flex,
     /// After this label, input interactions with UI entities have been updated for this frame
@@ -104,6 +106,7 @@ impl Plugin for UiPlugin {
             .register_type::<Val>()
             .register_type::<widget::Button>()
             .register_type::<widget::Label>()
+            .add_systems(Startup, setup_primary_window_ui)
             .add_systems(
                 PreUpdate,
                 ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),
@@ -142,6 +145,9 @@ impl Plugin for UiPlugin {
         .add_systems(
             PostUpdate,
             (
+                update_window_ui_contexts
+                    .in_set(UiSystem::Context)
+                    .before(UiSystem::Flex),
                 flex_node_system
                     .in_set(UiSystem::Flex)
                     .before(TransformSystem::TransformPropagate),

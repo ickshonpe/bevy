@@ -4,17 +4,18 @@ use crate::{CalculatedSize, Node, Style, UiScale};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
-    event::EventReader,
+    prelude::{Component, DetectChangesMut},
     query::{Changed, Or, With, Without},
     removal_detection::RemovedComponents,
-    system::{Query, Res, ResMut, Resource},
+    system::{Commands, Query, Res, ResMut, Resource},
+    world::Ref,
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
 use bevy_math::Vec2;
 use bevy_transform::components::Transform;
 use bevy_utils::HashMap;
-use bevy_window::{PrimaryWindow, Window, WindowResolution, WindowScaleFactorChanged};
+use bevy_window::{PrimaryWindow, Window, WindowResolution};
 use std::fmt;
 use taffy::{
     prelude::{AvailableSpace, Size},
@@ -22,8 +23,12 @@ use taffy::{
     Taffy,
 };
 
+#[derive(Component, Default, PartialEq)]
 pub struct LayoutContext {
+    pub ui_scale: f64,
     pub scale_factor: f64,
+    pub logical_to_physical_factor: f64,
+    pub physical_to_logical_factor: f64,
     pub physical_size: Vec2,
     pub min_size: f32,
     pub max_size: f32,
@@ -31,12 +36,47 @@ pub struct LayoutContext {
 
 impl LayoutContext {
     /// create new a [`LayoutContext`] from the window's physical size and scale factor
-    fn new(scale_factor: f64, physical_size: Vec2) -> Self {
+    pub fn new(ui_scale: &UiScale, window_resolution: &WindowResolution) -> Self {
+        let physical_size = Vec2::new(
+            window_resolution.physical_width() as f32,
+            window_resolution.physical_height() as f32,
+        );
         Self {
-            scale_factor,
+            ui_scale: ui_scale.scale,
+            scale_factor: ui_scale.scale * window_resolution.scale_factor(),
+            logical_to_physical_factor: window_resolution.scale_factor(),
+            physical_to_logical_factor: 1. / window_resolution.scale_factor(),
             physical_size,
             min_size: physical_size.x.min(physical_size.y),
             max_size: physical_size.x.max(physical_size.y),
+        }
+    }
+
+    /// create an unscaled [`LayoutContext`]
+    #[cfg(test)]
+    pub(crate) fn unscaled(size: Vec2) -> Self {
+        Self {
+            ui_scale: 1.0,
+            scale_factor: 1.0,
+            logical_to_physical_factor: 1.0,
+            physical_to_logical_factor: 1.0,
+            physical_size: size,
+            min_size: size.x.min(size.y),
+            max_size: size.x.max(size.y),
+        }
+    }
+
+    /// create a scaled [`LayoutContext`]
+    #[cfg(test)]
+    pub(crate) fn scaled(scale: f64, size: Vec2) -> Self {
+        Self {
+            ui_scale: 1.0,
+            scale_factor: scale,
+            logical_to_physical_factor: scale,
+            physical_to_logical_factor: 1. / scale,
+            physical_size: size,
+            min_size: size.x.min(size.y),
+            max_size: size.x.max(size.y),
         }
     }
 }
@@ -44,7 +84,7 @@ impl LayoutContext {
 #[derive(Resource)]
 pub struct FlexSurface {
     entity_to_taffy: HashMap<Entity, taffy::node::Node>,
-    window_nodes: HashMap<Entity, taffy::node::Node>,
+    layout_nodes: HashMap<Entity, taffy::node::Node>,
     taffy: Taffy,
 }
 
@@ -62,7 +102,6 @@ impl fmt::Debug for FlexSurface {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("FlexSurface")
             .field("entity_to_taffy", &self.entity_to_taffy)
-            .field("window_nodes", &self.window_nodes)
             .finish()
     }
 }
@@ -71,14 +110,14 @@ impl Default for FlexSurface {
     fn default() -> Self {
         Self {
             entity_to_taffy: Default::default(),
-            window_nodes: Default::default(),
+            layout_nodes: Default::default(),
             taffy: Taffy::new(),
         }
     }
 }
 
 impl FlexSurface {
-    pub fn upsert_node(&mut self, entity: Entity, style: &Style, context: &LayoutContext) {
+    fn upsert_node(&mut self, entity: Entity, style: &Style, context: &LayoutContext) {
         let mut added = false;
         let taffy = &mut self.taffy;
         let taffy_node = self.entity_to_taffy.entry(entity).or_insert_with(|| {
@@ -93,7 +132,7 @@ impl FlexSurface {
         }
     }
 
-    pub fn upsert_leaf(
+    fn upsert_leaf(
         &mut self,
         entity: Entity,
         style: &Style,
@@ -160,59 +199,14 @@ without UI components as a child of an entity with UI components, results may be
     }
 
     /// Removes children from the entity's taffy node if it exists. Does nothing otherwise.
-    pub fn try_remove_children(&mut self, entity: Entity) {
+    fn try_remove_children(&mut self, entity: Entity) {
         if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
             self.taffy.set_children(*taffy_node, &[]).unwrap();
         }
     }
 
-    pub fn update_window(&mut self, window: Entity, window_resolution: &WindowResolution) {
-        let taffy = &mut self.taffy;
-        let node = self
-            .window_nodes
-            .entry(window)
-            .or_insert_with(|| taffy.new_leaf(taffy::style::Style::default()).unwrap());
-
-        taffy
-            .set_style(
-                *node,
-                taffy::style::Style {
-                    size: taffy::geometry::Size {
-                        width: taffy::style::Dimension::Points(
-                            window_resolution.physical_width() as f32
-                        ),
-                        height: taffy::style::Dimension::Points(
-                            window_resolution.physical_height() as f32,
-                        ),
-                    },
-                    ..Default::default()
-                },
-            )
-            .unwrap();
-    }
-
-    pub fn set_window_children(
-        &mut self,
-        parent_window: Entity,
-        children: impl Iterator<Item = Entity>,
-    ) {
-        let taffy_node = self.window_nodes.get(&parent_window).unwrap();
-        let child_nodes = children
-            .map(|e| *self.entity_to_taffy.get(&e).unwrap())
-            .collect::<Vec<taffy::node::Node>>();
-        self.taffy.set_children(*taffy_node, &child_nodes).unwrap();
-    }
-
-    pub fn compute_window_layouts(&mut self) {
-        for window_node in self.window_nodes.values() {
-            self.taffy
-                .compute_layout(*window_node, Size::MAX_CONTENT)
-                .unwrap();
-        }
-    }
-
     /// Removes each entity from the internal map and then removes their associated node from taffy
-    pub fn remove_entities(&mut self, entities: impl IntoIterator<Item = Entity>) {
+    fn remove_entities(&mut self, entities: impl IntoIterator<Item = Entity>) {
         for entity in entities {
             if let Some(node) = self.entity_to_taffy.remove(&entity) {
                 self.taffy.remove(node).unwrap();
@@ -220,7 +214,7 @@ without UI components as a child of an entity with UI components, results may be
         }
     }
 
-    pub fn get_layout(&self, entity: Entity) -> Result<&taffy::layout::Layout, FlexError> {
+    fn get_layout(&self, entity: Entity) -> Result<&taffy::layout::Layout, FlexError> {
         if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
             self.taffy
                 .layout(*taffy_node)
@@ -241,14 +235,29 @@ pub enum FlexError {
     TaffyError(taffy::error::TaffyError),
 }
 
+pub fn setup_primary_window_ui(
+    mut commands: Commands,
+    primary_window_query: Query<Entity, With<PrimaryWindow>>,
+) {
+    if let Ok(primary_window_id) = primary_window_query.get_single() {
+        commands
+            .entity(primary_window_id)
+            .insert(LayoutContext::default());
+    }
+}
+
+pub fn update_window_ui_contexts(
+    ui_scale: Res<UiScale>,
+    mut windows: Query<(&Window, &mut LayoutContext)>,
+) {
+    for (window, mut layout_context) in windows.iter_mut() {
+        let new_layout_context = LayoutContext::new(&ui_scale, &window.resolution);
+        layout_context.set_if_neq(new_layout_context);
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn flex_node_system(
-    primary_window: Query<(Entity, &Window), With<PrimaryWindow>>,
-    windows: Query<(Entity, &Window)>,
-    ui_scale: Res<UiScale>,
-    mut scale_factor_events: EventReader<WindowScaleFactorChanged>,
-    mut resize_events: EventReader<bevy_window::WindowResized>,
-    mut flex_surface: ResMut<FlexSurface>,
     root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
     full_node_query: Query<(Entity, &Style, Option<&CalculatedSize>), With<Node>>,
     changed_style_query: Query<
@@ -263,63 +272,64 @@ pub fn flex_node_system(
     mut removed_children: RemovedComponents<Children>,
     mut node_transform_query: Query<(Entity, &mut Node, &mut Transform, Option<&Parent>)>,
     mut removed_nodes: RemovedComponents<Node>,
+    layout_context_query: Query<(Entity, Ref<LayoutContext>)>,
+    mut flex_surface: ResMut<FlexSurface>,
 ) {
-    // assume one window for time being...
-    // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621
-    let (primary_window_entity, logical_to_physical_factor, physical_size) =
-        if let Ok((entity, primary_window)) = primary_window.get_single() {
-            (
-                entity,
-                primary_window.resolution.scale_factor(),
-                Vec2::new(
-                    primary_window.resolution.physical_width() as f32,
-                    primary_window.resolution.physical_height() as f32,
-                ),
+    for (layout_entity, layout_context) in layout_context_query.iter() {
+        // Create a new root node if one doesn't exist
+        let FlexSurface {
+            layout_nodes,
+            taffy,
+            ..
+        } = flex_surface.as_mut();
+        let root_node = *layout_nodes
+            .entry(layout_entity)
+            .or_insert_with(|| taffy.new_leaf(taffy::style::Style::default()).unwrap());
+
+        // update size of root node
+        flex_surface
+            .taffy
+            .set_style(
+                root_node,
+                taffy::style::Style {
+                    size: taffy::geometry::Size {
+                        width: taffy::style::Dimension::Points(
+                            layout_context.physical_size.x as f32,
+                        ),
+                        height: taffy::style::Dimension::Points(
+                            layout_context.physical_size.y as f32,
+                        ),
+                    },
+                    ..Default::default()
+                },
             )
+            .unwrap();
+
+        if layout_context.is_changed() {
+            // Window resize or scale factor change, update all nodes
+            // * This is only required because Taffy doesn't support viewport coords?
+            for (entity, style, calculated_size) in &full_node_query {
+                if let Some(calculated_size) = calculated_size {
+                    flex_surface.upsert_leaf(entity, style, *calculated_size, &layout_context);
+                } else {
+                    flex_surface.upsert_node(entity, style, &layout_context);
+                }
+            }
         } else {
-            return;
-        };
-
-    let resized = resize_events
-        .iter()
-        .any(|resized_window| resized_window.window == primary_window_entity);
-
-    // update window root nodes
-    for (entity, window) in windows.iter() {
-        flex_surface.update_window(entity, &window.resolution);
-    }
-
-    let scale_factor = logical_to_physical_factor * ui_scale.scale;
-
-    let layout_context = LayoutContext::new(scale_factor, physical_size);
-
-    if !scale_factor_events.is_empty() || ui_scale.is_changed() || resized {
-        scale_factor_events.clear();
-        // update all nodes
-        for (entity, style, calculated_size) in &full_node_query {
-            if let Some(calculated_size) = calculated_size {
-                flex_surface.upsert_leaf(entity, style, *calculated_size, &layout_context);
-            } else {
+            // Update changed nodes without a calculated size
+            for (entity, style) in changed_style_query.iter() {
                 flex_surface.upsert_node(entity, style, &layout_context);
             }
-        }
-    } else {
-        // update changed nodes without a calculated size
-        for (entity, style) in changed_style_query.iter() {
-            flex_surface.upsert_node(entity, style, &layout_context);
-        }
 
-        // update changed nodes with a calculated size
-        for (entity, style, calculated_size) in changed_size_query.iter() {
-            flex_surface.upsert_leaf(entity, style, *calculated_size, &layout_context);
+            // Update changed nodes with a calculated size
+            for (entity, style, calculated_size) in changed_size_query.iter() {
+                flex_surface.upsert_leaf(entity, style, *calculated_size, &layout_context);
+            }
         }
     }
 
     // clean up removed nodes
     flex_surface.remove_entities(removed_nodes.iter());
-
-    // update window children (for now assuming all Nodes live in the primary window)
-    flex_surface.set_window_children(primary_window_entity, root_node_query.iter());
 
     // update and remove children
     for entity in removed_children.iter() {
@@ -329,36 +339,48 @@ pub fn flex_node_system(
         flex_surface.update_children(entity, children);
     }
 
-    // compute layouts
-    flex_surface.compute_window_layouts();
+    for (layout_entity, layout_context) in layout_context_query.iter() {
+        let layout_node = flex_surface.layout_nodes[&layout_entity];
+        let root_nodes = root_node_query
+            .iter()
+            .map(|root_entity| flex_surface.entity_to_taffy[&root_entity])
+            .collect::<Vec<taffy::node::Node>>();
+        flex_surface
+            .taffy
+            .set_children(layout_node, &root_nodes)
+            .unwrap();
 
-    let physical_to_logical_factor = 1. / logical_to_physical_factor;
+        flex_surface
+            .taffy
+            .compute_layout(layout_node, Size::MAX_CONTENT)
+            .unwrap();
 
-    let to_logical = |v| (physical_to_logical_factor * v as f64) as f32;
+        let to_logical = |v| (layout_context.physical_to_logical_factor * v as f64) as f32;
 
-    // PERF: try doing this incrementally
-    for (entity, mut node, mut transform, parent) in &mut node_transform_query {
-        let layout = flex_surface.get_layout(entity).unwrap();
-        let new_size = Vec2::new(
-            to_logical(layout.size.width),
-            to_logical(layout.size.height),
-        );
-        // only trigger change detection when the new value is different
-        if node.calculated_size != new_size {
-            node.calculated_size = new_size;
-        }
-        let mut new_position = transform.translation;
-        new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
-        new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
-        if let Some(parent) = parent {
-            if let Ok(parent_layout) = flex_surface.get_layout(**parent) {
-                new_position.x -= to_logical(parent_layout.size.width / 2.0);
-                new_position.y -= to_logical(parent_layout.size.height / 2.0);
+        // PERF: try doing this incrementally
+        for (entity, mut node, mut transform, parent) in &mut node_transform_query {
+            let layout = flex_surface.get_layout(entity).unwrap();
+            let new_size = Vec2::new(
+                to_logical(layout.size.width),
+                to_logical(layout.size.height),
+            );
+            // only trigger change detection when the new value is different
+            if node.calculated_size != new_size {
+                node.calculated_size = new_size;
             }
-        }
-        // only trigger change detection when the new value is different
-        if transform.translation != new_position {
-            transform.translation = new_position;
+            let mut new_position = transform.translation;
+            new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
+            new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
+            if let Some(parent) = parent {
+                if let Ok(parent_layout) = flex_surface.get_layout(**parent) {
+                    new_position.x -= to_logical(parent_layout.size.width / 2.0);
+                    new_position.y -= to_logical(parent_layout.size.height / 2.0);
+                }
+            }
+            // only trigger change detection when the new value is different
+            if transform.translation != new_position {
+                transform.translation = new_position;
+            }
         }
     }
 }
