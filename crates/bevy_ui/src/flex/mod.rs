@@ -274,16 +274,14 @@ pub fn flex_node_system(
             return;
         };
 
-    let scale_factor_changed =
-        !scale_factor_events.is_empty() 
-        || ui_scale.is_changed();
+    let scale_factor_changed = !scale_factor_events.is_empty() || ui_scale.is_changed();
     if scale_factor_changed {
         scale_factor_events.clear();
     }
     let resized = resize_events
         .iter()
         .any(|resized_window| resized_window.window == primary_window_entity);
-    
+
     // update window root nodes
     for (entity, window) in windows.iter() {
         flex_surface.update_window(entity, &window.resolution);
@@ -315,11 +313,11 @@ pub fn flex_node_system(
     if scale_factor_changed {
         for (entity, calculated_size) in &full_measure_query {
             flex_surface.update_measure(entity, *calculated_size, viewport_values.scale_factor);
-        }    
+        }
     } else {
         for (entity, calculated_size) in &changed_measure_query {
             flex_surface.update_measure(entity, *calculated_size, viewport_values.scale_factor);
-        }    
+        }
     }
 
     // When a `CalculatedSize` component is removed from an entity, we need to remove the measure from the corresponding taffy node.
