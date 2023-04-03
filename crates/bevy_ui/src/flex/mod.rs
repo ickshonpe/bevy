@@ -7,7 +7,7 @@ use bevy_ecs::{
     event::EventReader,
     query::{Changed, Or, With, Without},
     removal_detection::RemovedComponents,
-    system::{Query, Res, ResMut, Resource},
+    system::{Query, Res, ResMut, Resource}, world::Ref,
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
@@ -93,7 +93,7 @@ impl FlexSurface {
         }
     }
 
-    pub fn upsert_leaf(
+     pub fn upsert_leaf(
         &mut self,
         entity: Entity,
         style: &Style,
@@ -103,39 +103,37 @@ impl FlexSurface {
         let taffy = &mut self.taffy;
         let taffy_style = convert::from_style(context, style);
         let scale_factor = context.scale_factor;
-        let measure = taffy::node::MeasureFunc::Boxed(Box::new(
-            move |constraints: Size<Option<f32>>, _available: Size<AvailableSpace>| {
-                let mut size = Size {
-                    width: (scale_factor * calculated_size.size.x as f64) as f32,
-                    height: (scale_factor * calculated_size.size.y as f64) as f32,
-                };
-                match (constraints.width, constraints.height) {
-                    (None, None) => {}
-                    (Some(width), None) => {
-                        if calculated_size.preserve_aspect_ratio {
-                            size.height = width * size.height / size.width;
-                        }
-                        size.width = width;
-                    }
-                    (None, Some(height)) => {
-                        if calculated_size.preserve_aspect_ratio {
-                            size.width = height * size.width / size.height;
-                        }
-                        size.height = height;
-                    }
-                    (Some(width), Some(height)) => {
-                        size.width = width;
-                        size.height = height;
-                    }
-                }
-                size
-            },
-        ));
+        let measure = create_measure_func(calculated_size, context);
+
         if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
             self.taffy.set_style(*taffy_node, taffy_style).unwrap();
             self.taffy.set_measure(*taffy_node, Some(measure)).unwrap();
         } else {
             let taffy_node = taffy.new_leaf_with_measure(taffy_style, measure).unwrap();
+            self.entity_to_taffy.insert(entity, taffy_node);
+        }
+    }
+
+    pub fn upsert_changed_leaf(
+        &mut self,
+        entity: Entity,
+        style: Ref<Style>,
+        calculated_size: Ref<CalculatedSize>,
+        context: &LayoutContext,
+    ) {
+        if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
+            if style.is_changed() {
+                let taffy_style = convert::from_style(context, &style);
+                self.taffy.set_style(*taffy_node, taffy_style).unwrap();
+            }
+            
+            if calculated_size.is_changed() {
+                self.taffy.set_measure(*taffy_node, Some(create_measure_func(*calculated_size, context))).unwrap();
+            }
+        } else {
+            let taffy_style = convert::from_style(context, &style);
+            let measure = create_measure_func(*calculated_size, context);
+            let taffy_node = self.taffy.new_leaf_with_measure(taffy_style, measure).unwrap();
             self.entity_to_taffy.insert(entity, taffy_node);
         }
     }
@@ -251,14 +249,7 @@ pub fn flex_node_system(
     mut flex_surface: ResMut<FlexSurface>,
     root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
     full_node_query: Query<(Entity, &Style, Option<&CalculatedSize>), With<Node>>,
-    changed_style_query: Query<
-        (Entity, &Style),
-        (With<Node>, Without<CalculatedSize>, Changed<Style>),
-    >,
-    changed_size_query: Query<
-        (Entity, &Style, &CalculatedSize),
-        (With<Node>, Or<(Changed<CalculatedSize>, Changed<Style>)>),
-    >,
+    changed_node_query: Query<(Entity, Ref<Style>, Option<Ref<CalculatedSize>>), With<Node>>,
     children_query: Query<(Entity, &Children), (With<Node>, Changed<Children>)>,
     mut removed_children: RemovedComponents<Children>,
     mut node_transform_query: Query<(Entity, &mut Node, &mut Transform, Option<&Parent>)>,
@@ -304,14 +295,14 @@ pub fn flex_node_system(
             }
         }
     } else {
-        // update changed nodes without a calculated size
-        for (entity, style) in changed_style_query.iter() {
-            flex_surface.upsert_node(entity, style, &layout_context);
-        }
-
-        // update changed nodes with a calculated size
-        for (entity, style, calculated_size) in changed_size_query.iter() {
-            flex_surface.upsert_leaf(entity, style, *calculated_size, &layout_context);
+        for (entity, style, maybe_calculated_size) in changed_node_query.iter() {
+            if let Some(calculated_size) = maybe_calculated_size {
+                if style.is_changed() && calculated_size.is_changed() {
+                    flex_surface.upsert_changed_leaf(entity, style, calculated_size, &layout_context);
+                }
+            } else if style.is_changed() {
+                flex_surface.upsert_node(entity, &style, &layout_context);
+            }
         }
     }
 
@@ -361,4 +352,39 @@ pub fn flex_node_system(
             transform.translation = new_position;
         }
     }
+}
+
+fn create_measure_func(
+    calculated_size: CalculatedSize,
+    context: &LayoutContext,
+) -> taffy::node::MeasureFunc {
+    let scale_factor = context.scale_factor;
+    taffy::node::MeasureFunc::Boxed(Box::new(
+        move |constraints: Size<Option<f32>>, _available: Size<AvailableSpace>| {
+            let mut size = Size {
+                width: (scale_factor * calculated_size.size.x as f64) as f32,
+                height: (scale_factor * calculated_size.size.y as f64) as f32,
+            };
+            match (constraints.width, constraints.height) {
+                (None, None) => {}
+                (Some(width), None) => {
+                    if calculated_size.preserve_aspect_ratio {
+                        size.height = width * size.height / size.width;
+                    }
+                    size.width = width;
+                }
+                (None, Some(height)) => {
+                    if calculated_size.preserve_aspect_ratio {
+                        size.width = height * size.width / size.height;
+                    }
+                    size.height = height;
+                }
+                (Some(width), Some(height)) => {
+                    size.width = width;
+                    size.height = height;
+                }
+            }
+            size
+        },
+    ))
 }
