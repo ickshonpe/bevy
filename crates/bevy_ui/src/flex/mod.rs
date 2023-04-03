@@ -93,50 +93,48 @@ impl FlexSurface {
         }
     }
 
-    pub fn upsert_leaf(
+    pub fn try_remove_measure(&mut self, entity: Entity) {
+        if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
+            self.taffy.set_measure(*taffy_node, None).unwrap();
+        }
+    }
+
+    pub fn update_measure(
         &mut self,
         entity: Entity,
-        style: &Style,
         calculated_size: CalculatedSize,
-        context: &LayoutContext,
+        scale_factor: f64,
     ) {
-        let taffy = &mut self.taffy;
-        let taffy_style = convert::from_style(context, style);
-        let scale_factor = context.scale_factor;
-        let measure = taffy::node::MeasureFunc::Boxed(Box::new(
-            move |constraints: Size<Option<f32>>, _available: Size<AvailableSpace>| {
-                let mut size = Size {
-                    width: (scale_factor * calculated_size.size.x as f64) as f32,
-                    height: (scale_factor * calculated_size.size.y as f64) as f32,
-                };
-                match (constraints.width, constraints.height) {
-                    (None, None) => {}
-                    (Some(width), None) => {
-                        if calculated_size.preserve_aspect_ratio {
-                            size.height = width * size.height / size.width;
-                        }
-                        size.width = width;
-                    }
-                    (None, Some(height)) => {
-                        if calculated_size.preserve_aspect_ratio {
-                            size.width = height * size.width / size.height;
-                        }
-                        size.height = height;
-                    }
-                    (Some(width), Some(height)) => {
-                        size.width = width;
-                        size.height = height;
-                    }
-                }
-                size
-            },
-        ));
         if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
-            self.taffy.set_style(*taffy_node, taffy_style).unwrap();
+            let measure = taffy::node::MeasureFunc::Boxed(Box::new(
+                move |constraints: Size<Option<f32>>, _available: Size<AvailableSpace>| {
+                    let mut size = Size {
+                        width: (scale_factor * calculated_size.size.x as f64) as f32,
+                        height: (scale_factor * calculated_size.size.y as f64) as f32,
+                    };
+                    match (constraints.width, constraints.height) {
+                        (None, None) => {}
+                        (Some(width), None) => {
+                            if calculated_size.preserve_aspect_ratio {
+                                size.height = width * size.height / size.width;
+                            }
+                            size.width = width;
+                        }
+                        (None, Some(height)) => {
+                            if calculated_size.preserve_aspect_ratio {
+                                size.width = height * size.width / size.height;
+                            }
+                            size.height = height;
+                        }
+                        (Some(width), Some(height)) => {
+                            size.width = width;
+                            size.height = height;
+                        }
+                    }
+                    size
+                },
+            ));
             self.taffy.set_measure(*taffy_node, Some(measure)).unwrap();
-        } else {
-            let taffy_node = taffy.new_leaf_with_measure(taffy_style, measure).unwrap();
-            self.entity_to_taffy.insert(entity, taffy_node);
         }
     }
 
@@ -250,14 +248,13 @@ pub fn flex_node_system(
     mut resize_events: EventReader<bevy_window::WindowResized>,
     mut flex_surface: ResMut<FlexSurface>,
     root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
-    node_query: Query<(Entity, &Style, Option<&CalculatedSize>), (With<Node>, Changed<Style>)>,
-    full_node_query: Query<(Entity, &Style, Option<&CalculatedSize>), With<Node>>,
-    changed_size_query: Query<
-        (Entity, &Style, &CalculatedSize),
-        (With<Node>, Changed<CalculatedSize>),
-    >,
+    full_style_query: Query<(Entity, &Style), With<Node>>,
+    full_measure_query: Query<(Entity, &CalculatedSize), With<Node>>,
+    changed_style_query: Query<(Entity, &Style), (With<Node>, Changed<Style>)>,
+    changed_measure_query: Query<(Entity, &CalculatedSize), Changed<CalculatedSize>>,
     children_query: Query<(Entity, &Children), (With<Node>, Changed<Children>)>,
     mut removed_children: RemovedComponents<Children>,
+    mut removed_calculated_size: RemovedComponents<CalculatedSize>,
     mut node_transform_query: Query<(Entity, &mut Node, &mut Transform, Option<&Parent>)>,
     mut removed_nodes: RemovedComponents<Node>,
 ) {
@@ -277,10 +274,16 @@ pub fn flex_node_system(
             return;
         };
 
+    let scale_factor_changed =
+        !scale_factor_events.is_empty() 
+        || ui_scale.is_changed();
+    if scale_factor_changed {
+        scale_factor_events.clear();
+    }
     let resized = resize_events
         .iter()
         .any(|resized_window| resized_window.window == primary_window_entity);
-
+    
     // update window root nodes
     for (entity, window) in windows.iter() {
         flex_surface.update_window(entity, &window.resolution);
@@ -293,28 +296,35 @@ pub fn flex_node_system(
     fn update_changed<F: ReadOnlyWorldQuery>(
         flex_surface: &mut FlexSurface,
         viewport_values: &LayoutContext,
-        query: Query<(Entity, &Style, Option<&CalculatedSize>), F>,
+        style_query: Query<(Entity, &Style), F>,
     ) {
         // update changed nodes
-        for (entity, style, calculated_size) in &query {
+        for (entity, style) in &style_query {
             // TODO: remove node from old hierarchy if its root has changed
-            if let Some(calculated_size) = calculated_size {
-                flex_surface.upsert_leaf(entity, style, *calculated_size, viewport_values);
-            } else {
-                flex_surface.upsert_node(entity, style, viewport_values);
-            }
+            flex_surface.upsert_node(entity, style, viewport_values);
         }
     }
 
-    if !scale_factor_events.is_empty() || ui_scale.is_changed() || resized {
+    if scale_factor_changed || resized {
         scale_factor_events.clear();
-        update_changed(&mut flex_surface, &viewport_values, full_node_query);
+        update_changed(&mut flex_surface, &viewport_values, full_style_query);
     } else {
-        update_changed(&mut flex_surface, &viewport_values, node_query);
+        update_changed(&mut flex_surface, &viewport_values, changed_style_query);
     }
 
-    for (entity, style, calculated_size) in &changed_size_query {
-        flex_surface.upsert_leaf(entity, style, *calculated_size, &viewport_values);
+    if scale_factor_changed {
+        for (entity, calculated_size) in &full_measure_query {
+            flex_surface.update_measure(entity, *calculated_size, viewport_values.scale_factor);
+        }    
+    } else {
+        for (entity, calculated_size) in &changed_measure_query {
+            flex_surface.update_measure(entity, *calculated_size, viewport_values.scale_factor);
+        }    
+    }
+
+    // When a `CalculatedSize` component is removed from an entity, we need to remove the measure from the corresponding taffy node.
+    for entity in removed_calculated_size.iter() {
+        flex_surface.try_remove_measure(entity);
     }
 
     // clean up removed nodes
@@ -327,6 +337,7 @@ pub fn flex_node_system(
     for entity in removed_children.iter() {
         flex_surface.try_remove_children(entity);
     }
+
     for (entity, children) in &children_query {
         flex_surface.update_children(entity, children);
     }
@@ -345,6 +356,7 @@ pub fn flex_node_system(
             to_logical(layout.size.width),
             to_logical(layout.size.height),
         );
+
         // only trigger change detection when the new value is different
         if node.calculated_size != new_size {
             node.calculated_size = new_size;
