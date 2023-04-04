@@ -3,12 +3,12 @@ use crate::{
     PositionType, Size, Style, UiRect, Val,
 };
 
-use super::LayoutContext;
+use super::UiView;
 
 impl Val {
     fn into_length_percentage_auto(
         self,
-        context: &LayoutContext,
+        context: &UiView,
     ) -> taffy::style::LengthPercentageAuto {
         match self {
             Val::Auto => taffy::style::LengthPercentageAuto::Auto,
@@ -31,7 +31,7 @@ impl Val {
         }
     }
 
-    fn into_length_percentage(self, context: &LayoutContext) -> taffy::style::LengthPercentage {
+    fn into_length_percentage(self, context: &UiView) -> taffy::style::LengthPercentage {
         match self.into_length_percentage_auto(context) {
             taffy::style::LengthPercentageAuto::Auto => taffy::style::LengthPercentage::Points(0.0),
             taffy::style::LengthPercentageAuto::Percent(value) => {
@@ -43,7 +43,7 @@ impl Val {
         }
     }
 
-    fn into_dimension(self, context: &LayoutContext) -> taffy::style::Dimension {
+    fn into_dimension(self, context: &UiView) -> taffy::style::Dimension {
         self.into_length_percentage_auto(context).into()
     }
 }
@@ -68,7 +68,7 @@ impl Size {
     }
 }
 
-pub fn from_style(context: &LayoutContext, style: &Style) -> taffy::style::Style {
+pub fn from_style(context: &UiView, style: &Style) -> taffy::style::Style {
     taffy::style::Style {
         display: style.display.into(),
         position: style.position_type.into(),
@@ -108,6 +108,7 @@ pub fn from_style(context: &LayoutContext, style: &Style) -> taffy::style::Style
             .gap
             .map_to_taffy_size(|s| s.into_length_percentage(context)),
         justify_self: None,
+        ..Default::default()
     }
 }
 
@@ -270,7 +271,7 @@ mod tests {
                 height: Val::Percent(0.),
             },
         };
-        let viewport_values = LayoutContext::new(1.0, bevy_math::Vec2::new(800., 600.));
+        let viewport_values = UiView::new(1.0, 1.0, bevy_math::Vec2::new(800., 600.));
         let taffy_style = from_style(&viewport_values, &bevy_style);
         assert_eq!(taffy_style.display, taffy::style::Display::Flex);
         assert_eq!(taffy_style.position, taffy::style::Position::Absolute);
@@ -400,7 +401,7 @@ mod tests {
     #[test]
     fn test_into_length_percentage() {
         use taffy::style::LengthPercentage;
-        let context = LayoutContext::new(2.0, bevy_math::Vec2::new(800., 600.));
+        let context = UiView::new(2.0, 1.0, bevy_math::Vec2::new(800., 600.));
         let cases = [
             (Val::Auto, LengthPercentage::Points(0.)),
             (Val::Percent(1.), LengthPercentage::Percent(0.01)),

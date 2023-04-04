@@ -50,6 +50,7 @@ pub struct UiPlugin;
 /// The label enum labeling the types of systems in the Bevy UI
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub enum UiSystem {
+    Windows,
     /// After this label, the ui flex state has been updated
     Flex,
     /// After this label, the ui node transforms have been updated
@@ -58,6 +59,7 @@ pub enum UiSystem {
     Focus,
     /// After this label, the [`UiStack`] resource has been updated
     Stack,
+    Compute,
 }
 
 /// The current scale of the UI.
@@ -79,7 +81,7 @@ impl Default for UiScale {
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(ExtractComponentPlugin::<UiCameraConfig>::default())
-            .init_resource::<FlexSurface>()
+            .init_resource::<UiView>()
             .init_resource::<UiScale>()
             .init_resource::<UiStack>()
             .register_type::<AlignContent>()
@@ -110,6 +112,11 @@ impl Plugin for UiPlugin {
                 PreUpdate,
                 ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),
             );
+        
+        taffy::node::init_ui(&mut app.world);
+            
+        app.init_resource::<DirtyNodes>();
+
         // add these systems to front because these must run before transform update systems
         #[cfg(feature = "bevy_text")]
         app.add_systems(
@@ -144,17 +151,29 @@ impl Plugin for UiPlugin {
         .add_systems(
             PostUpdate,
             (
-                flex_node_system
+                manage_ui_windows
+                    .in_set(UiSystem::Windows)
+                    .before(UiSystem::Flex),
+                update_ui_nodes
                     .in_set(UiSystem::Flex)
+                    .after(UiSystem::Windows)
+                    .before(UiSystem::Transforms)
+                    .before(UiSystem::Compute),
+                compute_ui_layouts
+                    .in_set(UiSystem::Compute)
+                    .after(UiSystem::Flex)
                     .before(UiSystem::Transforms),
                 update_ui_node_transforms
                     .in_set(UiSystem::Transforms)
                     .after(UiSystem::Flex)
                     .before(TransformSystem::TransformPropagate),
-                ui_stack_system.in_set(UiSystem::Stack),
+                ui_stack_system.in_set(UiSystem::Stack)
+                    .after(UiSystem::Flex),
                 update_clipping_system.after(TransformSystem::TransformPropagate),
             ),
         );
+
+        
 
         crate::render::build_ui_render(app);
     }

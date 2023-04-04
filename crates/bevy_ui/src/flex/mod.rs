@@ -1,252 +1,106 @@
 mod convert;
 
 use crate::{CalculatedSize, Node, Style, UiScale};
-use bevy_core_pipeline::core_2d::graph::input::VIEW_ENTITY;
+use bevy_derive::{DerefMut, Deref};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
     event::EventReader,
-    prelude::Component,
-    query::{Changed, ReadOnlyWorldQuery, With, Without},
+    query::{Changed, With, Without, Or},
     removal_detection::RemovedComponents,
-    system::{Commands, Query, Res, ResMut, Resource},
+    system::{Commands, Query, Res, ResMut, Resource, ParamSet}, world::{Mut, World},
 };
-use bevy_hierarchy::{Children, Parent};
-use bevy_log::warn;
+use bevy_hierarchy::{Children, Parent, BuildChildren};
 use bevy_math::Vec2;
-use bevy_transform::components::Transform;
-use bevy_utils::HashMap;
-use bevy_window::{PrimaryWindow, Window, WindowResolution, WindowScaleFactorChanged};
-use std::fmt;
+use bevy_render::{view::VisibilityBundle, prelude::SpatialBundle};
+use bevy_transform::{components::Transform, prelude::GlobalTransform};
+use bevy_window::{PrimaryWindow, Window, WindowScaleFactorChanged};
 use taffy::{
-    prelude::{AvailableSpace, Size},
-    style_helpers::TaffyMaxContent,
-    Taffy,
+    prelude::{AvailableSpace, Size, Layout, TaffyWorld},
+    style_helpers::TaffyMaxContent, node::{NeedsMeasure, SizeCache, MeasureFunc},
 };
 
-#[derive(Component, Copy, Clone)]
-pub struct TaffyNode {
-    key: taffy::node::Node,
-    parent: taffy::node::Node,
-}
-
-pub struct LayoutContext {
+#[derive(Resource, Debug, Default, PartialEq)]
+pub struct UiView {
     pub scale_factor: f64,
+    pub physical_to_logical_factor: f64,
     pub physical_size: Vec2,
     pub min_size: f32,
     pub max_size: f32,
 }
 
-impl LayoutContext {
+impl UiView {
     /// create new a [`LayoutContext`] from the window's physical size and scale factor
-    fn new(scale_factor: f64, physical_size: Vec2) -> Self {
+    fn new(ui_scale: f64, logical_to_physical_factor: f64, physical_size: Vec2) -> Self {
+        let scale_factor = logical_to_physical_factor * ui_scale;
+        let physical_to_logical_factor = 1.0 / logical_to_physical_factor;
         Self {
             scale_factor,
             physical_size,
+            physical_to_logical_factor,
             min_size: physical_size.x.min(physical_size.y),
             max_size: physical_size.x.max(physical_size.y),
         }
     }
 }
 
-#[derive(Resource)]
-pub struct FlexSurface {
-    entity_to_taffy: HashMap<Entity, taffy::node::Node>,
-    window_nodes: HashMap<Entity, taffy::node::Node>,
-    taffy: Taffy,
-    physical_to_logical_factor: f64,
+#[derive(Resource, Debug)]
+pub struct UiState {
+    root_node: Entity,
+    full_update: bool,
 }
 
-// SAFETY: as long as MeasureFunc is Send + Sync. https://github.com/DioxusLabs/taffy/issues/146
-unsafe impl Send for FlexSurface {}
-unsafe impl Sync for FlexSurface {}
+fn insert_node(
+    commands: &mut Commands,
+    entity: Entity,
+    style: &Style,
+    calculated_size: Option<&CalculatedSize>,
+    context: &UiView,
+) {
+    let style = convert::from_style(context, style);
 
-fn _assert_send_sync_flex_surface_impl_safe() {
-    fn _assert_send_sync<T: Send + Sync>() {}
-    _assert_send_sync::<HashMap<Entity, taffy::node::Node>>();
-    _assert_send_sync::<Taffy>();
-}
-
-impl fmt::Debug for FlexSurface {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("FlexSurface")
-            .field("entity_to_taffy", &self.entity_to_taffy)
-            .field("window_nodes", &self.window_nodes)
-            .finish()
+    if let Some(calculated_size) = calculated_size {
+        let measure = make_measure(*calculated_size, context.scale_factor);
+        commands.entity(entity).insert((
+            style,
+            measure,
+            NeedsMeasure(true),
+            SizeCache::default(),
+            Layout::new()
+        ));
+    } else {
+        commands.entity(entity).insert((
+            style,
+            NeedsMeasure(false),
+            SizeCache::default(),
+            Layout::new()
+        ));
     }
 }
 
-impl Default for FlexSurface {
-    fn default() -> Self {
-        Self {
-            entity_to_taffy: Default::default(),
-            window_nodes: Default::default(),
-            taffy: Taffy::new(),
-            physical_to_logical_factor: 1.0,
-        }
-    }
-}
+fn update_node(
+    commands: &mut Commands,
+    entity: Entity,
+    style: &Style,
+    calculated_size: Option<&CalculatedSize>,
+    context: &UiView, 
+    needs_measure: &mut NeedsMeasure,
+    taffy_style: &mut taffy::style::Style,
+    measure_func: Option<Mut<MeasureFunc>>,
+) {
+    *taffy_style = convert::from_style(context, style);
 
-impl FlexSurface {
-    pub fn insert_node(
-        &mut self,
-        entity: Entity,
-        style: &Style,
-        calculated_size: Option<&CalculatedSize>,
-        context: &LayoutContext,
-    ) -> taffy::node::Node {
-        let style = convert::from_style(context, style);
-        let taffy_node = if let Some(calculated_size) = calculated_size {
-            let measure = make_measure(*calculated_size, context.scale_factor);
-            self.taffy.new_leaf_with_measure(style, measure).unwrap()
+    if let Some(calculated_size) = calculated_size {
+        let measure = make_measure(*calculated_size, context.scale_factor);
+        if let Some(mut measure_func) = measure_func {
+            *measure_func = measure;
         } else {
-            self.taffy.new_leaf(style).unwrap()
-        };
-        self.entity_to_taffy.insert(entity, taffy_node);
-        taffy_node
-    }
-
-    pub fn upsert_node(
-        &mut self,
-        taffy_node: taffy::node::Node,
-        style: &Style,
-        context: &LayoutContext,
-    ) {
-        self.taffy
-            .set_style(taffy_node, convert::from_style(context, style))
-            .unwrap();
-    }
-
-    pub fn upsert_leaf(
-        &mut self,
-        taffy_node: taffy::node::Node,
-        style: &Style,
-        calculated_size: CalculatedSize,
-        context: &LayoutContext,
-    ) {
-        let taffy_style = convert::from_style(context, style);
-        let measure = make_measure(calculated_size, context.scale_factor);
-        self.taffy.set_style(taffy_node, taffy_style).unwrap();
-        self.taffy.set_measure(taffy_node, Some(measure)).unwrap();
-    }
-
-    pub fn update_children(
-        &mut self,
-        entity: Entity,
-        children: &Children,
-        commands: &mut Commands,
-    ) {
-        let taffy_parent = self.entity_to_taffy.get(&entity).unwrap();
-        let mut taffy_children = Vec::with_capacity(children.len());
-        for child in children {
-            if let Some(taffy_node) = self.entity_to_taffy.get(child) {
-                taffy_children.push(*taffy_node);
-                commands.entity(*child).insert(TaffyNode {
-                    key: *taffy_node,
-                    parent: *taffy_parent,
-                });
-            } else {
-                warn!(
-                    "Unstyled child in a UI entity hierarchy. You are using an entity \
-without UI components as a child of an entity with UI components, results may be unexpected."
-                );
-            }
+            commands.entity(entity).insert(measure);
         }
-
-        self.taffy
-            .set_children(*taffy_parent, &taffy_children)
-            .unwrap();
-    }
-
-    /// Removes children from the entity's taffy node if it exists. Does nothing otherwise.
-    pub fn try_remove_children(&mut self, entity: Entity) {
-        if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
-            self.taffy.set_children(*taffy_node, &[]).unwrap();
-        }
-    }
-
-    pub fn update_window(&mut self, window: Entity, window_resolution: &WindowResolution) {
-        let taffy = &mut self.taffy;
-        let node = self
-            .window_nodes
-            .entry(window)
-            .or_insert_with(|| taffy.new_leaf(taffy::style::Style::default()).unwrap());
-
-        taffy
-            .set_style(
-                *node,
-                taffy::style::Style {
-                    size: taffy::geometry::Size {
-                        width: taffy::style::Dimension::Points(
-                            window_resolution.physical_width() as f32
-                        ),
-                        height: taffy::style::Dimension::Points(
-                            window_resolution.physical_height() as f32,
-                        ),
-                    },
-                    ..Default::default()
-                },
-            )
-            .unwrap();
-    }
-
-    pub fn set_window_children(
-        &mut self,
-        parent_window: Entity,
-        children: impl Iterator<Item = Entity>,
-        commands: &mut Commands,
-    ) {
-        let window_node = *self.window_nodes.get(&parent_window).unwrap();
-        let child_nodes = children
-            .map(|e| {
-                let taffy_node = *self.entity_to_taffy.get(&e).unwrap();
-                commands.entity(e).insert(TaffyNode {
-                    key: taffy_node,
-                    parent: window_node,
-                });
-                taffy_node
-            })
-            .collect::<Vec<taffy::node::Node>>();
-        self.taffy.set_children(window_node, &child_nodes).unwrap();
-    }
-
-    pub fn compute_window_layouts(&mut self) {
-        for window_node in self.window_nodes.values() {
-            self.taffy
-                .compute_layout(*window_node, Size::MAX_CONTENT)
-                .unwrap();
-        }
-    }
-
-    /// Removes each entity from the internal map and then removes their associated node from taffy
-    pub fn remove_entities(
-        &mut self,
-        entities: impl IntoIterator<Item = Entity>,
-        commands: &mut Commands,
-    ) {
-        for entity in entities {
-            if let Some(node) = self.entity_to_taffy.remove(&entity) {
-                self.taffy.remove(node).unwrap();
-            }
-
-            if let Some(mut entity_commands) = commands.get_entity(entity) {
-                entity_commands.remove::<TaffyNode>();
-            }
-        }
-    }
-
-    pub fn get_layout(&self, entity: Entity) -> Result<&taffy::layout::Layout, FlexError> {
-        if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
-            self.taffy
-                .layout(*taffy_node)
-                .map_err(FlexError::TaffyError)
-        } else {
-            warn!(
-                "Styled child in a non-UI entity hierarchy. You are using an entity \
-with UI components as a child of an entity without UI components, results may be unexpected."
-            );
-            Err(FlexError::InvalidHierarchy)
-        }
+        *needs_measure = NeedsMeasure(true);
+    } else {
+        commands.entity(entity).remove::<MeasureFunc>();
+        *needs_measure = NeedsMeasure(false);
     }
 }
 
@@ -256,140 +110,228 @@ pub enum FlexError {
     TaffyError(taffy::error::TaffyError),
 }
 
-#[allow(clippy::too_many_arguments)]
-pub fn flex_node_system(
+#[derive(Resource, Default, Deref, DerefMut)]
+pub struct DirtyNodes(bevy_utils::HashSet<Entity>);
+
+pub fn manage_ui_windows(
     primary_window: Query<(Entity, &Window), With<PrimaryWindow>>,
-    windows: Query<(Entity, &Window)>,
     ui_scale: Res<UiScale>,
     mut scale_factor_events: EventReader<WindowScaleFactorChanged>,
     mut resize_events: EventReader<bevy_window::WindowResized>,
-    mut flex_surface: ResMut<FlexSurface>,
-    root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
-    node_query: Query<(&TaffyNode, &Style, Option<&CalculatedSize>), (With<Node>, Changed<Style>)>,
-    full_node_query: Query<(&TaffyNode, &Style, Option<&CalculatedSize>), With<Node>>,
-    changed_size_query: Query<
-        (&TaffyNode, &Style, &CalculatedSize),
-        (With<Node>, Changed<CalculatedSize>),
-    >,
-    children_query: Query<(Entity, &Children), (With<Node>, Changed<Children>)>,
-    mut removed_children: RemovedComponents<Children>,
-    mut removed_nodes: RemovedComponents<Node>,
-    new_node_query: Query<
-        (Entity, &Style, Option<&CalculatedSize>),
-        (Without<TaffyNode>, With<Node>),
-    >,
+    maybe_ui_state: Option<ResMut<UiState>>,
     mut commands: Commands,
+    mut ui_view: ResMut<UiView>,
+    mut taffy_style_query: Query<&mut taffy::style::Style>,
+    mut dirty: ResMut<DirtyNodes>,
 ) {
-    // assume one window for time being...
-    // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621
+    println!("manage windows");
     let (primary_window_entity, logical_to_physical_factor, physical_size) =
-        if let Ok((entity, primary_window)) = primary_window.get_single() {
-            (
-                entity,
-                primary_window.resolution.scale_factor(),
-                Vec2::new(
-                    primary_window.resolution.physical_width() as f32,
-                    primary_window.resolution.physical_height() as f32,
-                ),
-            )
-        } else {
-            return;
-        };
+    if let Ok((entity, primary_window)) = primary_window.get_single() {
+        (
+            entity,
+            primary_window.resolution.scale_factor(),
+            Vec2::new(
+                primary_window.resolution.physical_width() as f32,
+                primary_window.resolution.physical_height() as f32,
+            ),
+        )
+    } else {
+        commands.remove_resource::<UiState>();
+        return;
+    };
+    let ui_view_new = UiView::new(ui_scale.scale, logical_to_physical_factor, physical_size);
+    if *ui_view != ui_view_new {
+        *ui_view = ui_view_new;
+    }
 
     let resized = resize_events
         .iter()
         .any(|resized_window| resized_window.window == primary_window_entity);
 
-    // update window root nodes
-    for (entity, window) in windows.iter() {
-        flex_surface.update_window(entity, &window.resolution);
+    let full_update = !scale_factor_events.is_empty() || ui_scale.is_changed() || resized;
+    scale_factor_events.clear();
+
+    if let Some(mut ui_state) = maybe_ui_state {
+        if full_update {
+            println!("full update");
+            ui_state.full_update = true;
+            taffy_style_query
+                .get_mut(ui_state.root_node)
+                .unwrap()
+                .size = taffy::geometry::Size {
+                    width: taffy::style::Dimension::Points(physical_size.x as f32),
+                    height: taffy::style::Dimension::Points(physical_size.y as f32),
+                };   
+            dirty.insert(ui_state.root_node);
+            println!("root node: {:?}", ui_state.root_node);
+        }
+    } else {
+        
+        let style = taffy::style::Style {
+            size: taffy::geometry::Size {
+                width: taffy::style::Dimension::Points(physical_size.x as f32),
+                height: taffy::style::Dimension::Points(physical_size.y as f32),
+            },
+            ..Default::default()
+        };
+        let root_node = commands.spawn((
+            style,
+            NeedsMeasure(false),
+            SizeCache::default(),
+            Layout::new(),
+            SpatialBundle::default(),
+        )).id();
+
+        commands.insert_resource(UiState {
+            root_node,
+            full_update: true,
+        });
+
+        println!("new ui state, full update");
+        println!("root node: {:?}", root_node);
     }
+    
+}
 
-    let scale_factor = logical_to_physical_factor * ui_scale.scale;
-
-    let viewport_values = LayoutContext::new(scale_factor, physical_size);
-    flex_surface.physical_to_logical_factor = 1. / logical_to_physical_factor;
+#[allow(clippy::too_many_arguments)]
+pub fn update_ui_nodes(
+    orphan_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
+    mut node_queries: ParamSet<(
+        Query<(Entity, &Style, &mut taffy::style::Style), With<Node>>,
+        Query<(Entity, &Style, &mut taffy::style::Style), (With<Node>, Changed<Style>)>,
+    )>,
+    mut changed_size_query: Query<
+        (Entity, &CalculatedSize, &mut NeedsMeasure, Option<&mut MeasureFunc>),
+        (With<Node>, Changed<CalculatedSize>),
+    >,
+    mut removed_nodes: RemovedComponents<Node>,
+    mut commands: Commands,
+    new_node_query: Query<
+        (Entity, &Style, Option<&CalculatedSize>),
+        (With<Node>, Without<taffy::style::Style>),
+    >,
+    changed_relationships_query: Query<
+        Entity, (With<Node>, Or<(Changed<Children>, Changed<Parent>)>),
+    >,
+    mut dirty: ResMut<DirtyNodes>,
+    maybe_ui_state: Option<Res<UiState>>,
+    ui_view: Res<UiView>,
+) {
+    println!("update nodes");
+    let Some(ui_state) = maybe_ui_state else { return };
 
     for (entity, style, calculated_size) in new_node_query.iter() {
-        flex_surface.insert_node(entity, style, calculated_size, &viewport_values);
+        insert_node(&mut commands, entity, style, calculated_size, &ui_view);
+        dirty.insert(entity);
     }
 
-    fn update_changed<F: ReadOnlyWorldQuery>(
-        flex_surface: &mut FlexSurface,
-        viewport_values: &LayoutContext,
-        query: Query<(&TaffyNode, &Style, Option<&CalculatedSize>), F>,
-    ) {
-        // update changed nodes
-        for (node_key, style, calculated_size) in &query {
-            // TODO: remove node from old hierarchy if its root has changed
-            if let Some(calculated_size) = calculated_size {
-                flex_surface.upsert_leaf(node_key.key, style, *calculated_size, viewport_values);
-            } else {
-                flex_surface.upsert_node(node_key.key, style, viewport_values);
-            }
+    if ui_state.full_update {
+        for (entity, style, mut taffy_style) in node_queries.p0().iter_mut() {
+            dirty.insert(entity);
+            *taffy_style = convert::from_style(&ui_view, style);
+        }
+    } else {
+        for (entity, style, mut taffy_style) in node_queries.p1().iter_mut() {
+            dirty.insert(entity);
+            *taffy_style = convert::from_style(&ui_view, style);
         }
     }
 
-    if !scale_factor_events.is_empty() || ui_scale.is_changed() || resized {
-        scale_factor_events.clear();
-        update_changed(&mut flex_surface, &viewport_values, full_node_query);
-    } else {
-        update_changed(&mut flex_surface, &viewport_values, node_query);
-    }
-
-    for (entity, style, calculated_size) in &changed_size_query {
-        flex_surface.upsert_leaf(entity.key, style, *calculated_size, &viewport_values);
+    for (entity, calculated_size, mut needs_measure, maybe_measure_func) in changed_size_query.iter_mut() {
+        dirty.insert(entity);
+        needs_measure.0 = true;
+        let measure = make_measure(*calculated_size, ui_view.scale_factor);
+        if let Some(mut measure_func) = maybe_measure_func {
+            *measure_func = measure;
+        } else {
+            commands.entity(entity).insert(measure);
+        }
     }
 
     // clean up removed nodes
-    flex_surface.remove_entities(removed_nodes.iter(), &mut commands);
-
-    // update window children (for now assuming all Nodes live in the primary window)
-    flex_surface.set_window_children(primary_window_entity, root_node_query.iter(), &mut commands);
-
-    // update and remove children
-    for entity in removed_children.iter() {
-        flex_surface.try_remove_children(entity);
+    for entity in removed_nodes.iter() {
+        commands.entity(entity)
+            .remove::<(
+                taffy::style::Style,
+                Layout,
+                NeedsMeasure,
+                SizeCache,
+                MeasureFunc,
+            )>()
+            .remove_parent()
+            .clear_children();
     }
-    for (entity, children) in &children_query {
-        flex_surface.update_children(entity, children, &mut commands);
+
+    //  dirty any nodes with changed relationships
+    for entity in changed_relationships_query.iter() {
+        dirty.insert(entity);
     }
 
-    // compute layouts
-    flex_surface.compute_window_layouts();
+    // dirty ophans
+    for entity in orphan_node_query.iter() {
+        dirty.insert(entity);
+    }
+
+    // set orphaned nodes as children of the root node
+    commands.entity(ui_state.root_node).push_children(&orphan_node_query.iter().collect::<Vec<_>>());
+
+}
+
+
+pub fn compute_ui_layouts(
+    world: &mut World,
+) {
+    println!("compute layouts");
+    if let Some(ui_state) = world.get_resource::<UiState>() {
+       let root_node = ui_state.root_node;
+        world.resource_scope(|world, mut dirty: Mut<DirtyNodes>| {
+            for dirty in dirty.drain() {
+                world.mark_dirty_internal(dirty);
+            }
+        });
+        world.compute_layout(root_node, Size::MAX_CONTENT).unwrap();
+    }
 }
 
 pub fn update_ui_node_transforms(
-    flex_surface: Res<FlexSurface>,
-    mut node_transform_query: Query<(&TaffyNode, &mut Node, &mut Transform)>,
+    ui_state: Option<Res<UiState>>,
+    ui_view: Res<UiView>,
+    mut node_transform_query: Query<(&Layout, &mut Node, &mut Transform, &Parent)>,
+    layout_query: Query<&Layout>,
 ) {
-    let to_logical = |v| (flex_surface.physical_to_logical_factor * v as f64) as f32;
+    println!("update transforms");
+    let Some(root_node) = ui_state.map(|ui_state| ui_state.root_node) else {
+        return;
+    };
+
+    let to_logical = |v| (ui_view.physical_to_logical_factor * v as f64) as f32;
 
     // PERF: try doing this incrementally
-    for &primary_node in flex_surface.window_nodes.values() {
-        for (taffy_node, mut node, mut transform) in &mut node_transform_query {
-            let layout = flex_surface.taffy.layout(taffy_node.key).unwrap();
-            let new_size = Vec2::new(
-                to_logical(layout.size.width),
-                to_logical(layout.size.height),
-            );
-            // only trigger change detection when the new value is different
-            if node.calculated_size != new_size {
-                node.calculated_size = new_size;
-            }
-            let mut new_position = transform.translation;
-            new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
-            new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
-            if taffy_node.parent != primary_node {
-                let parent_layout = flex_surface.taffy.layout(taffy_node.parent).unwrap();
+    for (layout, mut node, mut transform, parent) in &mut node_transform_query {
+        println!("layout: {:?}", layout);
+        // let layout = flex_surface.taffy.layout(taffy_node.key).unwrap();
+        let new_size = Vec2::new(
+            to_logical(layout.size.width),
+            to_logical(layout.size.height),
+        );
+        // only trigger change detection when the new value is different
+        if node.calculated_size != new_size {
+            node.calculated_size = new_size;
+        }
+        let mut new_position = transform.translation;
+        new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
+        new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
+        let parent_entity = parent.get();
+        if parent_entity != root_node {
+            if let Ok(parent_layout) = layout_query.get(parent_entity) {
                 new_position.x -= to_logical(parent_layout.size.width / 2.0);
                 new_position.y -= to_logical(parent_layout.size.height / 2.0);
             }
+        }
 
-            // only trigger change detection when the new value is different
-            if transform.translation != new_position {
-                transform.translation = new_position;
-            }
+        // only trigger change detection when the new value is different
+        if transform.translation != new_position {
+            transform.translation = new_position;
         }
     }
 }

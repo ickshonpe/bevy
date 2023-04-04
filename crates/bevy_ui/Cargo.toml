@@ -29,10 +29,13 @@ bevy_text = { path = "../bevy_text", version = "0.11.0-dev", optional = true }
 bevy_transform = { path = "../bevy_transform", version = "0.11.0-dev" }
 bevy_window = { path = "../bevy_window", version = "0.11.0-dev" }
 bevy_utils = { path = "../bevy_utils", version = "0.11.0-dev" }
+taffy = { path = "../taffy", version = "0.3.10" }
 
 # other
-taffy = { version = "0.3.5", default-features = false, features = ["std"] }
+#taffy = { version = "0.3.5", default-features = false, features = ["std"] }
+# taffy = { git = "https://github.com/ickshonpe/taffy.git", branch = "bevy-world-layout" }
 serde = { version = "1", features = ["derive"] }
 smallvec = { version = "1.6", features = ["union", "const_generics"] }
 bytemuck = { version = "1.5", features = ["derive"] }
 thiserror = "1.0.0"
+
