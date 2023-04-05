@@ -46,8 +46,8 @@ impl UiView {
 
 #[derive(Resource, Debug)]
 pub struct UiState {
-    root_node: Entity,
-    full_update: bool,
+    pub root_node: Entity,
+    pub full_update: bool,
 }
 
 fn insert_node(

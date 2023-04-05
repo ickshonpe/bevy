@@ -3,7 +3,7 @@
 use bevy_ecs::prelude::*;
 use bevy_hierarchy::prelude::*;
 
-use crate::{Node, ZIndex};
+use crate::{Node, ZIndex, UiState};
 
 /// The current UI stack, which contains all UI nodes ordered by their depth (back-to-front).
 ///
@@ -32,29 +32,34 @@ struct StackingContextEntry {
 /// Then flatten that tree into back-to-front ordered `UiStack`.
 pub fn ui_stack_system(
     mut ui_stack: ResMut<UiStack>,
-    root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
+    ui_state: Option<ResMut<UiState>>,
     zindex_query: Query<&ZIndex, With<Node>>,
     children_query: Query<&Children>,
 ) {
-    // Generate `StackingContext` tree
-    let mut global_context = StackingContext::default();
-    let mut total_entry_count: usize = 0;
-
-    for entity in &root_node_query {
-        insert_context_hierarchy(
-            &zindex_query,
-            &children_query,
-            entity,
-            &mut global_context,
-            None,
-            &mut total_entry_count,
-        );
-    }
-
-    // Flatten `StackingContext` into `UiStack`
     ui_stack.uinodes.clear();
-    ui_stack.uinodes.reserve(total_entry_count);
-    fill_stack_recursively(&mut ui_stack.uinodes, &mut global_context);
+    if let Some(ui_state) = ui_state {
+        
+        // Generate `StackingContext` tree
+        let mut global_context = StackingContext::default();
+        let mut total_entry_count: usize = 0;
+        if let Ok(children) = children_query.get(ui_state.root_node) {
+            for child in children {
+                insert_context_hierarchy(
+                    &zindex_query,
+                    &children_query,
+                    *child,
+                    &mut global_context,
+                    None,
+                    &mut total_entry_count,
+                );
+            }            
+
+            // Flatten `StackingContext` into `UiStack`
+        
+            ui_stack.uinodes.reserve(total_entry_count);
+            fill_stack_recursively(&mut ui_stack.uinodes, &mut global_context);
+        }
+    }
 }
 
 /// Generate z-index based UI node tree
