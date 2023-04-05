@@ -98,7 +98,6 @@ pub fn manage_ui_windows(
     mut taffy_style_query: Query<&mut taffy::style::Style>,
     mut dirty: ResMut<DirtyNodes>,
 ) {
-    println!("manage windows");
     let (primary_window_entity, logical_to_physical_factor, physical_size) =
     if let Ok((entity, primary_window)) = primary_window.get_single() {
         (
@@ -127,7 +126,6 @@ pub fn manage_ui_windows(
 
     if let Some(mut ui_state) = maybe_ui_state {
         if full_update {
-            println!("full update");
             ui_state.full_update = true;
             taffy_style_query
                 .get_mut(ui_state.root_node)
@@ -137,7 +135,6 @@ pub fn manage_ui_windows(
                     height: taffy::style::Dimension::Points(physical_size.y as f32),
                 };   
             dirty.insert(ui_state.root_node);
-            println!("root node: {:?}", ui_state.root_node);
         }
     } else {
         
@@ -160,9 +157,6 @@ pub fn manage_ui_windows(
             root_node,
             full_update: true,
         });
-
-        println!("new ui state, full update");
-        println!("root node: {:?}", root_node);
     }
     
 }
@@ -191,7 +185,6 @@ pub fn update_ui_nodes(
     maybe_ui_state: Option<Res<UiState>>,
     ui_view: Res<UiView>,
 ) {
-    println!("update nodes");
     let Some(ui_state) = maybe_ui_state else { return };
 
     for (entity, style, calculated_size) in new_node_query.iter() {
@@ -255,7 +248,6 @@ pub fn update_ui_nodes(
 pub fn compute_ui_layouts(
     world: &mut World,
 ) {
-    println!("compute layouts");
     if let Some(ui_state) = world.get_resource::<UiState>() {
        let root_node = ui_state.root_node;
         world.resource_scope(|world, mut dirty: Mut<DirtyNodes>| {
@@ -273,7 +265,6 @@ pub fn update_ui_node_transforms(
     mut node_transform_query: Query<(&Layout, &mut Node, &mut Transform, &Parent)>,
     layout_query: Query<&Layout>,
 ) {
-    println!("update transforms");
     let Some(root_node) = ui_state.map(|ui_state| ui_state.root_node) else {
         return;
     };
@@ -282,13 +273,13 @@ pub fn update_ui_node_transforms(
 
     // PERF: try doing this incrementally
     for (layout, mut node, mut transform, parent) in &mut node_transform_query {
-        println!("layout: {:?}", layout);
         // let layout = flex_surface.taffy.layout(taffy_node.key).unwrap();
         let new_size = Vec2::new(
             to_logical(layout.size.width),
             to_logical(layout.size.height),
         );
         // only trigger change detection when the new value is different
+        
         if node.calculated_size != new_size {
             node.calculated_size = new_size;
         }
