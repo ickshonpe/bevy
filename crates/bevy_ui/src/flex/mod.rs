@@ -12,8 +12,8 @@ use bevy_ecs::{
 };
 use bevy_hierarchy::{Children, Parent, BuildChildren};
 use bevy_math::Vec2;
-use bevy_render::{view::VisibilityBundle, prelude::SpatialBundle};
-use bevy_transform::{components::Transform, prelude::GlobalTransform};
+use bevy_render::{prelude::SpatialBundle};
+use bevy_transform::{components::Transform};
 use bevy_window::{PrimaryWindow, Window, WindowScaleFactorChanged};
 use taffy::{
     prelude::{AvailableSpace, Size, Layout, TaffyWorld},
@@ -75,32 +75,6 @@ fn insert_node(
             SizeCache::default(),
             Layout::new()
         ));
-    }
-}
-
-fn update_node(
-    commands: &mut Commands,
-    entity: Entity,
-    style: &Style,
-    calculated_size: Option<&CalculatedSize>,
-    context: &UiView, 
-    needs_measure: &mut NeedsMeasure,
-    taffy_style: &mut taffy::style::Style,
-    measure_func: Option<Mut<MeasureFunc>>,
-) {
-    *taffy_style = convert::from_style(context, style);
-
-    if let Some(calculated_size) = calculated_size {
-        let measure = make_measure(*calculated_size, context.scale_factor);
-        if let Some(mut measure_func) = measure_func {
-            *measure_func = measure;
-        } else {
-            commands.entity(entity).insert(measure);
-        }
-        *needs_measure = NeedsMeasure(true);
-    } else {
-        commands.entity(entity).remove::<MeasureFunc>();
-        *needs_measure = NeedsMeasure(false);
     }
 }
 
@@ -286,7 +260,7 @@ pub fn compute_ui_layouts(
        let root_node = ui_state.root_node;
         world.resource_scope(|world, mut dirty: Mut<DirtyNodes>| {
             for dirty in dirty.drain() {
-                world.mark_dirty_internal(dirty);
+                let _ = world.mark_dirty_internal(dirty);
             }
         });
         world.compute_layout(root_node, Size::MAX_CONTENT).unwrap();
