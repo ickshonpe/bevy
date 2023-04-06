@@ -2,7 +2,7 @@
 //! # Basic usage
 //! Spawn UI elements with [`node_bundles::ButtonBundle`], [`node_bundles::ImageBundle`], [`node_bundles::TextBundle`] and [`node_bundles::NodeBundle`]
 //! This UI is laid out with the Flexbox layout model (see <https://cssreference.io/flexbox/>)
-mod flex;
+mod layout;
 mod focus;
 mod geometry;
 mod render;
@@ -19,7 +19,7 @@ pub mod widget;
 #[cfg(feature = "bevy_text")]
 use bevy_render::camera::CameraUpdateSystem;
 use bevy_render::extract_component::ExtractComponentPlugin;
-pub use flex::*;
+pub use layout::*;
 pub use focus::*;
 pub use geometry::*;
 pub use render::*;
@@ -79,7 +79,7 @@ impl Default for UiScale {
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(ExtractComponentPlugin::<UiCameraConfig>::default())
-            .init_resource::<FlexSurface>()
+            .init_resource::<FlexLayouts>()
             .init_resource::<UiScale>()
             .init_resource::<UiStack>()
             .register_type::<AlignContent>()

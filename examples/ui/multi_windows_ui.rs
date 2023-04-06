@@ -35,6 +35,10 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
     });
 
     commands.spawn(TextBundle {
+        style: Style {
+            size: Size::width(Val::Percent(50.)),
+            ..Default::default()
+        },
         text: Text::from_section(
             "Window 1",
             TextStyle {
@@ -48,6 +52,10 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 
     commands.spawn(TextBundle {
+        style: Style {
+            size: Size::width(Val::Percent(50.)),
+            ..Default::default()
+        },
         text: Text::from_section(
             "Window 2",
             TextStyle {
