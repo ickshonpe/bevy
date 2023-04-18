@@ -1,5 +1,4 @@
 mod convert;
-
 use crate::{CalculatedSize, Node, Style, UiScale};
 use bevy_ecs::{
     change_detection::DetectChanges,
@@ -15,13 +14,12 @@ use bevy_math::Vec2;
 use bevy_transform::components::Transform;
 use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowResolution, WindowScaleFactorChanged};
-use std::fmt;
+use std::{fmt, mem::transmute};
 use taffy::{
     prelude::{AvailableSpace, Size},
     style_helpers::TaffyMaxContent,
     Taffy,
 };
-
 pub struct LayoutContext {
     pub scale_factor: f64,
     pub physical_size: Vec2,
@@ -94,15 +92,15 @@ impl UiSurface {
         &mut self,
         entity: Entity,
         style: &Style,
-        calculated_size: &CalculatedSize,
         context: &LayoutContext,
     ) {
         let taffy = &mut self.taffy;
         let taffy_style = convert::from_style(context, style);
-        let measure = calculated_size.measure.dyn_clone();
         let measure_func = taffy::node::MeasureFunc::Boxed(Box::new(
             move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
-                let size = measure.measure(
+                let query = unsafe { &*QUERY_PTR };
+                let calculated_size = query.get(entity).unwrap();
+                let size = calculated_size.measure.measure(
                     constraints.width,
                     constraints.height,
                     available.width,
@@ -235,6 +233,8 @@ pub enum LayoutError {
     TaffyError(taffy::error::TaffyError),
 }
 
+static mut QUERY_PTR: *const Query<&CalculatedSize> = std::ptr::null();
+
 #[allow(clippy::too_many_arguments)]
 pub fn ui_layout_system(
     primary_window: Query<(Entity, &Window), With<PrimaryWindow>>,
@@ -255,7 +255,14 @@ pub fn ui_layout_system(
     mut removed_calculated_sizes: RemovedComponents<CalculatedSize>,
     mut node_transform_query: Query<(Entity, &mut Node, &mut Transform, Option<&Parent>)>,
     mut removed_nodes: RemovedComponents<Node>,
+    content_size_query: Query<&CalculatedSize>,
 ) {
+    let c = & content_size_query;
+
+    unsafe {
+        QUERY_PTR = transmute(c);
+    }
+
     // assume one window for time being...
     // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621
     let (primary_window_entity, logical_to_physical_factor, physical_size) =
@@ -294,7 +301,7 @@ pub fn ui_layout_system(
         for (entity, style, calculated_size) in &query {
             // TODO: remove node from old hierarchy if its root has changed
             if let Some(calculated_size) = calculated_size {
-                ui_surface.upsert_leaf(entity, style, calculated_size, viewport_values);
+                ui_surface.upsert_leaf(entity, style, viewport_values);
             } else {
                 ui_surface.upsert_node(entity, style, viewport_values);
             }
@@ -308,8 +315,10 @@ pub fn ui_layout_system(
         update_changed(&mut ui_surface, &viewport_values, node_query);
     }
 
+    
+
     for (entity, style, calculated_size) in &changed_size_query {
-        ui_surface.upsert_leaf(entity, style, calculated_size, &viewport_values);
+        ui_surface.upsert_leaf(entity, style, &viewport_values);
     }
 
     // clean up removed nodes
