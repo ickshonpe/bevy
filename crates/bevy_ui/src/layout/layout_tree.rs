@@ -7,7 +7,9 @@ use bevy_ecs::system::Resource;
 use bevy_ecs::system::SystemParam;
 use bevy_utils::HashMap;
 use slotmap::SlotMap;
+use taffy::error::TaffyResult;
 use taffy::prelude::Node;
+use taffy::prelude::Size;
 use taffy::tree::LayoutTree;
 
 use crate::CalculatedSize;
@@ -18,19 +20,29 @@ use super::data::UiNodeData;
 pub struct UiEntityToNodeMap(HashMap<Entity, Node>);
 
 #[derive(Resource, Deref, DerefMut)]
-pub struct UiChildNodes(SlotMap<Node, Vec<Node>>);
-
-#[derive(Resource, Deref, DerefMut)]
-pub struct UiParentNodes(SlotMap<Node, Vec<Node>>);
+pub struct UiNodeToEntityMap(HashMap<Node, Entity>);
 
 #[derive(Resource, Deref, DerefMut)]
 pub struct UiNodes(SlotMap<Node, UiNodeData>);
 
+#[derive(Resource, Deref, DerefMut)]
+pub struct UiChildNodes(SlotMap<Node, Vec<Node>>);
+
+#[derive(Resource, Deref, DerefMut)]
+pub struct UiParentNodes(SlotMap<Node, Option<Node>>);
+
+#[derive(Resource, Deref, DerefMut)]
+pub struct UiWindowNodes(SlotMap<Node, Option<Node>>);
+
 #[derive(SystemParam)]
 pub struct UiSurface<'w, 's> {
+    nodes: ResMut<'w, UiNodes>,
     children: ResMut<'w, UiChildNodes>,
     parents: ResMut<'w, UiParentNodes>,
+    entity_to_node: ResMut<'w, UiEntityToNodeMap>,
+    node_to_entity: ResMut<'w, UiNodeToEntityMap>,
     measure_funcs: Query<'w, 's, &'static CalculatedSize>,
+    
 }
 
 impl <'w, 's> LayoutTree for UiSurface<'w, 's> {
@@ -39,39 +51,39 @@ impl <'w, 's> LayoutTree for UiSurface<'w, 's> {
         Self: 'a;
 
     fn children(&self, node: Node) -> Self::ChildIter<'_> {
-        todo!()
+        self.children[node].iter()
     }
 
     fn child_count(&self, node: Node) -> usize {
-        todo!()
+        self.children[node].len()
     }
 
     fn is_childless(&self, node: Node) -> bool {
-        todo!()
+        self.children[node].is_empty()
     }
 
     fn child(&self, node: Node, index: usize) -> Node {
-        todo!()
+        self.children[node][index]
     }
 
     fn parent(&self, node: Node) -> Option<Node> {
-        todo!()
+        self.parents.get(node).copied().flatten()
     }
 
     fn style(&self, node: Node) -> &taffy::style::Style {
-        todo!()
+        &self.nodes[node].style
     }
 
     fn layout(&self, node: Node) -> &taffy::prelude::Layout {
-        todo!()
+        &self.nodes[node].layout
     }
 
     fn layout_mut(&mut self, node: Node) -> &mut taffy::prelude::Layout {
-        todo!()
+        &mut self.nodes[node].layout
     }
 
     fn mark_dirty(&mut self, node: Node) -> taffy::error::TaffyResult<()> {
-        todo!()
+        self.mark_dirty_internal(node)
     }
 
     fn measure_node(
@@ -80,14 +92,47 @@ impl <'w, 's> LayoutTree for UiSurface<'w, 's> {
         known_dimensions: taffy::prelude::Size<Option<f32>>,
         available_space: taffy::prelude::Size<taffy::style::AvailableSpace>,
     ) -> taffy::prelude::Size<f32> {
-        todo!()
+        let entity = self.node_to_entity.get(&node).unwrap();
+        let size = self.measure_funcs.get(*entity).unwrap().measure
+            .measure(known_dimensions.width,
+                known_dimensions.height,
+                available_space.width,
+                available_space.height,
+            );
+        Size {
+            width: size.x,
+            height: size.y,
+        }
+            
     }
 
     fn needs_measure(&self, node: Node) -> bool {
-        todo!()
+        self.nodes[node].needs_measure
     }
 
     fn cache_mut(&mut self, node: Node, index: usize) -> &mut Option<taffy::layout::Cache> {
-        todo!()
+        &mut self.nodes[node].size_cache[index]
     }
+}
+
+impl <'w, 's> UiSurface<'w, 's> {
+    fn mark_dirty_internal(&mut self, node: Node) -> TaffyResult<()> {
+         /// WARNING: this will stack-overflow if the tree contains a cycle
+         fn mark_dirty_recursive(
+            nodes: &mut SlotMap<Node, UiNodeData>,
+            parents: &SlotMap<Node, Option<Node>>,
+            node_id: Node,
+        ) {
+            nodes[node_id].mark_dirty();
+
+            if let Some(Some(node)) = parents.get(node_id) {
+                mark_dirty_recursive(nodes, parents, *node);
+            }
+        }
+
+        mark_dirty_recursive(&mut self.nodes, &self.parents, node);
+
+        Ok(())
+    }
+
 }

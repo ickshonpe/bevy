@@ -5,9 +5,6 @@ use taffy::style::Style;
 /// The number of cache entries for each node in the tree
 pub const CACHE_SIZE: usize = 7;
 
-/// Layout information for a given [`Node`](crate::node::Node)
-///
-/// Stored in a [`Taffy`].
 pub struct UiNodeData {
     /// The layout strategy used by this node
     pub style: Style,
