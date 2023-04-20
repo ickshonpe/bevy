@@ -1,3 +1,5 @@
+use bevy_derive::Deref;
+use bevy_derive::DerefMut;
 use bevy_ecs::prelude::Entity;
 use bevy_ecs::system::Query;
 use bevy_ecs::system::ResMut;
@@ -12,16 +14,16 @@ use crate::CalculatedSize;
 
 use super::data::UiNodeData;
 
-#[derive(Resource)]
+#[derive(Resource, Deref, DerefMut)]
 pub struct UiEntityToNodeMap(HashMap<Entity, Node>);
 
-#[derive(Resource)]
+#[derive(Resource, Deref, DerefMut)]
 pub struct UiChildNodes(SlotMap<Node, Vec<Node>>);
 
-#[derive(Resource)]
+#[derive(Resource, Deref, DerefMut)]
 pub struct UiParentNodes(SlotMap<Node, Vec<Node>>);
 
-#[derive(Resource)]
+#[derive(Resource, Deref, DerefMut)]
 pub struct UiNodes(SlotMap<Node, UiNodeData>);
 
 #[derive(SystemParam)]
