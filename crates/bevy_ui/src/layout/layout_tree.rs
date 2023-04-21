@@ -137,7 +137,7 @@ impl <'w, 's> UiLayoutTree<'w, 's> {
         Ok(())
     }
 
-    fn compute_layout(&mut self, node: Node, available_space: Size<AvailableSpace>) -> Result<(), taffy::error::TaffyError> {
+    pub fn compute_layout(&mut self, node: Node, available_space: Size<AvailableSpace>) -> Result<(), taffy::error::TaffyError> {
         algorithm::compute_layout(self, node, available_space)
     }
 }

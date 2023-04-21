@@ -132,13 +132,6 @@ without UI components as a child of an entity with UI components, results may be
         }
     }
 
-    /// Removes the measure from the entity's taffy node if it exists. Does nothing otherwise.
-    pub fn try_remove_measure(&mut self, entity: Entity) {
-        if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
-            self.taffy.set_measure(*taffy_node, None).unwrap();
-        }
-    }
-
     pub fn update_window(&mut self, window_resolution: Vec2) {
         if self.window_node == taffy::node::Node::default() {
             self.window_node = self.taffy.new_leaf(taffy::style::Style::default()).unwrap();
@@ -204,15 +197,9 @@ pub enum LayoutError {
 pub fn clean_up_removed_ui_nodes(
     mut ui_surface: ResMut<UiSurface>,
     mut removed_nodes: RemovedComponents<Node>,
-    mut removed_content_sizes: RemovedComponents<ContentSize>,
 ) {
     // clean up removed nodes
     ui_surface.remove_entities(removed_nodes.iter());
-
-    // When a `ContentSize` component is removed from an entity, we need to remove the measure from the corresponding taffy node.
-    for entity in removed_content_sizes.iter() {
-        ui_surface.try_remove_measure(entity);
-    }
 }
 
 /// Insert a new taffy node into the layout for any entity that had a `Node` component added.
