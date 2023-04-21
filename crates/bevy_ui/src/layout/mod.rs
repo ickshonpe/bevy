@@ -224,7 +224,7 @@ pub fn update_ui_node_transforms(
     let to_logical = |v| (physical_to_logical_factor * v as f64) as f32;
 
     // PERF: try doing this incrementally
-    for (node, mut node_size, mut transform) in &mut node_transform_query {
+    node_transform_query.par_iter_mut().for_each_mut(|(node, mut node_size, mut transform)| {
         let layout = ui_surface.layout(node.key);
         let new_size = Vec2::new(
             to_logical(layout.size.width),
@@ -251,7 +251,7 @@ pub fn update_ui_node_transforms(
         if transform.translation != new_position {
             transform.translation = new_position;
         }
-    }
+    });
 }
 
 #[cfg(test)]
