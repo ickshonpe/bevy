@@ -3,7 +3,6 @@ use bevy_ecs::reflect::ReflectComponent;
 use bevy_math::Vec2;
 use bevy_reflect::Reflect;
 use std::fmt::Formatter;
-use taffy::node::Measurable;
 pub use taffy::style::AvailableSpace;
 
 impl std::fmt::Debug for ContentSize {
@@ -51,11 +50,12 @@ impl Measure for FixedMeasure {
 pub struct ContentSize {
     /// The `Measure` used to compute the intrinsic size
     #[reflect(ignore)]
-    pub(crate) measure_func: Option<Box<dyn Measurable>>,
+    pub(crate) measure_func: Option<taffy::node::MeasureFunc>,
 }
 
 impl ContentSize {
-    pub fn new(measure: impl Measure) -> Self {
+    /// Set a `Measure` for this function
+    pub fn set(&mut self, measure: impl Measure) {
         let measure_func =
             move |size: taffy::prelude::Size<Option<f32>>,
                   available: taffy::prelude::Size<AvailableSpace>| {
@@ -66,15 +66,16 @@ impl ContentSize {
                     height: size.y,
                 }
             };
-        Self {
-            measure_func: Some(Box::new(measure_func)),
-        }
+        self.measure_func = Some(taffy::node::MeasureFunc::Boxed(Box::new(measure_func)));
     }
 }
 
-#[allow(clippy::derivable_impls)]
 impl Default for ContentSize {
     fn default() -> Self {
-        Self::new(FixedMeasure::default())
+        Self {
+            measure_func: Some(taffy::node::MeasureFunc::Raw(|_, _| {
+                taffy::prelude::Size::ZERO
+            })),
+        }
     }
 }
