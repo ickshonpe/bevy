@@ -1,6 +1,7 @@
 mod convert;
 mod layout_tree;
 mod data;
+mod algorithm;
 
 use crate::{ContentSize, NodeSize, Style, UiScale};
 use bevy_ecs::{

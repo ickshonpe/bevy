@@ -10,6 +10,7 @@ use slotmap::SlotMap;
 use taffy::error::TaffyResult;
 use taffy::prelude::Node;
 use taffy::prelude::Size;
+use taffy::style::AvailableSpace;
 use taffy::tree::LayoutTree;
 
 use crate::ContentSize;
@@ -34,8 +35,14 @@ pub struct UiParentNodes(SlotMap<Node, Option<Node>>);
 #[derive(Resource, Deref, DerefMut)]
 pub struct UiWindowNodes(SlotMap<Node, Option<Node>>);
 
+#[derive(Resource)]
+pub struct UiLayoutConfig {
+    pub use_rounding: bool,
+}
+
 #[derive(SystemParam)]
-pub struct UiSurface<'w, 's> {
+pub struct UiLayoutTree<'w, 's> {
+    pub config: ResMut<'w, UiLayoutConfig>,
     pub nodes: ResMut<'w, UiNodes>,
     pub children: ResMut<'w, UiChildNodes>,
     pub parents: ResMut<'w, UiParentNodes>,
@@ -45,7 +52,7 @@ pub struct UiSurface<'w, 's> {
     
 }
 
-impl <'w, 's> LayoutTree for UiSurface<'w, 's> {
+impl <'w, 's> LayoutTree for UiLayoutTree<'w, 's> {
     type ChildIter<'a> =  core::slice::Iter<'a, Node>
     where
         Self: 'a;
@@ -109,7 +116,7 @@ impl <'w, 's> LayoutTree for UiSurface<'w, 's> {
     }
 }
 
-impl <'w, 's> UiSurface<'w, 's> {
+impl <'w, 's> UiLayoutTree<'w, 's> {
     fn mark_dirty_internal(&mut self, node: Node) -> TaffyResult<()> {
          /// WARNING: this will stack-overflow if the tree contains a cycle
          fn mark_dirty_recursive(
@@ -129,4 +136,7 @@ impl <'w, 's> UiSurface<'w, 's> {
         Ok(())
     }
 
+    fn compute_layout(&mut self, node: Node, available_space: Size<AvailableSpace>) -> Result<(), taffy::error::TaffyError> {
+        Ok(())
+    }
 }
