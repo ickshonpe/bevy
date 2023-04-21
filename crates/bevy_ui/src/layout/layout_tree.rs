@@ -15,6 +15,7 @@ use taffy::tree::LayoutTree;
 
 use crate::ContentSize;
 
+use super::algorithm;
 use super::data::UiNodeData;
 
 #[derive(Resource, Deref, DerefMut)]
@@ -137,6 +138,6 @@ impl <'w, 's> UiLayoutTree<'w, 's> {
     }
 
     fn compute_layout(&mut self, node: Node, available_space: Size<AvailableSpace>) -> Result<(), taffy::error::TaffyError> {
-        Ok(())
+        algorithm::compute_layout(self, node, available_space)
     }
 }
