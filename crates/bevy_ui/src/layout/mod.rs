@@ -93,11 +93,6 @@ impl Default for UiSurface {
 }
 
 impl UiSurface {
-    /// Update the `MeasureFunc` of the taffy node corresponding to the given [`Entity`].
-    pub fn update_measure(&mut self, node: taffy::node::Node, measure_func: taffy::node::MeasureFunc) {
-        self.taffy.set_measure(node, Some(measure_func)).ok();
-    }
-
     pub fn update_node(
         &mut self,
         taffy_node: taffy::node::Node,
@@ -284,12 +279,6 @@ pub fn update_ui_layout(
     let Some(ref layout_context) = ui_context.0 else {
         return
     };
-
-    for (node, mut content_size) in measure_query.iter_mut() {
-        if let Some(measure_func) = content_size.measure_func.take() {
-            ui_surface.update_measure(node.key, measure_func);
-        }
-    }
 
     if layout_context.require_full_update {
         for (node, style) in full_style_query.iter() {
