@@ -12,7 +12,7 @@ use taffy::prelude::Node;
 use taffy::prelude::Size;
 use taffy::tree::LayoutTree;
 
-use crate::CalculatedSize;
+use crate::ContentSize;
 
 use super::data::UiNodeData;
 
@@ -41,7 +41,7 @@ pub struct UiSurface<'w, 's> {
     parents: ResMut<'w, UiParentNodes>,
     entity_to_node: ResMut<'w, UiEntityToNodeMap>,
     node_to_entity: ResMut<'w, UiNodeToEntityMap>,
-    measure_funcs: Query<'w, 's, &'static CalculatedSize>,
+    measure_funcs: Query<'w, 's, &'static ContentSize>,
     
 }
 
@@ -93,16 +93,17 @@ impl <'w, 's> LayoutTree for UiSurface<'w, 's> {
         available_space: taffy::prelude::Size<taffy::style::AvailableSpace>,
     ) -> taffy::prelude::Size<f32> {
         let entity = self.node_to_entity.get(&node).unwrap();
-        let size = self.measure_funcs.get(*entity).unwrap().measure
-            .measure(known_dimensions.width,
-                known_dimensions.height,
-                available_space.width,
-                available_space.height,
-            );
-        Size {
-            width: size.x,
-            height: size.y,
-        }
+        // let size = self.measure_funcs.get(*entity).unwrap().measure
+        //     .measure(known_dimensions.width,
+        //         known_dimensions.height,
+        //         available_space.width,
+        //         available_space.height,
+        //     );
+        // Size {
+        //     width: size.x,
+        //     height: size.y,
+        // }
+        Size::ZERO
             
     }
 
