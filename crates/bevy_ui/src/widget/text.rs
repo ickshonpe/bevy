@@ -1,4 +1,4 @@
-use crate::{ContentSize, Measure, Node, UiScale};
+use crate::{ContentSize, Measure, Node, NodeSize, UiScale};
 use bevy_asset::Assets;
 use bevy_ecs::{
     entity::Entity,
@@ -143,9 +143,9 @@ pub fn text_system(
     mut font_atlas_set_storage: ResMut<Assets<FontAtlasSet>>,
     mut text_pipeline: ResMut<TextPipeline>,
     mut text_queries: ParamSet<(
-        Query<Entity, Or<(Changed<Text>, Changed<Node>)>>,
-        Query<Entity, (With<Text>, With<Node>)>,
-        Query<(&Node, &Text, &mut TextLayoutInfo)>,
+        Query<Entity, Or<(Changed<Text>, Changed<NodeSize>)>>,
+        Query<Entity, (With<Text>, With<NodeSize>)>,
+        Query<(&NodeSize, &Text, &mut TextLayoutInfo)>,
     )>,
 ) {
     // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621

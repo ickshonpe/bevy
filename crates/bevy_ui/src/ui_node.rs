@@ -16,17 +16,17 @@ use thiserror::Error;
 /// Describes the size of a UI node
 #[derive(Component, Debug, Clone, Reflect)]
 #[reflect(Component, Default)]
-pub struct Node {
+pub struct NodeSize {
     /// The size of the node as width and height in logical pixels
-    /// automatically calculated by [`super::layout::ui_layout_system`]
-    pub(crate) content_size: Vec2,
+    /// automatically calculated by [`super::layout::update_ui_layout`]
+    pub(crate) calculated_size: Vec2,
 }
 
-impl Node {
+impl NodeSize {
     /// The calculated node size as width and height in logical pixels
-    /// automatically calculated by [`super::layout::ui_layout_system`]
+    /// automatically calculated by [`super::layout::update_ui_layout`]
     pub fn size(&self) -> Vec2 {
-        self.content_size
+        self.calculated_size
     }
 
     /// Returns the logical pixel coordinates of the UI node, based on its `GlobalTransform`.
@@ -46,13 +46,13 @@ impl Node {
     }
 }
 
-impl Node {
+impl NodeSize {
     pub const DEFAULT: Self = Self {
-        content_size: Vec2::ZERO,
+        calculated_size: Vec2::ZERO,
     };
 }
 
-impl Default for Node {
+impl Default for NodeSize {
     fn default() -> Self {
         Self::DEFAULT
     }
@@ -828,7 +828,7 @@ impl Default for Direction {
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Reflect)]
 #[reflect(PartialEq, Serialize, Deserialize)]
 pub enum Display {
-    /// Use Flexbox layout model to determine the position of this [`Node`].
+    /// Use Flexbox layout model to determine the position of this [`super::flex::Node`].
     Flex,
     /// Use CSS Grid layout model to determine the position of this [`Node`].
     Grid,
@@ -1592,7 +1592,7 @@ pub struct CalculatedClip {
     pub clip: Rect,
 }
 
-/// Indicates that this [`Node`] entity's front-to-back ordering is not controlled solely
+/// Indicates that this [`super::flex::Node`] entity's front-to-back ordering is not controlled solely
 /// by its location in the UI hierarchy. A node with a higher z-index will appear on top
 /// of other nodes with a lower z-index.
 ///
