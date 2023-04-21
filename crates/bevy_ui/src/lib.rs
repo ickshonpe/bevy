@@ -25,6 +25,13 @@ use bevy_render::extract_component::ExtractComponentPlugin;
 pub use focus::*;
 pub use geometry::*;
 pub use layout::*;
+use layout::layout_tree::UiChildNodes;
+use layout::layout_tree::UiEntityToNodeMap;
+use layout::layout_tree::UiLayoutConfig;
+use layout::layout_tree::UiNodeToEntityMap;
+use layout::layout_tree::UiNodes;
+use layout::layout_tree::UiParentNodes;
+use layout::layout_tree::UiWindowNode;
 pub use measurement::*;
 pub use render::*;
 pub use ui_node::*;
@@ -91,10 +98,17 @@ impl Default for UiScale {
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(ExtractComponentPlugin::<UiCameraConfig>::default())
-            .init_resource::<UiSurface>()
             .init_resource::<UiScale>()
             .init_resource::<UiStack>()
             .init_resource::<UiContext>()
+            .init_resource::<UiEntityToNodeMap>()
+            .init_resource::<UiNodeToEntityMap>()
+            .init_resource::<UiNodes>()
+            .init_resource::<UiChildNodes>()
+            .init_resource::<UiParentNodes>()
+            .init_resource::<UiWindowNode>()
+            .init_resource::<UiWindowNode>()
+            .init_resource::<UiLayoutConfig>()
             .register_type::<AlignContent>()
             .register_type::<AlignItems>()
             .register_type::<AlignSelf>()
