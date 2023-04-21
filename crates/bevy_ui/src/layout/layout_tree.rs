@@ -93,18 +93,11 @@ impl <'w, 's> LayoutTree for UiSurface<'w, 's> {
         available_space: taffy::prelude::Size<taffy::style::AvailableSpace>,
     ) -> taffy::prelude::Size<f32> {
         let entity = self.node_to_entity.get(&node).unwrap();
-        // let size = self.measure_funcs.get(*entity).unwrap().measure
-        //     .measure(known_dimensions.width,
-        //         known_dimensions.height,
-        //         available_space.width,
-        //         available_space.height,
-        //     );
-        // Size {
-        //     width: size.x,
-        //     height: size.y,
-        // }
-        Size::ZERO
-            
+        let measure_func = self.measure_funcs.get(*entity).unwrap().measure_func.as_ref().unwrap();
+        match measure_func {
+            taffy::node::MeasureFunc::Raw(measure) => measure(known_dimensions, available_space),
+            taffy::node::MeasureFunc::Boxed(measure) => (measure as &dyn Fn(_, _) -> _)(known_dimensions, available_space),
+        }            
     }
 
     fn needs_measure(&self, node: Node) -> bool {
