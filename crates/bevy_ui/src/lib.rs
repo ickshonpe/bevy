@@ -77,6 +77,7 @@ pub enum UiSystem {
     Focus,
     /// After this label, the [`UiStack`] resource has been updated
     Stack,
+    MeasureTracking,
 }
 
 /// The current scale of the UI.
@@ -191,6 +192,10 @@ impl Plugin for UiPlugin {
                 insert_new_ui_nodes
                     .in_set(UiSystem::Insertion)
                     .before(UiSystem::Children),
+                update_measure_tracking
+                    .in_set(UiSystem::MeasureTracking)
+                    .after(UiSystem::Insertion)
+                    .before(UiSystem::Layout),
                 synchonise_ui_children
                     .in_set(UiSystem::Children)
                     .before(UiSystem::Layout),

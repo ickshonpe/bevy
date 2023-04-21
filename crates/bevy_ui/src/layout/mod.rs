@@ -3,7 +3,7 @@ pub mod layout_tree;
 mod data;
 mod algorithm;
 
-use crate::{NodeSize, Style, UiScale};
+use crate::{NodeSize, Style, UiScale, ContentSize};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -59,8 +59,6 @@ impl LayoutContext {
     }
 }
 
-
-
 fn _assert_send_sync_ui_surface_impl_safe() {
     fn _assert_send_sync<T: Send + Sync>() {}
     _assert_send_sync::<HashMap<Entity, taffy::node::Node>>();
@@ -85,7 +83,27 @@ pub fn clean_up_removed_ui_nodes(
             let _ = ui_surface.remove(node);
         }
     }
+}
 
+pub fn update_measure_tracking(
+    mut ui_surface: UiLayoutTree,
+    mut removed_content_sizes: RemovedComponents<ContentSize>,
+    added_content_size_query: Query<&Node, Added<ContentSize>>,
+) {
+    for entity in removed_content_sizes.iter() {
+        if let Some(key) = ui_surface.entity_to_node.get(&entity) {
+            if let Some(data) = ui_surface.nodes.get_mut(*key) {
+                data.needs_measure = false;
+            }
+        }
+    }
+
+    for node in added_content_size_query.iter() {
+        ui_surface.nodes
+            .get_mut(node.key)
+            .unwrap()
+            .needs_measure = true;
+    }
 }
 
 /// Insert a new taffy node into the layout for any entity that had a `Node` component added.
@@ -95,6 +113,7 @@ pub fn insert_new_ui_nodes(
 ) {
     for (entity, mut node) in new_node_query.iter_mut() {
         node.key = ui_surface.new_leaf(taffy::style::Style::DEFAULT).unwrap();
+        ui_surface.node_to_entity.insert(node.key, entity);
         if let Some(old_key) = ui_surface.entity_to_node.insert(entity, node.key) {
             let _ = ui_surface.remove(old_key);
         }

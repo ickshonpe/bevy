@@ -50,7 +50,7 @@ impl Measure for FixedMeasure {
 pub struct ContentSize {
     /// The `Measure` used to compute the intrinsic size
     #[reflect(ignore)]
-    pub(crate) measure_func: Option<taffy::node::MeasureFunc>,
+    pub(crate) measure_func: taffy::node::MeasureFunc,
 }
 
 impl ContentSize {
@@ -66,16 +66,16 @@ impl ContentSize {
                     height: size.y,
                 }
             };
-        self.measure_func = Some(taffy::node::MeasureFunc::Boxed(Box::new(measure_func)));
+        self.measure_func = taffy::node::MeasureFunc::Boxed(Box::new(measure_func));
     }
 }
 
 impl Default for ContentSize {
     fn default() -> Self {
         Self {
-            measure_func: Some(taffy::node::MeasureFunc::Raw(|_, _| {
+            measure_func: taffy::node::MeasureFunc::Raw(|_, _| {
                 taffy::prelude::Size::ZERO
-            })),
+            }),
         }
     }
 }

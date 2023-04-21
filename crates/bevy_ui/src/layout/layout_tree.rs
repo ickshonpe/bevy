@@ -109,7 +109,7 @@ impl <'w, 's> LayoutTree for UiLayoutTree<'w, 's> {
         available_space: taffy::prelude::Size<taffy::style::AvailableSpace>,
     ) -> taffy::prelude::Size<f32> {
         let entity = self.node_to_entity.get(&node).unwrap();
-        let measure_func = self.measure_funcs.get(*entity).unwrap().measure_func.as_ref().unwrap();
+        let measure_func = &self.measure_funcs.get(*entity).unwrap().measure_func;
         match measure_func {
             taffy::node::MeasureFunc::Raw(measure) => measure(known_dimensions, available_space),
             taffy::node::MeasureFunc::Boxed(measure) => (measure as &dyn Fn(_, _) -> _)(known_dimensions, available_space),
