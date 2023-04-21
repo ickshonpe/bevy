@@ -22,7 +22,7 @@ use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowScaleFactorChanged};
 use taffy::{ Taffy, tree::LayoutTree};
 
-use self::{layout_tree::UiLayoutTree};
+use self::layout_tree::{UiLayoutTree, NodeLayout, UiParentNodes};
 
 #[derive(Component, Default, Debug, Reflect)]
 pub struct Node {
@@ -209,9 +209,9 @@ pub fn update_ui_layout(
 }
 
 pub fn update_ui_node_transforms(
-    ui_surface: UiLayoutTree,
     ui_context: ResMut<UiContext>,
-    mut node_transform_query: Query<(&Node, &mut NodeSize, &mut Transform)>,
+    mut node_transform_query: Query<(&mut NodeSize, &NodeLayout, &mut Transform, Option<&Parent>)>,
+    parent_layout_query: Query<&NodeLayout>,
 ) {
     let Some(physical_to_logical_factor) = ui_context
         .0
@@ -224,8 +224,7 @@ pub fn update_ui_node_transforms(
     let to_logical = |v| (physical_to_logical_factor * v as f64) as f32;
 
     // PERF: try doing this incrementally
-    for (node, mut node_size, mut transform) in &mut node_transform_query {
-        let layout = ui_surface.layout(node.key);
+    node_transform_query.par_iter_mut().for_each_mut(|(mut node_size, layout, mut transform, parent)| {
         let new_size = Vec2::new(
             to_logical(layout.size.width),
             to_logical(layout.size.height),
@@ -240,9 +239,11 @@ pub fn update_ui_node_transforms(
         new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
         new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
 
-        let parent_key = ui_surface.parent(node.key).unwrap();
-        if parent_key != **ui_surface.window_node {
-            let parent_layout = ui_surface.layout(parent_key);
+        //let parent_key = ui_surface.parent(node.key).unwrap();
+        if let Some(parent) = parent {
+        //if parent_key != ui_surface.window_node.key {
+
+            let parent_layout = parent_layout_query.get(parent.get()).unwrap();
             new_position.x -= to_logical(parent_layout.size.width / 2.0);
             new_position.y -= to_logical(parent_layout.size.height / 2.0);
         }
@@ -251,7 +252,7 @@ pub fn update_ui_node_transforms(
         if transform.translation != new_position {
             transform.translation = new_position;
         }
-    }
+    });
 }
 
 #[cfg(test)]
@@ -324,7 +325,7 @@ mod tests {
         assert_eq!(ui_layout.entity_to_node[&entity], key);
 
         // taffy node should be a child of the window node
-        assert_eq!(ui_layout.parent(key).unwrap(), **ui_layout.window_node);
+        assert_eq!(ui_layout.parent(key).unwrap(), ui_layout.window_node.key);
 
         // despawn the ui node entity
         world.entity_mut(entity).despawn();
@@ -337,7 +338,7 @@ mod tests {
 
         // window node should have no children
         assert!(ui_layout
-            .children(**ui_layout.window_node)
+            .children(ui_layout.window_node.key)
             .next().is_none());
     }
 

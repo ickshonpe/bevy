@@ -1,5 +1,6 @@
 use bevy_derive::Deref;
 use bevy_derive::DerefMut;
+use bevy_ecs::prelude::Component;
 use bevy_ecs::prelude::Entity;
 use bevy_ecs::system::Query;
 use bevy_ecs::system::ResMut;
@@ -8,6 +9,7 @@ use bevy_ecs::system::SystemParam;
 use bevy_utils::HashMap;
 use slotmap::SlotMap;
 use taffy::error::TaffyResult;
+use taffy::prelude::Layout;
 use taffy::prelude::Node;
 use taffy::prelude::Size;
 use taffy::style::AvailableSpace;
@@ -34,8 +36,25 @@ pub struct UiChildNodes(SlotMap<Node, Vec<Node>>);
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct UiParentNodes(SlotMap<Node, Option<Node>>);
 
-#[derive(Resource, Default, Deref, DerefMut)]
-pub struct UiWindowNode(Node);
+#[derive(Resource, Default)]
+pub struct UiWindowNode {
+    pub key: Node,
+    pub layout: NodeLayout,
+}
+
+#[derive(Component, Debug, Deref, DerefMut)]
+pub struct NodeLayout(Layout);
+
+impl Default for NodeLayout {
+    fn default() -> Self {
+        Self(Layout {
+            order: 0,
+            size: Size::ZERO,
+            location: taffy::geometry::Point::ZERO,
+        })
+    }
+}
+
 
 #[derive(Resource)]
 pub struct UiLayoutConfig {
@@ -57,7 +76,8 @@ pub struct UiLayoutTree<'w, 's> {
     pub entity_to_node: ResMut<'w, UiEntityToNodeMap>,
     pub node_to_entity: ResMut<'w, UiNodeToEntityMap>,
     pub window_node: ResMut<'w, UiWindowNode>,
-    pub measure_funcs: Query<'w, 's, &'static ContentSize>,
+    pub measure_funcs_query: Query<'w, 's, &'static ContentSize>,
+    pub layout_query: Query<'w, 's, &'static mut NodeLayout>,
     
 }
 
@@ -91,11 +111,23 @@ impl <'w, 's> LayoutTree for UiLayoutTree<'w, 's> {
     }
 
     fn layout(&self, node: Node) -> &taffy::prelude::Layout {
-        &self.nodes[node].layout
+        if node == self.window_node.key {
+            &self.window_node.layout.0
+        } else {
+            let entity = self.node_to_entity.get(&node).unwrap();
+            let layout = self.layout_query.get(*entity).unwrap();
+            layout
+        }
     }
 
     fn layout_mut(&mut self, node: Node) -> &mut taffy::prelude::Layout {
-        &mut self.nodes[node].layout
+        if node == self.window_node.key {
+            &mut self.window_node.layout.0
+        } else {
+            let entity = self.node_to_entity.get(&node).unwrap();
+            let layout = self.layout_query.get_mut(*entity).unwrap();
+            layout.into_inner()
+        }
     }
 
     fn mark_dirty(&mut self, node: Node) -> taffy::error::TaffyResult<()> {
@@ -109,7 +141,7 @@ impl <'w, 's> LayoutTree for UiLayoutTree<'w, 's> {
         available_space: taffy::prelude::Size<taffy::style::AvailableSpace>,
     ) -> taffy::prelude::Size<f32> {
         let entity = self.node_to_entity.get(&node).unwrap();
-        let measure_func = &self.measure_funcs.get(*entity).unwrap().measure_func;
+        let measure_func = &self.measure_funcs_query.get(*entity).unwrap().measure_func;
         match measure_func {
             taffy::node::MeasureFunc::Raw(measure) => measure(known_dimensions, available_space),
             taffy::node::MeasureFunc::Boxed(measure) => (measure as &dyn Fn(_, _) -> _)(known_dimensions, available_space),
@@ -235,12 +267,12 @@ without UI components as a child of an entity with UI components, results may be
         Ok(())
     }
 
-    pub fn update_window(&mut self, window_resolution: bevy_math::Vec2) {
-        if self.window_node.0 == taffy::node::Node::default() {
-            self.window_node.0 = self.new_leaf(taffy::style::Style::default()).unwrap();
+    pub fn update_window(&mut self,  window_resolution: bevy_math::Vec2) {
+        if self.window_node.key == taffy::node::Node::default() {
+            self.window_node.key = self.new_leaf(taffy::style::Style::default()).unwrap();
         }
         self.set_style(
-                self.window_node.0,
+                self.window_node.key,
                 taffy::style::Style {
                     size: taffy::geometry::Size {
                         width: taffy::style::Dimension::Points(window_resolution.x),
@@ -254,13 +286,13 @@ without UI components as a child of an entity with UI components, results may be
 
     pub fn set_window_children(&mut self, children: impl Iterator<Item = taffy::node::Node>) {
         let child_nodes = children.collect::<Vec<taffy::node::Node>>();
-        self            .set_children(self.window_node.0, &child_nodes)
+        self            .set_children(self.window_node.key, &child_nodes)
             .unwrap();
     }
 
     pub fn compute_window_layout(&mut self) {
         self
-            .compute_layout(self.window_node.0, Size::MAX_CONTENT)
+            .compute_layout(self.window_node.key, Size::MAX_CONTENT)
             .unwrap();
     }
 }
