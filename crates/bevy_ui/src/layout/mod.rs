@@ -2,14 +2,15 @@ mod convert;
 mod layout_tree;
 mod data;
 
-use crate::{CalculatedSize, Node, Style, UiScale};
+use crate::{ContentSize, Node, Style, UiScale};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
     event::EventReader,
-    query::{Changed, ReadOnlyWorldQuery, With, Without},
+    query::{Changed, With, Without},
     removal_detection::RemovedComponents,
     system::{Query, Res, ResMut, Resource},
+    world::Ref,
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
@@ -18,11 +19,7 @@ use bevy_transform::components::Transform;
 use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowResolution, WindowScaleFactorChanged};
 use std::fmt;
-use taffy::{
-    prelude::{AvailableSpace, Size},
-    style_helpers::TaffyMaxContent,
-    Taffy,
-};
+use taffy::{node::Measurable, prelude::Size, style_helpers::TaffyMaxContent, Taffy};
 
 pub struct LayoutContext {
     pub scale_factor: f64,
@@ -92,41 +89,14 @@ impl UiSurface {
         }
     }
 
-    pub fn upsert_leaf(
-        &mut self,
-        entity: Entity,
-        style: &Style,
-        calculated_size: &CalculatedSize,
-        context: &LayoutContext,
-    ) {
-        let taffy = &mut self.taffy;
-        let taffy_style = convert::from_style(context, style);
-        let measure = calculated_size.measure.dyn_clone();
-        let measure_func = taffy::node::MeasureFunc::Boxed(Box::new(
-            move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
-                let size = measure.measure(
-                    constraints.width,
-                    constraints.height,
-                    available.width,
-                    available.height,
-                );
-                taffy::geometry::Size {
-                    width: size.x,
-                    height: size.y,
-                }
-            },
-        ));
-        if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
-            self.taffy.set_style(*taffy_node, taffy_style).unwrap();
-            self.taffy
-                .set_measure(*taffy_node, Some(measure_func))
-                .unwrap();
-        } else {
-            let taffy_node = taffy
-                .new_leaf_with_measure(taffy_style, measure_func)
-                .unwrap();
-            self.entity_to_taffy.insert(entity, taffy_node);
-        }
+    pub fn update_measure(&mut self, entity: Entity, measure_func: Box<dyn Measurable>) {
+        let taffy_node = self.entity_to_taffy.get(&entity).unwrap();
+        self.taffy
+            .set_measure(
+                *taffy_node,
+                Some(taffy::node::MeasureFunc::Boxed(measure_func)),
+            )
+            .ok();
     }
 
     pub fn update_children(&mut self, entity: Entity, children: &Children) {
@@ -246,15 +216,11 @@ pub fn ui_layout_system(
     mut resize_events: EventReader<bevy_window::WindowResized>,
     mut ui_surface: ResMut<UiSurface>,
     root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
-    node_query: Query<(Entity, &Style, Option<&CalculatedSize>), (With<Node>, Changed<Style>)>,
-    full_node_query: Query<(Entity, &Style, Option<&CalculatedSize>), With<Node>>,
-    changed_size_query: Query<
-        (Entity, &Style, &CalculatedSize),
-        (With<Node>, Changed<CalculatedSize>),
-    >,
+    style_query: Query<(Entity, Ref<Style>), With<Node>>,
+    mut measure_query: Query<(Entity, &mut ContentSize)>,
     children_query: Query<(Entity, &Children), (With<Node>, Changed<Children>)>,
     mut removed_children: RemovedComponents<Children>,
-    mut removed_calculated_sizes: RemovedComponents<CalculatedSize>,
+    mut removed_content_sizes: RemovedComponents<ContentSize>,
     mut node_transform_query: Query<(Entity, &mut Node, &mut Transform, Option<&Parent>)>,
     mut removed_nodes: RemovedComponents<Node>,
 ) {
@@ -285,40 +251,33 @@ pub fn ui_layout_system(
 
     let scale_factor = logical_to_physical_factor * ui_scale.scale;
 
-    let viewport_values = LayoutContext::new(scale_factor, physical_size);
+    let layout_context = LayoutContext::new(scale_factor, physical_size);
 
-    fn update_changed<F: ReadOnlyWorldQuery>(
-        ui_surface: &mut UiSurface,
-        viewport_values: &LayoutContext,
-        query: Query<(Entity, &Style, Option<&CalculatedSize>), F>,
-    ) {
-        // update changed nodes
-        for (entity, style, calculated_size) in &query {
-            // TODO: remove node from old hierarchy if its root has changed
-            if let Some(calculated_size) = calculated_size {
-                ui_surface.upsert_leaf(entity, style, calculated_size, viewport_values);
-            } else {
-                ui_surface.upsert_node(entity, style, viewport_values);
+    if !scale_factor_events.is_empty() || ui_scale.is_changed() || resized {
+        scale_factor_events.clear();
+        // update all nodes
+        for (entity, style) in style_query.iter() {
+            ui_surface.upsert_node(entity, &style, &layout_context);
+        }
+    } else {
+        for (entity, style) in style_query.iter() {
+            if style.is_changed() {
+                ui_surface.upsert_node(entity, &style, &layout_context);
             }
         }
     }
 
-    if !scale_factor_events.is_empty() || ui_scale.is_changed() || resized {
-        scale_factor_events.clear();
-        update_changed(&mut ui_surface, &viewport_values, full_node_query);
-    } else {
-        update_changed(&mut ui_surface, &viewport_values, node_query);
-    }
-
-    for (entity, style, calculated_size) in &changed_size_query {
-        ui_surface.upsert_leaf(entity, style, calculated_size, &viewport_values);
+    for (entity, mut content_size) in measure_query.iter_mut() {
+        if let Some(measure_func) = content_size.measure_func.take() {
+            ui_surface.update_measure(entity, measure_func);
+        }
     }
 
     // clean up removed nodes
     ui_surface.remove_entities(removed_nodes.iter());
 
-    // When a `CalculatedSize` component is removed from an entity, we need to remove the measure from the corresponding taffy node.
-    for entity in removed_calculated_sizes.iter() {
+    // When a `ContentSize` component is removed from an entity, we need to remove the measure from the corresponding taffy node.
+    for entity in removed_content_sizes.iter() {
         ui_surface.try_remove_measure(entity);
     }
 
@@ -348,8 +307,8 @@ pub fn ui_layout_system(
             to_logical(layout.size.height),
         );
         // only trigger change detection when the new value is different
-        if node.calculated_size != new_size {
-            node.calculated_size = new_size;
+        if node.content_size != new_size {
+            node.content_size = new_size;
         }
         let mut new_position = transform.translation;
         new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
