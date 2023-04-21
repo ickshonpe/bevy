@@ -36,12 +36,12 @@ pub struct UiWindowNodes(SlotMap<Node, Option<Node>>);
 
 #[derive(SystemParam)]
 pub struct UiSurface<'w, 's> {
-    nodes: ResMut<'w, UiNodes>,
-    children: ResMut<'w, UiChildNodes>,
-    parents: ResMut<'w, UiParentNodes>,
-    entity_to_node: ResMut<'w, UiEntityToNodeMap>,
-    node_to_entity: ResMut<'w, UiNodeToEntityMap>,
-    measure_funcs: Query<'w, 's, &'static ContentSize>,
+    pub nodes: ResMut<'w, UiNodes>,
+    pub children: ResMut<'w, UiChildNodes>,
+    pub parents: ResMut<'w, UiParentNodes>,
+    pub entity_to_node: ResMut<'w, UiEntityToNodeMap>,
+    pub node_to_entity: ResMut<'w, UiNodeToEntityMap>,
+    pub measure_funcs: Query<'w, 's, &'static ContentSize>,
     
 }
 
