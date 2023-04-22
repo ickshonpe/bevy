@@ -1,4 +1,4 @@
-use crate::{ContentSize, Measure, Node, UiScale};
+use crate::{ContentNode, Measure, Node, UiScale, UiSurface};
 use bevy_asset::Assets;
 use bevy_ecs::{
     entity::Entity,
@@ -59,14 +59,15 @@ impl Measure for TextMeasure {
 pub fn measure_text_system(
     mut queued_text: Local<Vec<Entity>>,
     mut last_scale_factor: Local<f64>,
+    mut ui_surface: ResMut<UiSurface>,
     fonts: Res<Assets<Font>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     ui_scale: Res<UiScale>,
     mut text_pipeline: ResMut<TextPipeline>,
     mut text_queries: ParamSet<(
-        Query<Entity, Changed<Text>>,
-        Query<Entity, (With<Text>, With<Node>)>,
-        Query<(&Text, &mut ContentSize)>,
+        Query<Entity, (Changed<Text>, With<Node>, With<ContentNode>)>,
+        Query<Entity, (With<Text>, With<Node>, With<ContentNode>)>,
+        Query<&Text>,
     )>,
 ) {
     let window_scale_factor = windows
@@ -99,7 +100,7 @@ pub fn measure_text_system(
     let mut new_queue = Vec::new();
     let mut query = text_queries.p2();
     for entity in queued_text.drain(..) {
-        if let Ok((text, mut content_size)) = query.get_mut(entity) {
+        if let Ok(text) = query.get_mut(entity) {
             match text_pipeline.create_text_measure(
                 &fonts,
                 &text.sections,
@@ -108,7 +109,7 @@ pub fn measure_text_system(
                 text.linebreak_behavior,
             ) {
                 Ok(measure) => {
-                    content_size.set(TextMeasure { info: measure });
+                    ui_surface.set_measure(entity, TextMeasure { info: measure });
                 }
                 Err(TextError::NoSuchFont) => {
                     new_queue.push(entity);

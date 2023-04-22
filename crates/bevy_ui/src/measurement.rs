@@ -5,7 +5,7 @@ use bevy_reflect::Reflect;
 use std::fmt::Formatter;
 pub use taffy::style::AvailableSpace;
 
-impl std::fmt::Debug for ContentSize {
+impl std::fmt::Debug for ContentNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ContentSize").finish()
     }
@@ -43,40 +43,7 @@ impl Measure for FixedMeasure {
     }
 }
 
-/// A node with a `ContentSize` component is a node where its size
-/// is based on its content.
-#[derive(Component, Reflect)]
+/// Marker component for nodes with size determined by their content.
+#[derive(Component, Default, Reflect)]
 #[reflect(Component)]
-pub struct ContentSize {
-    /// The `Measure` used to compute the intrinsic size
-    #[reflect(ignore)]
-    pub(crate) measure_func: Option<taffy::node::MeasureFunc>,
-}
-
-impl ContentSize {
-    /// Set a `Measure` for this function
-    pub fn set(&mut self, measure: impl Measure) {
-        let measure_func =
-            move |size: taffy::prelude::Size<Option<f32>>,
-                  available: taffy::prelude::Size<AvailableSpace>| {
-                let size =
-                    measure.measure(size.width, size.height, available.width, available.height);
-                taffy::prelude::Size {
-                    width: size.x,
-                    height: size.y,
-                }
-            };
-        self.measure_func = Some(taffy::node::MeasureFunc::Boxed(Box::new(measure_func)));
-    }
-}
-
-#[allow(clippy::derivable_impls)]
-impl Default for ContentSize {
-    fn default() -> Self {
-        Self {
-            measure_func: Some(taffy::node::MeasureFunc::Raw(|_, _| {
-                taffy::prelude::Size::ZERO
-            })),
-        }
-    }
-}
+pub struct ContentNode;
