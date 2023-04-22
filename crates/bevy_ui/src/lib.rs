@@ -32,8 +32,9 @@ use layout::layout_tree::UiNodeToEntityMap;
 use layout::layout_tree::UiNodes;
 use layout::layout_tree::UiParentNodes;
 use layout::layout_tree::UiWindowNode;
-use layout::update_geometry::update_ui_node_geometry;
+use layout::update_geometry::update_ui_node_geometry_recursively;
 pub use layout::*;
+use layout::update_geometry::update_ui_node_geometry_with_stack;
 pub use measurement::*;
 pub use render::*;
 pub use ui_node::*;
@@ -205,7 +206,8 @@ impl Plugin for UiPlugin {
                 update_ui_layout
                     .in_set(UiSystem::Layout)
                     .before(UiSystem::Geometry),
-                update_ui_node_geometry.in_set(UiSystem::Geometry),
+                //update_ui_node_geometry_recursively.in_set(UiSystem::Geometry),
+                update_ui_node_geometry_with_stack.in_set(UiSystem::Geometry),
                 ui_stack_system.in_set(UiSystem::Stack),
                 update_clipping_system.after(UiSystem::Geometry),
             ),
