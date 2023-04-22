@@ -233,6 +233,7 @@ without UI components as a child of an entity with UI components, results may be
         let _ = self.children.insert(Vec::with_capacity(0));
         let _ = self.parents.insert(None);
         let _ = self.node_to_entity.insert(entity);
+        let _ = self.layouts.insert(taffy::prelude::Layout::new());
         Ok(id)
     }
 

@@ -256,6 +256,7 @@ mod tests {
         world.init_resource::<UiWindowNode>();
         world.init_resource::<UiWindowNode>();
         world.init_resource::<UiLayoutConfig>();
+        world.init_resource::<UiNodeLayouts>();
     }
 
     #[test]

@@ -27,6 +27,7 @@ pub use geometry::*;
 use layout::layout_tree::UiChildNodes;
 use layout::layout_tree::UiEntityToNodeMap;
 use layout::layout_tree::UiLayoutConfig;
+use layout::layout_tree::UiNodeLayouts;
 use layout::layout_tree::UiNodeToEntityMap;
 use layout::layout_tree::UiNodes;
 use layout::layout_tree::UiParentNodes;
@@ -105,6 +106,7 @@ impl Plugin for UiPlugin {
             .init_resource::<UiEntityToNodeMap>()
             .init_resource::<UiNodeToEntityMap>()
             .init_resource::<UiNodes>()
+            .init_resource::<UiNodeLayouts>()
             .init_resource::<UiChildNodes>()
             .init_resource::<UiParentNodes>()
             .init_resource::<UiWindowNode>()
