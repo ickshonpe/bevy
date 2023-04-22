@@ -145,10 +145,6 @@ impl Plugin for UiPlugin {
             .add_systems(
                 PreUpdate,
                 ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),
-            )
-            .add_systems(
-                Startup,
-                setup_ui_windows
             );
         
         // add these systems to front because these must run before transform update systems

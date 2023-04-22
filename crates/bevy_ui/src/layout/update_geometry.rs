@@ -2,7 +2,8 @@ use crate::NodePosition;
 use crate::NodeSize;
 use crate::UiContext;
 use crate::UiNode;
-use crate::UiNodeLayout;
+use crate::helpers::*;
+use crate::layout_tree::UiNodeLayouts;
 use bevy_ecs::prelude::Entity;
 use bevy_ecs::query::With;
 use bevy_ecs::system::Query;
@@ -11,13 +12,13 @@ use bevy_hierarchy::Children;
 use bevy_math::Vec2;
 
 pub fn update_ui_node_geometry(
+    layouts: ResMut<UiNodeLayouts>,
     ui_context: ResMut<UiContext>,
-    mut node_geometry_query: Query<(&UiNodeLayout, &mut NodeSize, &mut NodePosition)>,
+    mut node_geometry_query: Query<(&UiNode, &mut NodeSize, &mut NodePosition)>,
     root_node_query: Query<
         Entity,
         (
-            With<UiNode>,
-            With<UiNodeLayout>,
+            With<UiNode>,            
             With<NodeSize>,
             With<NodePosition>,
         ),
@@ -26,7 +27,6 @@ pub fn update_ui_node_geometry(
         &Children,
         (
             With<UiNode>,
-            With<UiNodeLayout>,
             With<NodeSize>,
             With<NodePosition>,
         ),
@@ -41,24 +41,25 @@ pub fn update_ui_node_geometry(
     };
 
     fn update_node_geometry_recursively(
+        layouts: &UiNodeLayouts,
         inherited_position: Vec2,
         entity: Entity,
-        node_geometry_query: &mut Query<(&UiNodeLayout, &mut NodeSize, &mut NodePosition)>,
+        node_geometry_query: &mut Query<(&UiNode, &mut NodeSize, &mut NodePosition)>,
         children_query: &Query<
             &Children,
             (
                 With<UiNode>,
-                With<UiNodeLayout>,
                 With<NodeSize>,
                 With<NodePosition>,
             ),
         >,
         physical_to_logical_factor: f32,
     ) {
-        if let Ok((layout, mut node_size, mut node_position)) = node_geometry_query.get_mut(entity)
+        if let Ok((node, mut node_size, mut node_position)) = node_geometry_query.get_mut(entity)
         {
-            let new_size = layout.size() * physical_to_logical_factor;
-            let local_position = layout.local_position() * physical_to_logical_factor;
+            let layout = layouts[node.key];
+            let new_size = Vec2::convert_from(layout.size) * physical_to_logical_factor;
+            let local_position = Vec2::convert_from(layout.location) * physical_to_logical_factor;
             let new_position = local_position + inherited_position;
 
             // only trigger change detection when the new value is different
@@ -73,7 +74,8 @@ pub fn update_ui_node_geometry(
             if let Ok(children) = children_query.get(entity) {
                 for child in children.iter() {
                     update_node_geometry_recursively(
-                        new_position,
+                        layouts,
+                                                new_position,
                         *child,
                         node_geometry_query,
                         children_query,
@@ -86,6 +88,7 @@ pub fn update_ui_node_geometry(
 
     for root_entity in root_node_query.iter() {
         update_node_geometry_recursively(
+            &layouts,
             Vec2::ZERO,
             root_entity,
             &mut node_geometry_query,

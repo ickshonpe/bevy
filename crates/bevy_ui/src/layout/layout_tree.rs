@@ -1,7 +1,6 @@
 use super::algorithm;
 use super::data::UiNodeData;
 use crate::ContentSize;
-use crate::UiNodeLayout;
 use bevy_derive::Deref;
 use bevy_derive::DerefMut;
 use bevy_ecs::prelude::Entity;
@@ -25,6 +24,9 @@ pub struct UiNodeToEntityMap(SlotMap<Node, Entity>);
 
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct UiNodes(SlotMap<Node, UiNodeData>);
+
+#[derive(Resource, Default, Deref, DerefMut)]
+pub struct UiNodeLayouts(SlotMap<Node, taffy::prelude::Layout>);
 
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct UiChildNodes(SlotMap<Node, Vec<Node>>);
@@ -52,11 +54,11 @@ pub struct UiLayoutTree<'w, 's> {
     pub nodes: ResMut<'w, UiNodes>,
     pub children: ResMut<'w, UiChildNodes>,
     pub parents: ResMut<'w, UiParentNodes>,
+    pub layouts: ResMut<'w, UiNodeLayouts>,
     pub entity_to_node: ResMut<'w, UiEntityToNodeMap>,
     pub node_to_entity: ResMut<'w, UiNodeToEntityMap>,
     pub window_node: ResMut<'w, UiWindowNode>,
     pub measure_funcs: Query<'w, 's, &'static ContentSize>,
-    pub layout: Query<'w, 's, &'static mut UiNodeLayout>,
 }
 
 impl<'w, 's> LayoutTree for UiLayoutTree<'w, 's> {
@@ -89,15 +91,11 @@ impl<'w, 's> LayoutTree for UiLayoutTree<'w, 's> {
     }
 
     fn layout(&self, node: Node) -> &taffy::prelude::Layout {
-        let entity = self.node_to_entity[node];
-        let layout = self.layout.get(entity).unwrap();
-        &layout.layout
+        self.layouts.get(node).unwrap()
     }
 
     fn layout_mut(&mut self, node: Node) -> &mut taffy::prelude::Layout {
-        let entity = self.node_to_entity[node];
-        let layout = self.layout.get_mut(entity).unwrap();
-        &mut layout.into_inner().layout
+        self.layouts.get_mut(node).unwrap()
     }
 
     fn mark_dirty(&mut self, node: Node) -> taffy::error::TaffyResult<()> {

@@ -13,7 +13,7 @@ use bevy_ecs::{
     prelude::Component,
     query::{Added, Changed, With, Without},
     removal_detection::RemovedComponents,
-    system::{Query, Res, ResMut, Resource, Commands},
+    system::{Query, Res, ResMut, Resource},
     world::Ref,
 };
 use bevy_hierarchy::{Children, Parent};
@@ -22,7 +22,7 @@ use bevy_reflect::Reflect;
 use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowScaleFactorChanged};
 
-use self::{helpers::ConvertInto, layout_tree::UiLayoutTree};
+use self::{layout_tree::UiLayoutTree};
 
 #[derive(Component, Debug, Reflect)]
 pub struct UiNode {
@@ -34,37 +34,6 @@ impl Default for UiNode {
     fn default() -> Self {
         Self {
             key: Default::default(),
-        }
-    }
-}
-
-#[derive(Component, Debug, Reflect)]
-pub struct UiNodeLayout {
-    #[reflect(ignore)]
-    layout: taffy::layout::Layout,
-}
-
-impl UiNodeLayout {
-    #[inline]
-    pub fn order(&self) -> u32 {
-        self.layout.order
-    }
-
-    #[inline]
-    pub fn size(&self) -> Vec2 {
-        self.layout.size.convert_into()
-    }
-
-    #[inline]
-    pub fn local_position(&self) -> Vec2 {
-        self.layout.location.convert_into()
-    }
-}
-
-impl Default for UiNodeLayout {
-    fn default() -> Self {
-        Self {
-            layout: taffy::layout::Layout::new(),
         }
     }
 }
@@ -173,15 +142,6 @@ pub fn synchonise_ui_children(
     }
 }
 
-pub fn setup_ui_windows(
-    primary_window: Query<Entity, With<PrimaryWindow>>,
-    mut commands: Commands,
-) {
-    if let Ok(entity) = primary_window.get_single() {
-        commands.entity(entity).insert(UiNodeLayout::default());
-    }
-}
-
 pub fn update_ui_windows(
     mut resize_events: EventReader<bevy_window::WindowResized>,
     primary_window: Query<(Entity, &Window), With<PrimaryWindow>>,
@@ -256,7 +216,6 @@ pub fn update_ui_layout(
 #[cfg(test)]
 mod tests {
     use crate::NodePosition;
-    use crate::UiNodeLayout;
     use crate::clean_up_removed_ui_nodes;
     use crate::insert_new_ui_nodes;
     use crate::synchonise_ui_children;
@@ -272,8 +231,8 @@ mod tests {
     use bevy_math::Vec2;
     use taffy::tree::LayoutTree;
 
-    fn node_bundle() -> (UiNode, NodeSize, NodePosition, UiNodeLayout, Style) {
-        (UiNode::default(), NodeSize::default(), NodePosition::default(), UiNodeLayout::default(), Style::default())
+    fn node_bundle() -> (UiNode, NodeSize, NodePosition, Style) {
+        (UiNode::default(), NodeSize::default(), NodePosition::default(), Style::default())
     }
 
     fn ui_schedule() -> Schedule {
@@ -302,7 +261,7 @@ mod tests {
     #[test]
     fn test_insert_and_remove_node() {
         let mut world = World::new();
-        let window_entity = world.spawn(UiNodeLayout::default()).id();
+        let window_entity = world.spawn_empty().id();
         world.insert_resource(UiContext(Some(LayoutContext::new(
             window_entity,
             3.0,
@@ -346,7 +305,7 @@ mod tests {
     fn test_node_style_update() {
         let mut world = World::new();
         init_ui_layout_resources(&mut world);
-        let window_entity = world.spawn(UiNodeLayout::default()).id();
+        let window_entity = world.spawn_empty().id();
         world.insert_resource(UiContext(Some(LayoutContext::new(
             window_entity,
             3.0,
