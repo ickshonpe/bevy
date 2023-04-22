@@ -255,6 +255,7 @@ pub fn update_ui_layout(
 
 #[cfg(test)]
 mod tests {
+    use crate::NodePosition;
     use crate::UiNodeLayout;
     use crate::clean_up_removed_ui_nodes;
     use crate::insert_new_ui_nodes;
@@ -271,8 +272,8 @@ mod tests {
     use bevy_math::Vec2;
     use taffy::tree::LayoutTree;
 
-    fn node_bundle() -> (UiNode, NodeSize, Style) {
-        (UiNode::default(), NodeSize::default(), Style::default())
+    fn node_bundle() -> (UiNode, NodeSize, NodePosition, UiNodeLayout, Style) {
+        (UiNode::default(), NodeSize::default(), NodePosition::default(), UiNodeLayout::default(), Style::default())
     }
 
     fn ui_schedule() -> Schedule {
@@ -359,7 +360,6 @@ mod tests {
         // add a ui node entity to the world and run the ui schedule to add a corresponding node to the taffy layout tree
         let entity = world.spawn(node_bundle()).id();
         ui_schedule.run(&mut world);
-
         // modify the ui node's style component and rerun the schedule
         world.get_mut::<Style>(entity).unwrap().align_items = AlignItems::Baseline;
 
