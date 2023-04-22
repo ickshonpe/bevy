@@ -1,18 +1,36 @@
-use bevy_ecs::system::Query;
-use bevy_ecs::system::ResMut;
-use bevy_math::Vec2;
-use bevy_transform::prelude::Transform;
-use taffy::tree::LayoutTree;
-
-use crate::layout_tree::UiLayoutTree;
-use crate::Node;
+use crate::NodePosition;
 use crate::NodeSize;
 use crate::UiContext;
+use crate::UiNode;
+use crate::UiNodeLayout;
+use bevy_ecs::prelude::Entity;
+use bevy_ecs::query::With;
+use bevy_ecs::system::Query;
+use bevy_ecs::system::ResMut;
+use bevy_hierarchy::Children;
+use bevy_math::Vec2;
 
 pub fn update_ui_node_geometry(
-    ui_surface: UiLayoutTree,
     ui_context: ResMut<UiContext>,
-    mut node_transform_query: Query<(&Node, &mut NodeSize, &mut Transform)>,
+    mut node_geometry_query: Query<(&UiNodeLayout, &mut NodeSize, &mut NodePosition)>,
+    root_node_query: Query<
+        Entity,
+        (
+            With<UiNode>,
+            With<UiNodeLayout>,
+            With<NodeSize>,
+            With<NodePosition>,
+        ),
+    >,
+    children_query: Query<
+        &Children,
+        (
+            With<UiNode>,
+            With<UiNodeLayout>,
+            With<NodeSize>,
+            With<NodePosition>,
+        ),
+    >,
 ) {
     let Some(physical_to_logical_factor) = ui_context
         .0
@@ -22,37 +40,57 @@ pub fn update_ui_node_geometry(
         return;
     };
 
-    let to_logical = |v| (physical_to_logical_factor * v as f64) as f32;
+    fn update_node_geometry_recursively(
+        inherited_position: Vec2,
+        entity: Entity,
+        node_geometry_query: &mut Query<(&UiNodeLayout, &mut NodeSize, &mut NodePosition)>,
+        children_query: &Query<
+            &Children,
+            (
+                With<UiNode>,
+                With<UiNodeLayout>,
+                With<NodeSize>,
+                With<NodePosition>,
+            ),
+        >,
+        physical_to_logical_factor: f32,
+    ) {
+        if let Ok((layout, mut node_size, mut node_position)) = node_geometry_query.get_mut(entity)
+        {
+            let new_size = layout.size() * physical_to_logical_factor;
+            let local_position = layout.local_position() * physical_to_logical_factor;
+            let new_position = local_position + inherited_position;
 
-    // PERF: try doing this incrementally
-    node_transform_query
-        .par_iter_mut()
-        .for_each_mut(|(node, mut node_size, mut transform)| {
-            let layout = ui_surface.layout(node.key);
-            let new_size = Vec2::new(
-                to_logical(layout.size.width),
-                to_logical(layout.size.height),
-            );
             // only trigger change detection when the new value is different
-
             if node_size.calculated_size != new_size {
                 node_size.calculated_size = new_size;
             }
 
-            let mut new_position = transform.translation;
-            new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
-            new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
-
-            let parent_key = ui_surface.parent(node.key).unwrap();
-            if parent_key != **ui_surface.window_node {
-                let parent_layout = ui_surface.layout(parent_key);
-                new_position.x -= to_logical(parent_layout.size.width / 2.0);
-                new_position.y -= to_logical(parent_layout.size.height / 2.0);
+            if node_position.0 != new_position {
+                node_position.0 = new_position;
             }
 
-            // only trigger change detection when the new value is different
-            if transform.translation != new_position {
-                transform.translation = new_position;
+            if let Ok(children) = children_query.get(entity) {
+                for child in children.iter() {
+                    update_node_geometry_recursively(
+                        new_position,
+                        *child,
+                        node_geometry_query,
+                        children_query,
+                        physical_to_logical_factor,
+                    );
+                }
             }
-        });
+        }
+    }
+
+    for root_entity in root_node_query.iter() {
+        update_node_geometry_recursively(
+            Vec2::ZERO,
+            root_entity,
+            &mut node_geometry_query,
+            &children_query,
+            physical_to_logical_factor as f32,
+        );
+    }
 }

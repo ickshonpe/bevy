@@ -1,5 +1,6 @@
 use crate::{Size, UiRect};
 use bevy_asset::Handle;
+use bevy_derive::Deref;
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
 use bevy_math::{Rect, Vec2};
 use bevy_reflect::prelude::*;
@@ -7,14 +8,13 @@ use bevy_render::{
     color::Color,
     texture::{Image, DEFAULT_IMAGE_HANDLE},
 };
-use bevy_transform::prelude::GlobalTransform;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use thiserror::Error;
 
 /// Describes the size of a UI node
-#[derive(Component, Debug, Clone, Reflect)]
+#[derive(Component, Copy, Clone, Debug, Reflect)]
 #[reflect(Component, Default)]
 pub struct NodeSize {
     /// The size of the node as width and height in logical pixels
@@ -31,14 +31,17 @@ impl NodeSize {
 
     /// Returns the logical pixel coordinates of the UI node, based on its `GlobalTransform`.
     #[inline]
-    pub fn logical_rect(&self, transform: &GlobalTransform) -> Rect {
-        Rect::from_center_size(transform.translation().truncate(), self.size())
+    pub fn logical_rect(&self, position: NodePosition) -> Rect {
+        Rect {
+            min: *position,
+            max: *position + self.calculated_size,
+        }
     }
 
     /// Returns the physical pixel coordinates of the UI node, based on its `GlobalTransform` and the scale factor.
     #[inline]
-    pub fn physical_rect(&self, transform: &GlobalTransform, scale_factor: f32) -> Rect {
-        let rect = self.logical_rect(transform);
+    pub fn physical_rect(&self, position: NodePosition, scale_factor: f32) -> Rect {
+        let rect = self.logical_rect(position);
         Rect {
             min: rect.min / scale_factor,
             max: rect.max / scale_factor,
@@ -56,6 +59,24 @@ impl Default for NodeSize {
     fn default() -> Self {
         Self::DEFAULT
     }
+}
+
+/// The position of the node in logical pixels
+/// automatically calculated by [`super::layout::update_ui_layout`]
+#[derive(Component, Copy, Clone, Debug, Default, Deref, Reflect)]
+#[reflect(Component, Default)]
+pub struct NodePosition(pub(crate) Vec2);
+
+impl NodePosition {
+    /// The calculated node size as width and height in logical pixels
+    /// automatically calculated by [`super::layout::update_ui_layout`]
+    pub fn position(self) -> Vec2 {
+        *self
+    }
+}
+
+impl NodePosition {
+    pub const DEFAULT: Self = Self(Vec2::ZERO);
 }
 
 /// Represents the possible value types for layout properties.

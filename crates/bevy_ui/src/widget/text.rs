@@ -1,4 +1,4 @@
-use crate::{ContentSize, Measure, Node, NodeSize, UiScale};
+use crate::{ContentSize, Measure, NodeSize, UiNode, UiScale};
 use bevy_asset::Assets;
 use bevy_ecs::{
     entity::Entity,
@@ -65,7 +65,7 @@ pub fn measure_text_system(
     mut text_pipeline: ResMut<TextPipeline>,
     mut text_queries: ParamSet<(
         Query<Entity, Changed<Text>>,
-        Query<Entity, (With<Text>, With<Node>)>,
+        Query<Entity, (With<Text>, With<UiNode>)>,
         Query<(&Text, &mut ContentSize)>,
     )>,
 ) {

@@ -50,7 +50,6 @@ use crate::prelude::UiCameraConfig;
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
 use bevy_input::InputSystem;
-use bevy_transform::TransformSystem;
 use stack::ui_stack_system;
 pub use stack::UiStack;
 use update::update_clipping_system;
@@ -142,11 +141,16 @@ impl Plugin for UiPlugin {
             .register_type::<Val>()
             .register_type::<widget::Button>()
             .register_type::<widget::Label>()
-            .register_type::<Node>()
+            .register_type::<UiNode>()
             .add_systems(
                 PreUpdate,
                 ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),
+            )
+            .add_systems(
+                Startup,
+                setup_ui_windows
             );
+        
         // add these systems to front because these must run before transform update systems
         #[cfg(feature = "bevy_text")]
         app.add_systems(
@@ -205,7 +209,7 @@ impl Plugin for UiPlugin {
                     .before(UiSystem::Geometry),
                 update_ui_node_geometry.in_set(UiSystem::Geometry),
                 ui_stack_system.in_set(UiSystem::Stack),
-                update_clipping_system.after(TransformSystem::TransformPropagate),
+                update_clipping_system.after(UiSystem::Geometry),
             ),
         );
 

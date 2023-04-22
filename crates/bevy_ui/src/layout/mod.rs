@@ -1,6 +1,7 @@
 mod algorithm;
 mod convert;
 mod data;
+pub mod helpers;
 pub mod layout_tree;
 pub mod update_geometry;
 
@@ -12,7 +13,7 @@ use bevy_ecs::{
     prelude::Component,
     query::{Added, Changed, With, Without},
     removal_detection::RemovedComponents,
-    system::{Query, Res, ResMut, Resource},
+    system::{Query, Res, ResMut, Resource, Commands},
     world::Ref,
 };
 use bevy_hierarchy::{Children, Parent};
@@ -21,18 +22,58 @@ use bevy_reflect::Reflect;
 use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowScaleFactorChanged};
 
-use self::layout_tree::UiLayoutTree;
+use self::{helpers::ConvertInto, layout_tree::UiLayoutTree};
 
-#[derive(Component, Default, Debug, Reflect)]
-pub struct Node {
+#[derive(Component, Debug, Reflect)]
+pub struct UiNode {
     #[reflect(ignore)]
     key: taffy::node::Node,
+}
+
+impl Default for UiNode {
+    fn default() -> Self {
+        Self {
+            key: Default::default(),
+        }
+    }
+}
+
+#[derive(Component, Debug, Reflect)]
+pub struct UiNodeLayout {
+    #[reflect(ignore)]
+    layout: taffy::layout::Layout,
+}
+
+impl UiNodeLayout {
+    #[inline]
+    pub fn order(&self) -> u32 {
+        self.layout.order
+    }
+
+    #[inline]
+    pub fn size(&self) -> Vec2 {
+        self.layout.size.convert_into()
+    }
+
+    #[inline]
+    pub fn local_position(&self) -> Vec2 {
+        self.layout.location.convert_into()
+    }
+}
+
+impl Default for UiNodeLayout {
+    fn default() -> Self {
+        Self {
+            layout: taffy::layout::Layout::new(),
+        }
+    }
 }
 
 #[derive(Resource, Default)]
 pub struct UiContext(pub Option<LayoutContext>);
 
 pub struct LayoutContext {
+    pub window_entity: Entity,
     pub require_full_update: bool,
     pub scale_factor: f64,
     pub logical_size: Vec2,
@@ -44,9 +85,10 @@ pub struct LayoutContext {
 
 impl LayoutContext {
     /// create new a [`LayoutContext`] from the window's physical size and scale factor
-    fn new(scale_factor: f64, physical_size: Vec2, require_full_update: bool) -> Self {
+    fn new(window_entity: Entity, scale_factor: f64, physical_size: Vec2, require_full_update: bool) -> Self {
         let physical_to_logical_factor = 1. / scale_factor;
         Self {
+            window_entity,
             require_full_update,
             scale_factor,
             logical_size: physical_size * physical_to_logical_factor as f32,
@@ -72,12 +114,12 @@ pub enum LayoutError {
 /// Remove the corresponding taffy node for any entity that has its `Node` component removed.
 pub fn clean_up_removed_ui_nodes(
     mut ui_surface: UiLayoutTree,
-    mut removed_nodes: RemovedComponents<Node>,
+    mut removed_nodes: RemovedComponents<UiNode>,
 ) {
     // clean up removed nodes
     for entity in removed_nodes.iter() {
         if let Some(node) = ui_surface.entity_to_node.remove(&entity) {
-            let _ = ui_surface.node_to_entity.remove(&node);
+            let _ = ui_surface.node_to_entity.remove(node);
             let _ = ui_surface.remove(node);
         }
     }
@@ -86,7 +128,7 @@ pub fn clean_up_removed_ui_nodes(
 pub fn update_measure_tracking(
     mut ui_surface: UiLayoutTree,
     mut removed_content_sizes: RemovedComponents<ContentSize>,
-    added_content_size_query: Query<&Node, Added<ContentSize>>,
+    added_content_size_query: Query<&UiNode, Added<ContentSize>>,
 ) {
     for entity in removed_content_sizes.iter() {
         if let Some(key) = ui_surface.entity_to_node.get(&entity) {
@@ -104,11 +146,10 @@ pub fn update_measure_tracking(
 /// Insert a new taffy node into the layout for any entity that had a `Node` component added.
 pub fn insert_new_ui_nodes(
     mut ui_surface: UiLayoutTree,
-    mut new_node_query: Query<(Entity, &mut Node), Added<Node>>,
+    mut new_node_query: Query<(Entity, &mut UiNode), Added<UiNode>>,
 ) {
     for (entity, mut node) in new_node_query.iter_mut() {
-        node.key = ui_surface.new_leaf(taffy::style::Style::DEFAULT).unwrap();
-        ui_surface.node_to_entity.insert(node.key, entity);
+        node.key = ui_surface.new_leaf(entity, taffy::style::Style::DEFAULT).unwrap();        
         if let Some(old_key) = ui_surface.entity_to_node.insert(entity, node.key) {
             let _ = ui_surface.remove(old_key);
         }
@@ -119,7 +160,7 @@ pub fn insert_new_ui_nodes(
 pub fn synchonise_ui_children(
     mut flex_surface: UiLayoutTree,
     mut removed_children: RemovedComponents<Children>,
-    children_query: Query<(&Node, &Children), Changed<Children>>,
+    children_query: Query<(&UiNode, &Children), Changed<Children>>,
 ) {
     // Iterate through all entities with a removed `Children` component and if they have a corresponding Taffy node, remove their children from the Taffy tree.
     for entity in removed_children.iter() {
@@ -129,6 +170,15 @@ pub fn synchonise_ui_children(
     // Update the corresponding Taffy children of Bevy entities with changed `Children`
     for (node, children) in &children_query {
         flex_surface.update_children(node.key, children);
+    }
+}
+
+pub fn setup_ui_windows(
+    primary_window: Query<Entity, With<PrimaryWindow>>,
+    mut commands: Commands,
+) {
+    if let Ok(entity) = primary_window.get_single() {
+        commands.entity(entity).insert(UiNodeLayout::default());
     }
 }
 
@@ -165,17 +215,17 @@ pub fn update_ui_windows(
     scale_factor_events.clear();
 
     let scale_factor = logical_to_physical_factor * ui_scale.scale;
-    let context = LayoutContext::new(scale_factor, physical_size, require_full_update);
+    let context = LayoutContext::new(primary_window_entity, scale_factor, physical_size, require_full_update);
     ui_context.0 = Some(context);
 }
 
 #[allow(clippy::too_many_arguments)]
 pub fn update_ui_layout(
     ui_context: ResMut<UiContext>,
-    mut ui_surface: UiLayoutTree,
-    root_node_query: Query<&Node, (With<Style>, Without<Parent>)>,
-    style_query: Query<(&Node, Ref<Style>)>,
-    full_style_query: Query<(&Node, &Style)>,
+    mut layout_tree: UiLayoutTree,
+    root_node_query: Query<&UiNode, (With<Style>, Without<Parent>)>,
+    style_query: Query<(&UiNode, Ref<Style>)>,
+    full_style_query: Query<(&UiNode, &Style)>,
 ) {
     let Some(ref layout_context) = ui_context.0 else {
         return
@@ -183,45 +233,46 @@ pub fn update_ui_layout(
 
     if layout_context.require_full_update {
         for (node, style) in full_style_query.iter() {
-            ui_surface.update_node(node.key, style, layout_context);
+            layout_tree.update_node(node.key, style, layout_context);
         }
     } else {
         for (node, style) in style_query.iter() {
             if style.is_changed() {
-                ui_surface.update_node(node.key, &style, layout_context);
+                layout_tree.update_node(node.key, &style, layout_context);
             }
         }
     }
 
     // update window root nodes
-    ui_surface.update_window(layout_context.physical_size);
+    layout_tree.update_window(layout_context.window_entity, layout_context.physical_size);
 
     // update window children (for now assuming all Nodes live in the primary window)
-    ui_surface.set_window_children(root_node_query.iter().map(|node| node.key));
+    layout_tree.set_window_children(root_node_query.iter().map(|node| node.key));
 
     // compute layouts
-    ui_surface.compute_window_layout();
+    layout_tree.compute_window_layout();
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::UiNodeLayout;
     use crate::clean_up_removed_ui_nodes;
     use crate::insert_new_ui_nodes;
     use crate::synchonise_ui_children;
     use crate::update_ui_layout;
     use crate::AlignItems;
     use crate::LayoutContext;
-    use crate::Node;
     use crate::NodeSize;
     use crate::Style;
     use crate::UiContext;
+    use crate::UiNode;
     use bevy_ecs::prelude::*;
     use bevy_ecs::system::SystemState;
     use bevy_math::Vec2;
     use taffy::tree::LayoutTree;
 
-    fn node_bundle() -> (Node, NodeSize, Style) {
-        (Node::default(), NodeSize::default(), Style::default())
+    fn node_bundle() -> (UiNode, NodeSize, Style) {
+        (UiNode::default(), NodeSize::default(), Style::default())
     }
 
     fn ui_schedule() -> Schedule {
@@ -250,7 +301,9 @@ mod tests {
     #[test]
     fn test_insert_and_remove_node() {
         let mut world = World::new();
+        let window_entity = world.spawn(UiNodeLayout::default()).id();
         world.insert_resource(UiContext(Some(LayoutContext::new(
+            window_entity,
             3.0,
             Vec2::new(1000., 500.),
             true,
@@ -265,7 +318,7 @@ mod tests {
         // ui update
         ui_schedule.run(&mut world);
 
-        let key = world.get::<Node>(entity).unwrap().key;
+        let key = world.get::<UiNode>(entity).unwrap().key;
 
         let mut ui_layout_system_state = SystemState::<UiLayoutTree>::new(&mut world);
         let ui_layout = ui_layout_system_state.get_mut(&mut world);
@@ -292,7 +345,9 @@ mod tests {
     fn test_node_style_update() {
         let mut world = World::new();
         init_ui_layout_resources(&mut world);
+        let window_entity = world.spawn(UiNodeLayout::default()).id();
         world.insert_resource(UiContext(Some(LayoutContext::new(
+            window_entity,
             3.0,
             Vec2::new(1000., 500.),
             true,
@@ -310,6 +365,7 @@ mod tests {
 
         // don't want a full update
         world.insert_resource(UiContext(Some(LayoutContext::new(
+            window_entity,
             3.0,
             Vec2::new(1000., 500.),
             false,

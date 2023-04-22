@@ -8,11 +8,12 @@ use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
 pub use render_pass::*;
 
+use crate::NodePosition;
 use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, NodeSize, UiImage, UiStack};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
-use bevy_math::{Mat4, Rect, UVec4, Vec2, Vec3, Vec4Swizzles};
+use bevy_math::{Affine2, Mat4, Rect, UVec4, Vec2};
 use bevy_reflect::TypeUuid;
 use bevy_render::texture::DEFAULT_IMAGE_HANDLE;
 use bevy_render::{
@@ -147,7 +148,7 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
 
 pub struct ExtractedUiNode {
     pub stack_index: usize,
-    pub transform: Mat4,
+    pub affine: Affine2,
     pub color: Color,
     pub rect: Rect,
     pub image: Handle<Image>,
@@ -169,7 +170,7 @@ pub fn extract_uinodes(
     uinode_query: Extract<
         Query<(
             &NodeSize,
-            &GlobalTransform,
+            &NodePosition,
             &BackgroundColor,
             Option<&UiImage>,
             &ComputedVisibility,
@@ -179,7 +180,7 @@ pub fn extract_uinodes(
 ) {
     extracted_uinodes.uinodes.clear();
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, transform, color, maybe_image, visibility, clip)) =
+        if let Ok((node_size, node_position, color, maybe_image, visibility, clip)) =
             uinode_query.get(*entity)
         {
             // Skip invisible and completely transparent nodes
@@ -199,11 +200,11 @@ pub fn extract_uinodes(
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
-                transform: transform.compute_matrix(),
+                affine: Affine2::from_translation(node_position.0),
                 color: color.0,
                 rect: Rect {
                     min: Vec2::ZERO,
-                    max: uinode.calculated_size,
+                    max: node_size.calculated_size,
                 },
                 image,
                 atlas_size: None,
@@ -282,7 +283,7 @@ pub fn extract_text_uinodes(
     uinode_query: Extract<
         Query<(
             &NodeSize,
-            &GlobalTransform,
+            &NodePosition,
             &Text,
             &TextLayoutInfo,
             &ComputedVisibility,
@@ -298,16 +299,17 @@ pub fn extract_text_uinodes(
 
     let inverse_scale_factor = scale_factor.recip();
 
+    let scaling = Affine2::from_scale(Vec2::splat(inverse_scale_factor));
+
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, global_transform, text, text_layout_info, visibility, clip)) =
+        if let Ok((node_size, node_position, text, text_layout_info, visibility, clip)) =
             uinode_query.get(*entity)
         {
             // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
-            if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
+            if !visibility.is_visible() || node_size.size().x == 0. || node_size.size().y == 0. {
                 continue;
             }
-            let transform = global_transform.compute_matrix()
-                * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
+            let affine = Affine2::from_translation(node_position.0) * scaling;
 
             let mut color = Color::WHITE;
             let mut current_section = usize::MAX;
@@ -329,8 +331,7 @@ pub fn extract_text_uinodes(
                 rect.max *= inverse_scale_factor;
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
-                    transform: transform
-                        * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
+                    affine: affine * Affine2::from_translation(*position * inverse_scale_factor),
                     color,
                     rect,
                     image: atlas.texture.clone_weak(),
@@ -367,11 +368,11 @@ impl Default for UiMeta {
     }
 }
 
-const QUAD_VERTEX_POSITIONS: [Vec3; 4] = [
-    Vec3::new(-0.5, -0.5, 0.0),
-    Vec3::new(0.5, -0.5, 0.0),
-    Vec3::new(0.5, 0.5, 0.0),
-    Vec3::new(-0.5, 0.5, 0.0),
+const QUAD_VERTEX_POSITIONS: [Vec2; 4] = [
+    Vec2::new(-0.5, -0.5),
+    Vec2::new(0.5, -0.5),
+    Vec2::new(0.5, 0.5),
+    Vec2::new(-0.5, 0.5),
 ];
 
 const QUAD_INDICES: [usize; 6] = [0, 2, 3, 0, 1, 2];
@@ -416,11 +417,11 @@ pub fn prepare_uinodes(
 
         let mut uinode_rect = extracted_uinode.rect;
 
-        let rect_size = uinode_rect.size().extend(1.0);
+        let rect_size = uinode_rect.size();
 
         // Specify the corners of the node
         let positions = QUAD_VERTEX_POSITIONS
-            .map(|pos| (extracted_uinode.transform * (pos * rect_size).extend(1.)).xyz());
+            .map(|pos| (extracted_uinode.affine.transform_point2(pos * rect_size)));
 
         // Calculate the effect of clipping
         // Note: this won't work with rotation/scaling, but that's much more complex (may need more that 2 quads)
@@ -448,13 +449,13 @@ pub fn prepare_uinodes(
         };
 
         let positions_clipped = [
-            positions[0] + positions_diff[0].extend(0.),
-            positions[1] + positions_diff[1].extend(0.),
-            positions[2] + positions_diff[2].extend(0.),
-            positions[3] + positions_diff[3].extend(0.),
+            (positions[0] + positions_diff[0]).extend(0.),
+            (positions[1] + positions_diff[1]).extend(0.),
+            (positions[2] + positions_diff[2]).extend(0.),
+            (positions[3] + positions_diff[3]).extend(0.),
         ];
 
-        let transformed_rect_size = extracted_uinode.transform.transform_vector3(rect_size);
+        let transformed_rect_size = extracted_uinode.affine.transform_vector2(rect_size);
 
         // Don't try to cull nodes that have a rotation
         // In a rotation around the Z-axis, this value is 0.0 for an angle of 0.0 or π
@@ -462,7 +463,7 @@ pub fn prepare_uinodes(
         // horizontal / vertical lines
         // For all other angles, bypass the culling check
         // This does not properly handles all rotations on all axis
-        if extracted_uinode.transform.x_axis[1] == 0.0 {
+        if extracted_uinode.affine.x_axis[1] == 0.0 {
             // Cull nodes that are completely clipped
             if positions_diff[0].x - positions_diff[1].x >= transformed_rect_size.x
                 || positions_diff[1].y - positions_diff[2].y >= transformed_rect_size.y
@@ -518,7 +519,7 @@ pub fn prepare_uinodes(
             });
         }
 
-        last_z = extracted_uinode.transform.w_axis[2];
+        last_z = 0.;
         end += QUAD_INDICES.len() as u32;
     }
 

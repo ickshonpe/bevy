@@ -1,5 +1,4 @@
 use taffy::layout::Cache;
-use taffy::prelude::Layout;
 use taffy::style::Style;
 
 /// The number of cache entries for each node in the tree
@@ -8,8 +7,6 @@ pub const CACHE_SIZE: usize = 7;
 pub struct UiNodeData {
     /// The layout strategy used by this node
     pub style: Style,
-    /// The results of the layout computation
-    pub layout: Layout,
 
     /// Should we try and measure this node?
     pub needs_measure: bool,
@@ -25,7 +22,6 @@ impl UiNodeData {
         Self {
             style,
             size_cache: [None; CACHE_SIZE],
-            layout: Layout::new(),
             needs_measure: false,
         }
     }

@@ -2,7 +2,8 @@
 
 use crate::{
     widget::{Button, UiImageSize},
-    BackgroundColor, ContentSize, FocusPolicy, Interaction, Node, NodeSize, Style, UiImage, ZIndex,
+    BackgroundColor, ContentSize, FocusPolicy, Interaction, NodeSize, Style, UiImage, UiNode,
+    UiNodeLayout, ZIndex, NodePosition,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_render::{
@@ -19,9 +20,11 @@ use bevy_transform::prelude::{GlobalTransform, Transform};
 #[derive(Bundle, Debug)]
 pub struct NodeBundle {
     /// Identifier for the Node in the layout.
-    pub node: Node,
+    pub node: UiNode,
     /// Describes the logical size of the node
     pub node_size: NodeSize,
+    pub node_position: NodePosition,
+    pub node_layout: UiNodeLayout,
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
@@ -54,6 +57,8 @@ impl Default for NodeBundle {
             background_color: Color::NONE.into(),
             node: Default::default(),
             node_size: Default::default(),
+            node_layout: Default::default(),
+            node_position: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
             transform: Default::default(),
@@ -69,12 +74,14 @@ impl Default for NodeBundle {
 #[derive(Bundle, Debug, Default)]
 pub struct ImageBundle {
     /// Identifier for the Node in the layout.
-    pub node: Node,
+    pub node: UiNode,
     /// Describes the logical size of the node
     ///
     /// This field is automatically managed by the UI layout system.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
     pub node_size: NodeSize,
+    pub node_position: NodePosition,
+    pub node_layout: UiNodeLayout,
     /// Describes the style including flexbox settings
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
@@ -116,9 +123,11 @@ pub struct ImageBundle {
 #[derive(Bundle, Debug)]
 pub struct TextBundle {
     /// Identifier for the Node in the layout.
-    pub node: Node,
+    pub node: UiNode,
     /// Describes the logical size of the node
     pub node_size: NodeSize,
+    pub node_position: NodePosition,
+    pub node_layout: UiNodeLayout,
     /// Describes the style including flexbox settings
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
@@ -156,6 +165,8 @@ impl Default for TextBundle {
     fn default() -> Self {
         Self {
             node: Default::default(),
+            node_layout: Default::default(),
+            node_position: Default::default(),
             text: Default::default(),
             text_layout_info: Default::default(),
             calculated_size: Default::default(),
@@ -218,9 +229,11 @@ impl TextBundle {
 #[derive(Bundle, Debug)]
 pub struct ButtonBundle {
     /// Identifier for the Node in the layout.
-    pub node: Node,
+    pub node: UiNode,
     /// Describes the logical size of the node
     pub node_size: NodeSize,
+    pub node_position: NodePosition,
+    pub node_layout: UiNodeLayout,
     /// Marker component that signals this node is a button
     pub button: Button,
     /// Styles which control the layout (size and position) of the node and it's children
@@ -259,6 +272,8 @@ impl Default for ButtonBundle {
         Self {
             focus_policy: FocusPolicy::Block,
             node: Default::default(),
+            node_layout: Default::default(),
+            node_position: Default::default(),
             node_size: Default::default(),
             button: Default::default(),
             style: Default::default(),
