@@ -1,9 +1,10 @@
-mod convert;
-pub mod layout_tree;
-mod data;
 mod algorithm;
+mod convert;
+mod data;
+pub mod layout_tree;
+pub mod update_geometry;
 
-use crate::{NodeSize, Style, UiScale, ContentSize};
+use crate::{ContentSize, Style, UiScale};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -17,12 +18,10 @@ use bevy_ecs::{
 use bevy_hierarchy::{Children, Parent};
 use bevy_math::Vec2;
 use bevy_reflect::Reflect;
-use bevy_transform::components::Transform;
 use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowScaleFactorChanged};
-use taffy::{ Taffy, tree::LayoutTree};
 
-use self::{layout_tree::UiLayoutTree};
+use self::layout_tree::UiLayoutTree;
 
 #[derive(Component, Default, Debug, Reflect)]
 pub struct Node {
@@ -62,7 +61,6 @@ impl LayoutContext {
 fn _assert_send_sync_ui_surface_impl_safe() {
     fn _assert_send_sync<T: Send + Sync>() {}
     _assert_send_sync::<HashMap<Entity, taffy::node::Node>>();
-    _assert_send_sync::<Taffy>();
 }
 
 #[derive(Debug)]
@@ -99,10 +97,7 @@ pub fn update_measure_tracking(
     }
 
     for node in added_content_size_query.iter() {
-        ui_surface.nodes
-            .get_mut(node.key)
-            .unwrap()
-            .needs_measure = true;
+        ui_surface.nodes.get_mut(node.key).unwrap().needs_measure = true;
     }
 }
 
@@ -208,52 +203,6 @@ pub fn update_ui_layout(
     ui_surface.compute_window_layout();
 }
 
-pub fn update_ui_node_transforms(
-    ui_surface: UiLayoutTree,
-    ui_context: ResMut<UiContext>,
-    mut node_transform_query: Query<(&Node, &mut NodeSize, &mut Transform)>,
-) {
-    let Some(physical_to_logical_factor) = ui_context
-        .0
-        .as_ref()
-        .map(|context|  context.physical_to_logical_factor)
-    else {
-        return;
-    };
-
-    let to_logical = |v| (physical_to_logical_factor * v as f64) as f32;
-
-    // PERF: try doing this incrementally
-    node_transform_query.par_iter_mut().for_each_mut(|(node, mut node_size, mut transform)| {
-        let layout = ui_surface.layout(node.key);
-        let new_size = Vec2::new(
-            to_logical(layout.size.width),
-            to_logical(layout.size.height),
-        );
-        // only trigger change detection when the new value is different
-
-        if node_size.calculated_size != new_size {
-            node_size.calculated_size = new_size;
-        }
-
-        let mut new_position = transform.translation;
-        new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
-        new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
-
-        let parent_key = ui_surface.parent(node.key).unwrap();
-        if parent_key != **ui_surface.window_node {
-            let parent_layout = ui_surface.layout(parent_key);
-            new_position.x -= to_logical(parent_layout.size.width / 2.0);
-            new_position.y -= to_logical(parent_layout.size.height / 2.0);
-        }
-
-        // only trigger change detection when the new value is different
-        if transform.translation != new_position {
-            transform.translation = new_position;
-        }
-    });
-}
-
 #[cfg(test)]
 mod tests {
     use crate::clean_up_removed_ui_nodes;
@@ -317,7 +266,7 @@ mod tests {
         ui_schedule.run(&mut world);
 
         let key = world.get::<Node>(entity).unwrap().key;
-            
+
         let mut ui_layout_system_state = SystemState::<UiLayoutTree>::new(&mut world);
         let ui_layout = ui_layout_system_state.get_mut(&mut world);
         // ui node entity should be associated with a taffy node
@@ -336,9 +285,7 @@ mod tests {
         assert!(!ui_layout.entity_to_node.contains_key(&entity));
 
         // window node should have no children
-        assert!(ui_layout
-            .children(**ui_layout.window_node)
-            .next().is_none());
+        assert!(ui_layout.children(**ui_layout.window_node).next().is_none());
     }
 
     #[test]
@@ -353,7 +300,6 @@ mod tests {
         let mut ui_schedule = ui_schedule();
 
         let mut ui_layout_system_state = SystemState::<UiLayoutTree>::new(&mut world);
-        
 
         // add a ui node entity to the world and run the ui schedule to add a corresponding node to the taffy layout tree
         let entity = world.spawn(node_bundle()).id();

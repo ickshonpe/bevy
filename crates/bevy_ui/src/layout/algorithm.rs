@@ -4,9 +4,13 @@ use taffy::prelude::*;
 use super::layout_tree::UiLayoutTree;
 
 /// Updates the stored layout of the provided `node` and its children
-pub fn compute_layout(ui_layout_tree: &mut UiLayoutTree, root: Node, available_space: Size<AvailableSpace>) -> Result<(), taffy::error::TaffyError> {
-     // Recursively compute node layout
-     let size_and_baselines = layout_flexbox(
+pub fn compute_layout(
+    ui_layout_tree: &mut UiLayoutTree,
+    root: Node,
+    available_space: Size<AvailableSpace>,
+) -> Result<(), taffy::error::TaffyError> {
+    // Recursively compute node layout
+    let size_and_baselines = layout_flexbox(
         ui_layout_tree,
         root,
         Size::NONE,
@@ -15,7 +19,11 @@ pub fn compute_layout(ui_layout_tree: &mut UiLayoutTree, root: Node, available_s
         SizingMode::InherentSize,
     );
 
-    let layout = Layout { order: 0, size: size_and_baselines.size, location: taffy::geometry::Point::ZERO };
+    let layout = Layout {
+        order: 0,
+        size: size_and_baselines.size,
+        location: taffy::geometry::Point::ZERO,
+    };
     *ui_layout_tree.layout_mut(root) = layout;
 
     // If rounding is enabled, recursively round the layout's of this node and all children
@@ -33,7 +41,7 @@ fn round_layout(tree: &mut impl LayoutTree, node: Node, abs_x: f32, abs_y: f32) 
 
     layout.location.x = layout.location.x.round();
     layout.location.y = layout.location.y.round();
-    layout.size.width = (abs_x + layout.size.width).round() -abs_x.round();
+    layout.size.width = (abs_x + layout.size.width).round() - abs_x.round();
     layout.size.height = (abs_y + layout.size.height).round() - abs_y.round();
 
     let child_count = tree.child_count(node);

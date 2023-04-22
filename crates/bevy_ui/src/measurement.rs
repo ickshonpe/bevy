@@ -73,9 +73,7 @@ impl ContentSize {
 impl Default for ContentSize {
     fn default() -> Self {
         Self {
-            measure_func: taffy::node::MeasureFunc::Raw(|_, _| {
-                taffy::prelude::Size::ZERO
-            }),
+            measure_func: taffy::node::MeasureFunc::Raw(|_, _| taffy::prelude::Size::ZERO),
         }
     }
 }

@@ -24,7 +24,6 @@ use bevy_render::camera::CameraUpdateSystem;
 use bevy_render::extract_component::ExtractComponentPlugin;
 pub use focus::*;
 pub use geometry::*;
-pub use layout::*;
 use layout::layout_tree::UiChildNodes;
 use layout::layout_tree::UiEntityToNodeMap;
 use layout::layout_tree::UiLayoutConfig;
@@ -32,6 +31,8 @@ use layout::layout_tree::UiNodeToEntityMap;
 use layout::layout_tree::UiNodes;
 use layout::layout_tree::UiParentNodes;
 use layout::layout_tree::UiWindowNode;
+use layout::update_geometry::update_ui_node_geometry;
+pub use layout::*;
 pub use measurement::*;
 pub use render::*;
 pub use ui_node::*;
@@ -70,7 +71,7 @@ pub enum UiSystem {
     /// After this label, the Bevy and Taffy Parent-Children trees have been synchonised
     Children,
     /// After this label, the ui node transforms have been updated
-    Transforms,
+    Geometry,
     /// After this label, the ui layout state has been updated
     Layout,
     /// After this label, input interactions with UI entities have been updated for this frame
@@ -201,9 +202,8 @@ impl Plugin for UiPlugin {
                     .before(UiSystem::Layout),
                 update_ui_layout
                     .in_set(UiSystem::Layout)
-                    .before(UiSystem::Transforms),
-                update_ui_node_transforms
-                    .in_set(UiSystem::Transforms),
+                    .before(UiSystem::Geometry),
+                update_ui_node_geometry.in_set(UiSystem::Geometry),
                 ui_stack_system.in_set(UiSystem::Stack),
                 update_clipping_system.after(TransformSystem::TransformPropagate),
             ),

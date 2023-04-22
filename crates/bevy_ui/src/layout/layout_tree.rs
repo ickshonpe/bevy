@@ -58,10 +58,9 @@ pub struct UiLayoutTree<'w, 's> {
     pub node_to_entity: ResMut<'w, UiNodeToEntityMap>,
     pub window_node: ResMut<'w, UiWindowNode>,
     pub measure_funcs: Query<'w, 's, &'static ContentSize>,
-    
 }
 
-impl <'w, 's> LayoutTree for UiLayoutTree<'w, 's> {
+impl<'w, 's> LayoutTree for UiLayoutTree<'w, 's> {
     type ChildIter<'a> =  core::slice::Iter<'a, Node>
     where
         Self: 'a;
@@ -112,8 +111,10 @@ impl <'w, 's> LayoutTree for UiLayoutTree<'w, 's> {
         let measure_func = &self.measure_funcs.get(*entity).unwrap().measure_func;
         match measure_func {
             taffy::node::MeasureFunc::Raw(measure) => measure(known_dimensions, available_space),
-            taffy::node::MeasureFunc::Boxed(measure) => (measure as &dyn Fn(_, _) -> _)(known_dimensions, available_space),
-        }            
+            taffy::node::MeasureFunc::Boxed(measure) => {
+                (measure as &dyn Fn(_, _) -> _)(known_dimensions, available_space)
+            }
+        }
     }
 
     fn needs_measure(&self, node: Node) -> bool {
@@ -125,10 +126,10 @@ impl <'w, 's> LayoutTree for UiLayoutTree<'w, 's> {
     }
 }
 
-impl <'w, 's> UiLayoutTree<'w, 's> {
+impl<'w, 's> UiLayoutTree<'w, 's> {
     fn mark_dirty_internal(&mut self, node: Node) -> TaffyResult<()> {
-         /// WARNING: this will stack-overflow if the tree contains a cycle
-         fn mark_dirty_recursive(
+        /// WARNING: this will stack-overflow if the tree contains a cycle
+        fn mark_dirty_recursive(
             nodes: &mut SlotMap<Node, UiNodeData>,
             parents: &SlotMap<Node, Option<Node>>,
             node_id: Node,
@@ -145,7 +146,11 @@ impl <'w, 's> UiLayoutTree<'w, 's> {
         Ok(())
     }
 
-    pub fn compute_layout(&mut self, node: Node, available_space: Size<AvailableSpace>) -> Result<(), taffy::error::TaffyError> {
+    pub fn compute_layout(
+        &mut self,
+        node: Node,
+        available_space: Size<AvailableSpace>,
+    ) -> Result<(), taffy::error::TaffyError> {
         algorithm::compute_layout(self, node, available_space)
     }
 
@@ -155,9 +160,7 @@ impl <'w, 's> UiLayoutTree<'w, 's> {
         style: &crate::Style,
         context: &crate::LayoutContext,
     ) {
-        self.nodes
-            .get_mut(taffy_node)
-            .unwrap().style = super::convert::from_style(context, style);
+        self.nodes.get_mut(taffy_node).unwrap().style = super::convert::from_style(context, style);
     }
 
     /// Directly sets the `children` of the supplied `parent`
@@ -179,7 +182,11 @@ impl <'w, 's> UiLayoutTree<'w, 's> {
         Ok(())
     }
 
-    pub fn update_children(&mut self, parent: taffy::node::Node, children: &bevy_hierarchy::Children) {
+    pub fn update_children(
+        &mut self,
+        parent: taffy::node::Node,
+        children: &bevy_hierarchy::Children,
+    ) {
         let mut taffy_children = Vec::with_capacity(children.len());
         for child in children {
             if let Some(taffy_node) = self.entity_to_node.get(child) {
@@ -240,27 +247,25 @@ without UI components as a child of an entity with UI components, results may be
             self.window_node.0 = self.new_leaf(taffy::style::Style::default()).unwrap();
         }
         self.set_style(
-                self.window_node.0,
-                taffy::style::Style {
-                    size: taffy::geometry::Size {
-                        width: taffy::style::Dimension::Points(window_resolution.x),
-                        height: taffy::style::Dimension::Points(window_resolution.y),
-                    },
-                    ..Default::default()
+            self.window_node.0,
+            taffy::style::Style {
+                size: taffy::geometry::Size {
+                    width: taffy::style::Dimension::Points(window_resolution.x),
+                    height: taffy::style::Dimension::Points(window_resolution.y),
                 },
-            )
-            .unwrap();
+                ..Default::default()
+            },
+        )
+        .unwrap();
     }
 
     pub fn set_window_children(&mut self, children: impl Iterator<Item = taffy::node::Node>) {
         let child_nodes = children.collect::<Vec<taffy::node::Node>>();
-        self            .set_children(self.window_node.0, &child_nodes)
-            .unwrap();
+        self.set_children(self.window_node.0, &child_nodes).unwrap();
     }
 
     pub fn compute_window_layout(&mut self) {
-        self
-            .compute_layout(self.window_node.0, Size::MAX_CONTENT)
+        self.compute_layout(self.window_node.0, Size::MAX_CONTENT)
             .unwrap();
     }
 }

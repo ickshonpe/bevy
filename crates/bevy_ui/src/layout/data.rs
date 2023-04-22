@@ -22,7 +22,12 @@ impl UiNodeData {
     /// Create the data for a new node
     #[must_use]
     pub const fn new(style: Style) -> Self {
-        Self { style, size_cache: [None; CACHE_SIZE], layout: Layout::new(), needs_measure: false }
+        Self {
+            style,
+            size_cache: [None; CACHE_SIZE],
+            layout: Layout::new(),
+            needs_measure: false,
+        }
     }
 
     /// Marks a node and all of its parents (recursively) as dirty
