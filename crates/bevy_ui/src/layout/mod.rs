@@ -19,7 +19,7 @@ use std::fmt;
 use taffy::{
     prelude::{AvailableSpace, Size},
     style_helpers::TaffyMaxContent,
-    Taffy,
+    Taffy, tree::LayoutTree,
 };
 
 pub struct LayoutContext {
@@ -256,7 +256,7 @@ pub fn ui_layout_system(
     children_query: Query<(Entity, &Children), (With<Node>, Changed<Children>)>,
     mut removed_children: RemovedComponents<Children>,
     mut removed_calculated_sizes: RemovedComponents<CalculatedSize>,
-    mut node_transform_query: Query<(Entity, &mut Node, &mut Transform, Option<&Parent>)>,
+    mut node_transform_query: Query<(Entity, &mut Node, &mut Transform)>,
     mut removed_nodes: RemovedComponents<Node>,
 ) {
     // assume one window for time being...
@@ -335,9 +335,11 @@ pub fn ui_layout_system(
 
     let to_logical = |v| (physical_to_logical_factor * v as f64) as f32;
 
+    let window_node = *ui_surface.window_nodes.values().next().unwrap();
     // PERF: try doing this incrementally
-    for (entity, mut node, mut transform, parent) in &mut node_transform_query {
-        let layout = ui_surface.get_layout(entity).unwrap();
+    for (entity, mut node, mut transform) in &mut node_transform_query {
+        let key = ui_surface.entity_to_taffy[&entity];
+        let layout = ui_surface.taffy.layout(key).unwrap();
         let new_size = Vec2::new(
             to_logical(layout.size.width),
             to_logical(layout.size.height),
@@ -349,8 +351,9 @@ pub fn ui_layout_system(
         let mut new_position = transform.translation;
         new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
         new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
-        if let Some(parent) = parent {
-            if let Ok(parent_layout) = ui_surface.get_layout(**parent) {
+        if let Some(parent_key) = ui_surface.taffy.parent(key) {
+            if parent_key != window_node {
+                let parent_layout = ui_surface.taffy.layout(parent_key).unwrap();
                 new_position.x -= to_logical(parent_layout.size.width / 2.0);
                 new_position.y -= to_logical(parent_layout.size.height / 2.0);
             }
