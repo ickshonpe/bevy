@@ -16,7 +16,7 @@ pub struct UiSurface {
     pub nodes: SlotMap<Node, UiNodeData>,
 
     /// Functions/closures that compute the intrinsic size of leaf nodes
-    pub measure_funcs: SparseSecondaryMap<Node, taffy::node::MeasureFunc>,
+    pub measure_funcs: SlotMap<Node, Option<taffy::node::MeasureFunc>>,
 
     /// The children of each node
     ///
@@ -81,7 +81,7 @@ impl LayoutTree for UiSurface {
         }
     
         fn needs_measure(&self, node: Node) -> bool {
-            self.nodes[node].needs_measure && self.measure_funcs.get(node).is_some()
+            self.measure_funcs.get(node).is_some()
         }
     
         fn cache_mut(&mut self, node: Node, index: usize) -> &mut Option<taffy::layout::Cache> {
@@ -106,17 +106,19 @@ impl UiSurface {
             nodes: SlotMap::with_capacity(capacity),
             children: SlotMap::with_capacity(capacity),
             parents: SlotMap::with_capacity(capacity),
-            measure_funcs: SparseSecondaryMap::with_capacity(capacity),
+            measure_funcs: SlotMap::with_capacity(capacity),
             entity_to_taffy: HashMap::default(),
             window_nodes: HashMap::default(),
         }
     }
+
 
     /// Creates and adds a new unattached leaf node to the tree, and returns the [`Node`] of the new node
     pub fn new_leaf(&mut self, layout: taffy::style::Style) -> taffy::error::TaffyResult<Node> {
         let id = self.nodes.insert(UiNodeData::new(layout));
         let _ = self.children.insert(Vec::with_capacity(0));
         let _ = self.parents.insert(None);
+        let _ = self.measure_funcs.insert(None);
 
         Ok(id)
     }
@@ -126,11 +128,8 @@ impl UiSurface {
     /// Creates and adds a new leaf node with a supplied [`MeasureFunc`]
     pub fn new_leaf_with_measure(&mut self, layout: taffy::style::Style, measure: MeasureFunc) -> taffy::error::TaffyResult<Node> {
         let mut data = UiNodeData::new(layout);
-        data.needs_measure = true;
-
         let id = self.nodes.insert(data);
-        self.measure_funcs.insert(id, measure);
-
+        let _ = self.measure_funcs.insert(Some(measure));
         let _ = self.children.insert(Vec::with_capacity(0));
         let _ = self.parents.insert(None);
 
@@ -177,14 +176,7 @@ impl UiSurface {
 
     /// Sets the [`MeasureFunc`] of the associated node
     pub fn set_measure(&mut self, node: Node, measure: Option<MeasureFunc>) -> taffy::error::TaffyResult<()> {
-        if let Some(measure) = measure {
-            self.nodes[node].needs_measure = true;
-            self.measure_funcs.insert(node, measure);
-        } else {
-            self.nodes[node].needs_measure = false;
-            self.measure_funcs.remove(node);
-        }
-
+        self.measure_funcs[node] = None;
         self.mark_dirty_internal(node)?;
 
         Ok(())
@@ -363,10 +355,6 @@ pub struct UiNodeData {
     pub style: taffy::style::Style,
     /// The results of the layout computation
     pub layout: taffy::prelude::Layout,
-
-    /// Should we try and measure this node?
-    pub needs_measure: bool,
-
     /// The primary cached results of the layout computation
     pub size_cache: [Option<taffy::layout::Cache>; CACHE_SIZE],
 }
@@ -375,7 +363,7 @@ impl UiNodeData {
     /// Create the data for a new node
     #[must_use]
     pub const fn new(style: taffy::style::Style) -> Self {
-        Self { style, size_cache: [None; CACHE_SIZE], layout: taffy::prelude::Layout::new(), needs_measure: false }
+        Self { style, size_cache: [None; CACHE_SIZE], layout: taffy::prelude::Layout::new()}
     }
 
     /// Marks a node and all of its parents (recursively) as dirty
