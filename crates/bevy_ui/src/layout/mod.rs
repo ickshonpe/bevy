@@ -66,10 +66,12 @@ impl fmt::Debug for UiSurface {
 
 impl Default for UiSurface {
     fn default() -> Self {
+        let mut taffy = Taffy::new();
+        taffy.disable_rounding();
         Self {
             entity_to_taffy: Default::default(),
             window_nodes: Default::default(),
-            taffy: Taffy::new(),
+            taffy,
         }
     }
 }
