@@ -216,6 +216,7 @@ pub fn text_system(
                     panic!("Fatal error when processing text: {e}.");
                 }
                 Ok(info) => {
+                    info!("text layout info size: {}", info.size);
                     *text_layout_info = info;
                 }
             }
