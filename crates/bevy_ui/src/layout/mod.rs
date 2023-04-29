@@ -10,7 +10,7 @@ use bevy_ecs::{
     system::{Query, Res, ResMut, Resource},
 };
 use bevy_hierarchy::{Children, Parent};
-use bevy_log::warn;
+use bevy_log::{warn, info};
 use bevy_math::Vec2;
 use bevy_transform::components::Transform;
 use bevy_utils::HashMap;
@@ -102,16 +102,16 @@ impl UiSurface {
         let measure = calculated_size.measure.dyn_clone();
         let measure_func = taffy::node::MeasureFunc::Boxed(Box::new(
             move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
-                println!();
-                println!("constraints: {constraints:?}");
-                println!("available: {available:?}");
+                info!("MEASURING");
+                info!("constraints: {constraints:?}");
+                info!("available: {available:?}");
                 let size = measure.measure(
                     constraints.width,
                     constraints.height,
                     available.width,
                     available.height,
                 );
-                println!("result: {size}");
+                info!("result: {size}");
                 taffy::geometry::Size {
                     width: size.x,
                     height: size.y,
