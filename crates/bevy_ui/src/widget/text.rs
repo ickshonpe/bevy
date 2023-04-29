@@ -37,7 +37,7 @@ impl Measure for TextMeasure {
         info!("Entity: {:?}", self.entity);
         let x = width.unwrap_or_else(|| match available_width {
             AvailableSpace::Definite(x) => {
-                if available_width == 0. {
+                if x == 0. {
                     self.info.max_width_content_size.x
                 } else {
                     x.clamp(
