@@ -50,8 +50,9 @@ impl Measure for TextMeasure {
             .map_or_else(
                 || match available_width {
                     AvailableSpace::Definite(_) => {
+                        let x = x.ceil();
                         info!("computing size for bounds: {x}, f32::MAX");
-                        self.info.compute_size(Vec2::new(x.ceil(), f32::MAX))
+                        self.info.compute_size(Vec2::new(x, f32::MAX))
                     },
                     AvailableSpace::MinContent => Vec2::new(x, self.info.min_width_content_size.y),
                     AvailableSpace::MaxContent => Vec2::new(x, self.info.max_width_content_size.y),
