@@ -5,6 +5,7 @@ use bevy_ecs::{
     query::{Changed, Or, With},
     system::{Local, ParamSet, Query, Res, ResMut},
 };
+use bevy_log::info;
 use bevy_math::Vec2;
 use bevy_render::texture::Image;
 use bevy_sprite::TextureAtlas;
@@ -21,6 +22,7 @@ fn scale_value(value: f32, factor: f64) -> f32 {
 
 #[derive(Clone)]
 pub struct TextMeasure {
+    pub entity: Entity,
     pub info: TextMeasureInfo,
 }
 
@@ -32,6 +34,7 @@ impl Measure for TextMeasure {
         available_width: AvailableSpace,
         _available_height: AvailableSpace,
     ) -> Vec2 {
+        info!("Entity: {:?}", self.entity);
         let x = width.unwrap_or_else(|| match available_width {
             AvailableSpace::Definite(x) => x.clamp(
                 self.info.min_width_content_size.x,
@@ -112,7 +115,7 @@ pub fn measure_text_system(
                 text.linebreak_behavior,
             ) {
                 Ok(measure) => {
-                    calculated_size.measure = Box::new(TextMeasure { info: measure });
+                    calculated_size.measure = Box::new(TextMeasure { info: measure, entity });
                 }
                 Err(TextError::NoSuchFont) => {
                     new_queue.push(entity);
