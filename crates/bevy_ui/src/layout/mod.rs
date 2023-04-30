@@ -116,6 +116,7 @@ impl UiSurface {
                     height: size.y,
                 };
                 println!("output: {s:?}\n");
+                s
             },
         ));
         if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
