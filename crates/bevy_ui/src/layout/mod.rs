@@ -370,7 +370,7 @@ pub fn print_ui_layout_tree(
 ) {
     if input.just_pressed(KeyCode::T) {
         println!("\n** ui surface info **");
-        for (entity, window_key) in ui_surface.window_nodes {        
+        for (&entity, &window_key) in ui_surface.window_nodes.iter() {        
             println!("ui_surface window node: {entity:?}, {window_key:?}");
             taffy::debug::print_tree(&ui_surface.taffy, window_key);
         }
