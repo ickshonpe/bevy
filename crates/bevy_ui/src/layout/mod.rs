@@ -362,14 +362,15 @@ pub fn ui_layout_system(
     }
 }
 
+use bevy_input::Input;
+use bevy_input::prelude::KeyCode;
 pub fn print_ui_layout_tree(
     input: Res<Input<KeyCode>>,
     ui_surface: Res<UiSurface>, 
-    query: Query<Entity, With<Node>>,
 ) {
     if input.just_pressed(KeyCode::T) {
         println!("\n** ui surface info **");
-        for (window_entity, window_key) in ui_surface.window_nodes {        
+        for (entity, window_key) in ui_surface.window_nodes {        
             println!("ui_surface window node: {entity:?}, {window_key:?}");
             taffy::debug::print_tree(&ui_surface.taffy, window_key);
         }
