@@ -165,6 +165,10 @@ impl Plugin for UiPlugin {
             ),
         );
 
+        app.add_systems(
+            Update, 
+            print_ui_layout_tree
+        );
         crate::render::build_ui_render(app);
     }
 }

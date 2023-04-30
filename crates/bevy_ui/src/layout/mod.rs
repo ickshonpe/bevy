@@ -362,7 +362,7 @@ pub fn ui_layout_system(
     }
 }
 
-fn print_ui_layout_tree(
+pub fn print_ui_layout_tree(
     input: Res<Input<KeyCode>>,
     ui_surface: Res<UiSurface>, 
     query: Query<Entity, With<Node>>,
