@@ -102,16 +102,20 @@ impl UiSurface {
         let measure = calculated_size.measure.dyn_clone();
         let measure_func = taffy::node::MeasureFunc::Boxed(Box::new(
             move |constraints: Size<Option<f32>>, available: Size<AvailableSpace>| {
+                println!("MEASURING");
+                println!("constraints: {constraints:?}");
+                println!("available: {available:?}");
                 let size = measure.measure(
                     constraints.width,
                     constraints.height,
                     available.width,
                     available.height,
                 );
-                taffy::geometry::Size {
+                let s = taffy::geometry::Size {
                     width: size.x,
                     height: size.y,
-                }
+                };
+                println!("output: {s:?}\n");
             },
         ));
         if let Some(taffy_node) = self.entity_to_taffy.get(&entity) {
