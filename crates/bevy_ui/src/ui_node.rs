@@ -1548,7 +1548,6 @@ pub struct UiImage {
     pub mode: ImageMode,
     /// Color tint of the image
     pub color: Color,
-    
 }
 
 impl Default for UiImage {

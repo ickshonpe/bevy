@@ -63,7 +63,7 @@ impl Default for NodeBundle {
 }
 
 /// A UI node that is an image
-#[derive(Bundle, Debug, Default)]
+#[derive(Bundle, Debug)]
 pub struct ImageBundle {
     /// Describes the logical size of the node
     ///
@@ -103,6 +103,25 @@ pub struct ImageBundle {
     pub computed_visibility: ComputedVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
+}
+
+impl Default for ImageBundle {
+    fn default() -> Self {
+        Self {
+            node: Default::default(),
+            style: Default::default(),
+            calculated_size: Default::default(),
+            background_color: BackgroundColor(Color::NONE),
+            image: Default::default(),
+            image_size: Default::default(),
+            focus_policy: Default::default(),
+            transform: Default::default(),
+            global_transform: Default::default(),
+            visibility: Default::default(),
+            computed_visibility: Default::default(),
+            z_index: Default::default(),
+        }
+    }
 }
 
 #[cfg(feature = "bevy_text")]

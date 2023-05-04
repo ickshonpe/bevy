@@ -178,9 +178,7 @@ pub fn extract_uinodes(
 ) {
     extracted_uinodes.uinodes.clear();
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, transform, color, visibility, clip)) =
-            uinode_query.get(*entity)
-        {
+        if let Ok((uinode, transform, color, visibility, clip)) = uinode_query.get(*entity) {
             // Skip invisible and completely transparent nodes
             if !visibility.is_visible() {
                 continue;
@@ -221,15 +219,13 @@ pub fn extract_image_uinodes(
     >,
 ) {
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, transform, image, visibility, clip)) =
-            uinode_query.get(*entity)
-        {
+        if let Ok((uinode, transform, image, visibility, clip)) = uinode_query.get(*entity) {
             // Skip invisible and completely transparent nodes
             if !visibility.is_visible() {
                 continue;
             }
 
-            if !images.contains(&image.texture) {
+            if image.texture.id() == DEFAULT_IMAGE_HANDLE.id() || !images.contains(&image.texture) {
                 continue;
             }
 
@@ -244,55 +240,56 @@ pub fn extract_image_uinodes(
                                 min: Vec2::ZERO,
                                 max: uinode.calculated_size,
                             },
-                            image: DEFAULT_IMAGE_HANDLE.typed(),
+                            image: image.texture.clone_weak(),
                             atlas_size: None,
                             clip: clip.map(|clip| clip.clip),
                             flip_x: image.flip_x,
                             flip_y: image.flip_y,
                         });
-                    },
+                    }
                     crate::ImageMode::PreserveAspectRatio => {
                         let image_size = images.get(&image.texture).unwrap().size();
                         let max_width_size = Vec2::new(
-                            uinode.calculated_size.x, 
-                            uinode.calculated_size.x  * image_size.y / image_size.x
-                        ); 
+                            uinode.calculated_size.x,
+                            uinode.calculated_size.x * image_size.y / image_size.x,
+                        );
                         let max_height_size = Vec2::new(
-                            uinode.calculated_size.x, 
-                            uinode.calculated_size.x  * image_size.y / image_size.x
-                        ); 
-                        let size = 
+                            uinode.calculated_size.x,
+                            uinode.calculated_size.x * image_size.y / image_size.x,
+                        );
+                        let size = if uinode.calculated_size.x < max_height_size.y {
                             // if max_height_size doesn't fit, use max_width_size
-                            if uinode.calculated_size.x < max_height_size.y {
-                                max_width_size
+                            max_width_size
+                        } else if uinode.calculated_size.y < max_width_size.y {
                             // if max_width_size doesn't fit, use max_height_size
-                            } else if uinode.calculated_size.y < max_width_size.y {
-                                max_height_size
+                            max_height_size
+                        } else {
+                            // both fit, use the size that takes up the most space
+                            if (max_height_size.x * max_height_size.y)
+                                < max_width_size.x * max_width_size.y
+                            {
+                                max_width_size
                             } else {
-                                // both fit, use the size that takes up the most space
-                                if (max_height_size.x * max_height_size.y) < max_width_size.x * max_width_size.y {
-                                    max_width_size
-                                } else {
-                                    max_height_size
-                                }
-                            };
+                                max_height_size
+                            }
+                        };
                         let position_offset = (0.5 * (size - uinode.calculated_size)).extend(0.);
                         extracted_uinodes.uinodes.push(ExtractedUiNode {
                             stack_index,
-                            transform: transform.compute_matrix() * Mat4::from_translation(position_offset),
+                            transform: transform.compute_matrix()
+                                * Mat4::from_translation(position_offset),
                             color: image.color,
                             rect: Rect {
                                 min: Vec2::ZERO,
                                 max: size,
                             },
-                            image: DEFAULT_IMAGE_HANDLE.typed(),
+                            image: image.texture.clone_weak(),
                             atlas_size: None,
                             clip: clip.map(|clip| clip.clip),
                             flip_x: image.flip_x,
                             flip_y: image.flip_y,
                         });
-                    },
-
+                    }
                 }
             }
         }

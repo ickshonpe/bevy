@@ -37,10 +37,9 @@ pub struct ImageMeasure {
 
 fn resolve_constraints(constraint: Option<f32>, space: AvailableSpace) -> Option<f32> {
     constraint.or_else(|| match space {
-            AvailableSpace::Definite(available_length) => Some(available_length),
-            AvailableSpace::MinContent | AvailableSpace::MaxContent => None,
-        }
-    )
+        AvailableSpace::Definite(available_length) => Some(available_length),
+        AvailableSpace::MinContent | AvailableSpace::MaxContent => None,
+    })
 }
 
 impl Measure for ImageMeasure {
@@ -58,11 +57,9 @@ impl Measure for ImageMeasure {
             (None, None) => Vec2::new(self.size.x, self.size.y),
             (None, Some(w)) => Vec2::new(w, w * self.size.y / self.size.x),
             (Some(h), None) => Vec2::new(h * self.size.x / self.size.y, h),
-            
         }
     }
 }
-
 
 /// Updates content size of the node based on the image provided
 pub fn update_image_content_size_system(

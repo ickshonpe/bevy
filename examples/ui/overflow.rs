@@ -90,7 +90,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                         min_size: Size::all(Val::Px(100.)),
                                         ..Default::default()
                                     },
-                                    background_color: Color::WHITE.into(),
                                     ..Default::default()
                                 });
                             });
