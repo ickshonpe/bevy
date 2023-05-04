@@ -79,6 +79,7 @@ pub fn build_ui_render(app: &mut App) {
                 extract_default_ui_camera_view::<Camera2d>,
                 extract_default_ui_camera_view::<Camera3d>,
                 extract_uinodes.in_set(RenderUiSystem::ExtractNode),
+                extract_image_uinodes.after(RenderUiSystem::ExtractNode),
                 #[cfg(feature = "bevy_text")]
                 extract_text_uinodes.after(RenderUiSystem::ExtractNode),
             ),
@@ -164,14 +165,12 @@ pub struct ExtractedUiNodes {
 
 pub fn extract_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
-    images: Extract<Res<Assets<Image>>>,
     ui_stack: Extract<Res<UiStack>>,
     uinode_query: Extract<
         Query<(
             &Node,
             &GlobalTransform,
             &BackgroundColor,
-            Option<&UiImage>,
             &ComputedVisibility,
             Option<&CalculatedClip>,
         )>,
@@ -179,38 +178,123 @@ pub fn extract_uinodes(
 ) {
     extracted_uinodes.uinodes.clear();
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, transform, color, maybe_image, visibility, clip)) =
+        if let Ok((uinode, transform, color, visibility, clip)) =
             uinode_query.get(*entity)
         {
             // Skip invisible and completely transparent nodes
-            if !visibility.is_visible() || color.0.a() == 0.0 {
+            if !visibility.is_visible() {
                 continue;
             }
 
-            let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
-                // Skip loading images
-                if !images.contains(&image.texture) {
-                    continue;
-                }
-                (image.texture.clone_weak(), image.flip_x, image.flip_y)
-            } else {
-                (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), false, false)
-            };
+            if color.0.a() > 0. {
+                extracted_uinodes.uinodes.push(ExtractedUiNode {
+                    stack_index,
+                    transform: transform.compute_matrix(),
+                    color: color.0,
+                    rect: Rect {
+                        min: Vec2::ZERO,
+                        max: uinode.calculated_size,
+                    },
+                    image: DEFAULT_IMAGE_HANDLE.typed(),
+                    atlas_size: None,
+                    clip: clip.map(|clip| clip.clip),
+                    flip_x: false,
+                    flip_y: false,
+                });
+            }
+        }
+    }
+}
 
-            extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index,
-                transform: transform.compute_matrix(),
-                color: color.0,
-                rect: Rect {
-                    min: Vec2::ZERO,
-                    max: uinode.calculated_size,
-                },
-                image,
-                atlas_size: None,
-                clip: clip.map(|clip| clip.clip),
-                flip_x,
-                flip_y,
-            });
+pub fn extract_image_uinodes(
+    mut extracted_uinodes: ResMut<ExtractedUiNodes>,
+    images: Extract<Res<Assets<Image>>>,
+    ui_stack: Extract<Res<UiStack>>,
+    uinode_query: Extract<
+        Query<(
+            &Node,
+            &GlobalTransform,
+            &UiImage,
+            &ComputedVisibility,
+            Option<&CalculatedClip>,
+        )>,
+    >,
+) {
+    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
+        if let Ok((uinode, transform, image, visibility, clip)) =
+            uinode_query.get(*entity)
+        {
+            // Skip invisible and completely transparent nodes
+            if !visibility.is_visible() {
+                continue;
+            }
+
+            if !images.contains(&image.texture) {
+                continue;
+            }
+
+            if image.color.a() > 0. {
+                match image.mode {
+                    crate::ImageMode::FillNode => {
+                        extracted_uinodes.uinodes.push(ExtractedUiNode {
+                            stack_index,
+                            transform: transform.compute_matrix(),
+                            color: image.color,
+                            rect: Rect {
+                                min: Vec2::ZERO,
+                                max: uinode.calculated_size,
+                            },
+                            image: DEFAULT_IMAGE_HANDLE.typed(),
+                            atlas_size: None,
+                            clip: clip.map(|clip| clip.clip),
+                            flip_x: image.flip_x,
+                            flip_y: image.flip_y,
+                        });
+                    },
+                    crate::ImageMode::PreserveAspectRatio => {
+                        let image_size = images.get(&image.texture).unwrap().size();
+                        let max_width_size = Vec2::new(
+                            uinode.calculated_size.x, 
+                            uinode.calculated_size.x  * image_size.y / image_size.x
+                        ); 
+                        let max_height_size = Vec2::new(
+                            uinode.calculated_size.x, 
+                            uinode.calculated_size.x  * image_size.y / image_size.x
+                        ); 
+                        let size = 
+                            // if max_height_size doesn't fit, use max_width_size
+                            if uinode.calculated_size.x < max_height_size.y {
+                                max_width_size
+                            // if max_width_size doesn't fit, use max_height_size
+                            } else if uinode.calculated_size.y < max_width_size.y {
+                                max_height_size
+                            } else {
+                                // both fit, use the size that takes up the most space
+                                if (max_height_size.x * max_height_size.y) < max_width_size.x * max_width_size.y {
+                                    max_width_size
+                                } else {
+                                    max_height_size
+                                }
+                            };
+                        let position_offset = (0.5 * (size - uinode.calculated_size)).extend(0.);
+                        extracted_uinodes.uinodes.push(ExtractedUiNode {
+                            stack_index,
+                            transform: transform.compute_matrix() * Mat4::from_translation(position_offset),
+                            color: image.color,
+                            rect: Rect {
+                                min: Vec2::ZERO,
+                                max: size,
+                            },
+                            image: DEFAULT_IMAGE_HANDLE.typed(),
+                            atlas_size: None,
+                            clip: clip.map(|clip| clip.clip),
+                            flip_x: image.flip_x,
+                            flip_y: image.flip_y,
+                        });
+                    },
+
+                }
+            }
         }
     }
 }

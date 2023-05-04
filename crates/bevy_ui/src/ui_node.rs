@@ -1544,6 +1544,11 @@ pub struct UiImage {
     pub flip_x: bool,
     /// Whether the image should be flipped along its y-axis
     pub flip_y: bool,
+    /// How the image's size should be determined
+    pub mode: ImageMode,
+    /// Color tint of the image
+    pub color: Color,
+    
 }
 
 impl Default for UiImage {
@@ -1552,6 +1557,8 @@ impl Default for UiImage {
             texture: DEFAULT_IMAGE_HANDLE.typed(),
             flip_x: false,
             flip_y: false,
+            mode: ImageMode::PreserveAspectRatio,
+            color: Color::WHITE,
         }
     }
 }
@@ -1583,6 +1590,16 @@ impl From<Handle<Image>> for UiImage {
     fn from(texture: Handle<Image>) -> Self {
         Self::new(texture)
     }
+}
+
+#[derive(Default, Copy, Clone, Debug, Reflect, FromReflect, PartialEq)]
+#[reflect(FromReflect, PartialEq)]
+pub enum ImageMode {
+    /// Preserve the aspect ratio of the image.
+    #[default]
+    PreserveAspectRatio,
+    /// Fill the node containing the image completely, shrinking or stretching the image if required.
+    FillNode,
 }
 
 /// The calculated clip of the node
