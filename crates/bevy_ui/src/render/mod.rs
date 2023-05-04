@@ -8,6 +8,7 @@ use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
 pub use render_pass::*;
 
+use crate::ui_node;
 use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage, UiStack};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
@@ -205,6 +206,7 @@ pub fn extract_uinodes(
 }
 
 pub fn extract_image_uinodes(
+    mut s: Local<Vec2>,
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     images: Extract<Res<Assets<Image>>>,
     ui_stack: Extract<Res<UiStack>>,
@@ -232,6 +234,10 @@ pub fn extract_image_uinodes(
             if image.color.a() > 0. {
                 match image.mode {
                     crate::ImageMode::FillNode => {
+                        if *s != uinode.calculated_size {
+                            *s = uinode.calculated_size;
+                            println!("***** output uinode size = {}", *s);
+                        }
                         extracted_uinodes.uinodes.push(ExtractedUiNode {
                             stack_index,
                             transform: transform.compute_matrix(),
@@ -248,47 +254,55 @@ pub fn extract_image_uinodes(
                         });
                     }
                     crate::ImageMode::PreserveAspectRatio => {
-                        let image_size = images.get(&image.texture).unwrap().size();
-                        let max_width_size = Vec2::new(
-                            uinode.calculated_size.x,
-                            uinode.calculated_size.x * image_size.y / image_size.x,
-                        );
-                        let max_height_size = Vec2::new(
-                            uinode.calculated_size.x,
-                            uinode.calculated_size.x * image_size.y / image_size.x,
-                        );
-                        let size = if uinode.calculated_size.x < max_height_size.y {
-                            // if max_height_size doesn't fit, use max_width_size
-                            max_width_size
-                        } else if uinode.calculated_size.y < max_width_size.y {
-                            // if max_width_size doesn't fit, use max_height_size
-                            max_height_size
-                        } else {
-                            // both fit, use the size that takes up the most space
-                            if (max_height_size.x * max_height_size.y)
-                                < max_width_size.x * max_width_size.y
-                            {
-                                max_width_size
-                            } else {
-                                max_height_size
-                            }
-                        };
-                        let position_offset = (0.5 * (size - uinode.calculated_size)).extend(0.);
-                        extracted_uinodes.uinodes.push(ExtractedUiNode {
-                            stack_index,
-                            transform: transform.compute_matrix()
-                                * Mat4::from_translation(position_offset),
-                            color: image.color,
-                            rect: Rect {
-                                min: Vec2::ZERO,
-                                max: size,
-                            },
-                            image: image.texture.clone_weak(),
-                            atlas_size: None,
-                            clip: clip.map(|clip| clip.clip),
-                            flip_x: image.flip_x,
-                            flip_y: image.flip_y,
-                        });
+                        // let image_size = images.get(&image.texture).unwrap().size();
+                        // let max_width_size = Vec2::new(
+                        //     uinode.calculated_size.x,
+                        //     uinode.calculated_size.x * image_size.y / image_size.x,
+                        // );
+                        // let max_height_size = Vec2::new(
+                        //     uinode.calculated_size.y * image_size.x / image_size.y,
+                        //     uinode.calculated_size.y,
+                        // );
+                        // // println!("\n");
+                        // // println!("node_size: {}", uinode.calculated_size);
+                        // // println!("image size: {image_size}");
+                        // // println!("max_width_size: {max_width_size}");
+                        // // println!("max_height_size: {max_height_size}");
+                        // let size = if uinode.calculated_size.y < max_width_size.y {
+                        //     //println!("fit width");
+                        //     // if max_height_size doesn't fit, use max_width_size
+                        //     max_height_size
+                        // } else if uinode.calculated_size.x < max_height_size.x {
+                        //     //println!("fit height");
+                        //     // if max_width_size doesn't fit, use max_height_size
+                        //     max_width_size
+                        // } else {
+                        //     // both fit, use the size that takes up the most space
+                        //     //println!("fit both");
+                        //     if (max_height_size.x * max_height_size.y)
+                        //         < max_width_size.x * max_width_size.y
+                        //     {
+                        //         max_width_size
+                        //     } else {
+                        //         max_height_size
+                        //     }
+                        // };
+                        // let position_offset = (0.5 * (size - uinode.calculated_size)).extend(0.);
+                        // extracted_uinodes.uinodes.push(ExtractedUiNode {
+                        //     stack_index,
+                        //     transform: transform.compute_matrix()
+                        //         * Mat4::from_translation(position_offset),
+                        //     color: image.color,
+                        //     rect: Rect {
+                        //         min: Vec2::ZERO,
+                        //         max: size,
+                        //     },
+                        //     image: image.texture.clone_weak(),
+                        //     atlas_size: None,
+                        //     clip: clip.map(|clip| clip.clip),
+                        //     flip_x: image.flip_x,
+                        //     flip_y: image.flip_y,
+                        // });
                     }
                 }
             }

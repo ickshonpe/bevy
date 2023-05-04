@@ -1789,6 +1789,17 @@ category = "UI (User Interface)"
 wasm = true
 
 [[example]]
+name = "image_debug"
+path = "examples/ui/image_debug.rs"
+
+[package.metadata.example.image_debug]
+name = "Image Debug"
+description = "Simple example for debugging image nodes"
+category = "UI (User Interface)"
+wasm = true
+
+
+[[example]]
 name = "overflow"
 path = "examples/ui/overflow.rs"
 
