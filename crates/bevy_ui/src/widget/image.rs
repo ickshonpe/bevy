@@ -35,33 +35,34 @@ pub struct ImageMeasure {
     size: Vec2,
 }
 
+fn resolve_constraints(constraint: Option<f32>, space: AvailableSpace) -> Option<f32> {
+    constraint.or_else(|| match space {
+            AvailableSpace::Definite(available_length) => Some(available_length),
+            AvailableSpace::MinContent | AvailableSpace::MaxContent => None,
+        }
+    )
+}
+
 impl Measure for ImageMeasure {
     fn measure(
         &self,
-        width: Option<f32>,
-        height: Option<f32>,
-        _: AvailableSpace,
-        _: AvailableSpace,
+        width_constraint: Option<f32>,
+        height_constraint: Option<f32>,
+        available_width: AvailableSpace,
+        available_height: AvailableSpace,
     ) -> Vec2 {
-        let mut size = self.size;
-        match (width, height) {
-            (None, None) => {}
-            (Some(width), None) => {
-                size.y = width * size.y / size.x;
-                size.x = width;
-            }
-            (None, Some(height)) => {
-                size.x = height * size.x / size.y;
-                size.y = height;
-            }
-            (Some(width), Some(height)) => {
-                size.x = width;
-                size.y = height;
-            }
+        let w = resolve_constraints(width_constraint, available_width);
+        let h = resolve_constraints(height_constraint, available_height);
+        match (w, h) {
+            (Some(w), Some(h)) => Vec2::new(w, h),
+            (None, None) => Vec2::new(self.size.x, self.size.y),
+            (None, Some(w)) => Vec2::new(w, w * self.size.y / self.size.x),
+            (Some(h), None) => Vec2::new(h * self.size.x / self.size.y, h),
+            
         }
-        size
     }
 }
+
 
 /// Updates content size of the node based on the image provided
 pub fn update_image_content_size_system(
