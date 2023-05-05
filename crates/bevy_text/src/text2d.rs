@@ -54,6 +54,9 @@ impl Text2dBounds {
     };
 }
 
+#[derive(Default, Clone, Debug, Component)]
+pub struct Text2dFlags { recompute: bool }
+
 /// The bundle of components needed to draw text in a 2D scene via a 2D `Camera2dBundle`.
 /// [Example usage.](https://github.com/bevyengine/bevy/blob/latest/examples/2d/text2d.rs)
 #[derive(Bundle, Clone, Debug, Default)]
@@ -74,6 +77,7 @@ pub struct Text2dBundle {
     pub computed_visibility: ComputedVisibility,
     /// Contains the size of the text and its glyph's position and scale data. Generated via [`TextPipeline::queue_text`]
     pub text_layout_info: TextLayoutInfo,
+    pub text_2d_flag: Text2dFlags,
 }
 
 pub fn extract_text2d_sprite(
@@ -149,8 +153,6 @@ pub fn extract_text2d_sprite(
 /// It does not modify or observe existing ones.
 #[allow(clippy::too_many_arguments)]
 pub fn update_text2d_layout(
-    // Text items which should be reprocessed again, generally when the font hasn't loaded yet.
-    mut queue: Local<HashSet<Entity>>,
     mut textures: ResMut<Assets<Image>>,
     fonts: Res<Assets<Font>>,
     text_settings: Res<TextSettings>,
@@ -160,7 +162,7 @@ pub fn update_text2d_layout(
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     mut font_atlas_set_storage: ResMut<Assets<FontAtlasSet>>,
     mut text_pipeline: ResMut<TextPipeline>,
-    mut text_query: Query<(Entity, Ref<Text>, Ref<Text2dBounds>, &mut TextLayoutInfo)>,
+    mut text_query: Query<(Ref<Text>, Ref<Text2dBounds>, &mut TextLayoutInfo, &mut Text2dFlags)>,
 ) {
     // We need to consume the entire iterator, hence `last`
     let factor_changed = scale_factor_changed.iter().last().is_some();
@@ -171,8 +173,8 @@ pub fn update_text2d_layout(
         .map(|window| window.resolution.scale_factor())
         .unwrap_or(1.0);
 
-    for (entity, text, bounds, mut text_layout_info) in &mut text_query {
-        if factor_changed || text.is_changed() || bounds.is_changed() || queue.remove(&entity) {
+    for (text, bounds, mut text_layout_info, mut flags) in &mut text_query {
+        if factor_changed || text.is_changed() || bounds.is_changed() || flags.recompute {
             let text_bounds = Vec2::new(
                 scale_value(bounds.size.x, scale_factor),
                 scale_value(bounds.size.y, scale_factor),
@@ -195,12 +197,15 @@ pub fn update_text2d_layout(
                 Err(TextError::NoSuchFont) => {
                     // There was an error processing the text layout, let's add this entity to the
                     // queue for further processing
-                    queue.insert(entity);
+                    flags.recompute = true;
                 }
                 Err(e @ TextError::FailedToAddGlyph(_)) => {
                     panic!("Fatal error when processing text: {e}.");
                 }
-                Ok(info) => *text_layout_info = info,
+                Ok(info) => {
+                    *text_layout_info = info;
+                    flags.recompute = false;
+                }
             }
         }
     }
