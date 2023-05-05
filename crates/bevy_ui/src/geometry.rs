@@ -428,6 +428,87 @@ impl DivAssign<f32> for Size {
     }
 }
 
+
+/// Describes the width and height of something
+#[derive(Copy, Clone, PartialEq, Debug, Reflect, FromReflect)]
+#[reflect(FromReflect, PartialEq)]
+pub struct Size2<T=f32> where T: PartialEq + bevy_reflect::FromReflect {
+    pub width: T,
+    pub height: T,
+}
+
+impl<T: PartialEq + bevy_reflect::FromReflect> Size2<T> {
+    /// Applies the function `f` to both the width and height
+    ///
+    /// This is used to transform a `Size<T>` into a `Size<R>`.
+    pub fn map<R: PartialEq + bevy_reflect::FromReflect, F>(self, f: F) -> Size2<R>
+    where
+        F: Fn(T) -> R,
+    {
+        Size2 { width: f(self.width), height: f(self.height) }
+    }
+
+    /// Applies the function `f` to the width
+    pub fn map_width<F>(self, f: F) -> Size2<T>
+    where
+        F: Fn(T) -> T,
+    {
+        Size2 { width: f(self.width), height: self.height }
+    }
+
+    /// Applies the function `f` to the height
+    pub fn map_height<F>(self, f: F) -> Size2<T>
+    where
+        F: Fn(T) -> T,
+    {
+        Size2 { width: self.width, height: f(self.height) }
+    }
+
+    /// Applies the function `f` to both the width and height
+    /// of this value and another passed value
+    pub fn zip_map<Other, Ret, Func>(self, other: Size2<Other>, f: Func) -> Size2<Ret>
+    where
+        Other: PartialEq + bevy_reflect::FromReflect,
+        Ret: PartialEq + bevy_reflect::FromReflect,
+        Func: Fn(T, Other) -> Ret,
+    {
+        Size2 { width: f(self.width, other.width), height: f(self.height, other.height) }
+    }
+}
+
+impl <T: PartialEq + bevy_reflect::FromReflect> Size2<Option<T>> {
+    /// A [`Size`] with `None` width and height
+    pub const NONE: Size2<Option<T>> = Self { width: None, height: None };
+
+    /// A [`Size2<Option<T>>`] with defined `width` and `height`
+    #[must_use]
+    pub const fn new(width: T, height: T) -> Self {
+        Size2 { width: Some(width), height: Some(height) }
+    }
+
+    /// Performs Option::unwrap_or on each component separately
+    pub fn unwrap_or(self, alt: Size2<T>) -> Size2<T> {
+        Size2 { 
+            width: self.width.unwrap_or(alt.width), 
+            height: self.height.unwrap_or(alt.height) 
+        }
+    }
+
+    /// Performs Option::or on each component separately
+    pub fn or(self, alt: Size2<Option<T>>) -> Size2<Option<T>> {
+        Size2 { width: self.width.or(alt.width), height: self.height.or(alt.height) }
+    }
+
+    /// Return true if both components are Some, else false.
+    #[inline(always)]
+    pub fn both_axis_defined(&self) -> bool {
+        self.width.is_some() && self.height.is_some()
+    }
+}
+
+
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
