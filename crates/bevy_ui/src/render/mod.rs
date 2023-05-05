@@ -146,7 +146,6 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
 }
 
 pub struct ExtractedUiNode {
-    pub stack_index: usize,
     pub transform: Mat4,
     pub color: Color,
     pub rect: Rect,
@@ -159,7 +158,23 @@ pub struct ExtractedUiNode {
 
 #[derive(Resource, Default)]
 pub struct ExtractedUiNodes {
-    pub uinodes: Vec<ExtractedUiNode>,
+    index: Vec<[usize; 2]>,
+    uinodes: Vec<ExtractedUiNode>,
+    count: usize,
+}
+
+impl ExtractedUiNodes {
+    fn push(&mut self, extracted_ui_node: ExtractedUiNode, stack_index: usize) {
+        self.uinodes.push(extracted_ui_node);
+        self.index.push([stack_index, self.count]);
+        self.count +=1;
+    }
+
+    fn clear(&mut self) {
+        self.count = 0;
+        self.uinodes.clear();
+        self.index.clear();
+    }
 }
 
 pub fn extract_uinodes(
@@ -177,7 +192,7 @@ pub fn extract_uinodes(
         )>,
     >,
 ) {
-    extracted_uinodes.uinodes.clear();
+    extracted_uinodes.clear();
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, transform, color, maybe_image, visibility, clip)) =
             uinode_query.get(*entity)
@@ -197,8 +212,7 @@ pub fn extract_uinodes(
                 (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), false, false)
             };
 
-            extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index,
+            extracted_uinodes.push(ExtractedUiNode {
                 transform: transform.compute_matrix(),
                 color: color.0,
                 rect: Rect {
@@ -210,7 +224,7 @@ pub fn extract_uinodes(
                 clip: clip.map(|clip| clip.clip),
                 flip_x,
                 flip_y,
-            });
+            }, stack_index);
         }
     }
 }
@@ -327,8 +341,7 @@ pub fn extract_text_uinodes(
                 let mut rect = atlas.textures[atlas_info.glyph_index];
                 rect.min *= inverse_scale_factor;
                 rect.max *= inverse_scale_factor;
-                extracted_uinodes.uinodes.push(ExtractedUiNode {
-                    stack_index,
+                extracted_uinodes.push(ExtractedUiNode {
                     transform: transform
                         * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
                     color,
@@ -338,7 +351,7 @@ pub fn extract_text_uinodes(
                     clip: clip.map(|clip| clip.clip),
                     flip_x: false,
                     flip_y: false,
-                });
+                }, stack_index);
             }
         }
     }
@@ -394,14 +407,16 @@ pub fn prepare_uinodes(
 
     // sort by ui stack index, starting from the deepest node
     extracted_uinodes
-        .uinodes
-        .sort_by_key(|node| node.stack_index);
+        .index
+        .sort_by_key(|node| node[0]);
 
     let mut start = 0;
     let mut end = 0;
     let mut current_batch_handle = Default::default();
     let mut last_z = 0.0;
-    for extracted_uinode in &extracted_uinodes.uinodes {
+
+    for &[_, index] in &extracted_uinodes.index {
+        let extracted_uinode = &extracted_uinodes.uinodes[index];
         if current_batch_handle != extracted_uinode.image {
             if start != end {
                 commands.spawn(UiBatch {
