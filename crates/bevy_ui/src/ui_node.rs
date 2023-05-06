@@ -14,6 +14,14 @@ use smallvec::SmallVec;
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use thiserror::Error;
 
+#[derive(Component, Default, Copy, Debug, Clone, Reflect)]
+#[reflect(Component, Default)]
+pub enum UiRoot {
+    #[default]
+    Implicit,
+    Order(i32)
+}
+
 /// Describes the size of a UI node
 #[derive(Component, Debug, Clone, Reflect)]
 #[reflect(Component, Default)]
