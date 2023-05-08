@@ -42,7 +42,6 @@ use crate::prelude::UiCameraConfig;
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
 use bevy_input::InputSystem;
-use bevy_transform::TransformSystem;
 use update::update_clipping_system;
 
 /// The basic plugin for Bevy UI
@@ -56,8 +55,8 @@ pub enum UiSystem {
     Layout,
     /// After this label, input interactions with UI entities have been updated for this frame
     Focus,
-    /// After this label, the [`UiStack`] resource has been updated
-    Stack,
+    Update,
+    Order,
 }
 
 /// The current scale of the UI.
@@ -158,10 +157,13 @@ impl Plugin for UiPlugin {
         .add_systems(
             PostUpdate,
             (
+                sort_children_by_node_order.in_set(UiSystem::Order)
+                    .before(UiSystem::Layout),
                 ui_layout_system
                     .in_set(UiSystem::Layout)
-                    .before(TransformSystem::TransformPropagate),
-                update_clipping_system.after(TransformSystem::TransformPropagate),
+                    .before(UiSystem::Update),
+                update_nodes.in_set(UiSystem::Update),
+                update_clipping_system.after(UiSystem::Update),
             ),
         );
 
