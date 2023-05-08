@@ -12,23 +12,23 @@ pub fn print_ui_layout_tree(ui_surface: &UiSurface) {
         .iter()
         .map(|(entity, node)| (*node, *entity))
         .collect();
-    for (&entity, &node) in ui_surface.window_nodes.iter() {
+    for (entity, node, _) in ui_surface.ui_layouts.iter() {
         let mut out = String::new();
-        print_node(
+        write_tree(
             ui_surface,
             &taffy_to_entity,
-            entity,
-            node,
+            *entity,
+            *node,
             false,
             String::new(),
             &mut out,
         );
-        bevy_log::info!("Layout tree for window entity: {entity:?}\n{out}");
+        bevy_log::info!("Layout tree for layout entity: {entity:?}\n{out}");
     }
 }
 
 /// Recursively navigates the layout tree printing each node's information.
-fn print_node(
+fn write_tree(
     ui_surface: &UiSurface,
     taffy_to_entity: &HashMap<Node, Entity>,
     entity: Entity,
@@ -74,7 +74,7 @@ fn print_node(
     for (index, child_node) in tree.children(node).unwrap().iter().enumerate() {
         let has_sibling = index < num_children - 1;
         let child_entity = taffy_to_entity.get(child_node).unwrap();
-        print_node(
+        write_tree(
             ui_surface,
             taffy_to_entity,
             *child_entity,
