@@ -35,7 +35,7 @@ pub mod prelude {
     #[doc(hidden)]
     pub use crate::{
         camera_config::*, geometry::*, node_bundles::*, ui_node::*, widget::Button, widget::Label,
-        Interaction, UiScale,
+        Interaction, UiLayoutBundle, UiLayoutData, UiLayoutOrder, UiScale,
     };
 }
 
@@ -118,6 +118,8 @@ impl Plugin for UiPlugin {
             .register_type::<Val>()
             .register_type::<widget::Button>()
             .register_type::<widget::Label>()
+            .register_type::<UiLayoutData>()
+            .register_type::<UiLayoutOrder>()
             .add_systems(
                 PreUpdate,
                 ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),

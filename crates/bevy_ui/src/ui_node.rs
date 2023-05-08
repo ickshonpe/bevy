@@ -1,7 +1,6 @@
 use crate::{Size, UiRect};
 use bevy_asset::Handle;
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
-use bevy_math::Affine2;
 use bevy_math::{Rect, Vec2};
 use bevy_reflect::prelude::*;
 use bevy_reflect::ReflectFromReflect;
@@ -14,15 +13,6 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use thiserror::Error;
-
-/// This component only has an effect when added to a root UI node entity (an entity without a parent).
-#[derive(Component, Default, Copy, Debug, Clone, Reflect)]
-#[reflect(Component, Default)]
-pub struct UiLayoutOrder {
-    /// default is 0, a UI layout with higher order is rendered above a UI layout with lower order
-    order: Option<i32>
-}
-
 
 /// Describes the size of a UI node
 #[derive(Component, Debug, Clone, Reflect)]
