@@ -8,7 +8,8 @@ use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
 pub use render_pass::*;
 
-use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage, UiStack};
+use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage};
+use crate::{UiTransform, ZIndex};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
@@ -145,7 +146,7 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
 }
 
 pub struct ExtractedUiNode {
-    pub stack_index: usize,
+    pub z_index: u32,
     pub transform: Mat4,
     pub color: Color,
     pub rect: Rect,
@@ -164,53 +165,51 @@ pub struct ExtractedUiNodes {
 pub fn extract_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     images: Extract<Res<Assets<Image>>>,
-    ui_stack: Extract<Res<UiStack>>,
     uinode_query: Extract<
         Query<(
             &Node,
-            &GlobalTransform,
+            &UiTransform,
             &BackgroundColor,
             Option<&UiImage>,
             &ComputedVisibility,
             Option<&CalculatedClip>,
+            &ZIndex,
         )>,
     >,
 ) {
     extracted_uinodes.uinodes.clear();
-    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, transform, color, maybe_image, visibility, clip)) =
-            uinode_query.get(*entity)
-        {
-            // Skip invisible and completely transparent nodes
-            if !visibility.is_visible() || color.0.a() == 0.0 {
+    for (uinode, transform, color, maybe_image, visibility, clip, &ZIndex(z_index)) in
+        uinode_query.iter()
+    {
+        // Skip invisible and completely transparent nodes
+        if !visibility.is_visible() || color.0.a() == 0.0 {
+            continue;
+        }
+
+        let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
+            // Skip loading images
+            if !images.contains(&image.texture) {
                 continue;
             }
+            (image.texture.clone_weak(), image.flip_x, image.flip_y)
+        } else {
+            (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), false, false)
+        };
 
-            let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
-                // Skip loading images
-                if !images.contains(&image.texture) {
-                    continue;
-                }
-                (image.texture.clone_weak(), image.flip_x, image.flip_y)
-            } else {
-                (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), false, false)
-            };
-
-            extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index,
-                transform: transform.compute_matrix(),
-                color: color.0,
-                rect: Rect {
-                    min: Vec2::ZERO,
-                    max: uinode.calculated_size,
-                },
-                image,
-                atlas_size: None,
-                clip: clip.map(|clip| clip.clip),
-                flip_x,
-                flip_y,
-            });
-        }
+        extracted_uinodes.uinodes.push(ExtractedUiNode {
+            z_index,
+            transform: transform.compute_matrix(),
+            color: color.0,
+            rect: Rect {
+                min: Vec2::ZERO,
+                max: uinode.calculated_size,
+            },
+            image,
+            atlas_size: None,
+            clip: clip.map(|clip| clip.clip),
+            flip_x,
+            flip_y,
+        });
     }
 }
 
@@ -277,15 +276,15 @@ pub fn extract_text_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     texture_atlases: Extract<Res<Assets<TextureAtlas>>>,
     windows: Extract<Query<&Window, With<PrimaryWindow>>>,
-    ui_stack: Extract<Res<UiStack>>,
     uinode_query: Extract<
         Query<(
             &Node,
-            &GlobalTransform,
+            &UiTransform,
             &Text,
             &TextLayoutInfo,
             &ComputedVisibility,
             Option<&CalculatedClip>,
+            &ZIndex,
         )>,
     >,
 ) {
@@ -297,48 +296,46 @@ pub fn extract_text_uinodes(
 
     let inverse_scale_factor = scale_factor.recip();
 
-    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, global_transform, text, text_layout_info, visibility, clip)) =
-            uinode_query.get(*entity)
+    for (uinode, global_transform, text, text_layout_info, visibility, clip, &ZIndex(z_index)) in
+        uinode_query.iter()
+    {
+        // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
+        if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
+            continue;
+        }
+        let transform = global_transform.compute_matrix()
+            * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
+
+        let mut color = Color::WHITE;
+        let mut current_section = usize::MAX;
+        for PositionedGlyph {
+            position,
+            atlas_info,
+            section_index,
+            ..
+        } in &text_layout_info.glyphs
         {
-            // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
-            if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
-                continue;
+            if *section_index != current_section {
+                color = text.sections[*section_index].style.color.as_rgba_linear();
+                current_section = *section_index;
             }
-            let transform = global_transform.compute_matrix()
-                * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
+            let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
 
-            let mut color = Color::WHITE;
-            let mut current_section = usize::MAX;
-            for PositionedGlyph {
-                position,
-                atlas_info,
-                section_index,
-                ..
-            } in &text_layout_info.glyphs
-            {
-                if *section_index != current_section {
-                    color = text.sections[*section_index].style.color.as_rgba_linear();
-                    current_section = *section_index;
-                }
-                let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
-
-                let mut rect = atlas.textures[atlas_info.glyph_index];
-                rect.min *= inverse_scale_factor;
-                rect.max *= inverse_scale_factor;
-                extracted_uinodes.uinodes.push(ExtractedUiNode {
-                    stack_index,
-                    transform: transform
-                        * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
-                    color,
-                    rect,
-                    image: atlas.texture.clone_weak(),
-                    atlas_size: Some(atlas.size * inverse_scale_factor),
-                    clip: clip.map(|clip| clip.clip),
-                    flip_x: false,
-                    flip_y: false,
-                });
-            }
+            let mut rect = atlas.textures[atlas_info.glyph_index];
+            rect.min *= inverse_scale_factor;
+            rect.max *= inverse_scale_factor;
+            extracted_uinodes.uinodes.push(ExtractedUiNode {
+                z_index,
+                transform: transform
+                    * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
+                color,
+                rect,
+                image: atlas.texture.clone_weak(),
+                atlas_size: Some(atlas.size * inverse_scale_factor),
+                clip: clip.map(|clip| clip.clip),
+                flip_x: false,
+                flip_y: false,
+            });
         }
     }
 }
@@ -392,9 +389,7 @@ pub fn prepare_uinodes(
     ui_meta.vertices.clear();
 
     // sort by ui stack index, starting from the deepest node
-    extracted_uinodes
-        .uinodes
-        .sort_by_key(|node| node.stack_index);
+    extracted_uinodes.uinodes.sort_by_key(|node| node.z_index);
 
     let mut start = 0;
     let mut end = 0;

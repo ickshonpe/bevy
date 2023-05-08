@@ -1,4 +1,4 @@
-use crate::{camera_config::UiCameraConfig, CalculatedClip, Node, UiStack};
+use crate::{camera_config::UiCameraConfig, CalculatedClip, Node, UiTransform, ZIndex};
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     change_detection::DetectChangesMut,
@@ -8,13 +8,13 @@ use bevy_ecs::{
     reflect::ReflectComponent,
     system::{Local, Query, Res},
 };
+
 use bevy_input::{mouse::MouseButton, touch::Touches, Input};
 use bevy_math::Vec2;
 use bevy_reflect::{
     FromReflect, Reflect, ReflectDeserialize, ReflectFromReflect, ReflectSerialize,
 };
 use bevy_render::{camera::NormalizedRenderTarget, prelude::Camera, view::ComputedVisibility};
-use bevy_transform::components::GlobalTransform;
 
 use bevy_window::{PrimaryWindow, Window};
 use serde::{Deserialize, Serialize};
@@ -125,12 +125,13 @@ pub struct State {
 pub struct NodeQuery {
     entity: Entity,
     node: &'static Node,
-    global_transform: &'static GlobalTransform,
+    global_transform: &'static UiTransform,
     interaction: Option<&'static mut Interaction>,
     relative_cursor_position: Option<&'static mut RelativeCursorPosition>,
     focus_policy: Option<&'static FocusPolicy>,
     calculated_clip: Option<&'static CalculatedClip>,
     computed_visibility: Option<&'static ComputedVisibility>,
+    z_index: &'static ZIndex,
 }
 
 /// The system that sets Interaction for all UI elements based on the mouse cursor activity
@@ -143,7 +144,6 @@ pub fn ui_focus_system(
     windows: Query<&Window>,
     mouse_button_input: Res<Input<MouseButton>>,
     touches_input: Res<Touches>,
-    ui_stack: Res<UiStack>,
     mut node_query: Query<NodeQuery>,
     primary_window: Query<Entity, With<PrimaryWindow>>,
 ) {
@@ -197,78 +197,71 @@ pub fn ui_focus_system(
     // prepare an iterator that contains all the nodes that have the cursor in their rect,
     // from the top node to the bottom one. this will also reset the interaction to `None`
     // for all nodes encountered that are no longer hovered.
-    let mut hovered_nodes = ui_stack
-        .uinodes
-        .iter()
-        // reverse the iterator to traverse the tree from closest nodes to furthest
-        .rev()
-        .filter_map(|entity| {
-            if let Ok(node) = node_query.get_mut(*entity) {
-                // Nodes that are not rendered should not be interactable
-                if let Some(computed_visibility) = node.computed_visibility {
-                    if !computed_visibility.is_visible() {
-                        // Reset their interaction to None to avoid strange stuck state
-                        if let Some(mut interaction) = node.interaction {
-                            // We cannot simply set the interaction to None, as that will trigger change detection repeatedly
-                            interaction.set_if_neq(Interaction::None);
-                        }
-
-                        return None;
-                    }
-                }
-
-                let position = node.global_transform.translation();
-                let ui_position = position.truncate();
-                let extents = node.node.size() / 2.0;
-                let mut min = ui_position - extents;
-                if let Some(clip) = node.calculated_clip {
-                    min = Vec2::max(min, clip.clip.min);
-                }
-
-                // The mouse position relative to the node
-                // (0., 0.) is the top-left corner, (1., 1.) is the bottom-right corner
-                let relative_cursor_position = cursor_position.map(|cursor_position| {
-                    Vec2::new(
-                        (cursor_position.x - min.x) / node.node.size().x,
-                        (cursor_position.y - min.y) / node.node.size().y,
-                    )
-                });
-
-                // If the current cursor position is within the bounds of the node, consider it for
-                // clicking
-                let relative_cursor_position_component = RelativeCursorPosition {
-                    normalized: relative_cursor_position,
-                };
-
-                let contains_cursor = relative_cursor_position_component.mouse_over();
-
-                // Save the relative cursor position to the correct component
-                if let Some(mut node_relative_cursor_position_component) =
-                    node.relative_cursor_position
-                {
-                    *node_relative_cursor_position_component = relative_cursor_position_component;
-                }
-
-                if contains_cursor {
-                    Some(*entity)
-                } else {
+    let mut hovered_nodes = node_query
+        .iter_mut()
+        .filter_map(|node| {
+            // Nodes that are not rendered should not be interactable
+            if let Some(computed_visibility) = node.computed_visibility {
+                if !computed_visibility.is_visible() {
+                    // Reset their interaction to None to avoid strange stuck state
                     if let Some(mut interaction) = node.interaction {
-                        if *interaction == Interaction::Hovered || (cursor_position.is_none()) {
-                            interaction.set_if_neq(Interaction::None);
-                        }
+                        // We cannot simply set the interaction to None, as that will trigger change detection repeatedly
+                        interaction.set_if_neq(Interaction::None);
                     }
-                    None
+
+                    return None;
                 }
+            }
+
+            let position = node.global_transform.0.translation;
+            let ui_position = position.truncate();
+            let extents = node.node.size() / 2.0;
+            let mut min = ui_position - extents;
+            if let Some(clip) = node.calculated_clip {
+                min = Vec2::max(min, clip.clip.min);
+            }
+
+            // The mouse position relative to the node
+            // (0., 0.) is the top-left corner, (1., 1.) is the bottom-right corner
+            let relative_cursor_position = cursor_position.map(|cursor_position| {
+                Vec2::new(
+                    (cursor_position.x - min.x) / node.node.size().x,
+                    (cursor_position.y - min.y) / node.node.size().y,
+                )
+            });
+
+            // If the current cursor position is within the bounds of the node, consider it for
+            // clicking
+            let relative_cursor_position_component = RelativeCursorPosition {
+                normalized: relative_cursor_position,
+            };
+
+            let contains_cursor = relative_cursor_position_component.mouse_over();
+
+            // Save the relative cursor position to the correct component
+            if let Some(mut node_relative_cursor_position_component) = node.relative_cursor_position
+            {
+                *node_relative_cursor_position_component = relative_cursor_position_component;
+            }
+
+            if contains_cursor {
+                Some((node.entity, node.z_index.0))
             } else {
+                if let Some(mut interaction) = node.interaction {
+                    if *interaction == Interaction::Hovered || (cursor_position.is_none()) {
+                        interaction.set_if_neq(Interaction::None);
+                    }
+                }
                 None
             }
         })
-        .collect::<Vec<Entity>>()
-        .into_iter();
+        .collect::<Vec<(Entity, u32)>>();
+    hovered_nodes.sort_unstable_by_key(|(_, z)| *z);
+    let mut hovered_nodes_iter = hovered_nodes.into_iter().rev().map(|(e, _)| e);
 
     // set Clicked or Hovered on top nodes. as soon as a node with a `Block` focus policy is detected,
     // the iteration will stop on it because it "captures" the interaction.
-    let mut iter = node_query.iter_many_mut(hovered_nodes.by_ref());
+    let mut iter = node_query.iter_many_mut(hovered_nodes_iter.by_ref());
     while let Some(node) = iter.fetch_next() {
         if let Some(mut interaction) = node.interaction {
             if mouse_clicked {
@@ -295,7 +288,7 @@ pub fn ui_focus_system(
     }
     // reset `Interaction` for the remaining lower nodes to `None`. those are the nodes that remain in
     // `moused_over_nodes` after the previous loop is exited.
-    let mut iter = node_query.iter_many_mut(hovered_nodes);
+    let mut iter = node_query.iter_many_mut(hovered_nodes_iter);
     while let Some(node) = iter.fetch_next() {
         if let Some(mut interaction) = node.interaction {
             // don't reset clicked nodes because they're handled separately

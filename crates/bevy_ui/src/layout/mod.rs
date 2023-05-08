@@ -1,6 +1,6 @@
 mod convert;
 
-use crate::{ContentSize, Node, Style, UiScale};
+use crate::{ContentSize, Node, Style, UiScale, UiTransform, ZIndex};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -14,7 +14,7 @@ use bevy_ecs::{
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
-use bevy_math::Vec2;
+use bevy_math::{Affine3A, Vec2};
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 use bevy_render::view::{ComputedVisibility, Visibility};
 use bevy_transform::{components::Transform, prelude::GlobalTransform};
@@ -70,6 +70,7 @@ pub struct UiSurface {
     entity_to_taffy: HashMap<Entity, taffy::node::Node>,
     default_layout: Option<taffy::node::Node>,
     ui_layouts: Vec<(Entity, taffy::node::Node, i32)>,
+    layout_children: HashMap<taffy::node::Node, Vec<Entity>>,
     taffy: Taffy,
 }
 
@@ -107,6 +108,7 @@ impl bevy_ecs::world::FromWorld for UiSurface {
             default_layout: Some(default_layout),
             ui_layouts: vec![(default_layout_entity, default_layout, 0)],
             taffy,
+            layout_children: [(default_layout, vec![])].into_iter().collect(),
         }
     }
 }
@@ -201,7 +203,10 @@ without UI components as a child of an entity with UI components, results may be
     /// Set the ui node entities without a [`Parent`] as children to the default root node in the taffy layout.
     pub fn set_default_layout_children(&mut self, children: impl Iterator<Item = Entity>) {
         if let Some(node) = self.default_layout {
-            let child_nodes = children
+            let childs = self.layout_children.get_mut(&node).unwrap();
+            *childs = children.collect();
+            let child_nodes = childs
+                .iter()
                 .map(|e| *self.entity_to_taffy.get(&e).unwrap())
                 .collect::<Vec<taffy::node::Node>>();
             self.taffy.set_children(node, &child_nodes).unwrap();
@@ -209,6 +214,9 @@ without UI components as a child of an entity with UI components, results may be
     }
 
     pub fn set_layout_children(&mut self, layout: taffy::node::Node, children: &Children) {
+        let layout_children = self.layout_children.get_mut(&layout).unwrap();
+        layout_children.clear();
+        layout_children.extend(children.iter());
         let child_nodes = children
             .iter()
             .map(|e| *self.entity_to_taffy.get(e).unwrap())
@@ -243,7 +251,7 @@ without UI components as a child of an entity with UI components, results may be
         for entity in removed_entities {
             if let Some(node_to_delete) = self.entity_to_taffy.get(&entity).copied() {
                 self.taffy.remove(node_to_delete).unwrap();
-
+                self.layout_children.remove(&node_to_delete);
                 if self.default_layout == Some(node_to_delete) {
                     self.default_layout =
                         maybe_next_default_layout_entity.and_then(|next_default_layout_entity| {
@@ -295,10 +303,11 @@ pub fn ui_layout_system(
     children_query: Query<(Entity, &Children), (With<Node>, Changed<Children>)>,
     mut removed_children: RemovedComponents<Children>,
     mut removed_content_sizes: RemovedComponents<ContentSize>,
-    mut node_transform_query: Query<(Entity, &mut Node, &mut Transform, Option<&Parent>)>,
+    mut node_geometry_query: Query<(&mut Node, &mut UiTransform, &mut ZIndex)>,
     mut removed_nodes: RemovedComponents<Node>,
     mut removed_layouts: RemovedComponents<UiLayoutOrder>,
     mut layouts_query: Query<(Entity, &mut UiLayoutData, &UiLayoutOrder, Option<&Children>)>,
+    just_children_query: Query<&Children>,
 ) {
     // assume one window for time being...
     // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621
@@ -395,31 +404,74 @@ pub fn ui_layout_system(
 
     let physical_to_logical_factor = 1. / logical_to_physical_factor;
 
-    let to_logical = |v| (physical_to_logical_factor * v as f64) as f32;
+    fn update_node_geometry_recursively(
+        ui_surface: &UiSurface,
+        inherited_transform: Affine3A,
+        node_entity: Entity,
+        node_geometry_query: &mut Query<(&mut Node, &mut UiTransform, &mut ZIndex)>,
+        children_query: &Query<&Children>,
+        physical_to_logical_factor: f64,
+        order: &mut u32,
+    ) {
+        if let Ok((mut node, mut transform, mut z_index)) = node_geometry_query.get_mut(node_entity)
+        {
+            z_index.0 = *order;
+            *order += 1;
+            let layout = ui_surface.get_layout(node_entity).unwrap();
+            let new_size = Vec2::new(
+                (layout.size.width as f64 * physical_to_logical_factor) as f32,
+                (layout.size.height as f64 * physical_to_logical_factor) as f32,
+            );
+            let half_size = (0.5 * new_size).extend(0.);
+            if node.calculated_size != new_size {
+                node.calculated_size = new_size;
+            }
+            let new_position = Vec2::new(
+                (layout.size.width as f64 * physical_to_logical_factor) as f32,
+                (layout.size.height as f64 * physical_to_logical_factor) as f32,
+            );
 
-    // PERF: try doing this incrementally
-    for (entity, mut node, mut transform, parent) in &mut node_transform_query {
-        let layout = ui_surface.get_layout(entity).unwrap();
-        let new_size = Vec2::new(
-            to_logical(layout.size.width),
-            to_logical(layout.size.height),
-        );
-        // only trigger change detection when the new value is different
-        if node.calculated_size != new_size {
-            node.calculated_size = new_size;
-        }
-        let mut new_position = transform.translation;
-        new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
-        new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
-        if let Some(parent) = parent {
-            if let Ok(parent_layout) = ui_surface.get_layout(**parent) {
-                new_position.x -= to_logical(parent_layout.size.width / 2.0);
-                new_position.y -= to_logical(parent_layout.size.height / 2.0);
+            transform.0 = inherited_transform
+                * Affine3A::from_translation(new_position.extend(0.) + half_size);
+
+            if let Ok(children) = children_query.get(node_entity) {
+                let next_transform = transform.0 * Affine3A::from_translation(-half_size);
+                for child in children {
+                    update_node_geometry_recursively(
+                        ui_surface,
+                        next_transform,
+                        *child,
+                        node_geometry_query,
+                        children_query,
+                        physical_to_logical_factor,
+                        order,
+                    );
+                }
             }
         }
-        // only trigger change detection when the new value is different
-        if transform.translation != new_position {
-            transform.translation = new_position;
+    }
+
+    let mut order: u32 = 0;
+
+    let mut layouts = vec![];
+    let mut layout_children = HashMap::default();
+    std::mem::swap(&mut ui_surface.ui_layouts, &mut layouts);
+    std::mem::swap(&mut ui_surface.layout_children, &mut layout_children);
+
+    for (_, node, _) in layouts.iter() {
+        for child in layout_children.get(node).unwrap() {
+            update_node_geometry_recursively(
+                &mut ui_surface,
+                Affine3A::default(),
+                *child,
+                &mut node_geometry_query,
+                &just_children_query,
+                physical_to_logical_factor,
+                &mut order,
+            );
         }
     }
+
+    std::mem::swap(&mut ui_surface.ui_layouts, &mut layouts);
+    std::mem::swap(&mut ui_surface.layout_children, &mut layout_children);
 }

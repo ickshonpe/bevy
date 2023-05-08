@@ -8,7 +8,6 @@ mod focus;
 mod geometry;
 mod layout;
 mod render;
-mod stack;
 mod ui_node;
 
 #[cfg(feature = "bevy_text")]
@@ -35,7 +34,7 @@ pub mod prelude {
     #[doc(hidden)]
     pub use crate::{
         camera_config::*, geometry::*, node_bundles::*, ui_node::*, widget::Button, widget::Label,
-        Interaction, UiLayoutBundle, UiLayoutData, UiLayoutOrder, UiScale,
+        Interaction, UiLayoutBundle, UiLayoutData, UiLayoutOrder, UiScale, UiTransform,
     };
 }
 
@@ -44,8 +43,6 @@ use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
 use bevy_input::InputSystem;
 use bevy_transform::TransformSystem;
-use stack::ui_stack_system;
-pub use stack::UiStack;
 use update::update_clipping_system;
 
 /// The basic plugin for Bevy UI
@@ -84,7 +81,6 @@ impl Plugin for UiPlugin {
         app.add_plugin(ExtractComponentPlugin::<UiCameraConfig>::default())
             .init_resource::<UiSurface>()
             .init_resource::<UiScale>()
-            .init_resource::<UiStack>()
             .register_type::<AlignContent>()
             .register_type::<AlignItems>()
             .register_type::<AlignSelf>()
@@ -118,6 +114,7 @@ impl Plugin for UiPlugin {
             .register_type::<Val>()
             .register_type::<widget::Button>()
             .register_type::<widget::Label>()
+            .register_type::<UiTransform>()
             .register_type::<UiLayoutData>()
             .register_type::<UiLayoutOrder>()
             .add_systems(
@@ -164,7 +161,6 @@ impl Plugin for UiPlugin {
                 ui_layout_system
                     .in_set(UiSystem::Layout)
                     .before(TransformSystem::TransformPropagate),
-                ui_stack_system.in_set(UiSystem::Stack),
                 update_clipping_system.after(TransformSystem::TransformPropagate),
             ),
         );

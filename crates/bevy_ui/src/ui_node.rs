@@ -1,6 +1,7 @@
 use crate::{Size, UiRect};
 use bevy_asset::Handle;
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
+use bevy_math::{Affine3A, Mat4};
 use bevy_math::{Rect, Vec2};
 use bevy_reflect::prelude::*;
 use bevy_reflect::ReflectFromReflect;
@@ -8,11 +9,22 @@ use bevy_render::{
     color::Color,
     texture::{Image, DEFAULT_IMAGE_HANDLE},
 };
-use bevy_transform::prelude::GlobalTransform;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use thiserror::Error;
+
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect, FromReflect)]
+#[reflect(Component, Default)]
+pub struct UiTransform(pub(crate) Affine3A);
+
+impl UiTransform {
+    /// Returns the 3d affine transformation matrix as a [`Mat4`].
+    #[inline]
+    pub fn compute_matrix(&self) -> Mat4 {
+        Mat4::from(self.0)
+    }
+}
 
 /// Describes the size of a UI node
 #[derive(Component, Debug, Clone, Reflect)]
@@ -30,15 +42,15 @@ impl Node {
         self.calculated_size
     }
 
-    /// Returns the logical pixel coordinates of the UI node, based on its [`GlobalTransform`].
+    /// Returns the logical pixel coordinates of the UI node, based on its [`UiTransform`].
     #[inline]
-    pub fn logical_rect(&self, transform: &GlobalTransform) -> Rect {
-        Rect::from_center_size(transform.translation().truncate(), self.size())
+    pub fn logical_rect(&self, transform: &UiTransform) -> Rect {
+        Rect::from_center_size(transform.0.translation.truncate(), self.size())
     }
 
     /// Returns the physical pixel coordinates of the UI node, based on its [`GlobalTransform`] and the scale factor.
     #[inline]
-    pub fn physical_rect(&self, transform: &GlobalTransform, scale_factor: f32) -> Rect {
+    pub fn physical_rect(&self, transform: &UiTransform, scale_factor: f32) -> Rect {
         let rect = self.logical_rect(transform);
         Rect {
             min: rect.min / scale_factor,
@@ -1608,17 +1620,11 @@ pub struct CalculatedClip {
 /// Nodes without this component will be treated as if they had a value of [`ZIndex::Local(0)`].
 #[derive(Component, Copy, Clone, Debug, Reflect, FromReflect)]
 #[reflect(Component, FromReflect)]
-pub enum ZIndex {
-    /// Indicates the order in which this node should be rendered relative to its siblings.
-    Local(i32),
-    /// Indicates the order in which this node should be rendered relative to root nodes and
-    /// all other nodes that have a global z-index.
-    Global(i32),
-}
+pub struct ZIndex(pub(crate) u32);
 
 impl Default for ZIndex {
     fn default() -> Self {
-        Self::Local(0)
+        Self(0)
     }
 }
 
