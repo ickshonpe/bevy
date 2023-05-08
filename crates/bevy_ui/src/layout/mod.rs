@@ -38,10 +38,17 @@ impl LayoutContext {
     }
 }
 
+struct RootNodeData {
+    entity: Entity,
+    taffy_key: Node,
+    order: u32,
+}
+
 #[derive(Resource)]
 pub struct UiSurface {
     entity_to_taffy: HashMap<Entity, taffy::node::Node>,
     window_nodes: HashMap<Entity, taffy::node::Node>,
+    root_nodes: Vec<RootNodeData>,
     taffy: Taffy,
 }
 
@@ -66,6 +73,7 @@ impl Default for UiSurface {
         Self {
             entity_to_taffy: Default::default(),
             window_nodes: Default::default(),
+            root_nodes: Default::default(),
             taffy: Taffy::new(),
         }
     }
