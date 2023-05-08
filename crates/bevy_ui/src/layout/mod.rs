@@ -15,7 +15,7 @@ use bevy_ecs::{
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
-use bevy_math::{Affine3A, Vec2};
+use bevy_math::{Affine3A, Vec2, Vec3};
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 use bevy_render::view::{ComputedVisibility, Visibility};
 use bevy_transform::{components::Transform, prelude::GlobalTransform};
@@ -428,8 +428,8 @@ pub fn ui_layout_system(
                 node.calculated_size = new_size;
             }
             let new_position = Vec2::new(
-                (layout.size.width as f64 * physical_to_logical_factor) as f32,
-                (layout.size.height as f64 * physical_to_logical_factor) as f32,
+                (layout.location.x as f64 * physical_to_logical_factor) as f32,
+                (layout.location.y as f64 * physical_to_logical_factor) as f32,
             );
 
             transform.0 = inherited_transform
@@ -460,7 +460,14 @@ pub fn ui_layout_system(
     std::mem::swap(&mut ui_surface.layout_children, &mut layout_children);
 
     for (_, node, _) in layouts.iter() {
+        let size = ui_surface.taffy.layout(*node).unwrap().size;
+        let logical_size = Vec3::new(
+            (size.width as f64 * physical_to_logical_factor) as f32,
+            (size.height as f64 * physical_to_logical_factor) as f32,
+            0.
+        );
         for child in layout_children.get(node).unwrap() {
+            
             update_node_geometry_recursively(
                 &mut ui_surface,
                 Affine3A::default(),
