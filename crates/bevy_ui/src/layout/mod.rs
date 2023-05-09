@@ -435,7 +435,6 @@ pub fn update_nodes(
 
     let physical_to_logical_factor = scale_factor.recip();
 
-
     fn update_node_geometry_recursively(
         ui_surface: &UiSurface,
         inherited_transform: Affine3A,

@@ -73,7 +73,7 @@ impl Default for Node {
 
 #[derive(Component, Default, Debug, Clone)]
 
-pub struct NodeOrder(pub u32);
+pub struct NodeOrder(pub i32);
 
 
 /// Represents the possible value types for layout properties.
