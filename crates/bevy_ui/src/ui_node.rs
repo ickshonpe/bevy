@@ -45,6 +45,13 @@ impl Node {
             max: rect.max / scale_factor,
         }
     }
+
+    /// Given a point in the logical coordinates and the node's [`GlobalTransform`], returns the position of the point relative to the node.
+    #[inline]
+    pub fn relative_position(&self, transform: &GlobalTransform, point: Vec2) -> Vec2 {
+        let d = transform.affine().inverse().transform_point3(point.extend(0.)).truncate();
+        d / self.size() + Vec2::new(0.5, 0.5)
+    }
 }
 
 impl Node {
