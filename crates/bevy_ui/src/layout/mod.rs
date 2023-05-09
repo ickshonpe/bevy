@@ -32,7 +32,6 @@ pub struct UiLayoutData {
     node_key: taffy::node::Node,
 }
 
-
 #[derive(Component, Default, Copy, Debug, Clone, Reflect)]
 #[reflect(Component, Default)]
 pub struct UiLayoutOrder(pub i32);
