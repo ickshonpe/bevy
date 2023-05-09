@@ -415,7 +415,7 @@ pub fn ui_layout_system(
     for entity in removed_children.iter() {
         ui_surface.try_remove_children(entity);
     }
-    for (entity, children) in children_query.iter() {
+    for (entity, children) in &children_query {
         if children.is_changed() {
             ui_surface.update_children(entity, &children);
         }
