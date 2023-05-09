@@ -1,8 +1,6 @@
 //! This example demonstrates overlayed layouts
 
-use bevy::{
-    prelude::*,
-};
+use bevy::prelude::*;
 
 fn main() {
     App::new()
@@ -22,10 +20,12 @@ struct ColorText;
 fn setup(mut commands: Commands) {
     // UI camera
     commands.spawn(Camera2dBundle::default());
-    commands.spawn(UiLayoutBundle {
-        order: UiLayoutOrder(2),
-        ..Default::default()
-    }).with_children(|builder| {
+    commands
+        .spawn(UiLayoutBundle {
+            order: UiLayoutOrder(2),
+            ..Default::default()
+        })
+        .with_children(|builder| {
             builder.spawn(NodeBundle {
                 style: Style {
                     size: Size::width(Val::Percent(100.)),
@@ -39,12 +39,14 @@ fn setup(mut commands: Commands) {
                 background_color: Color::GREEN.into(),
                 ..Default::default()
             });
-    });
+        });
 
-    commands.spawn(UiLayoutBundle {
-        order: UiLayoutOrder(1),
-        ..Default::default()
-    }).with_children(|builder| {
+    commands
+        .spawn(UiLayoutBundle {
+            order: UiLayoutOrder(1),
+            ..Default::default()
+        })
+        .with_children(|builder| {
             builder.spawn(NodeBundle {
                 style: Style {
                     size: Size::all(Val::Percent(75.)),
@@ -54,7 +56,7 @@ fn setup(mut commands: Commands) {
                 background_color: Color::NAVY.into(),
                 ..Default::default()
             });
-    });
+        });
 
     commands.spawn(NodeBundle {
         style: Style {
@@ -62,12 +64,10 @@ fn setup(mut commands: Commands) {
             right: Val::Px(0.),
             bottom: Val::Px(0.),
             size: Size::all(Val::Percent(75.)),
-            
+
             ..Default::default()
         },
         background_color: Color::RED.into(),
         ..Default::default()
     });
-
-    
 }

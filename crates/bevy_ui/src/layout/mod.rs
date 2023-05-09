@@ -1,27 +1,27 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Node, Style, UiScale, UiTransform, ZIndex, NodeOrder};
+use crate::{ContentSize, Node, NodeOrder, Style, UiScale, UiTransform, ZIndex};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
     event::EventReader,
-    prelude::{Bundle, Component, DetectChangesMut},
-    query::{Changed, With, Without},
+    prelude::{Bundle, Component},
+    query::{With, Without},
     reflect::ReflectComponent,
     removal_detection::RemovedComponents,
-    system::{Query, Res, ResMut, Resource, Local},
+    system::{Local, Query, Res, ResMut, Resource},
     world::Ref,
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
-use bevy_math::{Affine3A, Vec2, Vec3};
+use bevy_math::{Affine3A, Vec2};
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 use bevy_render::view::{ComputedVisibility, Visibility};
 use bevy_transform::{components::Transform, prelude::GlobalTransform};
 use bevy_utils::{HashMap, HashSet};
 use bevy_window::{PrimaryWindow, Window, WindowScaleFactorChanged};
-use std::{fmt, slice::Windows};
+use std::fmt;
 use taffy::{prelude::Size, style_helpers::TaffyMaxContent, Taffy};
 
 /// Used internally by `ui_layout_system`
@@ -207,14 +207,15 @@ without UI components as a child of an entity with UI components, results may be
             *childs = children.collect();
             let child_nodes = childs
                 .iter()
-                .map(|e| *self.entity_to_taffy.get(&e).unwrap())
+                .map(|e| *self.entity_to_taffy.get(e).unwrap())
                 .collect::<Vec<taffy::node::Node>>();
             self.taffy.set_children(node, &child_nodes).unwrap();
         }
     }
 
-    pub fn set_layout_children(&mut self, layout: taffy::node::Node, children: &Children) {        
-        self.layout_children.insert(layout, children.iter().copied().collect());
+    pub fn set_layout_children(&mut self, layout: taffy::node::Node, children: &Children) {
+        self.layout_children
+            .insert(layout, children.iter().copied().collect());
         let child_nodes = children
             .iter()
             .map(|e| *self.entity_to_taffy.get(e).unwrap())
@@ -295,13 +296,14 @@ pub fn sort_children_by_node_order(
     sorted.clear();
     for (order, parent) in order_query.iter() {
         if order.is_changed() && !sorted.contains(&parent.get()) {
-            children_query.get_mut(parent.get())
-            .unwrap()
-            .sort_by(|c, d| {
-                let c_ord = order_query.get_component(*c).unwrap_or(&NodeOrder(0)).0;
-                let d_ord = order_query.get_component(*d).unwrap_or(&NodeOrder(0)).0;
-                c_ord.cmp(&d_ord)
-            });
+            children_query
+                .get_mut(parent.get())
+                .unwrap()
+                .sort_by(|c, d| {
+                    let c_ord = order_query.get_component(*c).unwrap_or(&NodeOrder(0)).0;
+                    let d_ord = order_query.get_component(*d).unwrap_or(&NodeOrder(0)).0;
+                    c_ord.cmp(&d_ord)
+                });
         }
     }
 }
@@ -322,7 +324,10 @@ pub fn ui_layout_system(
     mut removed_nodes: RemovedComponents<Node>,
     mut removed_layouts: RemovedComponents<UiLayoutOrder>,
     children_query: Query<(Entity, Ref<Children>), With<Node>>,
-    mut layouts_query: Query<(Entity, &mut UiLayoutData, &UiLayoutOrder, Option<&Children>), Without<Node>>,
+    mut layouts_query: Query<
+        (Entity, &mut UiLayoutData, &UiLayoutOrder, Option<&Children>),
+        Without<Node>,
+    >,
 ) {
     // assume one window for time being...
     // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621
@@ -420,17 +425,16 @@ pub fn ui_layout_system(
     ui_surface.compute_all_layouts();
 }
 
-pub fn update_nodes( 
+pub fn update_nodes(
     mut ui_surface: ResMut<UiSurface>,
     windows: Query<&Window, With<PrimaryWindow>>,
     mut node_geometry_query: Query<(&mut Node, &mut UiTransform, &mut ZIndex)>,
     just_children_query: Query<&Children>,
 ) {
-
     let scale_factor = windows
-    .get_single()
-    .map(|window| window.resolution.scale_factor())
-    .unwrap_or(1.0);
+        .get_single()
+        .map(|window| window.resolution.scale_factor())
+        .unwrap_or(1.0);
 
     let physical_to_logical_factor = scale_factor.recip();
 
@@ -491,7 +495,7 @@ pub fn update_nodes(
     for (_, node, _) in layouts.iter() {
         for child in layout_children.get(node).unwrap() {
             update_node_geometry_recursively(
-                &mut ui_surface,
+                &ui_surface,
                 Affine3A::default(),
                 *child,
                 &mut node_geometry_query,

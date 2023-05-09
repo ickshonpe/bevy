@@ -157,7 +157,8 @@ impl Plugin for UiPlugin {
         .add_systems(
             PostUpdate,
             (
-                sort_children_by_node_order.in_set(UiSystem::Order)
+                sort_children_by_node_order
+                    .in_set(UiSystem::Order)
                     .before(UiSystem::Layout),
                 ui_layout_system
                     .in_set(UiSystem::Layout)

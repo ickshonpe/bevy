@@ -75,7 +75,6 @@ impl Default for Node {
 
 pub struct NodeOrder(pub i32);
 
-
 /// Represents the possible value types for layout properties.
 ///
 /// This enum allows specifying values for various [`Style`] properties in different units,
@@ -1623,15 +1622,9 @@ pub struct CalculatedClip {
 /// [`ZIndex::Local(n)`] and [`ZIndex::Global(n)`] for root nodes.
 ///
 /// Nodes without this component will be treated as if they had a value of [`ZIndex::Local(0)`].
-#[derive(Component, Copy, Clone, Debug, Reflect, FromReflect)]
+#[derive(Component, Copy, Clone, Debug, Default, Reflect, FromReflect)]
 #[reflect(Component, FromReflect)]
 pub struct ZIndex(pub(crate) u32);
-
-impl Default for ZIndex {
-    fn default() -> Self {
-        Self(0)
-    }
-}
 
 #[cfg(test)]
 mod tests {

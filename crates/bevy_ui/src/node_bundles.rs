@@ -2,7 +2,8 @@
 
 use crate::{
     widget::{Button, TextFlags, UiImageSize},
-    BackgroundColor, ContentSize, FocusPolicy, Interaction, Node, Style, UiImage, ZIndex, UiTransform, NodeOrder,
+    BackgroundColor, ContentSize, FocusPolicy, Interaction, Node, NodeOrder, Style, UiImage,
+    UiTransform, ZIndex,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_render::{
@@ -242,7 +243,7 @@ impl Default for ButtonBundle {
             visibility: Default::default(),
             computed_visibility: Default::default(),
             z_index: Default::default(),
-            node_order: Default::default()
+            node_order: Default::default(),
         }
     }
 }
