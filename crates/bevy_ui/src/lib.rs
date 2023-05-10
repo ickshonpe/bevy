@@ -18,6 +18,7 @@ pub mod measurement;
 pub mod node_bundles;
 pub mod update;
 pub mod widget;
+mod windows;
 
 #[cfg(feature = "bevy_text")]
 use bevy_render::camera::CameraUpdateSystem;
