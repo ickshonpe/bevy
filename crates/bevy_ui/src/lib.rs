@@ -127,7 +127,7 @@ impl Plugin for UiPlugin {
             .register_type::<UiTransform>()
             .register_type::<UiLayoutData>()
             .register_type::<UiLayoutOrder>()
-            .register_type::<Node>()
+            .register_type::<NodeKey>()
             .add_systems(
                 PreUpdate,
                 ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),
@@ -184,10 +184,10 @@ impl Plugin for UiPlugin {
                 synchonise_ui_children
                     .in_set(UiSystem::Children)
                     .before(UiSystem::Layout),
-                update_ui_layout
+                update_ui_layouts
                     .in_set(UiSystem::Layout)
                     .before(UiSystem::Transforms),
-                update_ui_node_transforms.in_set(UiSystem::Transforms),
+                update_nodes.in_set(UiSystem::Transforms),
                 update_clipping_system.after(TransformSystem::TransformPropagate),
             ),
         );

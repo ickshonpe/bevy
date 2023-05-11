@@ -1,4 +1,4 @@
-use crate::{ContentSize, Measure, Node, NodeSize, UiScale};
+use crate::{ContentSize, Measure, NodeKey, NodeSize, UiScale};
 use bevy_asset::Assets;
 use bevy_ecs::{
     prelude::{Component, DetectChanges},
@@ -119,7 +119,7 @@ pub fn measure_text_system(
     windows: Query<&Window, With<PrimaryWindow>>,
     ui_scale: Res<UiScale>,
     mut text_pipeline: ResMut<TextPipeline>,
-    mut text_query: Query<(Ref<Text>, &mut ContentSize, &mut TextFlags), With<Node>>,
+    mut text_query: Query<(Ref<Text>, &mut ContentSize, &mut TextFlags), With<NodeKey>>,
 ) {
     let window_scale_factor = windows
         .get_single()

@@ -1,4 +1,4 @@
-use crate::{camera_config::UiCameraConfig, CalculatedClip, Node, UiTransform, ZIndex};
+use crate::{camera_config::UiCameraConfig, CalculatedClip, UiTransform, ZIndex, NodeSize};
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     change_detection::DetectChangesMut,
@@ -215,7 +215,7 @@ pub fn ui_focus_system(
 
             let position = node.global_transform.0.translation;
             let ui_position = position.truncate();
-            let extents = node.node.size() / 2.0;
+            let extents = node.node_size.size() / 2.0;
             let mut min = ui_position - extents;
             if let Some(clip) = node.calculated_clip {
                 min = Vec2::max(min, clip.clip.min);
@@ -225,8 +225,8 @@ pub fn ui_focus_system(
             // (0., 0.) is the top-left corner, (1., 1.) is the bottom-right corner
             let relative_cursor_position = cursor_position.map(|cursor_position| {
                 Vec2::new(
-                    (cursor_position.x - min.x) / node.node.size().x,
-                    (cursor_position.y - min.y) / node.node.size().y,
+                    (cursor_position.x - min.x) / node.node_size.size().x,
+                    (cursor_position.y - min.y) / node.node_size.size().y,
                 )
             });
 

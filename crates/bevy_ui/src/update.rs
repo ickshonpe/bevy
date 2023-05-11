@@ -14,7 +14,7 @@ use bevy_math::Rect;
 /// Updates clipping for all nodes
 pub fn update_clipping_system(
     mut commands: Commands,
-    root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
+    root_node_query: Query<Entity, (With<NodeSize>, Without<Parent>)>,
     mut node_query: Query<(&NodeSize, &UiTransform, &Style, Option<&mut CalculatedClip>)>,
     children_query: Query<&Children>,
 ) {
