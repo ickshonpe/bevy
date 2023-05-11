@@ -12,18 +12,23 @@ pub fn print_ui_layout_tree(ui_surface: &UiSurface) {
         .iter()
         .map(|(entity, node)| (*node, *entity))
         .collect();
-    for (entity, node, _) in ui_surface.ui_layouts.iter() {
+    for crate::UiLayout {
+        layout_entity,
+        taffy_root,
+        ..
+    } in ui_surface.ui_layouts.iter()
+    {
         let mut out = String::new();
         write_tree(
             ui_surface,
             &taffy_to_entity,
-            *entity,
-            *node,
+            *layout_entity,
+            *taffy_root,
             false,
             String::new(),
             &mut out,
         );
-        bevy_log::info!("Layout tree for layout entity: {entity:?}\n{out}");
+        bevy_log::info!("Layout tree for layout entity: {layout_entity:?}\n{out}");
     }
 }
 

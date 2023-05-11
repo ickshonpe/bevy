@@ -65,12 +65,28 @@ impl LayoutContext {
     }
 }
 
+#[derive(Debug)]
+pub struct UiLayout {
+    /// entity representing the layout
+    /// children of this node are added to the layout as children of the root taffy node
+    pub layout_entity: Entity,
+    /// root taffy node for the layout, same size as the window resolution
+    pub taffy_root: taffy::node::Node,
+    /// sort order, lower drawn first
+    pub order: i32,
+}
+
 #[derive(Resource)]
 pub struct UiSurface {
+    /// Ui Node entity to taffy layout tree node lookup map
     entity_to_taffy: HashMap<Entity, taffy::node::Node>,
+    /// default layout node, orphaned Ui entities attach to here
     default_layout: Option<taffy::node::Node>,
-    ui_layouts: Vec<(Entity, taffy::node::Node, i32)>,
+    /// contains data for each distinct ui layout
+    ui_layouts: Vec<UiLayout>,
+    /// contains data for each layout child
     layout_children: HashMap<taffy::node::Node, Vec<Entity>>,
+    /// the taffy layout tree
     taffy: Taffy,
 }
 
@@ -106,7 +122,11 @@ impl bevy_ecs::world::FromWorld for UiSurface {
         Self {
             entity_to_taffy: Default::default(),
             default_layout: Some(default_layout),
-            ui_layouts: vec![(default_layout_entity, default_layout, 0)],
+            ui_layouts: vec![UiLayout {
+                layout_entity: default_layout_entity,
+                taffy_root: default_layout,
+                order: 0,
+            }],
             taffy,
             layout_children: [(default_layout, vec![])].into_iter().collect(),
         }
@@ -120,7 +140,11 @@ impl UiSurface {
 
     pub fn insert_ui_layout(&mut self, layout_entity: Entity, order: i32) -> taffy::node::Node {
         let layout_node = self.taffy.new_leaf(taffy::style::Style::default()).unwrap();
-        self.ui_layouts.push((layout_entity, layout_node, order));
+        self.ui_layouts.push(UiLayout {
+            layout_entity,
+            taffy_root: layout_node,
+            order,
+        });
         layout_node
     }
 
@@ -184,10 +208,10 @@ without UI components as a child of an entity with UI components, results may be
     /// Update the size of each layout node to match the size of the window.
     pub fn update_layout_nodes(&mut self, size: Vec2) {
         let taffy = &mut self.taffy;
-        for (_layout_entity, layout_node, _) in &self.ui_layouts {
+        for UiLayout { taffy_root, .. } in &self.ui_layouts {
             taffy
                 .set_style(
-                    *layout_node,
+                    *taffy_root,
                     taffy::style::Style {
                         size: taffy::geometry::Size {
                             width: taffy::style::Dimension::Points(size.x),
@@ -225,9 +249,9 @@ without UI components as a child of an entity with UI components, results may be
 
     /// Compute the layout for each window entity's corresponding root node in the layout.
     pub fn compute_all_layouts(&mut self) {
-        for (_, layout_node, _) in &self.ui_layouts {
+        for UiLayout { taffy_root, .. } in &self.ui_layouts {
             self.taffy
-                .compute_layout(*layout_node, Size::MAX_CONTENT)
+                .compute_layout(*taffy_root, Size::MAX_CONTENT)
                 .unwrap();
         }
     }
@@ -256,11 +280,14 @@ without UI components as a child of an entity with UI components, results may be
                         maybe_next_default_layout_entity.and_then(|next_default_layout_entity| {
                             self.ui_layouts
                                 .iter()
-                                .find(|(entity, ..)| *entity == next_default_layout_entity)
-                                .map(|(_, node, _)| *node)
+                                .find(|UiLayout { layout_entity, .. }| {
+                                    *layout_entity == next_default_layout_entity
+                                })
+                                .map(|UiLayout { taffy_root, .. }| *taffy_root)
                         });
                 }
-                self.ui_layouts.retain(|(e, ..)| *e != entity);
+                self.ui_layouts
+                    .retain(|UiLayout { layout_entity, .. }| *layout_entity != entity);
             }
         }
     }
@@ -360,7 +387,9 @@ pub fn ui_layout_system(
     ui_surface.update_layout_nodes(window_physical_size);
 
     // sort layouts by order
-    ui_surface.ui_layouts.sort_by_key(|(_, _, order)| *order);
+    ui_surface
+        .ui_layouts
+        .sort_by_key(|UiLayout { order, .. }| *order);
 
     let scale_factor = logical_to_physical_factor * ui_scale.scale;
 
@@ -492,8 +521,8 @@ pub fn update_nodes(
     std::mem::swap(&mut ui_surface.ui_layouts, &mut layouts);
     std::mem::swap(&mut ui_surface.layout_children, &mut layout_children);
 
-    for (_, node, _) in layouts.iter() {
-        for child in layout_children.get(node).unwrap() {
+    for UiLayout { taffy_root, .. } in layouts.iter() {
+        for child in layout_children.get(taffy_root).unwrap() {
             update_node_geometry_recursively(
                 &ui_surface,
                 Affine3A::default(),
