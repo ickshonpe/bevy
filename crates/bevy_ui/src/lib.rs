@@ -21,6 +21,7 @@ pub mod widget;
 #[cfg(feature = "bevy_text")]
 use bevy_render::camera::CameraUpdateSystem;
 use bevy_render::{extract_component::ExtractComponentPlugin, RenderApp};
+use bevy_transform::TransformSystem;
 pub use focus::*;
 pub use geometry::*;
 pub use layout::*;
@@ -51,6 +52,16 @@ pub struct UiPlugin;
 /// The label enum labeling the types of systems in the Bevy UI
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub enum UiSystem {
+    /// After this label, window events have been handled and windows have been associated to taffy nodes
+    Windows,
+    /// After this label, removed ui nodes have been removed from the layout tree
+    Removal,
+    /// After this label, new ui nodes have been added to the layout tree
+    Insertion,
+    /// After this label, the Bevy and Taffy Parent-Children trees have been synchonised
+    Children,
+    /// After this label, the ui node transforms have been updated
+    Transforms,
     /// After this label, the ui layout state has been updated
     Layout,
     /// After this label, input interactions with UI entities have been updated for this frame
@@ -80,6 +91,7 @@ impl Plugin for UiPlugin {
         app.add_plugin(ExtractComponentPlugin::<UiCameraConfig>::default())
             .init_resource::<UiSurface>()
             .init_resource::<UiScale>()
+            .init_resource::<UiContext>()
             .register_type::<AlignContent>()
             .register_type::<AlignItems>()
             .register_type::<AlignSelf>()
@@ -95,10 +107,9 @@ impl Plugin for UiPlugin {
             .register_type::<FocusPolicy>()
             .register_type::<Interaction>()
             .register_type::<JustifyContent>()
+            .register_type::<NodeSize>()
             .register_type::<JustifyItems>()
             .register_type::<JustifySelf>()
-            .register_type::<Node>()
-            .register_type::<ZIndex>()
             // NOTE: used by Style::aspect_ratio
             .register_type::<Option<f32>>()
             .register_type::<Overflow>()
@@ -116,6 +127,7 @@ impl Plugin for UiPlugin {
             .register_type::<UiTransform>()
             .register_type::<UiLayoutData>()
             .register_type::<UiLayoutOrder>()
+            .register_type::<Node>()
             .add_systems(
                 PreUpdate,
                 ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),
@@ -160,11 +172,23 @@ impl Plugin for UiPlugin {
                 sort_children_by_node_order
                     .in_set(UiSystem::Order)
                     .before(UiSystem::Layout),
-                ui_layout_system
+                update_ui_windows
+                    .in_set(UiSystem::Windows)
+                    .before(UiSystem::Layout),
+                clean_up_removed_ui_nodes
+                    .in_set(UiSystem::Removal)
+                    .before(UiSystem::Insertion),
+                insert_new_ui_nodes
+                    .in_set(UiSystem::Insertion)
+                    .before(UiSystem::Children),
+                synchonise_ui_children
+                    .in_set(UiSystem::Children)
+                    .before(UiSystem::Layout),
+                update_ui_layout
                     .in_set(UiSystem::Layout)
-                    .before(UiSystem::Update),
-                update_nodes.in_set(UiSystem::Update),
-                update_clipping_system.after(UiSystem::Update),
+                    .before(UiSystem::Transforms),
+                update_ui_node_transforms.in_set(UiSystem::Transforms),
+                update_clipping_system.after(TransformSystem::TransformPropagate),
             ),
         );
 

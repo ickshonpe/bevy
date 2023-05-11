@@ -29,15 +29,15 @@ impl UiTransform {
 /// Describes the size of a UI node
 #[derive(Component, Debug, Clone, Reflect)]
 #[reflect(Component, Default)]
-pub struct Node {
+pub struct NodeSize {
     /// The size of the node as width and height in logical pixels
-    /// automatically calculated by [`super::layout::ui_layout_system`]
+    /// automatically calculated by [`super::layout::update_ui_layout`]
     pub(crate) calculated_size: Vec2,
 }
 
-impl Node {
+impl NodeSize {
     /// The calculated node size as width and height in logical pixels
-    /// automatically calculated by [`super::layout::ui_layout_system`]
+    /// automatically calculated by [`super::layout::update_ui_layout`]
     pub fn size(&self) -> Vec2 {
         self.calculated_size
     }
@@ -59,13 +59,13 @@ impl Node {
     }
 }
 
-impl Node {
+impl NodeSize {
     pub const DEFAULT: Self = Self {
         calculated_size: Vec2::ZERO,
     };
 }
 
-impl Default for Node {
+impl Default for NodeSize {
     fn default() -> Self {
         Self::DEFAULT
     }
@@ -845,9 +845,9 @@ impl Default for Direction {
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Reflect, FromReflect)]
 #[reflect(FromReflect, PartialEq, Serialize, Deserialize)]
 pub enum Display {
-    /// Use Flexbox layout model to determine the position of this [`Node`].
+    /// Use Flexbox layout model to determine the position of this [`Node`](crate::Node).
     Flex,
-    /// Use CSS Grid layout model to determine the position of this [`Node`].
+    /// Use CSS Grid layout model to determine the position of this [`Node`](crate::Node).
     Grid,
     /// Use no layout, don't render this node and its children.
     ///
@@ -1609,7 +1609,7 @@ pub struct CalculatedClip {
     pub clip: Rect,
 }
 
-/// Indicates that this [`Node`] entity's front-to-back ordering is not controlled solely
+/// Indicates that this [`Node`](crate::layout::Node) entity's front-to-back ordering is not controlled solely
 /// by its location in the UI hierarchy. A node with a higher z-index will appear on top
 /// of other nodes with a lower z-index.
 ///

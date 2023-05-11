@@ -124,7 +124,7 @@ pub struct State {
 #[world_query(mutable)]
 pub struct NodeQuery {
     entity: Entity,
-    node: &'static Node,
+    node_size: &'static NodeSize,
     global_transform: &'static UiTransform,
     interaction: Option<&'static mut Interaction>,
     relative_cursor_position: Option<&'static mut RelativeCursorPosition>,
