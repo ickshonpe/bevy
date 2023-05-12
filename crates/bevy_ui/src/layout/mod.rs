@@ -461,7 +461,6 @@ pub fn update_ui_layouts_system(
     ui_context: ResMut<UiContext>,
     mut ui_surface: ResMut<UiSurface>,
     orphaned_node_query: Query<Entity, (With<NodeSize>, With<NodeKey>, Without<Parent>)>,
-    root_node_query: Query<&NodeKey, (With<Style>, Without<Parent>)>,
     style_query: Query<(&NodeKey, Ref<Style>)>,
     full_style_query: Query<(&NodeKey, &Style)>,
     mut measure_query: Query<(&NodeKey, &mut ContentSize)>,
