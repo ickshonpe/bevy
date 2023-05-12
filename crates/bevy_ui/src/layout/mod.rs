@@ -9,7 +9,7 @@ use bevy_ecs::{
     prelude::{Bundle, Component},
     query::{With, Without},
     reflect::ReflectComponent,
-    query::{Added, Changed},
+    query::Added,
     removal_detection::RemovedComponents,
     system::{Local, Query, Res, ResMut, Resource},
     world::Ref,
