@@ -66,9 +66,8 @@ impl Node {
      #[inline]
      pub fn contains_point(&self, global_transform: &GlobalTransform, point: Vec2) -> bool {
         let affine3 = global_transform.affine();
-        let scale = affine3.to_scale_rotation_translation().0.truncate();
-        let d = affine3.inverse().transform_point(point.extend(0.)).truncate() * scale;
-        let s = 0.5 * scale * self.size();
+        let d = affine3.inverse().transform_point(point.extend(0.)).truncate();
+        let s = 0.5 * self.size();
         d.x.abs() <= s.x 
         && 
         d.y.abs() <= s.y
@@ -78,9 +77,8 @@ impl Node {
     #[inline]
     pub fn relative_position(&self, global_transform: &GlobalTransform, point: Vec2) -> Vec2 {
         let affine3 = global_transform.affine();
-        let scale = affine3.to_scale_rotation_translation().0.truncate();
-        let d = affine3.inverse().transform_point3(point.extend(0.)).truncate() * scale;
-        let s = scale * self.size();
+        let d = affine3.inverse().transform_point3(point.extend(0.)).truncate();
+        let s = self.size();
         d / s + Vec2::splat(0.5)
     }
 }
