@@ -1,21 +1,21 @@
 mod convert;
 pub mod debug_output;
 
-use crate::{ContentSize, NodeOrder, Style, UiScale, UiTransform, ZIndex, NodeSize};
+use crate::{ContentSize, NodeOrder, NodeSize, Style, UiScale, UiTransform, ZIndex};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
     event::EventReader,
     prelude::{Bundle, Component},
+    query::Added,
     query::{With, Without},
     reflect::ReflectComponent,
-    query::Added,
     removal_detection::RemovedComponents,
     system::{Local, Query, Res, ResMut, Resource},
     world::Ref,
 };
 use bevy_hierarchy::{Children, Parent};
-use bevy_log::{warn, debug};
+use bevy_log::{debug, warn};
 use bevy_math::{Affine3A, Vec2};
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 use bevy_render::view::{ComputedVisibility, Visibility};
@@ -140,8 +140,10 @@ impl bevy_ecs::world::FromWorld for UiSurface {
                 ..Default::default()
             })
             .id();
-        debug!("Spawned default layout bundle: {default_layout_entity:?} (taffy: {default_layout:?}");
-        
+        debug!(
+            "Spawned default layout bundle: {default_layout_entity:?} (taffy: {default_layout:?}"
+        );
+
         Self {
             entity_to_taffy: Default::default(),
             taffy_to_entity: Default::default(),
@@ -159,14 +161,14 @@ impl bevy_ecs::world::FromWorld for UiSurface {
 
 impl UiSurface {
     fn insert_lookup(&mut self, entity: Entity, node: taffy::node::Node) {
-        debug!("inserting lookup {entity:?} -> {node:?}");        
+        debug!("inserting lookup {entity:?} -> {node:?}");
         if let Some(old_key) = self.entity_to_taffy.insert(entity, node) {
             debug!("\tremoving {old_key:?}");
             self.taffy.remove(old_key).ok();
             self.taffy_to_entity.remove(&old_key);
             self.taffy_to_entity.insert(node, entity);
         }
-    } 
+    }
 
     fn insert_ui_layout(&mut self, layout_entity: Entity, order: i32) -> taffy::node::Node {
         debug!("insert ui layout {layout_entity:?}");
@@ -180,7 +182,7 @@ impl UiSurface {
         self.insert_lookup(layout_entity, layout_node);
         layout_node
     }
-    
+
     fn update_style(
         &mut self,
         taffy_node: taffy::node::Node,
@@ -243,7 +245,7 @@ without UI components as a child of an entity with UI components, results may be
 
     /// Update the size of each layout node to match the size of the window.
     fn update_layout_nodes(&mut self, size: Vec2) {
-        let taffy = &mut self.taffy; 
+        let taffy = &mut self.taffy;
         for UiLayout { taffy_root, .. } in &self.ui_layouts {
             debug!("Update layout node: {taffy_root:?}, res: {size}");
             taffy
@@ -272,7 +274,7 @@ without UI components as a child of an entity with UI components, results may be
                 .iter()
                 .map(|e| *self.entity_to_taffy.get(e).unwrap())
                 .collect::<Vec<taffy::node::Node>>();
-            for (e, n) in childs.iter().zip(child_nodes.iter()){
+            for (e, n) in childs.iter().zip(child_nodes.iter()) {
                 debug!("\t{e:?} -> {n:?}");
             }
             self.taffy.set_children(node, &child_nodes).unwrap();
@@ -345,7 +347,6 @@ pub enum LayoutError {
     InvalidHierarchy,
     TaffyError(taffy::error::TaffyError),
 }
-
 
 pub fn sort_children_by_node_order_system(
     mut sorted: Local<HashSet<Entity>>,
@@ -509,12 +510,10 @@ pub fn update_ui_layouts_system(
     // update layout nodes so their size matches the size of the primary window
     ui_surface.update_layout_nodes(layout_context.physical_size);
 
-    
     // sort layouts by order
     ui_surface
         .ui_layouts
         .sort_by_key(|UiLayout { order, .. }| *order);
-
 
     // update orphaned nodes as children of the default layout (for now assuming all Nodes live in the primary window)
     ui_surface.set_default_layout_children(orphaned_node_query.iter());
@@ -552,11 +551,8 @@ pub fn update_nodes(
         physical_to_logical_factor: f64,
         order: &mut u32,
     ) {
-        if let Ok((
-            node, 
-            mut node_size,
-            mut transform, 
-            mut z_index)) = node_geometry_query.get_mut(node_entity)
+        if let Ok((node, mut node_size, mut transform, mut z_index)) =
+            node_geometry_query.get_mut(node_entity)
         {
             z_index.0 = *order;
             *order += 1;
@@ -618,7 +614,6 @@ pub fn update_nodes(
     std::mem::swap(&mut ui_surface.ui_layouts, &mut layouts);
     std::mem::swap(&mut ui_surface.layout_children, &mut layout_children);
 }
-
 
 #[cfg(test)]
 mod tests {

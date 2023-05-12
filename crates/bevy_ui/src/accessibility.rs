@@ -1,6 +1,6 @@
 use crate::{
     prelude::{Button, Label},
-     UiImage, NodeSize, UiTransform,
+    NodeSize, UiImage, UiTransform,
 };
 use bevy_a11y::{
     accesskit::{NodeBuilder, Rect, Role},
@@ -8,7 +8,7 @@ use bevy_a11y::{
 };
 use bevy_app::{App, Plugin, Update};
 use bevy_ecs::{
-    prelude::{Entity, DetectChanges},
+    prelude::{DetectChanges, Entity},
     query::{Changed, Without},
     system::{Commands, Query},
     world::Ref,
