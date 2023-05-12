@@ -8,6 +8,7 @@ use bevy_render::{
     color::Color,
     texture::{Image, DEFAULT_IMAGE_HANDLE},
 };
+use bevy_transform::TransformPoint;
 use bevy_transform::prelude::GlobalTransform;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -64,21 +65,22 @@ impl Node {
      /// Check if the given point is inside the bounds of the UI node.
      #[inline]
      pub fn contains_point(&self, global_transform: &GlobalTransform, point: Vec2) -> bool {
-        let inverse = global_transform.affine().inverse();
-        let d = inverse.transform_point3(point.extend(0.));
-        let s = 0.5 * inverse.transform_vector3(self.size().extend(0.));
+        let affine3 = global_transform.affine();
+        let scale = affine3.to_scale_rotation_translation().0.truncate();
+        let d = affine3.inverse().transform_point(point.extend(0.)).truncate() * scale;
+        let s = 0.5 * scale * self.size();
         d.x.abs() <= s.x 
         && 
         d.y.abs() <= s.y
-     }
- 
-     /// Returns the position of the point relative to the node, where x and y values between 0 and 1 are within the node.
-     #[inline]
-     pub fn relative_position(&self, global_transform: &GlobalTransform, point: Vec2) -> Vec2 {
-        let inverse = global_transform.affine().inverse();
-         let d = inverse.transform_point3(point.extend(0.)).truncate();
-         let s = inverse.transform_vector3(self.size().extend(0.)).truncate();
-         d / s + Vec2::splat(0.5)
+    }
+
+    /// Returns the position of the point relative to the node, where x and y values between 0 and 1 are within the node.
+    #[inline]
+    pub fn relative_position(&self, global_transform: &GlobalTransform, point: Vec2) -> Vec2 {
+    let inverse = global_transform.affine().inverse();
+        let d = inverse.transform_point3(point.extend(0.)).truncate();
+        let s = global_transform.affine().transform_vector3(self.size().extend(0.)).truncate();
+        d / s + Vec2::splat(0.5)
     }
 }
 
