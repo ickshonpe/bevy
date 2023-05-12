@@ -77,9 +77,10 @@ impl Node {
     /// Returns the position of the point relative to the node, where x and y values between 0 and 1 are within the node.
     #[inline]
     pub fn relative_position(&self, global_transform: &GlobalTransform, point: Vec2) -> Vec2 {
-    let inverse = global_transform.affine().inverse();
-        let d = inverse.transform_point3(point.extend(0.)).truncate();
-        let s = global_transform.affine().transform_vector3(self.size().extend(0.)).truncate();
+        let affine3 = global_transform.affine();
+        let scale = affine3.to_scale_rotation_translation().0.truncate();
+        let d = affine3.inverse().transform_point3(point.extend(0.)).truncate();
+        let s = scale * self.size();
         d / s + Vec2::splat(0.5)
     }
 }
