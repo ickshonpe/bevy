@@ -1,5 +1,6 @@
 use crate::{Size, UiRect};
 use bevy_asset::Handle;
+use bevy_derive::Deref;
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
 use bevy_math::{Affine3A, Mat4};
 use bevy_math::{Rect, Vec2};
@@ -14,7 +15,7 @@ use smallvec::SmallVec;
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use thiserror::Error;
 
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect, FromReflect)]
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect, FromReflect, Deref)]
 #[reflect(Component, Default)]
 pub struct UiTransform(pub(crate) Affine3A);
 
@@ -71,6 +72,28 @@ impl NodeSize {
                 (rect.max.y as f64 * scale_factor) as f32,
             ),
         }
+    }
+
+    /// Check if the given point is inside the bounds of the UI node.
+    #[inline]
+    pub fn contains_point(&self, transform: &UiTransform, point: Vec2) -> bool {
+        let d = transform
+            .inverse()
+            .transform_point3(point.extend(0.))
+            .truncate();
+        let s = 0.5 * self.size();
+        d.x.abs() <= s.x && d.y.abs() <= s.y
+    }
+
+    /// Returns the position of the point relative to the node, where x and y values between 0 and 1 are within the node.
+    #[inline]
+    pub fn relative_position(&self, transform: &UiTransform, point: Vec2) -> Vec2 {
+        let d = transform
+            .inverse()
+            .transform_point3(point.extend(0.))
+            .truncate();
+        let s = self.size();
+        d / s + Vec2::splat(0.5)
     }
 }
 
