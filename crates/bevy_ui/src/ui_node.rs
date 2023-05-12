@@ -76,6 +76,7 @@ impl Node {
      pub fn relative_position(&self, global_transform: &GlobalTransform, point: Vec2) -> Vec2 {
          let d = global_transform.affine().inverse().transform_point3(point.extend(0.)).truncate();
          d / self.size() + Vec2::splat(0.5)
+    }
 }
 
 impl Node {
