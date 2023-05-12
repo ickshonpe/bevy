@@ -65,17 +65,18 @@ impl Node {
      #[inline]
      pub fn contains_point(&self, global_transform: &GlobalTransform, point: Vec2) -> bool {
          let d = global_transform.affine().inverse().transform_point3(point.extend(0.));
-         let half_size = self.size() / 2.;
-         d.x.abs() <= half_size.x 
+         let s = 0.5 * global_transform.affine().inverse().transform_vector3(self.size().extend(0.));
+         d.x.abs() <= s.x 
          && 
-         d.y.abs() <= half_size.y
+         d.y.abs() <= s.y
      }
  
      /// Returns the position of the point relative to the node, where x and y values between 0 and 1 are within the node.
      #[inline]
      pub fn relative_position(&self, global_transform: &GlobalTransform, point: Vec2) -> Vec2 {
          let d = global_transform.affine().inverse().transform_point3(point.extend(0.)).truncate();
-         d / self.size() + Vec2::splat(0.5)
+         let s = global_transform.affine().inverse().transform_vector3(self.size().extend(0.)).truncate();
+         d / s + Vec2::splat(0.5)
     }
 }
 
