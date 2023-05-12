@@ -169,22 +169,22 @@ impl Plugin for UiPlugin {
         .add_systems(
             PostUpdate,
             (
-                sort_children_by_node_order
+                sort_children_by_node_order_system
                     .in_set(UiSystem::Order)
                     .before(UiSystem::Layout),
-                update_ui_windows
+                update_ui_windows_system
                     .in_set(UiSystem::Windows)
                     .before(UiSystem::Layout),
-                clean_up_removed_ui_nodes
+                clean_up_removed_ui_nodes_system
                     .in_set(UiSystem::Removal)
                     .before(UiSystem::Insertion),
-                insert_new_ui_nodes
+                insert_new_ui_nodes_system
                     .in_set(UiSystem::Insertion)
                     .before(UiSystem::Children),
-                synchonise_ui_children
+                synchonise_ui_children_system
                     .in_set(UiSystem::Children)
                     .before(UiSystem::Layout),
-                update_ui_layouts
+                update_ui_layouts_system
                     .in_set(UiSystem::Layout)
                     .before(UiSystem::Transforms),
                 update_nodes.in_set(UiSystem::Transforms),
