@@ -14,6 +14,11 @@ use smallvec::SmallVec;
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use thiserror::Error;
 
+#[derive(Component, Debug, Copy, Clone)]
+pub struct TreeNode {
+    pub(crate) key: taffy::node::Node
+}
+
 /// Describes the size of a UI node
 #[derive(Component, Debug, Copy, Clone, Reflect)]
 #[reflect(Component, Default)]
