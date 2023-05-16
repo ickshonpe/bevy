@@ -597,13 +597,8 @@ pub fn update_nodes(
 
     let mut order: u32 = 0;
 
-    let mut layouts = vec![];
-    let mut layout_children = HashMap::default();
-    std::mem::swap(&mut ui_surface.data.ui_layouts, &mut layouts);
-    std::mem::swap(&mut ui_surface.data.layout_children, &mut layout_children);
-
-    for UiLayout { taffy_root, .. } in layouts.iter() {
-        for child in layout_children.get(taffy_root).unwrap() {
+    for UiLayout { taffy_root, .. } in ui_surface.data.ui_layouts.iter() {
+        for child in ui_surface.data.layout_children.get(taffy_root).unwrap() {
             update_node_geometry_recursively(
                 &ui_surface,
                 Affine3A::default(),
@@ -615,9 +610,6 @@ pub fn update_nodes(
             );
         }
     }
-
-    std::mem::swap(&mut ui_surface.data.ui_layouts, &mut layouts);
-    std::mem::swap(&mut ui_surface.data.layout_children, &mut layout_children);
 }
 
 #[cfg(test)]
