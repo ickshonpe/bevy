@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug_output;
 
-use crate::{ContentSize, NodeOrder, NodeSize, Style, UiScale, UiTransform, ZIndex};
+use crate::{ContentSize, NodeOrder, NodeSize, Style, UiScale, ZIndex, NodePosition};
 use bevy_derive::{DerefMut, Deref};
 use bevy_ecs::{
     change_detection::DetectChanges,
@@ -17,7 +17,7 @@ use bevy_ecs::{
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::{debug, warn};
-use bevy_math::{Affine3A, Vec2};
+use bevy_math::Vec2;
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 use bevy_render::view::{ComputedVisibility, Visibility};
 use bevy_transform::{components::Transform, prelude::GlobalTransform};
@@ -534,10 +534,10 @@ pub fn update_ui_layouts_system(
 }
 
 pub fn update_nodes_iteratively(
-    mut stack: Local<Vec<(Entity, Affine3A, Vec2)>>,
-    mut ui_surface: UiSurface,
+    mut stack: Local<Vec<(Entity, Vec2)>>,
+    ui_surface: UiSurface,
     ui_context: Res<UiContext>,
-    mut node_geometry_query: Query<(&NodeKey, &mut NodeSize, &mut UiTransform, &mut ZIndex)>,
+    mut node_geometry_query: Query<(&NodeKey, &mut NodeSize, &mut NodePosition, &mut ZIndex)>,
     just_children_query: Query<&Children>,
 ) {
     let Some(physical_to_logical_factor) = ui_context
@@ -554,11 +554,10 @@ pub fn update_nodes_iteratively(
 
     for UiLayout { taffy_root, .. } in ui_surface.data.ui_layouts.iter() {
         for child in ui_surface.data.layout_children.get(taffy_root).unwrap() {
-            stack.push((*child, Affine3A::default(), Vec2::default()));
+            stack.push((*child, Vec2::ZERO));
 
-            while let Some((node_entity, inherited_transform, parent_size)) = stack.pop() {
-                if let Ok((node, mut node_size, mut transform, mut z_index)) =
-                    node_geometry_query.get_mut(node_entity)
+            while let Some((node_entity, inherited_position)) = stack.pop() {
+                if let Ok((node, mut node_size, mut position, mut z_index)) = node_geometry_query.get_mut(node_entity)
                 {
                     z_index.0 = order;
                     order += 1;
@@ -567,23 +566,20 @@ pub fn update_nodes_iteratively(
                         (layout.size.width as f64 * physical_to_logical_factor) as f32,
                         (layout.size.height as f64 * physical_to_logical_factor) as f32,
                     );
-                    let half_size = (0.5 * new_size).extend(0.);
+                    let half_size = 0.5 * new_size;
                     if node_size.calculated_size != new_size {
                         node_size.calculated_size = new_size;
                     }
-                    let new_position = Vec2::new(
+                    position.0 = inherited_position + half_size + Vec2::new(
                         (layout.location.x as f64 * physical_to_logical_factor) as f32,
                         (layout.location.y as f64 * physical_to_logical_factor) as f32,
                     );
 
-                    transform.0 = inherited_transform
-                        * Affine3A::from_translation(new_position.extend(0.) + half_size);
-
                     if let Ok(children) = just_children_query.get(node_entity) {
-                        let next_transform = transform.0 * Affine3A::from_translation(-half_size);
+                
                         // Push the children nodes onto the stack.
                         for child in children {
-                            stack.push((*child, next_transform, node_size.calculated_size));
+                            stack.push((*child, position.0 - half_size));
                         }
                     }
                 }
@@ -595,7 +591,7 @@ pub fn update_nodes_iteratively(
 pub fn update_nodes_recursively(
     mut ui_surface: UiSurface,
     ui_context: Res<UiContext>,
-    mut node_geometry_query: Query<(&NodeKey, &mut NodeSize, &mut UiTransform, &mut ZIndex)>,
+    mut node_geometry_query: Query<(&NodeKey, &mut NodeSize, &mut NodePosition, &mut ZIndex)>,
     just_children_query: Query<&Children>,
 ) {
     let Some(physical_to_logical_factor) = ui_context
@@ -608,14 +604,14 @@ pub fn update_nodes_recursively(
 
     fn update_node_geometry_recursively(
         ui_surface: &UiSurface,
-        inherited_transform: Affine3A,
+        inherited_position: Vec2,
         node_entity: Entity,
-        node_geometry_query: &mut Query<(&NodeKey, &mut NodeSize, &mut UiTransform, &mut ZIndex)>,
+        node_geometry_query: &mut Query<(&NodeKey, &mut NodeSize, &mut NodePosition, &mut ZIndex)>,
         children_query: &Query<&Children>,
         physical_to_logical_factor: f64,
         order: &mut u32,
     ) {
-        if let Ok((node, mut node_size, mut transform, mut z_index)) =
+        if let Ok((node, mut node_size, mut node_position, mut z_index)) =
             node_geometry_query.get_mut(node_entity)
         {
             z_index.0 = *order;
@@ -625,24 +621,21 @@ pub fn update_nodes_recursively(
                 (layout.size.width as f64 * physical_to_logical_factor) as f32,
                 (layout.size.height as f64 * physical_to_logical_factor) as f32,
             );
-            let half_size = (0.5 * new_size).extend(0.);
+            let half_size = 0.5 * new_size;
             if node_size.calculated_size != new_size {
                 node_size.calculated_size = new_size;
             }
-            let new_position = Vec2::new(
+            node_position.0 = inherited_position + half_size + Vec2::new(
                 (layout.location.x as f64 * physical_to_logical_factor) as f32,
                 (layout.location.y as f64 * physical_to_logical_factor) as f32,
             );
 
-            transform.0 = inherited_transform
-                * Affine3A::from_translation(new_position.extend(0.) + half_size);
-
             if let Ok(children) = children_query.get(node_entity) {
-                let next_transform = transform.0 * Affine3A::from_translation(-half_size);
+                let next_position = node_position.0 - half_size;
                 for child in children {
                     update_node_geometry_recursively(
                         ui_surface,
-                        next_transform,
+                        next_position,
                         *child,
                         node_geometry_query,
                         children_query,
@@ -660,7 +653,7 @@ pub fn update_nodes_recursively(
         for child in ui_surface.data.layout_children.get(taffy_root).unwrap() {
             update_node_geometry_recursively(
                 &ui_surface,
-                Affine3A::default(),
+                Vec2::ZERO,
                 *child,
                 &mut node_geometry_query,
                 &just_children_query,

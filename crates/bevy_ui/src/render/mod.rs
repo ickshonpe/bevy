@@ -8,8 +8,8 @@ use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
 pub use render_pass::*;
 
-use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, NodeSize, UiImage};
-use crate::{UiTransform, ZIndex};
+use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, NodeSize, UiImage, NodePosition};
+use crate::ZIndex;
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
@@ -168,7 +168,7 @@ pub fn extract_uinodes(
     uinode_query: Extract<
         Query<(
             &NodeSize,
-            &UiTransform,
+            &NodePosition,
             &BackgroundColor,
             Option<&UiImage>,
             &ComputedVisibility,
@@ -178,7 +178,7 @@ pub fn extract_uinodes(
     >,
 ) {
     extracted_uinodes.uinodes.clear();
-    for (uinode, transform, color, maybe_image, visibility, clip, &ZIndex(z_index)) in
+    for (uinode, position, color, maybe_image, visibility, clip, &ZIndex(z_index)) in
         uinode_query.iter()
     {
         // Skip invisible and completely transparent nodes
@@ -198,7 +198,7 @@ pub fn extract_uinodes(
 
         extracted_uinodes.uinodes.push(ExtractedUiNode {
             z_index,
-            transform: transform.compute_matrix(),
+            transform: Mat4::from_translation(position.0.extend(0.)),
             color: color.0,
             rect: Rect {
                 min: Vec2::ZERO,
@@ -279,7 +279,7 @@ pub fn extract_text_uinodes(
     uinode_query: Extract<
         Query<(
             &NodeSize,
-            &UiTransform,
+            &NodePosition,
             &Text,
             &TextLayoutInfo,
             &ComputedVisibility,
@@ -296,15 +296,15 @@ pub fn extract_text_uinodes(
 
     let inverse_scale_factor = scale_factor.recip();
 
-    for (uinode, global_transform, text, text_layout_info, visibility, clip, &ZIndex(z_index)) in
+    for (node_size, node_position, text, text_layout_info, visibility, clip, &ZIndex(z_index)) in
         uinode_query.iter()
     {
         // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
-        if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
+        if !visibility.is_visible() || node_size.size().x == 0. || node_size.size().y == 0. {
             continue;
         }
-        let transform = global_transform.compute_matrix()
-            * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
+        
+        let top_left = node_position.0 - 0.5 * node_size.calculated_size;
 
         let mut color = Color::WHITE;
         let mut current_section = usize::MAX;
@@ -326,8 +326,7 @@ pub fn extract_text_uinodes(
             rect.max *= inverse_scale_factor;
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 z_index,
-                transform: transform
-                    * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
+                transform: Mat4::from_translation(top_left.extend(0.) + position.extend(0.) * inverse_scale_factor),
                 color,
                 rect,
                 image: atlas.texture.clone_weak(),

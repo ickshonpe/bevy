@@ -2,7 +2,6 @@ use crate::{Size, UiRect};
 use bevy_asset::Handle;
 use bevy_derive::Deref;
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
-use bevy_math::{Affine3A, Mat4};
 use bevy_math::{Rect, Vec2};
 use bevy_reflect::prelude::*;
 use bevy_reflect::ReflectFromReflect;
@@ -15,17 +14,11 @@ use smallvec::SmallVec;
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use thiserror::Error;
 
+/// The logical position of the node in the layout
+/// automatically calculated
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect, FromReflect, Deref)]
 #[reflect(Component, Default)]
-pub struct UiTransform(pub(crate) Affine3A);
-
-impl UiTransform {
-    /// Returns the 3d affine transformation matrix as a [`Mat4`].
-    #[inline]
-    pub fn compute_matrix(&self) -> Mat4 {
-        Mat4::from(self.0)
-    }
-}
+pub struct NodePosition(pub (crate) Vec2);
 
 /// Describes the size of a UI node
 #[derive(Component, Debug, Copy, Clone, Reflect)]
@@ -43,10 +36,10 @@ impl NodeSize {
         self.calculated_size
     }
 
-    /// Returns the logical pixel coordinates of the UI node, based on its [`UiTransform`].
+    /// Returns the logical pixel coordinates of the UI node, based on its [`NodePosition`].
     #[inline]
-    pub fn logical_rect(&self, transform: &UiTransform) -> Rect {
-        Rect::from_center_size(transform.0.translation.truncate(), self.size())
+    pub fn logical_rect(&self, position: NodePosition) -> Rect {
+        Rect::from_center_size(*position, self.size())
     }
 
     /// Returns the size of the node in physical pixels based on the given scale factor.
@@ -58,9 +51,9 @@ impl NodeSize {
         )
     }
 
-    /// Returns the physical pixel coordinates of the UI node, based on its [`GlobalTransform`] and the scale factor.
+    /// Returns the physical pixel coordinates of the UI node, based on its [`NodePosition`] and the scale factor.
     #[inline]
-    pub fn physical_rect(&self, transform: &UiTransform, scale_factor: f64) -> Rect {
+    pub fn physical_rect(&self, transform: NodePosition, scale_factor: f64) -> Rect {
         let rect = self.logical_rect(transform);
         Rect {
             min: Vec2::new(
@@ -76,22 +69,16 @@ impl NodeSize {
 
     /// Check if the given point is inside the bounds of the UI node.
     #[inline]
-    pub fn contains_point(&self, transform: &UiTransform, point: Vec2) -> bool {
-        let d = transform
-            .inverse()
-            .transform_point3(point.extend(0.))
-            .truncate();
+    pub fn contains_point(&self, node_position: NodePosition, point: Vec2) -> bool {
+        let d = (*node_position - point).abs();
         let s = 0.5 * self.size();
-        d.x.abs() <= s.x && d.y.abs() <= s.y
+        d.x <= s.x && d.y <= s.y
     }
 
     /// Returns the position of the point relative to the node, where x and y values between 0 and 1 are within the node.
     #[inline]
-    pub fn relative_position(&self, transform: &UiTransform, point: Vec2) -> Vec2 {
-        let d = transform
-            .inverse()
-            .transform_point3(point.extend(0.))
-            .truncate();
+    pub fn relative_position(&self, position: NodePosition, point: Vec2) -> Vec2 {
+        let d = (*position - point).abs();
         let s = self.size();
         d / s + Vec2::splat(0.5)
     }

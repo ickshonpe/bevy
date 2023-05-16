@@ -3,7 +3,7 @@
 use crate::{
     widget::{Button, TextFlags, UiImageSize},
     BackgroundColor, ContentSize, FocusPolicy, Interaction, NodeKey, NodeOrder, NodeSize, Style,
-    UiImage, UiTransform, ZIndex,
+    UiImage, ZIndex, NodePosition,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_render::{
@@ -29,11 +29,7 @@ pub struct NodeBundle {
     pub background_color: BackgroundColor,
     /// Whether this node should block interaction with lower nodes
     pub focus_policy: FocusPolicy,
-    /// The global transform of the node
-    ///
-    /// This field is automatically managed by the UI layout system.
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub ui_transform: UiTransform,
+    pub node_position: NodePosition,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Algorithmically-computed indication of whether an entity is visible and should be extracted for rendering
@@ -52,7 +48,7 @@ impl Default for NodeBundle {
             node_size: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
-            ui_transform: Default::default(),
+            node_position: Default::default(),
             visibility: Default::default(),
             computed_visibility: Default::default(),
             z_index: Default::default(),
@@ -93,7 +89,7 @@ pub struct ImageBundle {
     ///
     /// This field is automatically managed by the UI layout system.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub ui_transform: UiTransform,
+    pub node_position: NodePosition,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Algorithmically-computed indication of whether an entity is visible and should be extracted for rendering
@@ -129,7 +125,7 @@ pub struct TextBundle {
     ///
     /// This field is automatically managed by the UI layout system.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub ui_transform: UiTransform,
+    pub node_position: NodePosition,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Algorithmically-computed indication of whether an entity is visible and should be extracted for rendering
@@ -155,7 +151,7 @@ impl Default for TextBundle {
             node_size: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
-            ui_transform: Default::default(),
+            node_position: Default::default(),
             visibility: Default::default(),
             computed_visibility: Default::default(),
             z_index: Default::default(),
@@ -231,7 +227,7 @@ pub struct ButtonBundle {
     ///
     /// This field is automatically managed by the UI layout system.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub ui_transform: UiTransform,
+    pub node_position: NodePosition,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Algorithmically-computed indication of whether an entity is visible and should be extracted for rendering
@@ -252,7 +248,7 @@ impl Default for ButtonBundle {
             interaction: Default::default(),
             background_color: Default::default(),
             image: Default::default(),
-            ui_transform: Default::default(),
+            node_position: Default::default(),
             visibility: Default::default(),
             computed_visibility: Default::default(),
             z_index: Default::default(),

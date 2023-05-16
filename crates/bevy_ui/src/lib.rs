@@ -35,7 +35,7 @@ pub mod prelude {
     #[doc(hidden)]
     pub use crate::{
         camera_config::*, geometry::*, node_bundles::*, ui_node::*, widget::Button, widget::Label,
-        Interaction, UiLayoutBundle, UiLayoutData, UiLayoutOrder, UiScale, UiTransform,
+        Interaction, UiLayoutBundle, UiLayoutData, UiLayoutOrder, UiScale, NodePosition,
     };
 }
 
@@ -123,7 +123,7 @@ impl Plugin for UiPlugin {
             .register_type::<Val>()
             .register_type::<widget::Button>()
             .register_type::<widget::Label>()
-            .register_type::<UiTransform>()
+            .register_type::<NodePosition>()
             .register_type::<UiLayoutData>()
             .register_type::<UiLayoutOrder>()
             .register_type::<NodeKey>()
