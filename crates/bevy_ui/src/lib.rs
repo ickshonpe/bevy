@@ -187,7 +187,8 @@ impl Plugin for UiPlugin {
                 update_ui_layouts_system
                     .in_set(UiSystem::Layout)
                     .before(UiSystem::Transforms),
-                update_nodes.in_set(UiSystem::Transforms),
+                update_nodes_iteratively.in_set(UiSystem::Transforms),
+                //update_nodes_recursively.in_set(UiSystem::Transforms),
                 update_clipping_system.after(TransformSystem::TransformPropagate),
             ),
         );

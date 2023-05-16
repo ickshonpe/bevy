@@ -533,7 +533,66 @@ pub fn update_ui_layouts_system(
     ui_surface.compute_all_layouts();
 }
 
-pub fn update_nodes(
+pub fn update_nodes_iteratively(
+    mut stack: Local<Vec<(Entity, Affine3A, Vec2)>>,
+    mut ui_surface: UiSurface,
+    ui_context: Res<UiContext>,
+    mut node_geometry_query: Query<(&NodeKey, &mut NodeSize, &mut UiTransform, &mut ZIndex)>,
+    just_children_query: Query<&Children>,
+) {
+    let Some(physical_to_logical_factor) = ui_context
+        .0
+        .as_ref()
+        .map(|context|  context.physical_to_logical_factor)
+    else {
+        return;
+    };
+
+    stack.clear();
+
+    let mut order: u32 = 0;
+
+    for UiLayout { taffy_root, .. } in ui_surface.data.ui_layouts.iter() {
+        for child in ui_surface.data.layout_children.get(taffy_root).unwrap() {
+            stack.push((*child, Affine3A::default(), Vec2::default()));
+
+            while let Some((node_entity, inherited_transform, parent_size)) = stack.pop() {
+                if let Ok((node, mut node_size, mut transform, mut z_index)) =
+                    node_geometry_query.get_mut(node_entity)
+                {
+                    z_index.0 = order;
+                    order += 1;
+                    let layout = ui_surface.taffy.layout(node.key).unwrap();
+                    let new_size = Vec2::new(
+                        (layout.size.width as f64 * physical_to_logical_factor) as f32,
+                        (layout.size.height as f64 * physical_to_logical_factor) as f32,
+                    );
+                    let half_size = (0.5 * new_size).extend(0.);
+                    if node_size.calculated_size != new_size {
+                        node_size.calculated_size = new_size;
+                    }
+                    let new_position = Vec2::new(
+                        (layout.location.x as f64 * physical_to_logical_factor) as f32,
+                        (layout.location.y as f64 * physical_to_logical_factor) as f32,
+                    );
+
+                    transform.0 = inherited_transform
+                        * Affine3A::from_translation(new_position.extend(0.) + half_size);
+
+                    if let Ok(children) = just_children_query.get(node_entity) {
+                        let next_transform = transform.0 * Affine3A::from_translation(-half_size);
+                        // Push the children nodes onto the stack.
+                        for child in children {
+                            stack.push((*child, next_transform, node_size.calculated_size));
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn update_nodes_recursively(
     mut ui_surface: UiSurface,
     ui_context: Res<UiContext>,
     mut node_geometry_query: Query<(&NodeKey, &mut NodeSize, &mut UiTransform, &mut ZIndex)>,
