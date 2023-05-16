@@ -89,7 +89,6 @@ impl Default for UiScale {
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(ExtractComponentPlugin::<UiCameraConfig>::default())
-            .init_resource::<UiSurface>()
             .init_resource::<UiScale>()
             .init_resource::<UiContext>()
             .register_type::<AlignContent>()
@@ -166,6 +165,7 @@ impl Plugin for UiPlugin {
 
             system
         })
+        .add_systems(Startup, ui_setup_system)
         .add_systems(
             PostUpdate,
             (

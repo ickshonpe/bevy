@@ -8,7 +8,7 @@ use taffy::tree::LayoutTree;
 /// Prints a debug representation of the computed layout of the UI layout tree for each window.
 pub fn print_ui_layout_tree(ui_surface: &UiSurface) {
     let taffy_to_entity: HashMap<Node, Entity> = ui_surface
-        .entity_to_taffy
+        .data.entity_to_taffy
         .iter()
         .map(|(entity, node)| (*node, *entity))
         .collect();
@@ -16,7 +16,7 @@ pub fn print_ui_layout_tree(ui_surface: &UiSurface) {
         layout_entity,
         taffy_root,
         ..
-    } in ui_surface.ui_layouts.iter()
+    } in ui_surface.data.ui_layouts.iter()
     {
         let mut out = String::new();
         write_tree(
