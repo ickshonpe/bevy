@@ -16,7 +16,7 @@ use bevy_ecs::{
     world::Ref,
 };
 use bevy_hierarchy::{Children, Parent};
-use bevy_log::{debug, warn};
+use bevy_log::{debug, warn, trace};
 use bevy_math::Vec2;
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 use bevy_render::view::{ComputedVisibility, Visibility};
@@ -100,7 +100,6 @@ pub struct UiLayout {
 pub struct UiData {
     /// Ui Node entity to taffy layout tree node lookup map
     entity_to_taffy: HashMap<Entity, taffy::node::Node>,
-    taffy_to_entity: HashMap<taffy::node::Node, Entity>,
     /// default layout node, orphaned Ui entities attach to here
     default_layout: Option<taffy::node::Node>,
     /// contains data for each distinct ui layout
@@ -147,7 +146,6 @@ pub fn ui_setup_system(
         
         commands.insert_resource(UiData {
             entity_to_taffy: Default::default(),
-            taffy_to_entity: Default::default(),
             default_layout: Some(default_layout),
             ui_layouts: vec![UiLayout {
                 layout_entity: default_layout_entity,
@@ -162,12 +160,10 @@ pub fn ui_setup_system(
 
 impl <'w, 's> UiSurface<'w, 's> {
     fn insert_lookup(&mut self, entity: Entity, node: taffy::node::Node) {
-        debug!("inserting lookup {entity:?} -> {node:?}");
+        trace!("inserting lookup {entity:?} -> {node:?}");
         if let Some(old_key) = self.data.entity_to_taffy.insert(entity, node) {
-            debug!("\tremoving {old_key:?}");
+            trace!("\tremoving {old_key:?}");
             self.taffy.remove(old_key).ok();
-            self.data.taffy_to_entity.remove(&old_key);
-            self.data.taffy_to_entity.insert(node, entity);
         }
     }
 
@@ -190,7 +186,7 @@ impl <'w, 's> UiSurface<'w, 's> {
         style: &Style,
         context: &LayoutContext,
     ) {
-        debug!("Update style -> {taffy_node:?}");
+        trace!("Update style -> {taffy_node:?}");
         self.taffy
             .set_style(taffy_node, convert::from_style(context, style))
             .ok();
@@ -202,7 +198,7 @@ impl <'w, 's> UiSurface<'w, 's> {
         taffy_node: taffy::node::Node,
         measure_func: taffy::node::MeasureFunc,
     ) {
-        debug!("Update measure func -> {taffy_node:?}");
+        trace!("Update measure func -> {taffy_node:?}");
         self.taffy.set_measure(taffy_node, Some(measure_func)).ok();
     }
 
@@ -228,18 +224,18 @@ without UI components as a child of an entity with UI components, results may be
 
     /// Removes children from the entity's taffy node if it exists. Does nothing otherwise.
     fn try_remove_children(&mut self, entity: Entity) {
-        debug!("try remove corresponding taffy children for {entity:?}");
+        trace!("try remove corresponding taffy children for {entity:?}");
         if let Some(taffy_node) = self.data.entity_to_taffy.get(&entity) {
-            debug!("\ttaffy_node found: {taffy_node:?}");
+            trace!("\ttaffy_node found: {taffy_node:?}");
             self.taffy.set_children(*taffy_node, &[]).unwrap();
-            debug!("\tremoved all children");
+            trace!("\tremoved all children");
         }
     }
 
     /// Removes the measure from the entity's taffy node if it exists. Does nothing otherwise.
     fn try_remove_measure(&mut self, entity: Entity) {
         if let Some(taffy_node) = self.data.entity_to_taffy.get(&entity) {
-            debug!("Try remove measure for {entity:?}");
+            trace!("Try remove measure for {entity:?}");
             self.taffy.set_measure(*taffy_node, None).unwrap();
         }
     }
@@ -358,6 +354,7 @@ pub fn sort_children_by_node_order_system(
     order_query: Query<(Ref<NodeOrder>, &Parent)>,
     mut children_query: Query<&mut Children>,
 ) {
+    debug!("sort_children_by_node_order_system");
     sorted.clear();
     for (order, parent) in order_query.iter() {
         if order.is_changed() && !sorted.contains(&parent.get()) {
@@ -371,6 +368,7 @@ pub fn sort_children_by_node_order_system(
                 });
         }
     }
+    debug!("sort_children_by_node_order_system finished");
 }
 
 /// Remove the corresponding taffy node for any entity that has its `Node` component removed.
@@ -379,6 +377,7 @@ pub fn clean_up_removed_ui_nodes_system(
     mut removed_nodes: RemovedComponents<NodeKey>,
     mut removed_calculated_sizes: RemovedComponents<ContentSize>,
 ) {
+    debug!("clean_up_removed_ui_nodes_system");
     // clean up removed nodes
     ui_surface.remove_nodes(removed_nodes.iter());
 
@@ -386,6 +385,7 @@ pub fn clean_up_removed_ui_nodes_system(
     for entity in removed_calculated_sizes.iter() {
         ui_surface.try_remove_measure(entity);
     }
+    debug!("clean_up_removed_ui_nodes_system finished");
 }
 
 /// Insert a new taffy node into the layout for any entity that had a `Node` component added.
@@ -393,16 +393,19 @@ pub fn insert_new_ui_nodes_system(
     mut ui_surface: UiSurface,
     mut new_node_query: Query<(Entity, &mut NodeKey), Added<NodeKey>>,
 ) {
+    debug!("insert_new_ui_nodes_system");
     for (entity, mut node) in new_node_query.iter_mut() {
         node.key = ui_surface
             .taffy
             .new_leaf(taffy::style::Style::DEFAULT)
             .unwrap();
+        trace!("\tInserted new taffy leaf: {:?} => {:?}", entity, node.key);
         // if let Some(old_key) = ui_surface.entity_to_taffy.insert(entity, node.key) {
         //     ui_surface.taffy.remove(old_key).ok();
         // }
         ui_surface.insert_lookup(entity, node.key);
     }
+    debug!("\tinsert_new_ui_nodes_system finished");
 }
 
 /// Synchonise the Bevy and Taffy Parent-Children trees
@@ -411,6 +414,7 @@ pub fn synchonise_ui_children_system(
     mut removed_children: RemovedComponents<Children>,
     children_query: Query<(&NodeKey, Ref<Children>)>,
 ) {
+    debug!("synchonise_ui_children_system");
     // Iterate through all entities with a removed `Children` component and if they have a corresponding Taffy node, remove their children from the Taffy tree.
     for entity in removed_children.iter() {
         ui_surface.try_remove_children(entity);
@@ -422,6 +426,7 @@ pub fn synchonise_ui_children_system(
             ui_surface.update_children(node.key, &children);
         }
     }
+    debug!("synchonise_ui_children_system finished");
 }
 
 pub fn update_ui_windows_system(
@@ -431,6 +436,7 @@ pub fn update_ui_windows_system(
     mut ui_context: ResMut<UiContext>,
     mut scale_factor_events: EventReader<WindowScaleFactorChanged>,
 ) {
+    debug!("update_ui_windows_system");
     // assume one window for time being...
     // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621
     let (primary_window_entity, logical_to_physical_factor, window_physical_size) =
@@ -459,6 +465,7 @@ pub fn update_ui_windows_system(
     let scale_factor = logical_to_physical_factor * ui_scale.scale;
     let context = LayoutContext::new(scale_factor, window_physical_size, require_full_update);
     ui_context.0 = Some(context);
+    debug!("update_ui_windows_system finished");
 }
 
 /// Updates the UI's layout tree, computes the new layout geometry and then updates the sizes and transforms of all the UI nodes.
@@ -476,12 +483,13 @@ pub fn update_ui_layouts_system(
         Without<NodeSize>,
     >,
 ) {
+    debug!("update_ui_layouts_system");
     let Some(ref layout_context) = ui_context.0 else {
         return
     };
 
     if layout_context.require_full_update {
-        // update all nodes
+        // update all nodes        
         for (node, style) in full_style_query.iter() {
             ui_surface.update_style(node.key, style, layout_context);
         }
@@ -531,6 +539,7 @@ pub fn update_ui_layouts_system(
 
     // compute layouts
     ui_surface.compute_all_layouts();
+    debug!("update_ui_layouts_system finished");
 }
 
 pub fn update_nodes_iteratively(
@@ -540,6 +549,7 @@ pub fn update_nodes_iteratively(
     mut node_geometry_query: Query<(&NodeKey, &mut NodeSize, &mut NodePosition, &mut ZIndex)>,
     just_children_query: Query<&Children>,
 ) {
+    debug!("update_nodes_iteratively");
     let Some(physical_to_logical_factor) = ui_context
         .0
         .as_ref()
@@ -586,10 +596,11 @@ pub fn update_nodes_iteratively(
             }
         }
     }
+    debug!("update_nodes_iteratively finished");
 }
 
 pub fn update_nodes_recursively(
-    mut ui_surface: UiSurface,
+    ui_surface: UiSurface,
     ui_context: Res<UiContext>,
     mut node_geometry_query: Query<(&NodeKey, &mut NodeSize, &mut NodePosition, &mut ZIndex)>,
     just_children_query: Query<&Children>,

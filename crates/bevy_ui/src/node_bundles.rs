@@ -36,7 +36,7 @@ pub struct NodeBundle {
     pub computed_visibility: ComputedVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
-    pub node_order: NodeOrder,
+    //pub node_order: NodeOrder,
 }
 
 impl Default for NodeBundle {
@@ -52,7 +52,7 @@ impl Default for NodeBundle {
             visibility: Default::default(),
             computed_visibility: Default::default(),
             z_index: Default::default(),
-            node_order: Default::default(),
+            //node_order: Default::default(),
         }
     }
 }
@@ -96,7 +96,7 @@ pub struct ImageBundle {
     pub computed_visibility: ComputedVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
-    pub node_order: NodeOrder,
+    //pub node_order: NodeOrder,
 }
 
 #[cfg(feature = "bevy_text")]
@@ -134,7 +134,7 @@ pub struct TextBundle {
     pub z_index: ZIndex,
     /// The background color that will fill the containing node
     pub background_color: BackgroundColor,
-    pub node_order: NodeOrder,
+    //pub node_order: NodeOrder,
 }
 
 #[cfg(feature = "bevy_text")]
@@ -155,7 +155,7 @@ impl Default for TextBundle {
             visibility: Default::default(),
             computed_visibility: Default::default(),
             z_index: Default::default(),
-            node_order: Default::default(),
+            //node_order: Default::default(),
         }
     }
 }
@@ -234,7 +234,7 @@ pub struct ButtonBundle {
     pub computed_visibility: ComputedVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
-    pub node_order: NodeOrder,
+    //pub node_order: NodeOrder,
 }
 
 impl Default for ButtonBundle {
@@ -252,7 +252,7 @@ impl Default for ButtonBundle {
             visibility: Default::default(),
             computed_visibility: Default::default(),
             z_index: Default::default(),
-            node_order: Default::default(),
+            //node_order: Default::default(),
         }
     }
 }
