@@ -177,8 +177,8 @@ fn setup(mut commands: Commands) {
 fn update_ordered_buttons(
     primary_window_query: Query<&Window, With<PrimaryWindow>>,
     mut button_query: Query<(
-        &Node,
-        &GlobalTransform,
+        &NodeSize,
+        &NodePosition,
         &OrderedButton,
         &mut BackgroundColor,
         &Children,
@@ -196,12 +196,12 @@ fn update_ordered_buttons(
         n -= 1;
     }
     let cursor_position = primary_window_query.single().cursor_position();
-    for (node, global_transform, ordered_button, mut background_color, children, parent) in
+    for (node, node_position, ordered_button, mut background_color, children, parent) in
         &mut button_query
     {
         if cursor_position
             .map(|cursor_position| {
-                Rect::from_center_size(global_transform.translation().truncate(), node.size())
+                Rect::from_center_size(node_position.get(), node.size())
                     .contains(cursor_position)
             })
             .unwrap_or(false)

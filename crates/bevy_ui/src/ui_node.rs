@@ -20,6 +20,12 @@ use thiserror::Error;
 #[reflect(Component, Default)]
 pub struct NodePosition(pub (crate) Vec2);
 
+impl NodePosition {
+    pub fn get(&self) -> Vec2 {
+        self.0
+    }
+}
+
 /// Describes the size of a UI node
 #[derive(Component, Debug, Copy, Clone, Reflect)]
 #[reflect(Component, Default)]

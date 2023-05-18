@@ -509,7 +509,7 @@ pub fn update_ui_layouts_system(
     changed_order_query: Query<&Parent, (Changed<NodeOrder>, With<NodeSize>)>,
     node_order_query: Query<&NodeOrder>,
     mut removed_children: RemovedComponents<Children>,
-    mut children_query: Query<(&NodeKey, &mut Children)>,
+    mut children_query: Query<(&NodeKey, &mut Children), With<NodeSize>>,
 ) {
     debug!("update_ui_layouts_system");
     let Some(ref layout_context) = ui_context.0 else {
