@@ -3,6 +3,7 @@ pub mod debug_output;
 
 use crate::{ContentSize, NodeOrder, NodeSize, Style, UiScale, ZIndex, NodePosition};
 use bevy_derive::{DerefMut, Deref};
+use crate::{ContentSize, Node, NodeOrder, Style, UiScale};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -11,6 +12,8 @@ use bevy_ecs::{
     query::Added,
     query::{With, Without},
     reflect::ReflectComponent,
+    prelude::DetectChangesMut,
+    query::{Changed, With, Without},
     removal_detection::RemovedComponents,
     system::{Local, Query, Res, ResMut, Resource, SystemParam, Commands},
     world::Ref,
@@ -349,27 +352,49 @@ pub enum LayoutError {
     TaffyError(taffy::error::TaffyError),
 }
 
-pub fn sort_children_by_node_order_system(
-    mut sorted: Local<HashSet<Entity>>,
-    order_query: Query<(Ref<NodeOrder>, &Parent)>,
-    mut children_query: Query<&mut Children>,
-) {
-    debug!("sort_children_by_node_order_system");
-    sorted.clear();
-    for (order, parent) in order_query.iter() {
-        if order.is_changed() && !sorted.contains(&parent.get()) {
-            children_query
-                .get_mut(parent.get())
-                .unwrap()
-                .sort_by(|c, d| {
-                    let c_ord = order_query.get_component(*c).unwrap_or(&NodeOrder(0)).0;
-                    let d_ord = order_query.get_component(*d).unwrap_or(&NodeOrder(0)).0;
-                    c_ord.cmp(&d_ord)
-                });
-        }
-    }
-    debug!("sort_children_by_node_order_system finished");
-}
+// <<<<<<< HEAD
+// pub fn sort_children_by_node_order_system(
+//     mut sorted: Local<HashSet<Entity>>,
+//     order_query: Query<(Ref<NodeOrder>, &Parent)>,
+//     mut children_query: Query<&mut Children>,
+// =======
+// /// Updates the UI's layout tree, computes the new layout geometry and then updates the sizes and transforms of all the UI nodes.
+// #[allow(clippy::too_many_arguments)]
+// pub fn ui_layout_system(
+//     primary_window: Query<(Entity, &Window), With<PrimaryWindow>>,
+//     windows: Query<(Entity, &Window)>,
+//     ui_scale: Res<UiScale>,
+//     mut scale_factor_events: EventReader<WindowScaleFactorChanged>,
+//     mut resize_events: EventReader<bevy_window::WindowResized>,
+//     mut ui_surface: ResMut<UiSurface>,
+//     root_node_query: Query<(Entity, &NodeOrder), (With<Node>, Without<Parent>)>,
+//     style_query: Query<(Entity, Ref<Style>), With<Node>>,
+//     mut measure_query: Query<(Entity, &mut ContentSize)>,
+//     mut children_query: Query<(Entity, &mut Children), With<Node>>,
+//     mut removed_children: RemovedComponents<Children>,
+//     mut removed_content_sizes: RemovedComponents<ContentSize>,
+//     mut node_transform_query: Query<(Entity, &mut Node, &mut Transform, Option<&Parent>)>,
+//     mut removed_nodes: RemovedComponents<Node>,
+//     changed_order_query: Query<&Parent, Changed<NodeOrder>>,
+//     node_order_query: Query<&NodeOrder>,
+// >>>>>>> node-order
+// ) {
+//     debug!("sort_children_by_node_order_system");
+//     sorted.clear();
+//     for (order, parent) in order_query.iter() {
+//         if order.is_changed() && !sorted.contains(&parent.get()) {
+//             children_query
+//                 .get_mut(parent.get())
+//                 .unwrap()
+//                 .sort_by(|c, d| {
+//                     let c_ord = order_query.get_component(*c).unwrap_or(&NodeOrder(0)).0;
+//                     let d_ord = order_query.get_component(*d).unwrap_or(&NodeOrder(0)).0;
+//                     c_ord.cmp(&d_ord)
+//                 });
+//         }
+//     }
+//     debug!("sort_children_by_node_order_system finished");
+// }
 
 /// Remove the corresponding taffy node for any entity that has its `Node` component removed.
 pub fn clean_up_removed_ui_nodes_system(
@@ -482,6 +507,8 @@ pub fn update_ui_layouts_system(
         (Entity, &mut UiLayoutData, &UiLayoutOrder, Option<&Children>),
         Without<NodeSize>,
     >,
+    changed_order_query: Query<&Parent, (Changed<NodeOrder>, With<Node>)>,
+    node_order_query: Query<&NodeOrder>,
 ) {
     debug!("update_ui_layouts_system");
     let Some(ref layout_context) = ui_context.0 else {
@@ -536,6 +563,33 @@ pub fn update_ui_layouts_system(
             ui_surface.set_layout_children(data.node_key, children);
         }
     }
+
+    // update and remove children
+    for entity in removed_children.iter() {
+        ui_surface.try_remove_children(entity);
+    }
+
+    for parent in changed_order_query.iter() {
+        let (_, mut children) = children_query.get_mut(parent.get()).unwrap();
+        children.set_changed();
+    }
+
+    for (entity, mut children) in children_query.iter_mut() {
+        if children.is_changed() {
+            children.sort_by(|c, d| {
+                let c_ord = node_order_query
+                    .get_component(*c)
+                    .map(|n: &NodeOrder| n.0)
+                    .unwrap_or(0);
+                let d_ord = node_order_query
+                    .get_component(*d)
+                    .map(|n: &NodeOrder| n.0)
+                    .unwrap_or(0);
+                c_ord.cmp(&d_ord)
+            });
+            ui_surface.update_children(entity, &children);
+        }
+    }       
 
     // compute layouts
     ui_surface.compute_all_layouts();

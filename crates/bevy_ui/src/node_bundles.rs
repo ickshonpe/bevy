@@ -4,6 +4,8 @@ use crate::{
     widget::{Button, TextFlags, UiImageSize},
     BackgroundColor, ContentSize, FocusPolicy, Interaction, NodeKey, NodeOrder, NodeSize, Style,
     UiImage, ZIndex, NodePosition,
+    BackgroundColor, ContentSize, FocusPolicy, Interaction, Node, NodeOrder, Style, UiImage,
+    ZIndex,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_render::{
@@ -22,6 +24,8 @@ pub struct NodeBundle {
     pub node: NodeKey,
     /// Describes the logical size of the node
     pub node_size: NodeSize,
+    /// Controls the order in which items are displayed.
+    pub order: NodeOrder,
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
@@ -43,9 +47,10 @@ impl Default for NodeBundle {
     fn default() -> Self {
         NodeBundle {
             // Transparent background
-            background_color: Color::NONE.into(),
             node: Default::default(),
+            background_color: Color::NONE.into(),
             node_size: Default::default(),
+            order: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
             node_position: Default::default(),
@@ -67,7 +72,8 @@ pub struct ImageBundle {
     /// This field is automatically managed by the UI layout system.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
     pub node_size: NodeSize,
-    /// Describes the style including flexbox settings
+    /// Controls the order in which items are displayed.
+    pub order: NodeOrder,
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
@@ -107,7 +113,8 @@ pub struct TextBundle {
     pub node: NodeKey,
     /// Describes the logical size of the node
     pub node_size: NodeSize,
-    /// Describes the style including flexbox settings
+    /// Controls the order in which items are displayed.
+    pub order: NodeOrder,
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
@@ -149,6 +156,7 @@ impl Default for TextBundle {
             // Transparent background
             background_color: BackgroundColor(Color::NONE),
             node_size: Default::default(),
+            order: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
             node_position: Default::default(),
@@ -208,6 +216,8 @@ pub struct ButtonBundle {
     pub node: NodeKey,
     /// Describes the logical size of the node
     pub node_size: NodeSize,
+    /// Controls the order in which items are displayed.
+    pub order: NodeOrder,
     /// Marker component that signals this node is a button
     pub button: Button,
     /// Styles which control the layout (size and position) of the node and it's children
@@ -243,6 +253,7 @@ impl Default for ButtonBundle {
             focus_policy: FocusPolicy::Block,
             node: Default::default(),
             node_size: Default::default(),
+            order: Default::default(),
             button: Default::default(),
             style: Default::default(),
             interaction: Default::default(),

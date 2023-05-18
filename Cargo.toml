@@ -1794,7 +1794,7 @@ path = "examples/ui/node_order.rs"
 
 [package.metadata.example.node_order]
 name = "Node Order"
-description = "An example that uses the `NodeOrder` component to reorder UI elements."
+description = "Example using `NodeOrder` to reorder UI elements"
 category = "UI (User Interface)"
 wasm = true
 
