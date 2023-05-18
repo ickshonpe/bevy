@@ -1,4 +1,6 @@
-use crate::{camera_config::UiCameraConfig, CalculatedClip, NodeSize,ZIndex, NodePosition};
+use crate::{
+    camera_config::UiCameraConfig, CalculatedClip, ZIndex, NodePosition, NodeSize,
+};
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     change_detection::DetectChangesMut,

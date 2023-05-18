@@ -2,8 +2,8 @@
 
 use crate::{
     widget::{Button, TextFlags, UiImageSize},
-    BackgroundColor, ContentSize, FocusPolicy, Interaction, NodeKey, NodeOrder, NodeSize, Style,
-    UiImage, ZIndex, NodePosition,
+    BackgroundColor, ContentSize, FocusPolicy, ZIndex, Interaction, NodeOrder,
+    NodePosition, NodeSize, Style, TaffyKey, UiImage, UiTransform,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_render::{
@@ -17,9 +17,37 @@ use bevy_text::{Text, TextAlignment, TextLayoutInfo, TextSection, TextStyle};
 ///
 /// Useful as a container for a variety of child nodes.
 #[derive(Bundle, Debug)]
+pub struct RootNodeBundle {
+    /// Identifier for the Node in the layout.
+    pub node: TaffyKey,
+    /// Describes the logical size of the node
+    pub node_size: NodeSize,
+    /// Controls the order in which items are displayed.
+    pub order: NodeOrder,
+    /// Styles which control the layout (size and position) of the node and it's children
+    /// In some cases these styles also affect how the node drawn/painted.
+    pub style: Style,
+    /// The background color, which serves as a "fill" for this node
+    pub background_color: BackgroundColor,
+    /// Whether this node should block interaction with lower nodes
+    pub focus_policy: FocusPolicy,
+    pub node_position: NodePosition,
+    /// Describes the visibility properties of the node
+    pub visibility: Visibility,
+    /// Algorithmically-computed indication of whether an entity is visible and should be extracted for rendering
+    pub computed_visibility: ComputedVisibility,
+    /// Indicates the depth at which the node should appear in the UI
+    pub z_index: ZIndex,
+    pub transform: UiTransform,
+}
+
+/// The basic UI node
+///
+/// Useful as a container for a variety of child nodes.
+#[derive(Bundle, Debug)]
 pub struct NodeBundle {
     /// Identifier for the Node in the layout.
-    pub node: NodeKey,
+    pub node: TaffyKey,
     /// Describes the logical size of the node
     pub node_size: NodeSize,
     /// Controls the order in which items are displayed.
@@ -38,7 +66,6 @@ pub struct NodeBundle {
     pub computed_visibility: ComputedVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
-    //pub node_order: NodeOrder,
 }
 
 impl Default for NodeBundle {
@@ -64,7 +91,7 @@ impl Default for NodeBundle {
 #[derive(Bundle, Debug, Default)]
 pub struct ImageBundle {
     /// Identifier for the Node in the layout.
-    pub node: NodeKey,
+    pub node: TaffyKey,
     /// Describes the logical size of the node
     ///
     /// This field is automatically managed by the UI layout system.
@@ -108,7 +135,7 @@ pub struct ImageBundle {
 #[derive(Bundle, Debug)]
 pub struct TextBundle {
     /// Identifier for the Node in the layout.
-    pub node: NodeKey,
+    pub node: TaffyKey,
     /// Describes the logical size of the node
     pub node_size: NodeSize,
     /// Controls the order in which items are displayed.
@@ -211,7 +238,7 @@ impl TextBundle {
 #[derive(Bundle, Debug)]
 pub struct ButtonBundle {
     /// Identifier for the Node in the layout.
-    pub node: NodeKey,
+    pub node: TaffyKey,
     /// Describes the logical size of the node
     pub node_size: NodeSize,
     /// Controls the order in which items are displayed.

@@ -18,7 +18,7 @@ use thiserror::Error;
 /// automatically calculated
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect, FromReflect, Deref)]
 #[reflect(Component, Default)]
-pub struct NodePosition(pub (crate) Vec2);
+pub struct NodePosition(pub(crate) Vec2);
 
 impl NodePosition {
     pub fn get(&self) -> Vec2 {

@@ -1,3 +1,4 @@
+use crate::UiLayouts;
 use crate::UiSurface;
 use bevy_ecs::prelude::Entity;
 use bevy_utils::HashMap;
@@ -6,29 +7,24 @@ use taffy::prelude::Node;
 use taffy::tree::LayoutTree;
 
 /// Prints a debug representation of the computed layout of the UI layout tree for each window.
-pub fn print_ui_layout_tree(ui_surface: &UiSurface) {
+pub fn print_ui_layout_tree(ui_surface: &UiSurface, ui_roots: &UiLayouts) {
     let taffy_to_entity: HashMap<Node, Entity> = ui_surface
-        .data.entity_to_taffy
+        .entity_to_taffy
         .iter()
         .map(|(entity, node)| (*node, *entity))
         .collect();
-    for crate::UiLayout {
-        layout_entity,
-        taffy_root,
-        ..
-    } in ui_surface.data.ui_layouts.iter()
-    {
+    for ui_root in ui_roots.iter() {
         let mut out = String::new();
         write_tree(
             ui_surface,
             &taffy_to_entity,
-            *layout_entity,
-            *taffy_root,
+            ui_root.ui_root_node,
+            ui_root.taffy_root_node,
             false,
             String::new(),
             &mut out,
         );
-        bevy_log::info!("Layout tree for layout entity: {layout_entity:?}\n{out}");
+        bevy_log::info!("Layout tree for {ui_root}:\n{out}");
     }
 }
 
@@ -42,7 +38,7 @@ fn write_tree(
     lines_string: String,
     acc: &mut String,
 ) {
-    let tree = &ui_surface.taffy;
+    let tree = &ui_surface.tree;
     let layout = tree.layout(node).unwrap();
     let style = tree.style(node).unwrap();
 

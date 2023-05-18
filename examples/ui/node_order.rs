@@ -201,8 +201,7 @@ fn update_ordered_buttons(
     {
         if cursor_position
             .map(|cursor_position| {
-                Rect::from_center_size(node_position.get(), node.size())
-                    .contains(cursor_position)
+                Rect::from_center_size(node_position.get(), node.size()).contains(cursor_position)
             })
             .unwrap_or(false)
         {

@@ -35,7 +35,7 @@ pub mod prelude {
     #[doc(hidden)]
     pub use crate::{
         camera_config::*, geometry::*, node_bundles::*, ui_node::*, widget::Button, widget::Label,
-        Interaction, UiLayoutBundle, UiLayoutData, UiLayoutOrder, UiScale, NodePosition,
+        Interaction, NodePosition, UiLayoutOrder, UiScale,
     };
 }
 
@@ -60,10 +60,10 @@ pub enum UiSystem {
     Insertion,
     /// After this label, the Bevy and Taffy Parent-Children trees have been synchonised
     Children,
-    /// After this label, the ui node transforms have been updated
-    Transforms,
-    /// After this label, the ui layout state has been updated
-    Layout,
+    /// After this label, the ui nodes state have been updated
+    UpdateNodes,
+    /// After this label, the ui node size and positions have been updated.
+    UpdateGeometry,
     /// After this label, input interactions with UI entities have been updated for this frame
     Focus,
     Update,
@@ -91,6 +91,11 @@ impl Plugin for UiPlugin {
         app.add_plugin(ExtractComponentPlugin::<UiCameraConfig>::default())
             .init_resource::<UiScale>()
             .init_resource::<UiContext>()
+            .init_resource::<UiEntityToTaffyMap>()
+            .init_resource::<TaffyTree>()
+            .init_resource::<UiRootMap>()
+            .init_resource::<UiLayouts>()
+            .init_resource::<UiDefaultLayoutTarget>()
             .register_type::<AlignContent>()
             .register_type::<AlignItems>()
             .register_type::<AlignSelf>()
@@ -126,9 +131,8 @@ impl Plugin for UiPlugin {
             .register_type::<widget::Button>()
             .register_type::<widget::Label>()
             .register_type::<NodePosition>()
-            .register_type::<UiLayoutData>()
             .register_type::<UiLayoutOrder>()
-            .register_type::<NodeKey>()
+            .register_type::<TaffyKey>()
             .add_systems(
                 PreUpdate,
                 ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),
@@ -139,7 +143,7 @@ impl Plugin for UiPlugin {
             PostUpdate,
             (
                 widget::measure_text_system
-                    .before(UiSystem::Layout)
+                    .before(UiSystem::UpdateNodes)
                     // Potential conflict: `Assets<Image>`
                     // In practice, they run independently since `bevy_render::camera_update_system`
                     // will only ever observe its own render target, and `widget::measure_text_system`
@@ -149,13 +153,13 @@ impl Plugin for UiPlugin {
                     // Since both systems will only ever insert new [`Image`] assets,
                     // they will never observe each other's effects.
                     .ambiguous_with(bevy_text::update_text2d_layout),
-                widget::text_system.after(UiSystem::Layout),
+                widget::text_system.after(UiSystem::UpdateNodes),
             ),
         );
         #[cfg(feature = "bevy_text")]
         app.add_plugin(accessibility::AccessibilityPlugin);
         app.add_systems(PostUpdate, {
-            let system = widget::update_image_content_size_system.before(UiSystem::Layout);
+            let system = widget::update_image_content_size_system.before(UiSystem::UpdateNodes);
             // Potential conflicts: `Assets<Image>`
             // They run independently since `widget::image_node_system` will only ever observe
             // its own UiImage, and `widget::text_system` & `bevy_text::update_text2d_layout`
@@ -167,24 +171,25 @@ impl Plugin for UiPlugin {
 
             system
         })
-        .add_systems(Startup, ui_setup_system)
         .add_systems(
             PostUpdate,
             (
                 update_ui_windows_system
                     .in_set(UiSystem::Windows)
-                    .before(UiSystem::Layout),
+                    .before(UiSystem::UpdateNodes),
                 clean_up_removed_ui_nodes_system
                     .in_set(UiSystem::Removal)
                     .before(UiSystem::Insertion),
                 insert_new_ui_nodes_system
                     .in_set(UiSystem::Insertion)
                     .before(UiSystem::Children),
-                update_ui_layouts_system
-                    .in_set(UiSystem::Layout)
-                    .before(UiSystem::Transforms),
-                update_nodes_iteratively.in_set(UiSystem::Transforms),
-                //update_nodes_recursively.in_set(UiSystem::Transforms),
+                update_ui_layouts
+                    .after(UiSystem::Insertion)
+                    .before(UiSystem::UpdateNodes),
+                update_ui_nodes_system
+                    .in_set(UiSystem::UpdateNodes)
+                    .before(UiSystem::UpdateGeometry),
+                update_node_geometries_iteratively.in_set(UiSystem::UpdateGeometry),
                 update_clipping_system.after(TransformSystem::TransformPropagate),
             ),
         );

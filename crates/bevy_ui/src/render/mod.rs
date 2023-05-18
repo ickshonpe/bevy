@@ -8,8 +8,10 @@ use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
 pub use render_pass::*;
 
-use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, NodeSize, UiImage, NodePosition};
 use crate::ZIndex;
+use crate::{
+    prelude::UiCameraConfig, BackgroundColor, CalculatedClip, NodePosition, NodeSize, UiImage,
+};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
@@ -301,14 +303,21 @@ pub fn extract_text_uinodes(
 
     let inverse_scale_factor = scale_factor.recip();
 
-    for (node_size, node_position, text, text_layout_info, visibility, clip, &ZIndex(z_index)) in
-        uinode_query.iter()
+    for (
+        node_size,
+        node_position,
+        text,
+        text_layout_info,
+        visibility,
+        clip,
+        &ZIndex(z_index),
+    ) in uinode_query.iter()
     {
         // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
         if !visibility.is_visible() || node_size.size().x == 0. || node_size.size().y == 0. {
             continue;
         }
-        
+
         let top_left = node_position.0 - 0.5 * node_size.calculated_size;
 
         let mut color = Color::WHITE;
@@ -332,7 +341,6 @@ pub fn extract_text_uinodes(
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 z_index,
                 //transform: Mat4::from_translation(top_left.extend(0.) + position.extend(0.) * inverse_scale_factor),
-
                 position: top_left + *position * inverse_scale_factor,
                 color,
                 size: rect.size(),
@@ -425,13 +433,12 @@ pub fn prepare_uinodes(
         let min = uinode_rect.min;
         let max = uinode_rect.max;
 
-        let positions = 
-            [
-                Vec3::new(min.x, min.y, 0.0),
-                Vec3::new(max.x, min.y, 0.0),
-                Vec3::new(max.x, max.y, 0.0),
-                Vec3::new(min.x, max.y, 0.0),
-            ];
+        let positions = [
+            Vec3::new(min.x, min.y, 0.0),
+            Vec3::new(max.x, min.y, 0.0),
+            Vec3::new(max.x, max.y, 0.0),
+            Vec3::new(min.x, max.y, 0.0),
+        ];
 
         // Calculate the effect of clipping
         // Note: this won't work with rotation/scaling, but that's much more complex (may need more that 2 quads)
@@ -474,7 +481,7 @@ pub fn prepare_uinodes(
         // For all other angles, bypass the culling check
         // This does not properly handles all rotations on all axis
         //if extracted_uinode.transform.x_axis[1] == 0.0 {
-            // Cull nodes that are completely clipped
+        // Cull nodes that are completely clipped
         if positions_diff[0].x - positions_diff[1].x >= uinode_rect.size().x
             || positions_diff[1].y - positions_diff[2].y >= uinode_rect.size().y
         {
@@ -485,7 +492,10 @@ pub fn prepare_uinodes(
             [Vec2::ZERO, Vec2::X, Vec2::ONE, Vec2::Y]
         } else {
             let atlas_extent = extracted_uinode.atlas_size.unwrap_or(extracted_uinode.size);
-            let mut uinode_rect = extracted_uinode.uvs.unwrap_or_else(||Rect { min: Vec2::ZERO, max: extracted_uinode.size });
+            let mut uinode_rect = extracted_uinode.uvs.unwrap_or_else(|| Rect {
+                min: Vec2::ZERO,
+                max: extracted_uinode.size,
+            });
             if extracted_uinode.flip_x {
                 std::mem::swap(&mut uinode_rect.max.x, &mut uinode_rect.min.x);
                 positions_diff[0].x *= -1.;
@@ -517,7 +527,8 @@ pub fn prepare_uinodes(
                     uinode_rect.min.x + positions_diff[3].x,
                     uinode_rect.max.y + positions_diff[3].y,
                 ),
-            ].map(|pos| pos / atlas_extent)
+            ]
+            .map(|pos| pos / atlas_extent)
         };
 
         let color = extracted_uinode.color.as_linear_rgba_f32();

@@ -1,4 +1,4 @@
-use crate::{measurement::AvailableSpace, ContentSize, Measure, NodeKey, UiImage};
+use crate::{measurement::AvailableSpace, ContentSize, Measure, TaffyKey, UiImage};
 use bevy_asset::Assets;
 #[cfg(feature = "bevy_text")]
 use bevy_ecs::query::Without;
@@ -68,11 +68,11 @@ pub fn update_image_content_size_system(
     textures: Res<Assets<Image>>,
     #[cfg(feature = "bevy_text")] mut query: Query<
         (&mut ContentSize, &UiImage, &mut UiImageSize),
-        (With<NodeKey>, Without<Text>),
+        (With<TaffyKey>, Without<Text>),
     >,
     #[cfg(not(feature = "bevy_text"))] mut query: Query<
         (&mut ContentSize, &UiImage, &mut UiImageSize),
-        With<NodeKey>,
+        With<TaffyKey>,
     >,
 ) {
     for (mut content_size, image, mut image_size) in &mut query {

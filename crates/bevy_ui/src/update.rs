@@ -1,6 +1,6 @@
 //! This module contains systems that update the UI when something changes
 
-use crate::{CalculatedClip, OverflowAxis, Style, NodePosition};
+use crate::{CalculatedClip, NodePosition, OverflowAxis, Style};
 
 use super::NodeSize;
 use bevy_ecs::{
@@ -15,7 +15,12 @@ use bevy_math::Rect;
 pub fn update_clipping_system(
     mut commands: Commands,
     root_node_query: Query<Entity, (With<NodeSize>, Without<Parent>)>,
-    mut node_query: Query<(&NodeSize, &NodePosition, &Style, Option<&mut CalculatedClip>)>,
+    mut node_query: Query<(
+        &NodeSize,
+        &NodePosition,
+        &Style,
+        Option<&mut CalculatedClip>,
+    )>,
     children_query: Query<&Children>,
 ) {
     for root_node in &root_node_query {
@@ -32,12 +37,16 @@ pub fn update_clipping_system(
 fn update_clipping(
     commands: &mut Commands,
     children_query: &Query<&Children>,
-    node_query: &mut Query<(&NodeSize, &NodePosition, &Style, Option<&mut CalculatedClip>)>,
+    node_query: &mut Query<(
+        &NodeSize,
+        &NodePosition,
+        &Style,
+        Option<&mut CalculatedClip>,
+    )>,
     entity: Entity,
     maybe_inherited_clip: Option<Rect>,
 ) {
-    let (node, position, style, maybe_calculated_clip) =
-        node_query.get_mut(entity).unwrap();
+    let (node, position, style, maybe_calculated_clip) = node_query.get_mut(entity).unwrap();
 
     // Update this node's CalculatedClip component
     if let Some(mut calculated_clip) = maybe_calculated_clip {
