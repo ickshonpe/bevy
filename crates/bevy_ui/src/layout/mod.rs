@@ -3,7 +3,6 @@ pub mod debug_output;
 
 use crate::{ContentSize, NodeOrder, NodeSize, Style, UiScale, ZIndex, NodePosition};
 use bevy_derive::{DerefMut, Deref};
-use crate::{ContentSize, Node, NodeOrder, Style, UiScale};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -13,7 +12,7 @@ use bevy_ecs::{
     query::{With, Without},
     reflect::ReflectComponent,
     prelude::DetectChangesMut,
-    query::{Changed, With, Without},
+    query::Changed,
     removal_detection::RemovedComponents,
     system::{Local, Query, Res, ResMut, Resource, SystemParam, Commands},
     world::Ref,
@@ -24,7 +23,7 @@ use bevy_math::Vec2;
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 use bevy_render::view::{ComputedVisibility, Visibility};
 use bevy_transform::{components::Transform, prelude::GlobalTransform};
-use bevy_utils::{HashMap, HashSet};
+use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowScaleFactorChanged};
 use std::{marker::PhantomData};
 use taffy::{prelude::Size, style_helpers::TaffyMaxContent, Taffy};
@@ -433,26 +432,26 @@ pub fn insert_new_ui_nodes_system(
     debug!("\tinsert_new_ui_nodes_system finished");
 }
 
-/// Synchonise the Bevy and Taffy Parent-Children trees
-pub fn synchonise_ui_children_system(
-    mut ui_surface: UiSurface,
-    mut removed_children: RemovedComponents<Children>,
-    children_query: Query<(&NodeKey, Ref<Children>)>,
-) {
-    debug!("synchonise_ui_children_system");
-    // Iterate through all entities with a removed `Children` component and if they have a corresponding Taffy node, remove their children from the Taffy tree.
-    for entity in removed_children.iter() {
-        ui_surface.try_remove_children(entity);
-    }
+// /// Synchonise the Bevy and Taffy Parent-Children trees
+// pub fn synchonise_ui_children_system(
+//     mut ui_surface: UiSurface,
+//     mut removed_children: RemovedComponents<Children>,
+//     children_query: Query<(&NodeKey, Ref<Children>)>,
+// ) {
+//     debug!("synchonise_ui_children_system");
+//     // Iterate through all entities with a removed `Children` component and if they have a corresponding Taffy node, remove their children from the Taffy tree.
+//     for entity in removed_children.iter() {
+//         ui_surface.try_remove_children(entity);
+//     }
 
-    // Update the corresponding Taffy children of Bevy entities with changed `Children`
-    for (node, children) in &children_query {
-        if children.is_changed() {
-            ui_surface.update_children(node.key, &children);
-        }
-    }
-    debug!("synchonise_ui_children_system finished");
-}
+//     // Update the corresponding Taffy children of Bevy entities with changed `Children`
+//     for (node, children) in &children_query {
+//         if children.is_changed() {
+//             ui_surface.update_children(node.key, &children);
+//         }
+//     }
+//     debug!("synchonise_ui_children_system finished");
+// }
 
 pub fn update_ui_windows_system(
     mut resize_events: EventReader<bevy_window::WindowResized>,
@@ -507,8 +506,10 @@ pub fn update_ui_layouts_system(
         (Entity, &mut UiLayoutData, &UiLayoutOrder, Option<&Children>),
         Without<NodeSize>,
     >,
-    changed_order_query: Query<&Parent, (Changed<NodeOrder>, With<Node>)>,
+    changed_order_query: Query<&Parent, (Changed<NodeOrder>, With<NodeSize>)>,
     node_order_query: Query<&NodeOrder>,
+    mut removed_children: RemovedComponents<Children>,
+    mut children_query: Query<(&NodeKey, &mut Children)>,
 ) {
     debug!("update_ui_layouts_system");
     let Some(ref layout_context) = ui_context.0 else {
@@ -574,7 +575,7 @@ pub fn update_ui_layouts_system(
         children.set_changed();
     }
 
-    for (entity, mut children) in children_query.iter_mut() {
+    for (node, mut children) in children_query.iter_mut() {
         if children.is_changed() {
             children.sort_by(|c, d| {
                 let c_ord = node_order_query
@@ -587,7 +588,7 @@ pub fn update_ui_layouts_system(
                     .unwrap_or(0);
                 c_ord.cmp(&d_ord)
             });
-            ui_surface.update_children(entity, &children);
+            ui_surface.update_children(node.key, &children);
         }
     }       
 
@@ -733,7 +734,6 @@ pub fn update_nodes_recursively(
 mod tests {
     use crate::clean_up_removed_ui_nodes_system;
     use crate::insert_new_ui_nodes_system;
-    use crate::synchonise_ui_children_system;
     use crate::update_ui_layouts_system;
     use crate::AlignItems;
     use crate::LayoutContext;

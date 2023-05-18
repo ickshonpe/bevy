@@ -171,9 +171,6 @@ impl Plugin for UiPlugin {
         .add_systems(
             PostUpdate,
             (
-                sort_children_by_node_order_system
-                    .in_set(UiSystem::Order)
-                    .before(UiSystem::Layout),
                 update_ui_windows_system
                     .in_set(UiSystem::Windows)
                     .before(UiSystem::Layout),
@@ -183,9 +180,6 @@ impl Plugin for UiPlugin {
                 insert_new_ui_nodes_system
                     .in_set(UiSystem::Insertion)
                     .before(UiSystem::Children),
-                synchonise_ui_children_system
-                    .in_set(UiSystem::Children)
-                    .before(UiSystem::Layout),
                 update_ui_layouts_system
                     .in_set(UiSystem::Layout)
                     .before(UiSystem::Transforms),
