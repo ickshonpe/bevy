@@ -157,7 +157,7 @@ pub struct ExtractedUiNode {
     pub image: Handle<Image>,
     pub atlas_size: Option<Vec2>,
     pub uvs: Option<Rect>,
-    pub clip: Option<Rect>,
+    pub clip: Rect,
     pub flip_x: bool,
     pub flip_y: bool,
 }
@@ -177,7 +177,7 @@ pub fn extract_uinodes(
             &BackgroundColor,
             Option<&UiImage>,
             &ComputedVisibility,
-            Option<&CalculatedClip>,
+            &CalculatedClip,
             &ZIndex,
         )>,
     >,
@@ -213,7 +213,7 @@ pub fn extract_uinodes(
             // },
             image,
             atlas_size: None,
-            clip: clip.map(|clip| clip.clip),
+            clip: clip.clip,
             flip_x,
             flip_y,
         });
@@ -290,7 +290,7 @@ pub fn extract_text_uinodes(
             &Text,
             &TextLayoutInfo,
             &ComputedVisibility,
-            Option<&CalculatedClip>,
+            &CalculatedClip,
             &ZIndex,
         )>,
     >,
@@ -348,7 +348,7 @@ pub fn extract_text_uinodes(
                 //rect,
                 image: atlas.texture.clone_weak(),
                 atlas_size: Some(atlas.size * inverse_scale_factor),
-                clip: clip.map(|clip| clip.clip),
+                clip: clip.clip,
                 flip_x: false,
                 flip_y: false,
             });
@@ -442,7 +442,8 @@ pub fn prepare_uinodes(
 
         // Calculate the effect of clipping
         // Note: this won't work with rotation/scaling, but that's much more complex (may need more that 2 quads)
-        let mut positions_diff = if let Some(clip) = extracted_uinode.clip {
+        let clip = extracted_uinode.clip;
+        let mut positions_diff = 
             [
                 Vec2::new(
                     f32::max(clip.min.x - positions[0].x, 0.),
@@ -460,10 +461,7 @@ pub fn prepare_uinodes(
                     f32::max(clip.min.x - positions[3].x, 0.),
                     f32::min(clip.max.y - positions[3].y, 0.),
                 ),
-            ]
-        } else {
-            [Vec2::ZERO; 4]
-        };
+            ];
 
         let positions_clipped = [
             positions[0] + positions_diff[0].extend(0.),
