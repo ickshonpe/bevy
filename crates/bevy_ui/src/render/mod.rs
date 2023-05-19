@@ -12,7 +12,7 @@ use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiIm
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
-use bevy_math::{Mat4, Rect, UVec4, Vec2, Vec3, Vec4Swizzles};
+use bevy_math::{Mat4, Rect, UVec4, Vec2};
 use bevy_reflect::TypeUuid;
 use bevy_render::texture::DEFAULT_IMAGE_HANDLE;
 use bevy_render::{
@@ -151,9 +151,7 @@ pub struct ExtractedUiNode {
     pub rect: Rect,
     pub image: Handle<Image>,
     pub atlas_size: Option<Vec2>,
-    pub flip_x: bool,
-    pub flip_y: bool,
-    pub relative_uvs: Rect,
+    pub uv_rect: Rect,
 }
 
 #[derive(Resource, Default)]
@@ -195,20 +193,25 @@ pub fn extract_uinodes(
                 continue;
             }
 
-            let (image, flip_x, flip_y, uv_rect) = if let Some(image) = maybe_image {
+            let (image, uv_rect) = if let Some(image) = maybe_image {
                 // Skip loading images
                 if !images.contains(&image.texture) {
                     continue;
                 }
-                let uv_rect = Rect {
+                let mut uv_rect = Rect {
                     min: (clipped_node_rect.min - node_rect.min) / node_size,
                     max: (clipped_node_rect.max - node_rect.min) / node_size,
                 };
-                (image.texture.clone_weak(), image.flip_x, image.flip_y, uv_rect)
+                if image.flip_x {
+                    std::mem::swap(&mut uv_rect.min.x, &mut uv_rect.max.x);
+                }
+                if image.flip_y {
+                    std::mem::swap(&mut uv_rect.min.y, &mut uv_rect.max.y);
+                }
+                (image.texture.clone_weak(), uv_rect)
             } else {
-                (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), false, false, Rect { min: Vec2::ZERO, max: Vec2::ONE })
+                (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), Rect { min: Vec2::ZERO, max: Vec2::ONE })
             };
-
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
@@ -217,9 +220,7 @@ pub fn extract_uinodes(
                 rect: clipped_node_rect,
                 image,
                 atlas_size: None,
-                flip_x,
-                flip_y,
-                relative_uvs: uv_rect,
+                uv_rect,
             });
         }
     }
@@ -345,9 +346,7 @@ pub fn extract_text_uinodes(
                     rect,
                     image: atlas.texture.clone_weak(),
                     atlas_size: Some(atlas.size * inverse_scale_factor),
-                    flip_x: false,
-                    flip_y: false,
-                    relative_uvs: Rect { min: Vec2::ZERO, max: Vec2::ONE },
+                    uv_rect: Rect { min: Vec2::ZERO, max: Vec2::ONE },
                 });
             }
         }
@@ -376,13 +375,6 @@ impl Default for UiMeta {
         }
     }
 }
-
-const QUAD_VERTEX_POSITIONS: [Vec3; 4] = [
-    Vec3::new(-0.5, -0.5, 0.0),
-    Vec3::new(0.5, -0.5, 0.0),
-    Vec3::new(0.5, 0.5, 0.0),
-    Vec3::new(-0.5, 0.5, 0.0),
-];
 
 const QUAD_INDICES: [usize; 6] = [0, 2, 3, 0, 1, 2];
 
@@ -424,13 +416,10 @@ pub fn prepare_uinodes(
             current_batch_handle = extracted_uinode.image.clone_weak();
         }
 
-        let rect = extracted_uinode.rect;
-
-        let positions = rect.vertices3();
-
-        let uvs = extracted_uinode.relative_uvs.vertices();
-
+        let positions = extracted_uinode.rect.vertices3();
+        let uvs = extracted_uinode.uv_rect.vertices();
         let color = extracted_uinode.color.as_linear_rgba_f32();
+
         for i in QUAD_INDICES {
             ui_meta.vertices.push(UiVertex {
                 uv: uvs[i].into(),
