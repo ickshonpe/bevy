@@ -145,7 +145,6 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
 }
 
 pub struct ExtractedUiNode {
-    pub stack_index: usize,
     pub color: Color,
     pub rect: Rect,
     pub image: Handle<Image>,
@@ -154,7 +153,29 @@ pub struct ExtractedUiNode {
 
 #[derive(Resource, Default)]
 pub struct ExtractedUiNodes {
+    pub index: Vec<[usize; 2]>,
     pub uinodes: Vec<ExtractedUiNode>,
+}
+
+impl ExtractedUiNodes {
+    pub fn clear(&mut self) {
+        self.index.clear();
+        self.uinodes.clear();
+    }
+
+    pub fn push(&mut self, extracted_uinode: ExtractedUiNode, stack_index: usize) {
+        self.index.push([stack_index, self.index.len()]);
+        self.uinodes.push(extracted_uinode);
+    }
+
+    pub fn sort(&mut self) {
+        self.index.sort_by_key(|&index| index[0]);
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &ExtractedUiNode> {
+        self.index.iter()
+            .map(|&[_, index]| &self.uinodes[index])
+    }
 }
 
 pub fn extract_uinodes(
@@ -172,7 +193,7 @@ pub fn extract_uinodes(
         )>,
     >,
 ) {
-    extracted_uinodes.uinodes.clear();
+  //  extracted_uinodes.uinodes.clear();
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, transform, color, maybe_image, visibility, maybe_clip)) =
             uinode_query.get(*entity)
@@ -217,13 +238,12 @@ pub fn extract_uinodes(
                 )
             };
 
-            extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index,
+            extracted_uinodes.push(ExtractedUiNode {
                 color: color.0,
                 rect: clipped_node_rect,
                 image,
                 uv_rect,
-            });
+            }, stack_index);
         }
     }
 }
@@ -358,13 +378,12 @@ pub fn extract_text_uinodes(
 
                 let rect = glyph_rect.intersect(clipped_node_rect);
 
-                extracted_uinodes.uinodes.push(ExtractedUiNode {
-                    stack_index,
+                extracted_uinodes.push(ExtractedUiNode {
                     color,
                     rect,
                     image: atlas.texture.clone_weak(),
                     uv_rect,
-                });
+                }, stack_index);
             }
         }
     }
@@ -412,15 +431,15 @@ pub fn prepare_uinodes(
     ui_meta.vertices.clear();
 
     // sort by ui stack index, starting from the deepest node
-    extracted_uinodes
-        .uinodes
-        .sort_by_key(|node| node.stack_index);
+    extracted_uinodes.sort();
+        // .uinodes
+        // .sort_by_key(|node| node.stack_index);
 
     let mut start = 0;
     let mut end = 0;
     let mut current_batch_handle = Default::default();
     let mut last_z = 0.0;
-    for extracted_uinode in &extracted_uinodes.uinodes {
+    for extracted_uinode in extracted_uinodes.iter() {
         if current_batch_handle != extracted_uinode.image {
             if start != end {
                 commands.spawn(UiBatch {
@@ -448,6 +467,8 @@ pub fn prepare_uinodes(
         last_z = 0.; //extracted_uinode.transform.w_axis[2];
         end += QUAD_INDICES.len() as u32;
     }
+
+    extracted_uinodes.clear();
 
     // if start != end, there is one last batch to process
     if start != end {
