@@ -309,23 +309,22 @@ impl Rect {
         r
     }
 
-    /// Returns the vertices of this rectangle
+    /// Returns the coordinates of the four corners of the rectangle in counterclockwise order starting from `min`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use bevy_math::{Rect, Vec2};
+    /// let r = Rect::new(0., 1., 2., 3.);
+    /// let vertices = r.vertices();
+    /// assert_eq!(vertices, [Vec2::new(0., 1.), Vec2::new(2., 1.), Vec2::new(2., 3.), Vec2::new(0., 3.)]);
+    /// ```
     pub const fn vertices(&self) -> [Vec2; 4] {
         [
             self.min,
             Vec2::new(self.max.x, self.min.y),
             self.max,
             Vec2::new(self.min.x, self.max.y),
-        ]
-    }
-
-    /// Returns the vertices of this rectangle
-    pub const fn vertices3(&self) -> [Vec3; 4] {
-        [
-            self.min.extend(0.),
-            Vec3::new(self.max.x, self.min.y, 0.),
-            self.max.extend(0.),
-            Vec3::new(self.min.x, self.max.y, 0.),
         ]
     }
 }
