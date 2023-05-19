@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug_output;
 
-use crate::{ContentSize, ZIndex, NodeOrder, NodePosition, NodeSize, Style, UiScale};
+use crate::{ContentSize, ZIndex, NodeOrder, NodePosition, NodeSize, Style, UiScale, CalculatedClip};
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     change_detection::DetectChanges,
@@ -14,12 +14,12 @@ use bevy_ecs::{
     query::{With, Without},
     reflect::ReflectComponent,
     removal_detection::RemovedComponents,
-    system::{Local, Query, Res, ResMut, Resource, SystemParam},
+    system::{Local, Query, Res, ResMut, Resource, SystemParam, Commands},
     world::Ref,
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::{debug, trace, warn};
-use bevy_math::{Affine2, Vec2};
+use bevy_math::{Affine2, Vec2, Rect};
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 use bevy_utils::HashMap;
 use bevy_window::{
@@ -541,6 +541,116 @@ pub fn update_node_geometries_iteratively(
     }
     debug!("update_nodes_iteratively finished");
 }
+
+
+pub fn update_node_geometries_and_clipping(
+    mut stack: Local<Vec<(Entity, Vec2, Option<Rect>)>>,
+    ui_surface: UiSurface,
+    ui_context: Res<UiContext>,
+    mut node_geometry_query: Query<(
+        &TaffyKey,
+        &mut NodeSize,
+        &mut NodePosition,
+        &mut ZIndex,
+        &Style,
+        Option<&mut CalculatedClip>,
+    )>,
+    just_children_query: Query<&Children>,
+    mut commands: Commands,
+) {
+    debug!("update_nodes_iteratively");
+    let Some(physical_to_logical_factor) = ui_context
+        .0
+        .as_ref()
+        .map(|context|  context.physical_to_logical_factor)
+    else {
+        return;
+    };
+
+    stack.clear();
+
+    let mut order: u32 = 0;
+
+    for ui_layout in ui_surface.layouts.iter() {
+        stack.push((ui_layout.ui_root_node, Vec2::ZERO, None));
+        while let Some((node_entity, inherited_position, maybe_inherited_clip)) = stack.pop() {
+            if let Ok((node, mut node_size, mut position, mut z_index, style, maybe_calculated_clip)) =
+                node_geometry_query.get_mut(node_entity)
+            {
+                z_index.0 = order;
+                order += 1;
+                let layout = ui_surface.tree.layout(node.key).unwrap();
+                let new_size = Vec2::new(
+                    (layout.size.width as f64 * physical_to_logical_factor) as f32,
+                    (layout.size.height as f64 * physical_to_logical_factor) as f32,
+                );
+                let half_size = 0.5 * new_size;
+                if node_size.calculated_size != new_size {
+                    node_size.calculated_size = new_size;
+                }
+                position.0 = inherited_position
+                    + half_size
+                    + Vec2::new(
+                        (layout.location.x as f64 * physical_to_logical_factor) as f32,
+                        (layout.location.y as f64 * physical_to_logical_factor) as f32,
+                    );
+
+                if let Some(mut calculated_clip) = maybe_calculated_clip {
+                    if let Some(inherited_clip) = maybe_inherited_clip {
+                        // Replace the previous calculated clip with the inherited clipping rect
+                        if calculated_clip.clip != inherited_clip {
+                            *calculated_clip = CalculatedClip {
+                                clip: inherited_clip,
+                            };
+                        }
+                    } else {
+                        // No inherited clipping rect, remove the component
+                        commands.entity(node_entity).remove::<CalculatedClip>();
+                    }
+                } else if let Some(inherited_clip) = maybe_inherited_clip {
+                    // No previous calculated clip, add a new CalculatedClip component with the inherited clipping rect
+                    commands.entity(node_entity).insert(CalculatedClip {
+                        clip: inherited_clip,
+                    });
+                }
+
+                // Calculate new clip rectangle for children nodes
+                let children_clip = if style.overflow.is_visible() {
+                    // When `Visible`, children might be visible even when they are outside
+                    // the current node's boundaries. In this case they inherit the current
+                    // node's parent clip. If an ancestor is set as `Hidden`, that clip will
+                    // be used; otherwise this will be `None`.
+                    maybe_inherited_clip
+                } else {
+                    // If `maybe_inherited_clip` is `Some`, use the intersection between
+                    // current node's clip and the inherited clip. This handles the case
+                    // of nested `Overflow::Hidden` nodes. If parent `clip` is not
+                    // defined, use the current node's clip.
+                    let mut node_rect = node_size.logical_rect(*position);
+                    if style.overflow.x == crate::OverflowAxis::Visible {
+                        node_rect.min.x = -f32::INFINITY;
+                        node_rect.max.x = f32::INFINITY;
+                    }
+                    if style.overflow.y == crate::OverflowAxis::Visible {
+                        node_rect.min.y = -f32::INFINITY;
+                        node_rect.max.y = f32::INFINITY;
+                    }
+                    Some(maybe_inherited_clip.map_or(node_rect, |c| c.intersect(node_rect)))
+                };
+
+                if let Ok(children) = just_children_query.get(node_entity) {
+                    // Push the children nodes onto the stack.
+                    for child in children {
+                        stack.push((*child, position.0 - half_size, children_clip));
+                    }
+                }
+            }
+        }
+    }
+    debug!("update_nodes_iteratively finished");
+}
+
+
 
 pub fn update_nodes_recursively(
     ui_surface: UiSurface,

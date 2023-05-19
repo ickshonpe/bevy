@@ -189,8 +189,8 @@ impl Plugin for UiPlugin {
                 update_ui_nodes_system
                     .in_set(UiSystem::UpdateNodes)
                     .before(UiSystem::UpdateGeometry),
-                update_node_geometries_iteratively.in_set(UiSystem::UpdateGeometry),
-                update_clipping_system.after(TransformSystem::TransformPropagate),
+                update_node_geometries_and_clipping.in_set(UiSystem::UpdateGeometry),
+                //update_clipping_system.after(TransformSystem::TransformPropagate),
             ),
         );
 
