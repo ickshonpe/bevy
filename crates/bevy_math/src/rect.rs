@@ -1,5 +1,6 @@
 use crate::Vec2;
 
+
 /// A rectangle defined by two opposite corners.
 ///
 /// The rectangle is axis aligned, and defined by its minimum and maximum coordinates,
@@ -19,6 +20,12 @@ pub struct Rect {
 }
 
 impl Rect {
+    /// A `Rect` with bounds from `NEG_INFINITY` to `INFINITY` in both axes.
+    pub const INFINITE: Self = Rect {
+        min: Vec2::splat(f32::NEG_INFINITY),
+        max: Vec2::splat(f32::INFINITY),
+    };
+
     /// Create a new rectangle from two corner points.
     ///
     /// The two points do not need to be the minimum and/or maximum corners.
@@ -299,6 +306,25 @@ impl Rect {
         // height() never return a negative value.
         r.min = r.min.min(r.max);
         r
+    }
+
+    /// Returns the coordinates of the four corners of the rectangle in counterclockwise order starting from `min`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use bevy_math::{Rect, Vec2};
+    /// let r = Rect::new(0., 1., 2., 3.);
+    /// let vertices = r.vertices();
+    /// assert_eq!(vertices, [Vec2::new(0., 1.), Vec2::new(2., 1.), Vec2::new(2., 3.), Vec2::new(0., 3.)]);
+    /// ```
+    pub const fn vertices(&self) -> [Vec2; 4] {
+        [
+            self.min,
+            Vec2::new(self.max.x, self.min.y),
+            self.max,
+            Vec2::new(self.min.x, self.max.y),
+        ]
     }
 }
 
