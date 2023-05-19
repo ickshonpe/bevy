@@ -149,7 +149,7 @@ pub struct ExtractedUiNode {
     pub color: Color,
     pub vertices: [Vec2; 4],
     pub image: Handle<Image>,
-    pub uvs: [Vec2; 4],
+    pub uv_rect: Rect,
 }
 
 #[derive(Resource, Default)]
@@ -222,7 +222,7 @@ pub fn extract_uinodes(
                 color: color.0,
                 vertices: clipped_node_rect.vertices(),
                 image,
-                uvs: uv_rect.vertices(),
+                uv_rect,
             });
         }
     }
@@ -363,7 +363,7 @@ pub fn extract_text_uinodes(
                     color,
                     vertices: rect.vertices(),
                     image: atlas.texture.clone_weak(),
-                    uvs: uv_rect.vertices(),
+                    uv_rect,
                 });
             }
         }
@@ -434,10 +434,11 @@ pub fn prepare_uinodes(
         }
 
         let color = extracted_uinode.color.as_linear_rgba_f32();
+        let uvs = extracted_uinode.uv_rect.vertices();
 
         for i in QUAD_INDICES {
             ui_meta.vertices.push(UiVertex {
-                uv: extracted_uinode.uvs[i].into(),
+                uv: uvs[i].into(),
                 color,
                 position: extracted_uinode.vertices[i].extend(0.).into(),
             });
