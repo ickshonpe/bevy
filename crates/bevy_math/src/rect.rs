@@ -1,6 +1,5 @@
-use glam::Vec3;
-
 use crate::Vec2;
+
 
 /// A rectangle defined by two opposite corners.
 ///
