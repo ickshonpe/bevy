@@ -146,11 +146,9 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
 
 pub struct ExtractedUiNode {
     pub stack_index: usize,
-    pub transform: Mat4,
     pub color: Color,
     pub rect: Rect,
     pub image: Handle<Image>,
-    pub atlas_size: Option<Vec2>,
     pub uv_rect: Rect,
 }
 
@@ -186,8 +184,8 @@ pub fn extract_uinodes(
 
             let node_size = uinode.calculated_size;
             let node_rect = Rect::from_center_size(transform.translation().truncate(), node_size);
-            let clip = maybe_clip.map_or(Rect::INFINITE, |clip| clip.clip);
-            let clipped_node_rect = node_rect.intersect(clip);
+            let clip_rect = maybe_clip.map_or(Rect::INFINITE, |clip| clip.clip);
+            let clipped_node_rect = node_rect.intersect(clip_rect);
 
             if clipped_node_rect.is_empty() {
                 continue;
@@ -215,11 +213,9 @@ pub fn extract_uinodes(
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
-                transform: transform.compute_matrix(),
                 color: color.0,
                 rect: clipped_node_rect,
                 image,
-                atlas_size: None,
                 uv_rect,
             });
         }
@@ -310,18 +306,27 @@ pub fn extract_text_uinodes(
     let inverse_scale_factor = scale_factor.recip();
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, global_transform, text, text_layout_info, visibility, clip)) =
+        if let Ok((uinode, transform, text, text_layout_info, visibility, maybe_clip)) =
             uinode_query.get(*entity)
         {
-            // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
-            if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
+            // Skip if not visible
+            if !visibility.is_visible() {
                 continue;
             }
-            let transform = global_transform.compute_matrix()
-                * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
+
+            let clip_rect = maybe_clip.map_or(Rect::INFINITE, |clip| clip.clip);
+            let node_size = uinode.calculated_size;
+            let node_rect = Rect::from_center_size(transform.translation().truncate(), node_size);
+            let clipped_node_rect = node_rect.intersect(clip_rect);
+
+            // Skip if the node is clipped entirely
+            if clipped_node_rect.is_empty() {
+                continue;
+            }
 
             let mut color = Color::WHITE;
             let mut current_section = usize::MAX;
+            
             for PositionedGlyph {
                 position,
                 atlas_info,
@@ -333,20 +338,26 @@ pub fn extract_text_uinodes(
                     color = text.sections[*section_index].style.color.as_rgba_linear();
                     current_section = *section_index;
                 }
-                let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+                
+                let  atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+                let atlas_sub_rect = atlas.textures[atlas_info.glyph_index];
+                let uv_rect = Rect {
+                    min: atlas_sub_rect.min / atlas.size,
+                    max: atlas_sub_rect.max / atlas.size,
+                };
+                let glyph_rect = Rect::from_center_size(
+                    node_rect.min + *position * inverse_scale_factor,
+                    atlas_sub_rect.size() * inverse_scale_factor
+                );
+                
+                let rect = glyph_rect.intersect(clipped_node_rect);
 
-                let mut rect = atlas.textures[atlas_info.glyph_index];
-                rect.min *= inverse_scale_factor;
-                rect.max *= inverse_scale_factor;
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
-                    transform: transform
-                        * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
                     color,
                     rect,
                     image: atlas.texture.clone_weak(),
-                    atlas_size: Some(atlas.size * inverse_scale_factor),
-                    uv_rect: Rect { min: Vec2::ZERO, max: Vec2::ONE },
+                    uv_rect,
                 });
             }
         }
@@ -428,7 +439,7 @@ pub fn prepare_uinodes(
             });
         }
 
-        last_z = extracted_uinode.transform.w_axis[2];
+        last_z = 0.; //extracted_uinode.transform.w_axis[2];
         end += QUAD_INDICES.len() as u32;
     }
 
