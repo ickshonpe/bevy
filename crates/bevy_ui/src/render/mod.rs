@@ -433,12 +433,11 @@ pub fn prepare_uinodes(
             current_batch_handle = extracted_uinode.image.clone_weak();
         }
 
-        let uvs = extracted_uinode.vertices;
         let color = extracted_uinode.color.as_linear_rgba_f32();
 
         for i in QUAD_INDICES {
             ui_meta.vertices.push(UiVertex {
-                uv: uvs[i].into(),
+                uv: extracted_uinode.uvs[i].into(),
                 color,
                 position: extracted_uinode.vertices[i].extend(0.).into(),
             });
