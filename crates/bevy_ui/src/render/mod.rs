@@ -147,9 +147,9 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
 pub struct ExtractedUiNode {
     pub stack_index: usize,
     pub color: Color,
-    pub rect: Rect,
+    pub vertices: [Vec2; 4],
     pub image: Handle<Image>,
-    pub uv_rect: Rect,
+    pub uvs: [Vec2; 4],
 }
 
 #[derive(Resource, Default)]
@@ -220,9 +220,9 @@ pub fn extract_uinodes(
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
                 color: color.0,
-                rect: clipped_node_rect,
+                vertices: clipped_node_rect.vertices(),
                 image,
-                uv_rect,
+                uvs: uv_rect.vertices(),
             });
         }
     }
@@ -361,9 +361,9 @@ pub fn extract_text_uinodes(
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
                     color,
-                    rect,
+                    vertices: rect.vertices(),
                     image: atlas.texture.clone_weak(),
-                    uv_rect,
+                    uvs: uv_rect.vertices(),
                 });
             }
         }
@@ -433,15 +433,14 @@ pub fn prepare_uinodes(
             current_batch_handle = extracted_uinode.image.clone_weak();
         }
 
-        let positions = extracted_uinode.rect.vertices3();
-        let uvs = extracted_uinode.uv_rect.vertices();
+        let uvs = extracted_uinode.vertices;
         let color = extracted_uinode.color.as_linear_rgba_f32();
 
         for i in QUAD_INDICES {
             ui_meta.vertices.push(UiVertex {
                 uv: uvs[i].into(),
                 color,
-                position: positions[i].into(),
+                position: extracted_uinode.vertices[i].extend(0.).into(),
             });
         }
 
