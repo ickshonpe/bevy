@@ -544,7 +544,7 @@ pub fn update_node_geometries_iteratively(
 
 
 pub fn update_node_geometries_and_clipping(
-    mut stack: Local<Vec<(Entity, Vec2, Option<Rect>)>>,
+    mut stack: Local<Vec<(Entity, Vec2, Rect)>>,
     ui_surface: UiSurface,
     ui_context: Res<UiContext>,
     mut node_geometry_query: Query<(
@@ -553,10 +553,9 @@ pub fn update_node_geometries_and_clipping(
         &mut NodePosition,
         &mut ZIndex,
         &Style,
-        Option<&mut CalculatedClip>,
+        &mut CalculatedClip,
     )>,
     just_children_query: Query<&Children>,
-    mut commands: Commands,
 ) {
     debug!("update_nodes_iteratively");
     let Some(physical_to_logical_factor) = ui_context
@@ -572,9 +571,9 @@ pub fn update_node_geometries_and_clipping(
     let mut order: u32 = 0;
 
     for ui_layout in ui_surface.layouts.iter() {
-        stack.push((ui_layout.ui_root_node, Vec2::ZERO, None));
-        while let Some((node_entity, inherited_position, maybe_inherited_clip)) = stack.pop() {
-            if let Ok((node, mut node_size, mut position, mut z_index, style, maybe_calculated_clip)) =
+        stack.push((ui_layout.ui_root_node, Vec2::ZERO, CalculatedClip::default().clip));
+        while let Some((node_entity, inherited_position, inherited_clip)) = stack.pop() {
+            if let Ok((node, mut node_size, mut position, mut z_index, style, mut calculated_clip)) =
                 node_geometry_query.get_mut(node_entity)
             {
                 z_index.0 = order;
@@ -595,32 +594,13 @@ pub fn update_node_geometries_and_clipping(
                         (layout.location.y as f64 * physical_to_logical_factor) as f32,
                     );
 
-                if let Some(mut calculated_clip) = maybe_calculated_clip {
-                    if let Some(inherited_clip) = maybe_inherited_clip {
-                        // Replace the previous calculated clip with the inherited clipping rect
-                        if calculated_clip.clip != inherited_clip {
-                            *calculated_clip = CalculatedClip {
-                                clip: inherited_clip,
-                            };
-                        }
-                    } else {
-                        // No inherited clipping rect, remove the component
-                        commands.entity(node_entity).remove::<CalculatedClip>();
-                    }
-                } else if let Some(inherited_clip) = maybe_inherited_clip {
-                    // No previous calculated clip, add a new CalculatedClip component with the inherited clipping rect
-                    commands.entity(node_entity).insert(CalculatedClip {
-                        clip: inherited_clip,
-                    });
-                }
-
                 // Calculate new clip rectangle for children nodes
-                let children_clip = if style.overflow.is_visible() {
+                calculated_clip.clip = if style.overflow.is_visible() {
                     // When `Visible`, children might be visible even when they are outside
                     // the current node's boundaries. In this case they inherit the current
                     // node's parent clip. If an ancestor is set as `Hidden`, that clip will
                     // be used; otherwise this will be `None`.
-                    maybe_inherited_clip
+                    inherited_clip
                 } else {
                     // If `maybe_inherited_clip` is `Some`, use the intersection between
                     // current node's clip and the inherited clip. This handles the case
@@ -635,13 +615,13 @@ pub fn update_node_geometries_and_clipping(
                         node_rect.min.y = -f32::INFINITY;
                         node_rect.max.y = f32::INFINITY;
                     }
-                    Some(maybe_inherited_clip.map_or(node_rect, |c| c.intersect(node_rect)))
+                    inherited_clip.intersect(node_rect)
                 };
 
                 if let Ok(children) = just_children_query.get(node_entity) {
                     // Push the children nodes onto the stack.
                     for child in children {
-                        stack.push((*child, position.0 - half_size, children_clip));
+                        stack.push((*child, position.0 - half_size, calculated_clip.clip));
                     }
                 }
             }

@@ -1634,11 +1634,22 @@ impl From<Handle<Image>> for UiImage {
 }
 
 /// The calculated clip of the node
-#[derive(Component, Default, Copy, Clone, Debug, Reflect, FromReflect)]
+#[derive(Component, Copy, Clone, Debug, Reflect, FromReflect)]
 #[reflect(FromReflect, Component)]
 pub struct CalculatedClip {
     /// The rect of the clip
     pub clip: Rect,
+}
+
+impl Default for CalculatedClip {
+    fn default() -> Self {
+        Self { 
+            clip: Rect {
+                min: Vec2::splat(f32::MIN),
+                max: Vec2::splat(f32::MAX),
+            }
+        }
+    }
 }
 
 /// Indicates that this [`Node`](crate::layout::Node) entity's front-to-back ordering is not controlled solely
