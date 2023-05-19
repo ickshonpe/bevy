@@ -22,7 +22,10 @@ pub struct Rect {
 
 impl Rect {
     /// A `Rect` with bounds from `NEG_INFINITY` to `INFINITY` in both axes.
-    pub const INFINITE: Self = Rect { min: Vec2::splat(f32::NEG_INFINITY), max: Vec2::splat(f32::INFINITY) };
+    pub const INFINITE: Self = Rect {
+        min: Vec2::splat(f32::NEG_INFINITY),
+        max: Vec2::splat(f32::INFINITY),
+    };
 
     /// Create a new rectangle from two corner points.
     ///
@@ -316,16 +319,15 @@ impl Rect {
         ]
     }
 
-        /// Returns the vertices of this rectangle
-        pub const fn vertices3(&self) -> [Vec3; 4] {
-            [
-                self.min.extend(0.),
-                Vec3::new(self.max.x, self.min.y, 0.),
-                self.max.extend(0.),
-                Vec3::new(self.min.x, self.max.y, 0.),
-            ]
-        }
-
+    /// Returns the vertices of this rectangle
+    pub const fn vertices3(&self) -> [Vec3; 4] {
+        [
+            self.min.extend(0.),
+            Vec3::new(self.max.x, self.min.y, 0.),
+            self.max.extend(0.),
+            Vec3::new(self.min.x, self.max.y, 0.),
+        ]
+    }
 }
 
 #[cfg(test)]

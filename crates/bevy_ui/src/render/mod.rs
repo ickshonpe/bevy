@@ -208,7 +208,13 @@ pub fn extract_uinodes(
                 }
                 (image.texture.clone_weak(), uv_rect)
             } else {
-                (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), Rect { min: Vec2::ZERO, max: Vec2::ONE })
+                (
+                    DEFAULT_IMAGE_HANDLE.typed().clone_weak(),
+                    Rect {
+                        min: Vec2::ZERO,
+                        max: Vec2::ONE,
+                    },
+                )
             };
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
@@ -326,7 +332,7 @@ pub fn extract_text_uinodes(
 
             let mut color = Color::WHITE;
             let mut current_section = usize::MAX;
-            
+
             for PositionedGlyph {
                 position,
                 atlas_info,
@@ -338,8 +344,8 @@ pub fn extract_text_uinodes(
                     color = text.sections[*section_index].style.color.as_rgba_linear();
                     current_section = *section_index;
                 }
-                
-                let  atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+
+                let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
                 let atlas_sub_rect = atlas.textures[atlas_info.glyph_index];
                 let uv_rect = Rect {
                     min: atlas_sub_rect.min / atlas.size,
@@ -347,9 +353,9 @@ pub fn extract_text_uinodes(
                 };
                 let glyph_rect = Rect::from_center_size(
                     node_rect.min + *position * inverse_scale_factor,
-                    atlas_sub_rect.size() * inverse_scale_factor
+                    atlas_sub_rect.size() * inverse_scale_factor,
                 );
-                
+
                 let rect = glyph_rect.intersect(clipped_node_rect);
 
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
