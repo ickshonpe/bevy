@@ -172,7 +172,6 @@ pub fn extract_uinodes(
         )>,
     >,
 ) {
-    extracted_uinodes.uinodes.clear();
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, transform, color, maybe_image, visibility, maybe_clip)) =
             uinode_query.get(*entity)
@@ -399,7 +398,6 @@ const QUAD_INDICES: [usize; 6] = [0, 2, 3, 0, 1, 2];
 pub struct UiBatch {
     pub range: Range<u32>,
     pub image: Handle<Image>,
-    pub z: f32,
 }
 
 pub fn prepare_uinodes(
@@ -419,14 +417,12 @@ pub fn prepare_uinodes(
     let mut start = 0;
     let mut end = 0;
     let mut current_batch_handle = Default::default();
-    let mut last_z = 0.0;
-    for extracted_uinode in &extracted_uinodes.uinodes {
+    for extracted_uinode in extracted_uinodes.uinodes.drain(..) {
         if current_batch_handle != extracted_uinode.image {
             if start != end {
                 commands.spawn(UiBatch {
                     range: start..end,
                     image: current_batch_handle,
-                    z: last_z,
                 });
                 start = end;
             }
@@ -444,7 +440,6 @@ pub fn prepare_uinodes(
             });
         }
 
-        last_z = 0.; //extracted_uinode.transform.w_axis[2];
         end += QUAD_INDICES.len() as u32;
     }
 
@@ -453,7 +448,6 @@ pub fn prepare_uinodes(
         commands.spawn(UiBatch {
             range: start..end,
             image: current_batch_handle,
-            z: last_z,
         });
     }
 
@@ -531,7 +525,7 @@ pub fn queue_uinodes(
                     draw_function: draw_ui_function,
                     pipeline,
                     entity,
-                    sort_key: FloatOrd(batch.z),
+                    sort_key: FloatOrd(0.),
                 });
             }
         }
