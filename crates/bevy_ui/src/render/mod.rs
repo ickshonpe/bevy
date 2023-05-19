@@ -182,10 +182,11 @@ pub fn extract_uinodes(
             }
 
             let node_size = uinode.calculated_size;
-            let node_rect = Rect::from_center_size(transform.translation().truncate(), node_size);
+            let node_rect = uinode.logical_rect(transform);
             let clip_rect = maybe_clip.map_or(Rect::INFINITE, |clip| clip.clip);
             let clipped_node_rect = node_rect.intersect(clip_rect);
 
+            // `clipped_node_rect` bounds the visible portion of the UI node. If it is empty the UI node is not visible and can be skipped.
             if clipped_node_rect.is_empty() {
                 continue;
             }
@@ -195,6 +196,8 @@ pub fn extract_uinodes(
                 if !images.contains(&image.texture) {
                     continue;
                 }
+
+                // Calculates the normalized position of `clipped_node_rect` within `node_rect` to find the UV coordinates.
                 let mut uv_rect = Rect {
                     min: (clipped_node_rect.min - node_rect.min) / node_size,
                     max: (clipped_node_rect.max - node_rect.min) / node_size,
@@ -320,8 +323,7 @@ pub fn extract_text_uinodes(
             }
 
             let clip_rect = maybe_clip.map_or(Rect::INFINITE, |clip| clip.clip);
-            let node_size = uinode.calculated_size;
-            let node_rect = Rect::from_center_size(transform.translation().truncate(), node_size);
+            let node_rect = uinode.logical_rect(transform);
             let clipped_node_rect = node_rect.intersect(clip_rect);
 
             // Skip if the node is clipped entirely
@@ -346,21 +348,30 @@ pub fn extract_text_uinodes(
 
                 let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
                 let atlas_sub_rect = atlas.textures[atlas_info.glyph_index];
-                let uv_rect = Rect {
+                let glyph_rect_size = atlas_sub_rect.size() * inverse_scale_factor;
+                let glyph_rect = Rect::from_center_size(
+                    node_rect.min + *position * inverse_scale_factor,
+                    glyph_rect_size,
+                );
+                let clipped_glyph_rect = glyph_rect.intersect(clipped_node_rect);
+                let normalized_glyph_rect = Rect {
+                    min: (clipped_glyph_rect.min - glyph_rect.min) / glyph_rect_size,
+                    max: (clipped_glyph_rect.max - glyph_rect.min) / glyph_rect_size,
+                };
+                let unclipped_uv_rect = Rect {
                     min: atlas_sub_rect.min / atlas.size,
                     max: atlas_sub_rect.max / atlas.size,
                 };
-                let glyph_rect = Rect::from_center_size(
-                    node_rect.min + *position * inverse_scale_factor,
-                    atlas_sub_rect.size() * inverse_scale_factor,
-                );
-
-                let rect = glyph_rect.intersect(clipped_node_rect);
+                let unclipped_uv_rect_size = unclipped_uv_rect.size();
+                let uv_rect = Rect {
+                    min: unclipped_uv_rect.min + normalized_glyph_rect.min * unclipped_uv_rect_size,
+                    max: unclipped_uv_rect.min + normalized_glyph_rect.max * unclipped_uv_rect_size,
+                };
 
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
                     color,
-                    vertices: rect.vertices(),
+                    vertices: clipped_glyph_rect.vertices(),
                     image: atlas.texture.clone_weak(),
                     uv_rect,
                 });
