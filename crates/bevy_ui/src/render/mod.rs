@@ -184,7 +184,7 @@ pub fn extract_uinodes(
         if !visibility.is_visible() || color.0.a() == 0.0 {
             continue;
         }
-         
+
         let node_rect = uinode.logical_rect(*position);
         let clip_rect = maybe_clip.map_or(Rect::INFINITE, |clip| clip.clip);
         let clipped_node_rect = node_rect.intersect(clip_rect);
@@ -315,72 +315,70 @@ pub fn extract_text_uinodes(
 
     let inverse_scale_factor = scale_factor.recip();
 
-    
     for (uinode, position, text, text_layout_info, visibility, maybe_clip, z_index) in
-            uinode_query.iter()
+        uinode_query.iter()
+    {
+        // Skip if not visible
+        if !visibility.is_visible() {
+            continue;
+        }
+
+        let clip_rect = maybe_clip.map_or(Rect::INFINITE, |clip| clip.clip);
+        let node_rect = uinode.logical_rect(*position);
+        let clipped_node_rect = node_rect.intersect(clip_rect);
+
+        // Skip if the node is clipped entirely
+        if clipped_node_rect.is_empty() {
+            continue;
+        }
+
+        let mut color = Color::WHITE;
+        let mut current_section = usize::MAX;
+
+        for PositionedGlyph {
+            position,
+            atlas_info,
+            section_index,
+            ..
+        } in &text_layout_info.glyphs
         {
-            // Skip if not visible
-            if !visibility.is_visible() {
-                continue;
+            if *section_index != current_section {
+                color = text.sections[*section_index].style.color.as_rgba_linear();
+                current_section = *section_index;
             }
 
-            let clip_rect = maybe_clip.map_or(Rect::INFINITE, |clip| clip.clip);
-            let node_rect = uinode.logical_rect(*position);
-            let clipped_node_rect = node_rect.intersect(clip_rect);
+            let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+            let atlas_sub_rect = atlas.textures[atlas_info.glyph_index];
+            let glyph_rect_size = atlas_sub_rect.size() * inverse_scale_factor;
+            let glyph_rect = Rect::from_center_size(
+                node_rect.min + *position * inverse_scale_factor,
+                glyph_rect_size,
+            );
+            let clipped_glyph_rect = glyph_rect.intersect(clipped_node_rect);
+            let normalized_glyph_rect = Rect {
+                min: (clipped_glyph_rect.min - glyph_rect.min) / glyph_rect_size,
+                max: (clipped_glyph_rect.max - glyph_rect.min) / glyph_rect_size,
+            };
+            let unclipped_uv_rect = Rect {
+                min: atlas_sub_rect.min / atlas.size,
+                max: atlas_sub_rect.max / atlas.size,
+            };
+            let unclipped_uv_rect_size = unclipped_uv_rect.size();
+            let uv_rect = Rect {
+                min: unclipped_uv_rect.min + normalized_glyph_rect.min * unclipped_uv_rect_size,
+                max: unclipped_uv_rect.min + normalized_glyph_rect.max * unclipped_uv_rect_size,
+            };
 
-            // Skip if the node is clipped entirely
-            if clipped_node_rect.is_empty() {
-                continue;
-            }
-
-            let mut color = Color::WHITE;
-            let mut current_section = usize::MAX;
-
-            for PositionedGlyph {
-                position,
-                atlas_info,
-                section_index,
-                ..
-            } in &text_layout_info.glyphs
-            {
-                if *section_index != current_section {
-                    color = text.sections[*section_index].style.color.as_rgba_linear();
-                    current_section = *section_index;
-                }
-
-                let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
-                let atlas_sub_rect = atlas.textures[atlas_info.glyph_index];
-                let glyph_rect_size = atlas_sub_rect.size() * inverse_scale_factor;
-                let glyph_rect = Rect::from_center_size(
-                    node_rect.min + *position * inverse_scale_factor,
-                    glyph_rect_size,
-                );
-                let clipped_glyph_rect = glyph_rect.intersect(clipped_node_rect);
-                let normalized_glyph_rect = Rect {
-                    min: (clipped_glyph_rect.min - glyph_rect.min) / glyph_rect_size,
-                    max: (clipped_glyph_rect.max - glyph_rect.min) / glyph_rect_size,
-                };
-                let unclipped_uv_rect = Rect {
-                    min: atlas_sub_rect.min / atlas.size,
-                    max: atlas_sub_rect.max / atlas.size,
-                };
-                let unclipped_uv_rect_size = unclipped_uv_rect.size();
-                let uv_rect = Rect {
-                    min: unclipped_uv_rect.min + normalized_glyph_rect.min * unclipped_uv_rect_size,
-                    max: unclipped_uv_rect.min + normalized_glyph_rect.max * unclipped_uv_rect_size,
-                };
-
-                extracted_uinodes.uinodes.push(ExtractedUiNode {
-                    stack_index: z_index.0,
-                    color,
-                    vertices: clipped_glyph_rect.vertices(),
-                    image: atlas.texture.clone_weak(),
-                    uv_rect,
-                });
-            }
+            extracted_uinodes.uinodes.push(ExtractedUiNode {
+                stack_index: z_index.0,
+                color,
+                vertices: clipped_glyph_rect.vertices(),
+                image: atlas.texture.clone_weak(),
+                uv_rect,
+            });
         }
     }
-
+}
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
@@ -423,7 +421,9 @@ pub fn prepare_uinodes(
     ui_meta.vertices.clear();
 
     // sort by ui stack index, starting from the deepest node
-    extracted_uinodes.uinodes.sort_by_key(|node| node.stack_index);
+    extracted_uinodes
+        .uinodes
+        .sort_by_key(|node| node.stack_index);
 
     let mut start = 0;
     let mut end = 0;

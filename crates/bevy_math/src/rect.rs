@@ -1,6 +1,5 @@
 use crate::Vec2;
 
-
 /// A rectangle defined by two opposite corners.
 ///
 /// The rectangle is axis aligned, and defined by its minimum and maximum coordinates,

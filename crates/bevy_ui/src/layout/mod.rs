@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug_output;
 
-use crate::{ContentSize, ZIndex, NodeOrder, NodePosition, NodeSize, Style, UiScale};
+use crate::{ContentSize, NodeOrder, NodePosition, NodeSize, Style, UiScale, ZIndex};
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     change_detection::DetectChanges,
@@ -141,7 +141,6 @@ impl LayoutContext {
 #[derive(SystemParam)]
 pub struct UiSurface<'w, 's> {
     entity_to_taffy: ResMut<'w, UiEntityToTaffyMap>,
-    root_map: ResMut<'w, UiRootMap>,
     tree: ResMut<'w, TaffyTree>,
     layouts: Res<'w, UiLayouts>,
     #[system_param(ignore)]
@@ -167,28 +166,6 @@ impl<'w, 's> UiSurface<'w, 's> {
             trace!("\tremoving {old_key:?}");
             self.tree.remove(old_key).ok();
         }
-    }
-
-    fn update_style(
-        &mut self,
-        taffy_node: taffy::node::Node,
-        style: &Style,
-        context: &LayoutContext,
-    ) {
-        trace!("Update style -> {taffy_node:?}");
-        self.tree
-            .set_style(taffy_node, convert::from_style(context, style))
-            .ok();
-    }
-
-    /// Update the `MeasureFunc` of the taffy node corresponding to the given [`Entity`].
-    fn update_measure(
-        &mut self,
-        taffy_node: taffy::node::Node,
-        measure_func: taffy::node::MeasureFunc,
-    ) {
-        trace!("Update measure func -> {taffy_node:?}");
-        self.tree.set_measure(taffy_node, Some(measure_func)).ok();
     }
 
     /// Update the children of the taffy node corresponding to the given [`Entity`].
@@ -427,7 +404,8 @@ pub fn update_ui_nodes_system(
         // update all nodes
         for (node, style) in full_style_query.iter() {
             trace!("Update style -> {:?}", node);
-            ui_surface.tree
+            ui_surface
+                .tree
                 .set_style(node.key, convert::from_style(layout_context, style))
                 .ok();
         }
@@ -435,7 +413,8 @@ pub fn update_ui_nodes_system(
         for (node, style) in style_query.iter() {
             if style.is_changed() {
                 trace!("Update style -> {:?}", node);
-                ui_surface.tree
+                ui_surface
+                    .tree
                     .set_style(node.key, convert::from_style(layout_context, &style))
                     .ok();
             }
@@ -445,7 +424,10 @@ pub fn update_ui_nodes_system(
     for (taffy_node, mut content_size) in measure_query.iter_mut() {
         if let Some(measure_func) = content_size.measure_func.take() {
             trace!("Update measure func -> {taffy_node:?}");
-            ui_surface.tree.set_measure(taffy_node.key, Some(measure_func)).ok();
+            ui_surface
+                .tree
+                .set_measure(taffy_node.key, Some(measure_func))
+                .ok();
         }
     }
 
@@ -485,12 +467,7 @@ pub fn update_node_geometries_iteratively(
     mut stack: Local<Vec<(Entity, Vec2)>>,
     ui_surface: UiSurface,
     ui_context: Res<UiContext>,
-    mut node_geometry_query: Query<(
-        &TaffyKey,
-        &mut NodeSize,
-        &mut NodePosition,
-        &mut ZIndex,
-    )>,
+    mut node_geometry_query: Query<(&TaffyKey, &mut NodeSize, &mut NodePosition, &mut ZIndex)>,
     just_children_query: Query<&Children>,
 ) {
     debug!("update_nodes_iteratively");
@@ -545,12 +522,7 @@ pub fn update_node_geometries_iteratively(
 pub fn update_nodes_recursively(
     ui_surface: UiSurface,
     ui_context: Res<UiContext>,
-    mut node_geometry_query: Query<(
-        &TaffyKey,
-        &mut NodeSize,
-        &mut NodePosition,
-        &mut ZIndex,
-    )>,
+    mut node_geometry_query: Query<(&TaffyKey, &mut NodeSize, &mut NodePosition, &mut ZIndex)>,
     just_children_query: Query<&Children>,
 ) {
     let Some(physical_to_logical_factor) = ui_context
@@ -565,12 +537,7 @@ pub fn update_nodes_recursively(
         ui_surface: &UiSurface,
         inherited_position: Vec2,
         node_entity: Entity,
-        node_geometry_query: &mut Query<(
-            &TaffyKey,
-            &mut NodeSize,
-            &mut NodePosition,
-            &mut ZIndex,
-        )>,
+        node_geometry_query: &mut Query<(&TaffyKey, &mut NodeSize, &mut NodePosition, &mut ZIndex)>,
         children_query: &Query<&Children>,
         physical_to_logical_factor: f64,
         order: &mut u32,
