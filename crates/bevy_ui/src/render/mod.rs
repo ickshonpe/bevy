@@ -170,14 +170,38 @@ pub fn extract_uinodes(
             &NodeSize,
             &NodePosition,
             &BackgroundColor,
-            Option<&UiImage>,
-            &ComputedVisibility,
-            Option<&CalculatedClip>,
+            &ComputedVisibility,            
             &ZIndex,
+        ), (
+            Without<UiImage>,
+            Without<CalculatedClip>,
         )>,
     >,
+    image_uinode_query: Extract<
+        Query<(
+            &NodeSize,
+            &NodePosition,
+            &BackgroundColor,
+            &UiImage,
+            &ComputedVisibility,            
+            &ZIndex,
+        ),
+            Without<CalculatedClip>,
+        >,
+    >,
+    clipped_uinode_query: Extract<
+        Query<(
+            &NodeSize,
+            &NodePosition,
+            &BackgroundColor,
+            &UiImage,
+            &ComputedVisibility,            
+            &CalculatedClip,
+            &ZIndex,
+        )>
+    >
 ) {
-    for (uinode, position, color, maybe_image, visibility, maybe_clip, &ZIndex(z_index)) in
+    for (uinode, position, color, visibility, &ZIndex(z_index)) in
         uinode_query.iter()
     {
         // Skip invisible and completely transparent nodes
@@ -186,7 +210,66 @@ pub fn extract_uinodes(
         }
 
         let node_rect = uinode.logical_rect(*position);
-        let clip_rect = maybe_clip.map_or(Rect::INFINITE, |clip| clip.clip);
+        if node_rect.is_empty() {
+            continue;
+        }
+
+        extracted_uinodes.uinodes.push(ExtractedUiNode {
+            stack_index: z_index,
+            color: color.0,
+            vertices: node_rect.vertices(),
+            image: DEFAULT_IMAGE_HANDLE.typed(),
+            uv_rect: Rect { min: Vec2::ZERO, max: Vec2::ONE },
+        });
+    }
+
+    for (uinode, position, color, image, visibility, &ZIndex(z_index)) in
+        image_uinode_query.iter()
+    {
+        // Skip invisible and completely transparent nodes
+        if !visibility.is_visible() || color.0.a() == 0.0 {
+            continue;
+        }
+
+        let node_rect = uinode.logical_rect(*position);
+
+        if node_rect.is_empty() {
+            continue;
+        }
+
+        // Skip loading images
+        if !images.contains(&image.texture) {
+            continue;
+        }
+
+        let mut uv_rect = Rect { min: Vec2::ZERO, max: Vec2::ONE };
+
+        if image.flip_x {
+            std::mem::swap(&mut uv_rect.min.x, &mut uv_rect.max.x);
+        }
+        if image.flip_y {
+            std::mem::swap(&mut uv_rect.min.y, &mut uv_rect.max.y);
+        }
+
+        extracted_uinodes.uinodes.push(ExtractedUiNode {
+            stack_index: z_index,
+            color: color.0,
+            vertices: node_rect.vertices(),
+            image: image.texture.clone_weak(),
+            uv_rect,
+        });
+    }
+
+    for (uinode, position, color, image, visibility, clip, &ZIndex(z_index)) in
+        clipped_uinode_query.iter()
+    {
+        // Skip invisible and completely transparent nodes
+        if !visibility.is_visible() || color.0.a() == 0.0 {
+            continue;
+        }
+
+        let node_rect = uinode.logical_rect(*position);
+        let clip_rect = clip.clip;
         let clipped_node_rect = node_rect.intersect(clip_rect);
 
         // `clipped_node_rect` bounds the visible portion of the UI node. If it is empty the UI node is not visible and can be skipped.
@@ -194,39 +277,28 @@ pub fn extract_uinodes(
             continue;
         }
 
-        let (image, uv_rect) = if let Some(image) = maybe_image {
-            // Skip loading images
-            if !images.contains(&image.texture) {
-                continue;
-            }
+        // Skip loading images
+        if !images.contains(&image.texture) {
+            continue;
+        }
 
-            // Calculates the normalized position of `clipped_node_rect` within `node_rect` to find the UV coordinates.
-            let mut uv_rect = Rect {
-                min: (clipped_node_rect.min - node_rect.min) / uinode.size(),
-                max: (clipped_node_rect.max - node_rect.min) / uinode.size(),
-            };
-            if image.flip_x {
-                std::mem::swap(&mut uv_rect.min.x, &mut uv_rect.max.x);
-            }
-            if image.flip_y {
-                std::mem::swap(&mut uv_rect.min.y, &mut uv_rect.max.y);
-            }
-            (image.texture.clone_weak(), uv_rect)
-        } else {
-            (
-                DEFAULT_IMAGE_HANDLE.typed().clone_weak(),
-                Rect {
-                    min: Vec2::ZERO,
-                    max: Vec2::ONE,
-                },
-            )
+        // Calculates the normalized position of `clipped_node_rect` within `node_rect` to find the UV coordinates.
+        let mut uv_rect = Rect {
+            min: (clipped_node_rect.min - node_rect.min) / uinode.size(),
+            max: (clipped_node_rect.max - node_rect.min) / uinode.size(),
         };
-
+        if image.flip_x {
+            std::mem::swap(&mut uv_rect.min.x, &mut uv_rect.max.x);
+        }
+        if image.flip_y {
+            std::mem::swap(&mut uv_rect.min.y, &mut uv_rect.max.y);
+        }
+      
         extracted_uinodes.uinodes.push(ExtractedUiNode {
             stack_index: z_index,
             color: color.0,
             vertices: clipped_node_rect.vertices(),
-            image,
+            image: image.texture.clone_weak(),
             uv_rect,
         });
     }
@@ -295,16 +367,27 @@ pub fn extract_text_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     texture_atlases: Extract<Res<Assets<TextureAtlas>>>,
     windows: Extract<Query<&Window, With<PrimaryWindow>>>,
-    uinode_query: Extract<
+    text_uinode_query: Extract<
         Query<(
             &NodeSize,
             &NodePosition,
             &Text,
             &TextLayoutInfo,
             &ComputedVisibility,
-            Option<&CalculatedClip>,
             &ZIndex,
-        )>,
+        ), Without<CalculatedClip>
+        >
+    >,
+    clipped_text_uinode_query: Extract<
+        Query<(
+            &NodeSize,
+            &NodePosition,
+            &Text,
+            &TextLayoutInfo,
+            &ComputedVisibility,
+            &CalculatedClip,
+            &ZIndex,
+        )>
     >,
 ) {
     // TODO: Support window-independent UI scale: https://github.com/bevyengine/bevy/issues/5621
@@ -315,15 +398,64 @@ pub fn extract_text_uinodes(
 
     let inverse_scale_factor = scale_factor.recip();
 
-    for (uinode, position, text, text_layout_info, visibility, maybe_clip, z_index) in
-        uinode_query.iter()
+    for (uinode, position, text, text_layout_info, visibility, z_index) in text_uinode_query.iter() {
+    // Skip if not visible
+    if !visibility.is_visible() {
+        continue;
+    }
+
+    let node_rect = uinode.logical_rect(*position);
+
+    // Skip if the node is clipped entirely
+    if node_rect.is_empty() {
+        continue;
+    }
+
+    let mut color = Color::WHITE;
+    let mut current_section = usize::MAX;
+
+    for PositionedGlyph {
+        position,
+        atlas_info,
+        section_index,
+        ..
+    } in &text_layout_info.glyphs
+    {
+        if *section_index != current_section {
+            color = text.sections[*section_index].style.color.as_rgba_linear();
+            current_section = *section_index;
+        }
+
+        let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+        let atlas_sub_rect = atlas.textures[atlas_info.glyph_index];
+        let glyph_rect = Rect::from_center_size(
+            node_rect.min + *position * inverse_scale_factor,
+            atlas_sub_rect.size() * inverse_scale_factor,
+        );
+        let uv_rect = Rect {
+            min: atlas_sub_rect.min / atlas.size,
+            max: atlas_sub_rect.max / atlas.size,
+        };
+       
+        extracted_uinodes.uinodes.push(ExtractedUiNode {
+            stack_index: z_index.0,
+            color,
+            vertices: glyph_rect.vertices(),
+            image: atlas.texture.clone_weak(),
+            uv_rect,
+        });
+    }
+}
+
+    for (uinode, position, text, text_layout_info, visibility, clip, z_index) in
+        clipped_text_uinode_query.iter()
     {
         // Skip if not visible
         if !visibility.is_visible() {
             continue;
         }
 
-        let clip_rect = maybe_clip.map_or(Rect::INFINITE, |clip| clip.clip);
+        let clip_rect = clip.clip;
         let node_rect = uinode.logical_rect(*position);
         let clipped_node_rect = node_rect.intersect(clip_rect);
 
