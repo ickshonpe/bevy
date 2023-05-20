@@ -147,10 +147,27 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
 pub struct ExtractedUiNode {
     pub stack_index: usize,
     pub color: Color,
-    pub vertices: [Vec2; 4],
-    pub image: Handle<Image>,
-    pub uv_rect: Rect,
+    // pub vertices: [Vec2; 4],
+    // pub image: Handle<Image>,
+    // pub uv_rect: Rect,
+    pub item: ExtractedItem,
 }
+
+pub enum ExtractedItem {
+    Rect {
+        rect: Rect,    
+    },
+    Image {
+        rect: Rect,
+        image: Handle<Image>, 
+    },
+    ImageSection {
+        rect: Rect,
+        uv_rect: Rect,
+        image: Handle<Image>,
+    },
+}
+
 
 #[derive(Resource, Default)]
 pub struct ExtractedUiNodes {
@@ -221,9 +238,11 @@ pub fn extract_uinodes(
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
                 color: color.0,
-                vertices: clipped_node_rect.vertices(),
-                image,
-                uv_rect,
+                item: ExtractedItem::ImageSection { 
+                    rect: clipped_node_rect, 
+                    image,            
+                    uv_rect,
+                }
             });
         }
     }
@@ -370,9 +389,11 @@ pub fn extract_text_uinodes(
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
                     color,
-                    vertices: clipped_glyph_rect.vertices(),
-                    image: atlas.texture.clone_weak(),
-                    uv_rect,
+                    item: ExtractedItem::ImageSection { 
+                        rect: clipped_glyph_rect, 
+                        image: atlas.texture.clone_weak(),            
+                        uv_rect,
+                    }
                 });
             }
         }
@@ -424,34 +445,87 @@ pub fn prepare_uinodes(
         .uinodes
         .sort_by_key(|node| node.stack_index);
 
+    let default_handle = DEFAULT_IMAGE_HANDLE.typed();
+
     let mut start = 0;
     let mut end = 0;
     let mut current_batch_handle = Default::default();
     for extracted_uinode in extracted_uinodes.uinodes.drain(..) {
-        if current_batch_handle != extracted_uinode.image {
-            if start != end {
-                commands.spawn(UiBatch {
-                    range: start..end,
-                    image: current_batch_handle,
-                });
-                start = end;
-            }
-            current_batch_handle = extracted_uinode.image.clone_weak();
+        let color = extracted_uinode.color.as_linear_rgba_f32();        
+        match extracted_uinode.item {
+            ExtractedItem::Rect { rect } => {                
+                if current_batch_handle != default_handle {
+                    if start != end {
+                        commands.spawn(UiBatch {
+                            range: start..end,
+                            image: current_batch_handle,
+                        });
+                        start = end;
+                    }
+                    current_batch_handle = default_handle.clone_weak();
+                    let uvs = Rect { min: Vec2::ZERO, max: Vec2::ONE }.vertices();
+                    let vertices = rect.vertices();
+                    for i in QUAD_INDICES {
+                        ui_meta.vertices.push(UiVertex {
+                            uv: uvs[i].into(),
+                            color,
+                            position: vertices[i].extend(0.).into(),
+                        });
+                    }
+            
+                }
+            },
+            ExtractedItem::Image { rect, image } => {
+                if current_batch_handle != image {
+                    if start != end {
+                        commands.spawn(UiBatch {
+                            range: start..end,
+                            image: current_batch_handle,
+                        });
+                        start = end;
+                    }
+                    current_batch_handle = image.clone_weak();
+                    let uvs = Rect { min: Vec2::ZERO, max: Vec2::ONE }.vertices();
+                    let vertices = rect.vertices();
+                    for i in QUAD_INDICES {
+                        ui_meta.vertices.push(UiVertex {
+                            uv: uvs[i].into(),
+                            color,
+                            position: vertices[i].extend(0.).into(),
+                        });
+                    }
+            
+                }
+
+            },
+            ExtractedItem::ImageSection { rect, uv_rect, image } => {
+                if current_batch_handle != image {
+                    if start != end {
+                        commands.spawn(UiBatch {
+                            range: start..end,
+                            image: current_batch_handle,
+                        });
+                        start = end;
+                    }
+                    current_batch_handle = image.clone_weak();
+                    let uvs = uv_rect.vertices();
+                    let vertices = rect.vertices();
+
+                    for i in QUAD_INDICES {
+                        ui_meta.vertices.push(UiVertex {
+                            uv: uvs[i].into(),
+                            color,
+                            position: vertices[i].extend(0.).into(),
+                        });
+                    }            
+                }
+
+            },
         }
-
-        let color = extracted_uinode.color.as_linear_rgba_f32();
-        let uvs = extracted_uinode.uv_rect.vertices();
-
-        for i in QUAD_INDICES {
-            ui_meta.vertices.push(UiVertex {
-                uv: uvs[i].into(),
-                color,
-                position: extracted_uinode.vertices[i].extend(0.).into(),
-            });
-        }
-
         end += QUAD_INDICES.len() as u32;
+
     }
+
 
     // if start != end, there is one last batch to process
     if start != end {
