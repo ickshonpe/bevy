@@ -84,7 +84,6 @@ impl Default for UiScale {
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(ExtractComponentPlugin::<UiCameraConfig>::default())
-            .init_resource::<UiSurface>()
             .init_resource::<UiScale>()
             .init_resource::<UiStack>()
             .register_type::<AlignContent>()
@@ -123,6 +122,9 @@ impl Plugin for UiPlugin {
                 PreUpdate,
                 ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),
             );
+
+        ui_setup(app);
+
         // add these systems to front because these must run before transform update systems
         #[cfg(feature = "bevy_text")]
         app.add_systems(

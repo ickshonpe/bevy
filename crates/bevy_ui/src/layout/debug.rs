@@ -1,35 +1,38 @@
-use crate::UiSurface;
 use bevy_ecs::prelude::Entity;
 use bevy_utils::HashMap;
 use std::fmt::Write;
 use taffy::prelude::Node;
 use taffy::tree::LayoutTree;
 
+use crate::UiLayoutTree;
+
+use super::TaffyNode;
+
 /// Prints a debug representation of the computed layout of the UI layout tree for each window.
-pub fn print_ui_layout_tree(ui_surface: &UiSurface) {
-    let taffy_to_entity: HashMap<Node, Entity> = ui_surface
+pub fn print_ui_layout_tree(tree: &UiLayoutTree, window_node: TaffyNode) {
+    let taffy_to_entity: HashMap<Node, Entity> = tree
         .entity_to_taffy
         .iter()
         .map(|(entity, node)| (*node, *entity))
         .collect();
-    for (&entity, &node) in ui_surface.window_nodes.iter() {
-        let mut out = String::new();
+    let mut out = String::new();
+    for child in &tree.children[window_node] {
         print_node(
-            ui_surface,
+            tree,
             &taffy_to_entity,
-            entity,
-            node,
+            taffy_to_entity[child],
+            *child,
             false,
             String::new(),
             &mut out,
         );
-        bevy_log::info!("Layout tree for window entity: {entity:?}\n{out}");
     }
+    bevy_log::info!("UI Layout tree:\n{out}");
 }
 
 /// Recursively navigates the layout tree printing each node's information.
 fn print_node(
-    ui_surface: &UiSurface,
+    tree: &UiLayoutTree,
     taffy_to_entity: &HashMap<Node, Entity>,
     entity: Entity,
     node: Node,
@@ -37,11 +40,10 @@ fn print_node(
     lines_string: String,
     acc: &mut String,
 ) {
-    let tree = &ui_surface.taffy;
-    let layout = tree.layout(node).unwrap();
-    let style = tree.style(node).unwrap();
+    let layout = tree.layout(node);
+    let style = tree.style(node);
 
-    let num_children = tree.child_count(node).unwrap();
+    let num_children = tree.child_count(node);
 
     let display_variant = match (num_children, style.display) {
         (_, taffy::style::Display::None) => "NONE",
@@ -71,11 +73,11 @@ fn print_node(
     let new_string = lines_string + bar;
 
     // Recurse into children
-    for (index, child_node) in tree.children(node).unwrap().iter().enumerate() {
+    for (index, child_node) in tree.children(node).enumerate() {
         let has_sibling = index < num_children - 1;
         let child_entity = taffy_to_entity.get(child_node).unwrap();
         print_node(
-            ui_surface,
+            tree,
             taffy_to_entity,
             *child_entity,
             *child_node,
