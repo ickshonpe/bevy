@@ -408,9 +408,6 @@ pub fn ui_layout_system(
         }
     }
 
-    // compute layout
-    // ui_surface.compute_window_layouts();
-
     let size_and_baselines = taffy::prelude::layout_flexbox(
         &mut tree,
         window_node.taffy_node,
@@ -428,7 +425,7 @@ pub fn ui_layout_system(
 
     tree.nodes[window_node.taffy_node].layout = layout;
 
-    round_layout(&mut tree, window_node.taffy_node, 0., 0.);
+    //round_layout(&mut tree, window_node.taffy_node, 0., 0.);
 
     let physical_to_logical_factor = 1. / logical_to_physical_factor;
 
@@ -437,6 +434,7 @@ pub fn ui_layout_system(
     // PERF: try doing this incrementally
     for (node, mut node_size, mut transform) in &mut node_transform_query {
         let layout = tree.nodes[node.taffy_node].layout;
+
         let new_size = Vec2::new(
             to_logical(layout.size.width),
             to_logical(layout.size.height),
