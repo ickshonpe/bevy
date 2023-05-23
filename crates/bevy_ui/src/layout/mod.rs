@@ -246,10 +246,15 @@ impl<'w, 's> UiLayoutTree<'w, 's> {
     }
 
     fn insert(&mut self, entity: Entity) -> TaffyNode {
-        let taffy_node = self.nodes.insert(TaffyNodeData::new(TaffyStyle::default()));
+        let taffy_node = self.new_leaf();
         if let Some(old_taffy_node) = self.entity_to_taffy.insert(entity, taffy_node) {
             self.remove(old_taffy_node);
         } 
+        taffy_node
+    }
+
+    fn new_leaf(&mut self) -> TaffyNode {
+        let taffy_node = self.nodes.insert(TaffyNodeData::new(TaffyStyle::default()));
         let _ = self.children.insert(Vec::with_capacity(0));
         let _ = self.parents.insert(None);
         taffy_node
@@ -322,12 +327,10 @@ pub fn ui_layout_system(
 
     // update window root nodes
     if window_node.taffy_node == TaffyNode::default() {
-        window_node.taffy_node = tree.nodes.insert(TaffyNodeData::new(TaffyStyle::default()));
+        window_node.taffy_node = tree.new_leaf();        
     }
 
-    if window_node.previous_physical_size != physical_size
-        || window_node.taffy_node == TaffyNode::default()
-    {
+    if window_node.previous_physical_size != physical_size {
         tree.nodes[window_node.taffy_node].style = TaffyStyle {
             size: taffy::geometry::Size {
                 width: taffy::style::Dimension::Points(physical_size.x as f32),
@@ -336,6 +339,7 @@ pub fn ui_layout_system(
             ..Default::default()
         };
         tree.mark_dirty_internal(window_node.taffy_node);
+        window_node.previous_physical_size = physical_size;
     }
 
     let scale_factor = logical_to_physical_factor * ui_scale.scale;
@@ -366,6 +370,7 @@ pub fn ui_layout_system(
         }
     }
 
+    println!("window_node: {:?}", window_node.taffy_node);
     // update window children (for now assuming all Nodes live in the primary window)
     for old_child in &tree.children[window_node.taffy_node] {
         tree.parents[*old_child] = None;
