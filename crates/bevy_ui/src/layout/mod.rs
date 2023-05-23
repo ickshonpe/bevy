@@ -100,10 +100,12 @@ pub struct WindowTaffyNode {
 }
 
 pub fn ui_setup(app: &mut bevy_app::App) {
-    app.init_resource::<EntityToTaffyMap>()
+    app
+        .init_resource::<EntityToTaffyMap>()    
+        .init_resource::<MeasureFuncs>()
+        .init_resource::<TaffyNodes>()
         .init_resource::<TaffyChildren>()
         .init_resource::<TaffyParents>()
-        .init_resource::<MeasureFuncs>()
         .init_resource::<WindowTaffyNode>();
 }
 
@@ -128,7 +130,6 @@ pub fn insert_ui_nodes_system(
         // Users can only instantiate `Node` components containing a null key
         if node.is_null() {
             node.taffy_node = tree.insert(entity);
-            
         }
     }
 }
