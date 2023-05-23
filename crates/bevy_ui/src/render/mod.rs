@@ -166,26 +166,27 @@ pub fn extract_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     images: Extract<Res<Assets<Image>>>,
     uinode_query: Extract<
-        Query<(
-            &NodeSize,
-            &NodePosition,
-            &BackgroundColor,
-            &ComputedVisibility,            
-            &ZIndex,
-        ), (
-            Without<UiImage>,
-            Without<CalculatedClip>,
-        )>,
+        Query<
+            (
+                &NodeSize,
+                &NodePosition,
+                &BackgroundColor,
+                &ComputedVisibility,
+                &ZIndex,
+            ),
+            (Without<UiImage>, Without<CalculatedClip>),
+        >,
     >,
     image_uinode_query: Extract<
-        Query<(
-            &NodeSize,
-            &NodePosition,
-            &BackgroundColor,
-            &UiImage,
-            &ComputedVisibility,            
-            &ZIndex,
-        ),
+        Query<
+            (
+                &NodeSize,
+                &NodePosition,
+                &BackgroundColor,
+                &UiImage,
+                &ComputedVisibility,
+                &ZIndex,
+            ),
             Without<CalculatedClip>,
         >,
     >,
@@ -195,15 +196,13 @@ pub fn extract_uinodes(
             &NodePosition,
             &BackgroundColor,
             &UiImage,
-            &ComputedVisibility,            
+            &ComputedVisibility,
             &CalculatedClip,
             &ZIndex,
-        )>
-    >
+        )>,
+    >,
 ) {
-    for (uinode, position, color, visibility, &ZIndex(z_index)) in
-        uinode_query.iter()
-    {
+    for (uinode, position, color, visibility, &ZIndex(z_index)) in uinode_query.iter() {
         // Skip invisible and completely transparent nodes
         if !visibility.is_visible() || color.0.a() == 0.0 {
             continue;
@@ -219,12 +218,14 @@ pub fn extract_uinodes(
             color: color.0,
             vertices: node_rect.vertices(),
             image: DEFAULT_IMAGE_HANDLE.typed(),
-            uv_rect: Rect { min: Vec2::ZERO, max: Vec2::ONE },
+            uv_rect: Rect {
+                min: Vec2::ZERO,
+                max: Vec2::ONE,
+            },
         });
     }
 
-    for (uinode, position, color, image, visibility, &ZIndex(z_index)) in
-        image_uinode_query.iter()
+    for (uinode, position, color, image, visibility, &ZIndex(z_index)) in image_uinode_query.iter()
     {
         // Skip invisible and completely transparent nodes
         if !visibility.is_visible() || color.0.a() == 0.0 {
@@ -242,7 +243,10 @@ pub fn extract_uinodes(
             continue;
         }
 
-        let mut uv_rect = Rect { min: Vec2::ZERO, max: Vec2::ONE };
+        let mut uv_rect = Rect {
+            min: Vec2::ZERO,
+            max: Vec2::ONE,
+        };
 
         if image.flip_x {
             std::mem::swap(&mut uv_rect.min.x, &mut uv_rect.max.x);
@@ -293,7 +297,7 @@ pub fn extract_uinodes(
         if image.flip_y {
             std::mem::swap(&mut uv_rect.min.y, &mut uv_rect.max.y);
         }
-      
+
         extracted_uinodes.uinodes.push(ExtractedUiNode {
             stack_index: z_index,
             color: color.0,
@@ -368,15 +372,17 @@ pub fn extract_text_uinodes(
     texture_atlases: Extract<Res<Assets<TextureAtlas>>>,
     windows: Extract<Query<&Window, With<PrimaryWindow>>>,
     text_uinode_query: Extract<
-        Query<(
-            &NodeSize,
-            &NodePosition,
-            &Text,
-            &TextLayoutInfo,
-            &ComputedVisibility,
-            &ZIndex,
-        ), Without<CalculatedClip>
-        >
+        Query<
+            (
+                &NodeSize,
+                &NodePosition,
+                &Text,
+                &TextLayoutInfo,
+                &ComputedVisibility,
+                &ZIndex,
+            ),
+            Without<CalculatedClip>,
+        >,
     >,
     clipped_text_uinode_query: Extract<
         Query<(
@@ -387,7 +393,7 @@ pub fn extract_text_uinodes(
             &ComputedVisibility,
             &CalculatedClip,
             &ZIndex,
-        )>
+        )>,
     >,
 ) {
     // TODO: Support window-independent UI scale: https://github.com/bevyengine/bevy/issues/5621
@@ -398,54 +404,55 @@ pub fn extract_text_uinodes(
 
     let inverse_scale_factor = scale_factor.recip();
 
-    for (uinode, position, text, text_layout_info, visibility, z_index) in text_uinode_query.iter() {
-    // Skip if not visible
-    if !visibility.is_visible() {
-        continue;
-    }
-
-    let node_rect = uinode.logical_rect(*position);
-
-    // Skip if the node is clipped entirely
-    if node_rect.is_empty() {
-        continue;
-    }
-
-    let mut color = Color::WHITE;
-    let mut current_section = usize::MAX;
-
-    for PositionedGlyph {
-        position,
-        atlas_info,
-        section_index,
-        ..
-    } in &text_layout_info.glyphs
+    for (uinode, position, text, text_layout_info, visibility, z_index) in text_uinode_query.iter()
     {
-        if *section_index != current_section {
-            color = text.sections[*section_index].style.color.as_rgba_linear();
-            current_section = *section_index;
+        // Skip if not visible
+        if !visibility.is_visible() {
+            continue;
         }
 
-        let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
-        let atlas_sub_rect = atlas.textures[atlas_info.glyph_index];
-        let glyph_rect = Rect::from_center_size(
-            node_rect.min + *position * inverse_scale_factor,
-            atlas_sub_rect.size() * inverse_scale_factor,
-        );
-        let uv_rect = Rect {
-            min: atlas_sub_rect.min / atlas.size,
-            max: atlas_sub_rect.max / atlas.size,
-        };
-       
-        extracted_uinodes.uinodes.push(ExtractedUiNode {
-            stack_index: z_index.0,
-            color,
-            vertices: glyph_rect.vertices(),
-            image: atlas.texture.clone_weak(),
-            uv_rect,
-        });
+        let node_rect = uinode.logical_rect(*position);
+
+        // Skip if the node is clipped entirely
+        if node_rect.is_empty() {
+            continue;
+        }
+
+        let mut color = Color::WHITE;
+        let mut current_section = usize::MAX;
+
+        for PositionedGlyph {
+            position,
+            atlas_info,
+            section_index,
+            ..
+        } in &text_layout_info.glyphs
+        {
+            if *section_index != current_section {
+                color = text.sections[*section_index].style.color.as_rgba_linear();
+                current_section = *section_index;
+            }
+
+            let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+            let atlas_sub_rect = atlas.textures[atlas_info.glyph_index];
+            let glyph_rect = Rect::from_center_size(
+                node_rect.min + *position * inverse_scale_factor,
+                atlas_sub_rect.size() * inverse_scale_factor,
+            );
+            let uv_rect = Rect {
+                min: atlas_sub_rect.min / atlas.size,
+                max: atlas_sub_rect.max / atlas.size,
+            };
+
+            extracted_uinodes.uinodes.push(ExtractedUiNode {
+                stack_index: z_index.0,
+                color,
+                vertices: glyph_rect.vertices(),
+                image: atlas.texture.clone_weak(),
+                uv_rect,
+            });
+        }
     }
-}
 
     for (uinode, position, text, text_layout_info, visibility, clip, z_index) in
         clipped_text_uinode_query.iter()
