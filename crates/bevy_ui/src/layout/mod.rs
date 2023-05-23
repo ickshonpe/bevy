@@ -121,17 +121,14 @@ pub fn insert_ui_nodes_system(
 ) {
     // clean up removed nodes first
     for entity in removed_nodes.iter() {
-        tree.remove(entity);
+        tree.remove_entity(entity);
     }
 
     for (entity, mut node) in node_keys_query.iter_mut() {
         // Users can only instantiate `Node` components containing a null key
         if node.is_null() {
-            if let Some(old_taffy_node) = tree.entity_to_taffy.insert(entity, node.taffy_node) {
-                node.taffy_node = old_taffy_node;
-            } else {
-                tree.insert(entity);
-            }
+            node.taffy_node = tree.insert(entity);
+            
         }
     }
 }
@@ -228,23 +225,30 @@ impl<'w, 's> UiLayoutTree<'w, 's> {
         mark_dirty_recursive(&mut self.nodes, &self.parents, node);
     }
 
-    fn remove(&mut self, entity: Entity) {
-        if let Some(node) = self.entity_to_taffy.remove(&entity) {
-            if let Some(parent) = self.parents[node] {
-                if let Some(children) = self.children.get_mut(parent) {
-                    children.retain(|f| *f != node);
-                }
-            }
-
-            let _ = self.children.remove(node);
-            let _ = self.parents.remove(node);
-            let _ = self.nodes.remove(node);
+    fn remove_entity(&mut self, entity: Entity) {
+        if let Some(taffy_node) = self.entity_to_taffy.remove(&entity) {
+            self.remove(taffy_node);
         }
+    }
+
+    #[inline]
+    fn remove(&mut self, taffy_node: TaffyNode) {
+        if let Some(parent) = self.parents[taffy_node] {
+            if let Some(children) = self.children.get_mut(parent) {
+                children.retain(|f| *f != taffy_node);
+            }
+        }
+
+        let _ = self.children.remove(taffy_node);
+        let _ = self.parents.remove(taffy_node);
+        let _ = self.nodes.remove(taffy_node);
     }
 
     fn insert(&mut self, entity: Entity) -> TaffyNode {
         let taffy_node = self.nodes.insert(TaffyNodeData::new(TaffyStyle::default()));
-        self.entity_to_taffy.insert(entity, taffy_node);
+        if let Some(old_taffy_node) = self.entity_to_taffy.insert(entity, taffy_node) {
+            self.remove(old_taffy_node);
+        } 
         let _ = self.children.insert(Vec::with_capacity(0));
         let _ = self.parents.insert(None);
         taffy_node
@@ -259,7 +263,8 @@ pub fn ui_layout_system(
     primary_window: Query<(Entity, &Window), With<PrimaryWindow>>,
     ui_scale: Res<UiScale>,
     mut scale_factor_events: EventReader<WindowScaleFactorChanged>,
-    mut resize_events: EventReader<bevy_window::WindowResized>,
+    mut window_resized_events: EventReader<bevy_window::WindowResized>,
+    mut window_created_events: EventReader<bevy_window::WindowCreated>,
     root_node_query: Query<&Node, Without<Parent>>,
     style_query: Query<(&Node, Ref<Style>)>,
     mut measure_query: Query<(&Node, &mut ContentSize)>,
@@ -305,9 +310,14 @@ pub fn ui_layout_system(
             return;
         };
 
-    let resized = resize_events
+    let window_changed = window_resized_events
         .iter()
-        .any(|resized_window| resized_window.window == primary_window_entity);
+        .any(|resized_window| resized_window.window == primary_window_entity)
+        ||
+        window_created_events
+        .iter()
+        .any(|created_window| created_window.window == primary_window_entity);
+
 
     // update window root nodes
     if window_node.taffy_node == TaffyNode::default() {
@@ -331,7 +341,7 @@ pub fn ui_layout_system(
 
     let layout_context = LayoutContext::new(scale_factor, physical_size);
 
-    if !scale_factor_events.is_empty() || ui_scale.is_changed() || resized {
+    if !scale_factor_events.is_empty() || ui_scale.is_changed() || window_changed {
         scale_factor_events.clear();
         // update all nodes
         for (node, style) in style_query.iter() {
