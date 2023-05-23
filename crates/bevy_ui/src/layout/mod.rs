@@ -370,7 +370,6 @@ pub fn ui_layout_system(
         }
     }
 
-    println!("window_node: {:?}", window_node.taffy_node);
     // update window children (for now assuming all Nodes live in the primary window)
     for old_child in &tree.children[window_node.taffy_node] {
         tree.parents[*old_child] = None;
