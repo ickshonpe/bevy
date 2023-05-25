@@ -147,7 +147,7 @@ pub struct UiSurface<'w, 's> {
     phantom: PhantomData<fn() -> &'s ()>,
 }
 
-#[derive(Resource, Deref, DerefMut, Default)]
+#[derive(Resource, Deref, DerefMut)]
 pub struct TaffyTree {
     tree: Taffy,
 }
@@ -472,7 +472,7 @@ pub fn update_ui_nodes_system(
 }
 
 pub fn update_node_geometries_iteratively(
-    mut stack: Local<Vec<(Entity, Vec2)>>,
+    mut stack: Local<Vec<(Entity, Vec2, Vec2)>>,
     ui_surface: UiSurface,
     ui_context: Res<UiContext>,
     mut node_geometry_query: Query<(&TaffyKey, &mut NodeSize, &mut NodePosition, &mut ZIndex)>,
@@ -492,33 +492,46 @@ pub fn update_node_geometries_iteratively(
     let mut order: u32 = 0;
 
     for ui_layout in ui_surface.layouts.iter() {
-        stack.push((ui_layout.ui_root_node, Vec2::ZERO));
-        while let Some((node_entity, inherited_position)) = stack.pop() {
+        stack.push((ui_layout.ui_root_node, Vec2::ZERO, Vec2::ZERO));
+        while let Some((node_entity, inherited_position, abs)) = stack.pop() {
             if let Ok((node, mut node_size, mut position, mut z_index)) =
                 node_geometry_query.get_mut(node_entity)
             {
                 z_index.0 = order;
                 order += 1;
                 let layout = ui_surface.tree.layout(node.key).unwrap();
+                let abs = abs + Vec2::new(layout.location.x, layout.location.y);
+
+                let location = Vec2::new(
+                    layout.location.x.round(),
+                    layout.location.y.round(),
+                );
+                let size = Vec2::new(
+                    layout.size.width,
+                    layout.size.height,
+                );
+                let size = (abs + size).round() - abs.round();
+
                 let new_size = Vec2::new(
-                    (layout.size.width as f64 * physical_to_logical_factor) as f32,
-                    (layout.size.height as f64 * physical_to_logical_factor) as f32,
+                    (size.x as f64 * physical_to_logical_factor) as f32,
+                    (size.y as f64 * physical_to_logical_factor) as f32,
                 );
                 let half_size = 0.5 * new_size;
                 if node_size.calculated_size != new_size {
                     node_size.calculated_size = new_size;
                 }
+                
                 position.0 = inherited_position
                     + half_size
                     + Vec2::new(
-                        (layout.location.x as f64 * physical_to_logical_factor) as f32,
-                        (layout.location.y as f64 * physical_to_logical_factor) as f32,
+                        (location.x as f64 * physical_to_logical_factor) as f32,
+                        (location.y as f64 * physical_to_logical_factor) as f32,
                     );
 
                 if let Ok(children) = just_children_query.get(node_entity) {
                     // Push the children nodes onto the stack.
                     for child in children {
-                        stack.push((*child, position.0 - half_size));
+                        stack.push((*child, position.0 - half_size, abs));
                     }
                 }
             }
