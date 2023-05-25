@@ -152,6 +152,14 @@ pub struct TaffyTree {
     tree: Taffy,
 }
 
+impl Default for TaffyTree {
+    fn default() -> Self {
+        let mut tree = Taffy::default();
+        tree.disable_rounding();
+        Self { tree }
+    }
+}
+
 fn _assert_send_sync_ui_surface_impl_safe() {
     fn _assert_send_sync<T: Send + Sync>() {}
     _assert_send_sync::<HashMap<Entity, taffy::node::Node>>();
@@ -594,6 +602,24 @@ pub fn update_nodes_recursively(
         );
     }
 }
+
+// fn round_layout(tree: &mut impl LayoutTree, node: TaffyNode, abs_x: f32, abs_y: f32) {
+//     let layout = tree.layout_mut(node);
+//     let abs_x = abs_x + layout.location.x;
+//     let abs_y = abs_y + layout.location.y;
+
+//     layout.location.x = layout.location.x.round();
+//     layout.location.y = layout.location.y.round();
+//     layout.size.width = (abs_x + layout.size.width).round() - abs_x.round();
+//     layout.size.height = (abs_y + layout.size.height).round() - abs_y.round();
+
+//     let child_count = tree.child_count(node);
+//     for index in 0..child_count {
+//         let child = tree.child(node, index);
+//         round_layout(tree, child, abs_x, abs_y);
+//     }
+// }
+
 
 #[cfg(test)]
 mod tests {
