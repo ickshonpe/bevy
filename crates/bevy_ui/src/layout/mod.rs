@@ -23,7 +23,6 @@ use taffy::{
     node::MeasureFunc,
     prelude::{Layout, Size},
     style_helpers::TaffyMaxContent,
-    tree::LayoutTree,
 };
 
 type TaffyNode = taffy::node::Node;
@@ -83,13 +82,11 @@ struct EntityToTaffyMap(HashMap<Entity, TaffyNode>);
 
 #[derive(Resource, Default, Deref, DerefMut)]
 struct TaffyNodes(SlotMap<TaffyNode, TaffyNodeData>);
-
 #[derive(Resource, Default, Deref, DerefMut)]
 struct TaffyChildren(SlotMap<TaffyNode, Vec<TaffyNode>>);
 
 #[derive(Resource, Default, Deref, DerefMut)]
 struct TaffyParents(SlotMap<TaffyNode, Option<TaffyNode>>);
-
 #[derive(Resource, Default, Deref, DerefMut)]
 struct MeasureFuncs(SparseSecondaryMap<TaffyNode, taffy::node::MeasureFunc>);
 
@@ -457,22 +454,5 @@ pub fn ui_layout_system(
         if transform.translation != new_position {
             transform.translation = new_position;
         }
-    }
-}
-
-fn round_layout(tree: &mut impl LayoutTree, node: TaffyNode, abs_x: f32, abs_y: f32) {
-    let layout = tree.layout_mut(node);
-    let abs_x = abs_x + layout.location.x;
-    let abs_y = abs_y + layout.location.y;
-
-    layout.location.x = layout.location.x.round();
-    layout.location.y = layout.location.y.round();
-    layout.size.width = (abs_x + layout.size.width).round() - abs_x.round();
-    layout.size.height = (abs_y + layout.size.height).round() - abs_y.round();
-
-    let child_count = tree.child_count(node);
-    for index in 0..child_count {
-        let child = tree.child(node, index);
-        round_layout(tree, child, abs_x, abs_y);
     }
 }
