@@ -1,5 +1,6 @@
 use crate::UiRect;
 use bevy_asset::Handle;
+use bevy_ecs::prelude::Entity;
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
 use bevy_math::{Rect, Vec2};
 use bevy_reflect::prelude::*;
@@ -13,6 +14,11 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use thiserror::Error;
+
+#[derive(Component, Debug, Copy, Clone)]
+pub struct UiView {
+    pub view: Entity,
+}
 
 /// Describes the size of a UI node
 #[derive(Component, Debug, Copy, Clone, Reflect)]

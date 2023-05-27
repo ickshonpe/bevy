@@ -45,7 +45,7 @@ use bevy_ecs::prelude::*;
 use bevy_input::InputSystem;
 use bevy_transform::TransformSystem;
 use stack::ui_stack_system;
-pub use stack::UiStack;
+pub use stack::UiStacks;
 use update::update_clipping_system;
 
 /// The basic plugin for Bevy UI
@@ -84,7 +84,8 @@ impl Plugin for UiPlugin {
         app.add_plugin(ExtractComponentPlugin::<UiCameraConfig>::default())
             .init_resource::<UiSurface>()
             .init_resource::<UiScale>()
-            .init_resource::<UiStack>()
+            .init_resource::<UiStacks>()
+            .init_resource::<UiViews>()
             .register_type::<AlignContent>()
             .register_type::<AlignItems>()
             .register_type::<AlignSelf>()
@@ -117,10 +118,11 @@ impl Plugin for UiPlugin {
             .register_type::<Val>()
             .register_type::<widget::Button>()
             .register_type::<widget::Label>()
-            .add_systems(
-                PreUpdate,
-                (ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),),
-            );
+            // .add_systems(
+            //     PreUpdate,
+            //     (ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),),
+            // );
+            ;
         // add these systems to front because these must run before transform update systems
         #[cfg(feature = "bevy_text")]
         app.add_systems(
@@ -160,6 +162,7 @@ impl Plugin for UiPlugin {
             (
                 ui_layout_system
                     .in_set(UiSystem::Layout)
+                    .after(UiSystem::Stack)
                     .before(TransformSystem::TransformPropagate),
                 ui_stack_system.in_set(UiSystem::Stack),
                 update_clipping_system.after(TransformSystem::TransformPropagate),

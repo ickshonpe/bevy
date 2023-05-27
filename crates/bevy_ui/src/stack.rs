@@ -2,16 +2,23 @@
 
 use bevy_ecs::prelude::*;
 use bevy_hierarchy::prelude::*;
+use bevy_utils::HashMap;
 
-use crate::{Node, ZIndex};
+use crate::{LayoutContext, Node, UiView, ZIndex};
 
 /// The current UI stack, which contains all UI nodes ordered by their depth (back-to-front).
 ///
 /// The first entry is the furthest node from the camera and is the first one to get rendered
 /// while the last entry is the first node to receive interactions.
 #[derive(Debug, Resource, Default)]
-pub struct UiStack {
+pub struct UiStacks {
     /// List of UI nodes ordered from back-to-front
+    pub view_to_stacks: HashMap<Entity, UiStack>,
+}
+
+#[derive(Debug)]
+pub struct UiStack {
+    pub roots: Vec<Entity>,
     pub uinodes: Vec<Entity>,
 }
 
@@ -31,30 +38,54 @@ struct StackingContextEntry {
 /// First generate a UI node tree (`StackingContext`) based on z-index.
 /// Then flatten that tree into back-to-front ordered `UiStack`.
 pub fn ui_stack_system(
-    mut ui_stack: ResMut<UiStack>,
-    root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
+    mut ui_stacks: ResMut<UiStacks>,
+    layout_context_query: Query<Entity, With<LayoutContext>>,
+    root_node_query: Query<(Entity, Option<&UiView>), (With<Node>, Without<Parent>)>,
     zindex_query: Query<&ZIndex, With<Node>>,
     children_query: Query<&Children>,
 ) {
-    // Generate `StackingContext` tree
-    let mut global_context = StackingContext::default();
-    let mut total_entry_count: usize = 0;
+    ui_stacks.view_to_stacks.clear();
 
-    for entity in &root_node_query {
-        insert_context_hierarchy(
-            &zindex_query,
-            &children_query,
-            entity,
-            &mut global_context,
-            None,
-            &mut total_entry_count,
+    let Some(primary_layout_entity) = layout_context_query.iter().next() else {
+        return;
+    };
+
+    for view in layout_context_query.iter() {
+        let mut roots = vec![];
+        for (root_entity, maybe_view) in root_node_query.iter() {
+            let roots_view = maybe_view
+                .map(|view| view.view)
+                .unwrap_or(primary_layout_entity);
+            if roots_view == view {
+                roots.push(root_entity);
+            }
+        }
+        ui_stacks.view_to_stacks.insert(
+            view,
+            UiStack {
+                roots,
+                uinodes: vec![],
+            },
         );
     }
 
-    // Flatten `StackingContext` into `UiStack`
-    ui_stack.uinodes.clear();
-    ui_stack.uinodes.reserve(total_entry_count);
-    fill_stack_recursively(&mut ui_stack.uinodes, &mut global_context);
+    for (_, ui_stack) in ui_stacks.view_to_stacks.iter_mut() {
+        let mut global_context = StackingContext::default();
+        let mut total_entry_count: usize = 0;
+        for &entity in ui_stack.roots.iter() {
+            insert_context_hierarchy(
+                &zindex_query,
+                &children_query,
+                entity,
+                &mut global_context,
+                None,
+                &mut total_entry_count,
+            );
+        }
+        ui_stack.uinodes.clear();
+        ui_stack.uinodes.reserve(total_entry_count);
+        fill_stack_recursively(&mut ui_stack.uinodes, &mut global_context);
+    }
 }
 
 /// Generate z-index based UI node tree
@@ -124,7 +155,7 @@ mod tests {
     };
     use bevy_hierarchy::BuildChildren;
 
-    use crate::{Node, UiStack, ZIndex};
+    use crate::{Node, UiStacks, ZIndex};
 
     use super::ui_stack_system;
 
@@ -148,7 +179,7 @@ mod tests {
     #[test]
     fn test_ui_stack_system() {
         let mut world = World::default();
-        world.init_resource::<UiStack>();
+        world.init_resource::<UiStacks>();
 
         let mut queue = CommandQueue::default();
         let mut commands = Commands::new(&mut queue, &world);
@@ -200,9 +231,9 @@ mod tests {
         schedule.run(&mut world);
 
         let mut query = world.query::<&Label>();
-        let ui_stack = world.resource::<UiStack>();
+        let ui_stack = world.resource::<UiStacks>();
         let actual_result = ui_stack
-            .uinodes
+            .view_to_stacks
             .iter()
             .map(|entity| query.get(&world, *entity).unwrap().clone())
             .collect::<Vec<_>>();

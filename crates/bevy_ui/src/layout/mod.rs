@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Node, Style, UiScale};
+use crate::{ContentSize, Node, Style, UiScale, UiStacks, UiView};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -231,10 +231,16 @@ pub enum LayoutError {
     TaffyError(taffy::error::TaffyError),
 }
 
+#[derive(Resource, Default)]
+pub struct UiViews {
+    pub(crate) views: Vec<Entity>,
+}
+
 /// Updates the UI's layout tree, computes the new layout geometry and then updates the sizes and transforms of all the UI nodes.
 #[allow(clippy::too_many_arguments)]
 pub fn ui_layout_system(
     ui_scale: Res<UiScale>,
+    mut ui_stacks: ResMut<UiStacks>,
     mut removed_layouts: RemovedComponents<LayoutContext>,
     mut context_params: ParamSet<(
         Query<(&Window, &mut LayoutContext)>,
@@ -242,12 +248,12 @@ pub fn ui_layout_system(
     )>,
     mut ui_surface: ResMut<UiSurface>,
     root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
-    style_query: Query<(Entity, Ref<Style>), With<Node>>,
+    style_query: Query<Ref<Style>, With<Node>>,
     mut measure_query: Query<(Entity, &mut ContentSize)>,
     children_query: Query<(Entity, Ref<Children>), With<Node>>,
     mut removed_children: RemovedComponents<Children>,
     mut removed_content_sizes: RemovedComponents<ContentSize>,
-    mut node_transform_query: Query<(Entity, &mut Node, &mut Transform, Option<&Parent>)>,
+    mut node_transform_query: Query<(&mut Node, &mut Transform, Option<&Parent>)>,
     mut removed_nodes: RemovedComponents<Node>,
 ) {
     // If a UI root entity is deleted, its associated Taffy root node must also be deleted.
@@ -274,24 +280,25 @@ pub fn ui_layout_system(
 
     let ui_roots_query = context_params.p1();
 
-    // If more than one UI root exists, only the first from the query is updated.
-    let Some((ui_root_entity, layout_context)) = ui_roots_query.iter().next() else {
-        return;
-    };
+    for (ui_root_entity, layout_context) in ui_roots_query.iter() {
+        ui_surface.update_root_nodes(ui_root_entity, layout_context.root_node_size);
 
-    ui_surface.update_root_nodes(ui_root_entity, layout_context.root_node_size);
-
-    if layout_context.is_changed() {
-        // Update all nodes
-        //
-        // All nodes have to be updated on changes to the `LayoutContext` so any viewport values can be recalculated.
-        for (entity, style) in style_query.iter() {
-            ui_surface.upsert_node(entity, &style, &layout_context);
-        }
-    } else {
-        for (entity, style) in style_query.iter() {
-            if style.is_changed() {
-                ui_surface.upsert_node(entity, &style, &layout_context);
+        if layout_context.is_changed() {
+            // Update all nodes in stack for this context
+            //
+            // All nodes have to be updated on changes to the `LayoutContext` so any viewport values can be recalculated.
+            for &ui_node in ui_stacks.view_to_stacks[&ui_root_entity].uinodes.iter() {
+                if let Ok(style) = style_query.get(ui_node) {
+                    ui_surface.upsert_node(ui_node, &style, &layout_context);
+                }
+            }
+        } else {
+            for &ui_node in ui_stacks.view_to_stacks[&ui_root_entity].uinodes.iter() {
+                if let Ok(style) = style_query.get(ui_node) {
+                    if style.is_changed() {
+                        ui_surface.upsert_node(ui_node, &style, &layout_context);
+                    }
+                }
             }
         }
     }
@@ -314,7 +321,9 @@ pub fn ui_layout_system(
     }
 
     // Set the associated Taffy nodes of UI node entities without a `Parent` component to be children of the UI's root Taffy node
-    ui_surface.set_root_nodes_children(ui_root_entity, root_node_query.iter());
+    for (ui_root_entity, ui_stack) in ui_stacks.view_to_stacks.iter() {
+        ui_surface.set_root_nodes_children(*ui_root_entity, ui_stack.roots.iter().copied());
+    }
 
     // Remove the associated Taffy children of entities which had their `Children` component removed since the last layout update
     //
@@ -333,35 +342,40 @@ pub fn ui_layout_system(
     // compute layouts
     ui_surface.compute_window_layouts();
 
-    // `layout_to_logical_factor` is the reciprocal of the `scale_factor` of the target window, and does not include `UiScale`.
-    let to_logical = |v| (layout_context.layout_to_logical_factor * v as f64) as f32;
+    for (view, context) in ui_roots_query.iter() {
+        let ui_stack = &ui_stacks.view_to_stacks[&view];
 
-    // PERF: try doing this incrementally
-    for (entity, mut node, mut transform, parent) in &mut node_transform_query {
-        let layout = ui_surface.get_layout(entity).unwrap();
-        let new_size = Vec2::new(
-            to_logical(layout.size.width),
-            to_logical(layout.size.height),
-        );
-        // only trigger change detection when the new value is different
-        if node.calculated_size != new_size {
-            node.calculated_size = new_size;
-        }
+        // `layout_to_logical_factor` is the reciprocal of the `scale_factor` of the target window, and does not include `UiScale`.
+        let to_logical = |v| (context.layout_to_logical_factor * v as f64) as f32;
+        for entity in ui_stack.uinodes.iter() {
+            // PERF: try doing this incrementally
+            if let Ok((mut node, mut transform, parent)) = node_transform_query.get_mut(*entity) {
+                let layout = ui_surface.get_layout(*entity).unwrap();
+                let new_size = Vec2::new(
+                    to_logical(layout.size.width),
+                    to_logical(layout.size.height),
+                );
+                // only trigger change detection when the new value is different
+                if node.calculated_size != new_size {
+                    node.calculated_size = new_size;
+                }
 
-        let mut new_position = transform.translation;
+                let mut new_position = transform.translation;
 
-        new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
-        new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
+                new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
+                new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
 
-        if let Some(parent) = parent {
-            if let Ok(parent_layout) = ui_surface.get_layout(**parent) {
-                new_position.x -= to_logical(parent_layout.size.width / 2.0);
-                new_position.y -= to_logical(parent_layout.size.height / 2.0);
+                if let Some(parent) = parent {
+                    if let Ok(parent_layout) = ui_surface.get_layout(**parent) {
+                        new_position.x -= to_logical(parent_layout.size.width / 2.0);
+                        new_position.y -= to_logical(parent_layout.size.height / 2.0);
+                    }
+                }
+                // only trigger change detection when the new value is different
+                if transform.translation != new_position {
+                    transform.translation = new_position;
+                }
             }
-        }
-        // only trigger change detection when the new value is different
-        if transform.translation != new_position {
-            transform.translation = new_position;
         }
     }
 }

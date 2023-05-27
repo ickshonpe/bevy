@@ -8,7 +8,7 @@ use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
 pub use render_pass::*;
 
-use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage, UiStack};
+use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage, UiStacks};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
@@ -154,6 +154,7 @@ pub struct ExtractedUiNode {
     pub clip: Option<Rect>,
     pub flip_x: bool,
     pub flip_y: bool,
+    pub view: Entity,
 }
 
 #[derive(Resource, Default)]
@@ -164,7 +165,7 @@ pub struct ExtractedUiNodes {
 pub fn extract_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     images: Extract<Res<Assets<Image>>>,
-    ui_stack: Extract<Res<UiStack>>,
+    ui_stacks: Extract<Res<UiStacks>>,
     uinode_query: Extract<
         Query<(
             &Node,
@@ -177,39 +178,42 @@ pub fn extract_uinodes(
     >,
 ) {
     extracted_uinodes.uinodes.clear();
-    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, transform, color, maybe_image, visibility, clip)) =
-            uinode_query.get(*entity)
-        {
-            // Skip invisible and completely transparent nodes
-            if !visibility.is_visible() || color.0.a() == 0.0 {
-                continue;
-            }
-
-            let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
-                // Skip loading images
-                if !images.contains(&image.texture) {
+    for (view, ui_stack) in ui_stacks.view_to_stacks.iter() {
+        for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
+            if let Ok((uinode, transform, color, maybe_image, visibility, clip)) =
+                uinode_query.get(*entity)
+            {
+                // Skip invisible and completely transparent nodes
+                if !visibility.is_visible() || color.0.a() == 0.0 {
                     continue;
                 }
-                (image.texture.clone_weak(), image.flip_x, image.flip_y)
-            } else {
-                (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), false, false)
-            };
 
-            extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index,
-                transform: transform.compute_matrix(),
-                color: color.0,
-                rect: Rect {
-                    min: Vec2::ZERO,
-                    max: uinode.calculated_size,
-                },
-                image,
-                atlas_size: None,
-                clip: clip.map(|clip| clip.clip),
-                flip_x,
-                flip_y,
-            });
+                let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
+                    // Skip loading images
+                    if !images.contains(&image.texture) {
+                        continue;
+                    }
+                    (image.texture.clone_weak(), image.flip_x, image.flip_y)
+                } else {
+                    (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), false, false)
+                };
+
+                extracted_uinodes.uinodes.push(ExtractedUiNode {
+                    stack_index,
+                    transform: transform.compute_matrix(),
+                    color: color.0,
+                    rect: Rect {
+                        min: Vec2::ZERO,
+                        max: uinode.calculated_size,
+                    },
+                    image,
+                    atlas_size: None,
+                    clip: clip.map(|clip| clip.clip),
+                    flip_x,
+                    flip_y,
+                    view: *view,
+                });
+            }
         }
     }
 }
@@ -275,9 +279,9 @@ pub fn extract_default_ui_camera_view<T: Component>(
 #[cfg(feature = "bevy_text")]
 pub fn extract_text_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
+    ui_stacks: Extract<Res<UiStacks>>,
     texture_atlases: Extract<Res<Assets<TextureAtlas>>>,
     windows: Extract<Query<&Window, With<PrimaryWindow>>>,
-    ui_stack: Extract<Res<UiStack>>,
     uinode_query: Extract<
         Query<(
             &Node,
@@ -296,48 +300,50 @@ pub fn extract_text_uinodes(
         .unwrap_or(1.0);
 
     let inverse_scale_factor = scale_factor.recip();
-
-    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, global_transform, text, text_layout_info, visibility, clip)) =
-            uinode_query.get(*entity)
-        {
-            // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
-            if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
-                continue;
-            }
-            let transform = global_transform.compute_matrix()
-                * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
-
-            let mut color = Color::WHITE;
-            let mut current_section = usize::MAX;
-            for PositionedGlyph {
-                position,
-                atlas_info,
-                section_index,
-                ..
-            } in &text_layout_info.glyphs
+    for (view, ui_stack) in ui_stacks.view_to_stacks.iter() {
+        for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
+            if let Ok((uinode, global_transform, text, text_layout_info, visibility, clip)) =
+                uinode_query.get(*entity)
             {
-                if *section_index != current_section {
-                    color = text.sections[*section_index].style.color.as_rgba_linear();
-                    current_section = *section_index;
+                // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
+                if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
+                    continue;
                 }
-                let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+                let transform = global_transform.compute_matrix()
+                    * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
 
-                let mut rect = atlas.textures[atlas_info.glyph_index];
-                rect.min *= inverse_scale_factor;
-                rect.max *= inverse_scale_factor;
-                extracted_uinodes.uinodes.push(ExtractedUiNode {
-                    stack_index,
-                    transform: transform
-                        * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
-                    color,
-                    rect,
-                    image: atlas.texture.clone_weak(),
-                    atlas_size: Some(atlas.size * inverse_scale_factor),
-                    clip: clip.map(|clip| clip.clip),
-                    flip_x: false,
-                    flip_y: false,
-                });
+                let mut color = Color::WHITE;
+                let mut current_section = usize::MAX;
+                for PositionedGlyph {
+                    position,
+                    atlas_info,
+                    section_index,
+                    ..
+                } in &text_layout_info.glyphs
+                {
+                    if *section_index != current_section {
+                        color = text.sections[*section_index].style.color.as_rgba_linear();
+                        current_section = *section_index;
+                    }
+                    let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+
+                    let mut rect = atlas.textures[atlas_info.glyph_index];
+                    rect.min *= inverse_scale_factor;
+                    rect.max *= inverse_scale_factor;
+                    extracted_uinodes.uinodes.push(ExtractedUiNode {
+                        stack_index,
+                        transform: transform
+                            * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
+                        color,
+                        rect,
+                        image: atlas.texture.clone_weak(),
+                        atlas_size: Some(atlas.size * inverse_scale_factor),
+                        clip: clip.map(|clip| clip.clip),
+                        flip_x: false,
+                        flip_y: false,
+                        view: *view,
+                    });
+                }
             }
         }
     }
@@ -380,6 +386,7 @@ pub struct UiBatch {
     pub range: Range<u32>,
     pub image: Handle<Image>,
     pub z: f32,
+    pub view: Entity,
 }
 
 pub fn prepare_uinodes(
@@ -400,134 +407,141 @@ pub fn prepare_uinodes(
     let mut end = 0;
     let mut current_batch_handle = Default::default();
     let mut last_z = 0.0;
-    for extracted_uinode in &extracted_uinodes.uinodes {
-        if current_batch_handle != extracted_uinode.image {
-            if start != end {
-                commands.spawn(UiBatch {
-                    range: start..end,
-                    image: current_batch_handle,
-                    z: last_z,
-                });
-                start = end;
-            }
-            current_batch_handle = extracted_uinode.image.clone_weak();
-        }
 
-        let mut uinode_rect = extracted_uinode.rect;
-
-        let rect_size = uinode_rect.size().extend(1.0);
-
-        // Specify the corners of the node
-        let positions = QUAD_VERTEX_POSITIONS
-            .map(|pos| (extracted_uinode.transform * (pos * rect_size).extend(1.)).xyz());
-
-        // Calculate the effect of clipping
-        // Note: this won't work with rotation/scaling, but that's much more complex (may need more that 2 quads)
-        let mut positions_diff = if let Some(clip) = extracted_uinode.clip {
-            [
-                Vec2::new(
-                    f32::max(clip.min.x - positions[0].x, 0.),
-                    f32::max(clip.min.y - positions[0].y, 0.),
-                ),
-                Vec2::new(
-                    f32::min(clip.max.x - positions[1].x, 0.),
-                    f32::max(clip.min.y - positions[1].y, 0.),
-                ),
-                Vec2::new(
-                    f32::min(clip.max.x - positions[2].x, 0.),
-                    f32::min(clip.max.y - positions[2].y, 0.),
-                ),
-                Vec2::new(
-                    f32::max(clip.min.x - positions[3].x, 0.),
-                    f32::min(clip.max.y - positions[3].y, 0.),
-                ),
-            ]
-        } else {
-            [Vec2::ZERO; 4]
-        };
-
-        let positions_clipped = [
-            positions[0] + positions_diff[0].extend(0.),
-            positions[1] + positions_diff[1].extend(0.),
-            positions[2] + positions_diff[2].extend(0.),
-            positions[3] + positions_diff[3].extend(0.),
-        ];
-
-        let transformed_rect_size = extracted_uinode.transform.transform_vector3(rect_size);
-
-        // Don't try to cull nodes that have a rotation
-        // In a rotation around the Z-axis, this value is 0.0 for an angle of 0.0 or π
-        // In those two cases, the culling check can proceed normally as corners will be on
-        // horizontal / vertical lines
-        // For all other angles, bypass the culling check
-        // This does not properly handles all rotations on all axis
-        if extracted_uinode.transform.x_axis[1] == 0.0 {
-            // Cull nodes that are completely clipped
-            if positions_diff[0].x - positions_diff[1].x >= transformed_rect_size.x
-                || positions_diff[1].y - positions_diff[2].y >= transformed_rect_size.y
+    if let Some(mut current_batch_view) = extracted_uinodes.uinodes.iter().next().map(|x| x.view) {
+        for extracted_uinode in &extracted_uinodes.uinodes {
+            if current_batch_handle != extracted_uinode.image
+                || current_batch_view != extracted_uinode.view
             {
-                continue;
+                if start != end {
+                    commands.spawn(UiBatch {
+                        range: start..end,
+                        image: current_batch_handle,
+                        z: last_z,
+                        view: current_batch_view,
+                    });
+                    start = end;
+                }
+                current_batch_handle = extracted_uinode.image.clone_weak();
+                current_batch_view = extracted_uinode.view;
             }
-        }
-        let uvs = if current_batch_handle.id() == DEFAULT_IMAGE_HANDLE.id() {
-            [Vec2::ZERO, Vec2::X, Vec2::ONE, Vec2::Y]
-        } else {
-            let atlas_extent = extracted_uinode.atlas_size.unwrap_or(uinode_rect.max);
-            if extracted_uinode.flip_x {
-                std::mem::swap(&mut uinode_rect.max.x, &mut uinode_rect.min.x);
-                positions_diff[0].x *= -1.;
-                positions_diff[1].x *= -1.;
-                positions_diff[2].x *= -1.;
-                positions_diff[3].x *= -1.;
-            }
-            if extracted_uinode.flip_y {
-                std::mem::swap(&mut uinode_rect.max.y, &mut uinode_rect.min.y);
-                positions_diff[0].y *= -1.;
-                positions_diff[1].y *= -1.;
-                positions_diff[2].y *= -1.;
-                positions_diff[3].y *= -1.;
-            }
-            [
-                Vec2::new(
-                    uinode_rect.min.x + positions_diff[0].x,
-                    uinode_rect.min.y + positions_diff[0].y,
-                ),
-                Vec2::new(
-                    uinode_rect.max.x + positions_diff[1].x,
-                    uinode_rect.min.y + positions_diff[1].y,
-                ),
-                Vec2::new(
-                    uinode_rect.max.x + positions_diff[2].x,
-                    uinode_rect.max.y + positions_diff[2].y,
-                ),
-                Vec2::new(
-                    uinode_rect.min.x + positions_diff[3].x,
-                    uinode_rect.max.y + positions_diff[3].y,
-                ),
-            ]
-            .map(|pos| pos / atlas_extent)
-        };
 
-        let color = extracted_uinode.color.as_linear_rgba_f32();
-        for i in QUAD_INDICES {
-            ui_meta.vertices.push(UiVertex {
-                position: positions_clipped[i].into(),
-                uv: uvs[i].into(),
-                color,
+            let mut uinode_rect = extracted_uinode.rect;
+
+            let rect_size = uinode_rect.size().extend(1.0);
+
+            // Specify the corners of the node
+            let positions = QUAD_VERTEX_POSITIONS
+                .map(|pos| (extracted_uinode.transform * (pos * rect_size).extend(1.)).xyz());
+
+            // Calculate the effect of clipping
+            // Note: this won't work with rotation/scaling, but that's much more complex (may need more that 2 quads)
+            let mut positions_diff = if let Some(clip) = extracted_uinode.clip {
+                [
+                    Vec2::new(
+                        f32::max(clip.min.x - positions[0].x, 0.),
+                        f32::max(clip.min.y - positions[0].y, 0.),
+                    ),
+                    Vec2::new(
+                        f32::min(clip.max.x - positions[1].x, 0.),
+                        f32::max(clip.min.y - positions[1].y, 0.),
+                    ),
+                    Vec2::new(
+                        f32::min(clip.max.x - positions[2].x, 0.),
+                        f32::min(clip.max.y - positions[2].y, 0.),
+                    ),
+                    Vec2::new(
+                        f32::max(clip.min.x - positions[3].x, 0.),
+                        f32::min(clip.max.y - positions[3].y, 0.),
+                    ),
+                ]
+            } else {
+                [Vec2::ZERO; 4]
+            };
+
+            let positions_clipped = [
+                positions[0] + positions_diff[0].extend(0.),
+                positions[1] + positions_diff[1].extend(0.),
+                positions[2] + positions_diff[2].extend(0.),
+                positions[3] + positions_diff[3].extend(0.),
+            ];
+
+            let transformed_rect_size = extracted_uinode.transform.transform_vector3(rect_size);
+
+            // Don't try to cull nodes that have a rotation
+            // In a rotation around the Z-axis, this value is 0.0 for an angle of 0.0 or π
+            // In those two cases, the culling check can proceed normally as corners will be on
+            // horizontal / vertical lines
+            // For all other angles, bypass the culling check
+            // This does not properly handles all rotations on all axis
+            if extracted_uinode.transform.x_axis[1] == 0.0 {
+                // Cull nodes that are completely clipped
+                if positions_diff[0].x - positions_diff[1].x >= transformed_rect_size.x
+                    || positions_diff[1].y - positions_diff[2].y >= transformed_rect_size.y
+                {
+                    continue;
+                }
+            }
+            let uvs = if current_batch_handle.id() == DEFAULT_IMAGE_HANDLE.id() {
+                [Vec2::ZERO, Vec2::X, Vec2::ONE, Vec2::Y]
+            } else {
+                let atlas_extent = extracted_uinode.atlas_size.unwrap_or(uinode_rect.max);
+                if extracted_uinode.flip_x {
+                    std::mem::swap(&mut uinode_rect.max.x, &mut uinode_rect.min.x);
+                    positions_diff[0].x *= -1.;
+                    positions_diff[1].x *= -1.;
+                    positions_diff[2].x *= -1.;
+                    positions_diff[3].x *= -1.;
+                }
+                if extracted_uinode.flip_y {
+                    std::mem::swap(&mut uinode_rect.max.y, &mut uinode_rect.min.y);
+                    positions_diff[0].y *= -1.;
+                    positions_diff[1].y *= -1.;
+                    positions_diff[2].y *= -1.;
+                    positions_diff[3].y *= -1.;
+                }
+                [
+                    Vec2::new(
+                        uinode_rect.min.x + positions_diff[0].x,
+                        uinode_rect.min.y + positions_diff[0].y,
+                    ),
+                    Vec2::new(
+                        uinode_rect.max.x + positions_diff[1].x,
+                        uinode_rect.min.y + positions_diff[1].y,
+                    ),
+                    Vec2::new(
+                        uinode_rect.max.x + positions_diff[2].x,
+                        uinode_rect.max.y + positions_diff[2].y,
+                    ),
+                    Vec2::new(
+                        uinode_rect.min.x + positions_diff[3].x,
+                        uinode_rect.max.y + positions_diff[3].y,
+                    ),
+                ]
+                .map(|pos| pos / atlas_extent)
+            };
+
+            let color = extracted_uinode.color.as_linear_rgba_f32();
+            for i in QUAD_INDICES {
+                ui_meta.vertices.push(UiVertex {
+                    position: positions_clipped[i].into(),
+                    uv: uvs[i].into(),
+                    color,
+                });
+            }
+
+            last_z = extracted_uinode.transform.w_axis[2];
+            end += QUAD_INDICES.len() as u32;
+        }
+        // if start != end, there is one last batch to process
+        if start != end {
+            commands.spawn(UiBatch {
+                range: start..end,
+                image: current_batch_handle,
+                z: last_z,
+                view: current_batch_view,
             });
         }
-
-        last_z = extracted_uinode.transform.w_axis[2];
-        end += QUAD_INDICES.len() as u32;
-    }
-
-    // if start != end, there is one last batch to process
-    if start != end {
-        commands.spawn(UiBatch {
-            range: start..end,
-            image: current_batch_handle,
-            z: last_z,
-        });
     }
 
     ui_meta.vertices.write_buffer(&render_device, &render_queue);
