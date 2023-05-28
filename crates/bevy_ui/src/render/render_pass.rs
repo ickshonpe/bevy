@@ -5,11 +5,12 @@ use bevy_ecs::{
     system::{lifetimeless::*, SystemParamItem},
 };
 use bevy_render::{
+    camera::ExtractedCamera,
     render_graph::*,
     render_phase::*,
     render_resource::{CachedRenderPipelineId, LoadOp, Operations, RenderPassDescriptor},
     renderer::*,
-    view::*, camera::ExtractedCamera,
+    view::*,
 };
 use bevy_utils::FloatOrd;
 
@@ -22,10 +23,7 @@ pub struct UiPassNode {
         ),
         With<ExtractedView>,
     >,
-    default_camera_view_query: QueryState<(
-        &'static DefaultCameraView,
-        &'static UiLayoutEntity,
-    )>,
+    default_camera_view_query: QueryState<(&'static DefaultCameraView, &'static UiLayoutEntity)>,
 }
 
 impl UiPassNode {
@@ -65,15 +63,14 @@ impl Node for UiPassNode {
         }
 
         // use the "default" view entity if it is defined
-        let view_entity = 
-            if let Ok((default_view, ui_layout_entity)) = self
-                .default_camera_view_query
-                .get_manual(world, input_view_entity)
-            {
-                default_view.0
-            } else {
-                input_view_entity
-            };
+        let view_entity = if let Ok((default_view, ui_layout_entity)) = self
+            .default_camera_view_query
+            .get_manual(world, input_view_entity)
+        {
+            default_view.0
+        } else {
+            input_view_entity
+        };
         let mut render_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
             label: Some("ui_pass"),
             color_attachments: &[Some(target.get_unsampled_color_attachment(Operations {

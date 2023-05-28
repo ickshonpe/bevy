@@ -248,21 +248,20 @@ pub fn extract_default_ui_camera_view<T: Component>(
             continue;
         }
 
-        let target =
-            match camera.target {
-                bevy_render::camera::RenderTarget::Window(window_ref) => {
-                    let target = match window_ref {
-                        bevy_window::WindowRef::Primary => primary_window.single(),
-                        bevy_window::WindowRef::Entity(entity) => entity,
-                    };
-                    if layout_query.contains(target) {
-                        target
-                    } else {
-                        continue;
-                    }
-                },
-                bevy_render::camera::RenderTarget::Image(_) => continue,
-            };
+        let target = match camera.target {
+            bevy_render::camera::RenderTarget::Window(window_ref) => {
+                let target = match window_ref {
+                    bevy_window::WindowRef::Primary => primary_window.single(),
+                    bevy_window::WindowRef::Entity(entity) => entity,
+                };
+                if layout_query.contains(target) {
+                    target
+                } else {
+                    continue;
+                }
+            }
+            bevy_render::camera::RenderTarget::Image(_) => continue,
+        };
         if let (Some(logical_size), Some((physical_origin, _)), Some(physical_size)) = (
             camera.logical_viewport_size(),
             camera.physical_viewport_rect(),
@@ -587,7 +586,11 @@ pub fn queue_uinodes(
     mut image_bind_groups: ResMut<UiImageBindGroups>,
     gpu_images: Res<RenderAssets<Image>>,
     ui_batches: Query<(Entity, &UiBatch)>,
-    mut views: Query<(&ExtractedView, &mut RenderPhase<TransparentUi>, &UiLayoutEntity)>,
+    mut views: Query<(
+        &ExtractedView,
+        &mut RenderPhase<TransparentUi>,
+        &UiLayoutEntity,
+    )>,
     events: Res<SpriteAssetEvents>,
 ) {
     // If an image has changed, the GpuImage has (probably) changed
@@ -627,7 +630,9 @@ pub fn queue_uinodes(
                                 entries: &[
                                     BindGroupEntry {
                                         binding: 0,
-                                        resource: BindingResource::TextureView(&gpu_image.texture_view),
+                                        resource: BindingResource::TextureView(
+                                            &gpu_image.texture_view,
+                                        ),
                                     },
                                     BindGroupEntry {
                                         binding: 1,
