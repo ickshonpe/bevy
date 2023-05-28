@@ -118,10 +118,10 @@ impl Plugin for UiPlugin {
             .register_type::<Val>()
             .register_type::<widget::Button>()
             .register_type::<widget::Label>()
-            // .add_systems(
-            //     PreUpdate,
-            //     (ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),),
-            // );
+            .add_systems(
+                PreUpdate,
+                (ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),),
+            );
             ;
         // add these systems to front because these must run before transform update systems
         #[cfg(feature = "bevy_text")]

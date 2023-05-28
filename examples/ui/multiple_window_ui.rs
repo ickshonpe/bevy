@@ -7,7 +7,12 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup_scene)
-        .add_systems(Update, bevy::window::close_on_esc)
+        .add_systems(Update, (
+            bevy::window::close_on_esc,
+            update_buttons::<FirstWindowNode, SecondWindowNode>,
+            update_buttons::<SecondWindowNode, FirstWindowNode>,
+        ))
+
         .run();
 }
 
@@ -17,7 +22,10 @@ struct FirstWindowNode;
 #[derive(Component, Default)]
 struct SecondWindowNode;
 
-fn setup_scene(mut commands: Commands, query: Query<Entity, With<PrimaryWindow>>) {
+#[derive(Component, Default)]
+struct Value(u64);
+
+fn setup_scene(mut commands: Commands) {
     // Primary window camera
     commands.spawn(Camera3dBundle::default());
 
@@ -54,10 +62,11 @@ fn spawn_nodes<M: Component + Default>(commands: &mut Commands, title: &str, vie
         ..Default::default()
     });
     ec.with_children(|builder| {
-        builder.spawn(TextBundle::from_section(title, TextStyle::default()));
+        builder.spawn(TextBundle::from_section(title, TextStyle { font_size: 50., ..Default::default() }));
 
         builder.spawn((
-            TextBundle::from_section("0", TextStyle::default()),
+            TextBundle::from_section("0", TextStyle { font_size: 50., ..Default::default() }),
+            Value(0),
             M::default(),
         ));
 
@@ -77,7 +86,7 @@ fn spawn_nodes<M: Component + Default>(commands: &mut Commands, title: &str, vie
             .with_children(|builder| {
                 builder.spawn(TextBundle::from_section(
                     format!("{title} button"),
-                    TextStyle::default(),
+                    TextStyle { font_size: 50., ..Default::default() }
                 ));
             });
     });
@@ -85,4 +94,30 @@ fn spawn_nodes<M: Component + Default>(commands: &mut Commands, title: &str, vie
     if let Some(view) = view {
         ec.insert(UiView { view });
     }
+}
+
+fn update_buttons<M: Component + Default, N: Component + Default>(
+    mut button_query: Query<(Ref<Interaction>, &mut BackgroundColor),  With<M>>,
+    mut text_query: Query<(&mut Value, &mut Text), With<N>>,
+) {
+    for (interaction, mut color) in button_query.iter_mut() {
+        if interaction.is_changed() {
+            match *interaction {
+                Interaction::Clicked => {
+                    for (mut value, mut text) in text_query.iter_mut() {
+                        value.0 += 1;
+                        text.sections[0].value = format!("{}", value.0);
+                    }
+                    color.0 = Color::RED;
+                },
+                Interaction::Hovered => {
+                    color.0 = Color::NAVY;
+                },
+                Interaction::None => {
+                    color.0 = Color::BLACK;
+                },
+            }
+        }
+    }
+
 }
