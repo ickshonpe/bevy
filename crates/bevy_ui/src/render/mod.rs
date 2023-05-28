@@ -8,6 +8,7 @@ use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
 pub use render_pass::*;
 
+use crate::LayoutContext;
 use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage, UiStacks};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
@@ -232,15 +233,36 @@ const UI_CAMERA_TRANSFORM_OFFSET: f32 = -0.1;
 #[derive(Component)]
 pub struct DefaultCameraView(pub Entity);
 
+#[derive(Component)]
+pub struct UiLayoutEntity(pub Entity);
+
 pub fn extract_default_ui_camera_view<T: Component>(
     mut commands: Commands,
     query: Extract<Query<(Entity, &Camera, Option<&UiCameraConfig>), With<T>>>,
+    primary_window: Extract<Query<Entity, With<PrimaryWindow>>>,
+    layout_query: Extract<Query<&LayoutContext>>,
 ) {
     for (entity, camera, camera_ui) in &query {
         // ignore cameras with disabled ui
         if matches!(camera_ui, Some(&UiCameraConfig { show_ui: false, .. })) {
             continue;
         }
+
+        let target =
+            match camera.target {
+                bevy_render::camera::RenderTarget::Window(window_ref) => {
+                    let target = match window_ref {
+                        bevy_window::WindowRef::Primary => primary_window.single(),
+                        bevy_window::WindowRef::Entity(entity) => entity,
+                    };
+                    if layout_query.contains(target) {
+                        target
+                    } else {
+                        continue;
+                    }
+                },
+                bevy_render::camera::RenderTarget::Image(_) => continue,
+            };
         if let (Some(logical_size), Some((physical_origin, _)), Some(physical_size)) = (
             camera.logical_viewport_size(),
             camera.physical_viewport_rect(),
@@ -270,6 +292,7 @@ pub fn extract_default_ui_camera_view<T: Component>(
                 .id();
             commands.get_or_spawn(entity).insert((
                 DefaultCameraView(default_camera_view),
+                UiLayoutEntity(target),
                 RenderPhase::<TransparentUi>::default(),
             ));
         }
@@ -564,7 +587,7 @@ pub fn queue_uinodes(
     mut image_bind_groups: ResMut<UiImageBindGroups>,
     gpu_images: Res<RenderAssets<Image>>,
     ui_batches: Query<(Entity, &UiBatch)>,
-    mut views: Query<(&ExtractedView, &mut RenderPhase<TransparentUi>)>,
+    mut views: Query<(&ExtractedView, &mut RenderPhase<TransparentUi>, &UiLayoutEntity)>,
     events: Res<SpriteAssetEvents>,
 ) {
     // If an image has changed, the GpuImage has (probably) changed
@@ -587,39 +610,41 @@ pub fn queue_uinodes(
             layout: &ui_pipeline.view_layout,
         }));
         let draw_ui_function = draw_functions.read().id::<DrawUi>();
-        for (view, mut transparent_phase) in &mut views {
+        for (view, mut transparent_phase, ui_layout_entity) in &mut views {
             let pipeline = pipelines.specialize(
                 &pipeline_cache,
                 &ui_pipeline,
                 UiPipelineKey { hdr: view.hdr },
             );
             for (entity, batch) in &ui_batches {
-                image_bind_groups
-                    .values
-                    .entry(batch.image.clone_weak())
-                    .or_insert_with(|| {
-                        let gpu_image = gpu_images.get(&batch.image).unwrap();
-                        render_device.create_bind_group(&BindGroupDescriptor {
-                            entries: &[
-                                BindGroupEntry {
-                                    binding: 0,
-                                    resource: BindingResource::TextureView(&gpu_image.texture_view),
-                                },
-                                BindGroupEntry {
-                                    binding: 1,
-                                    resource: BindingResource::Sampler(&gpu_image.sampler),
-                                },
-                            ],
-                            label: Some("ui_material_bind_group"),
-                            layout: &ui_pipeline.image_layout,
-                        })
+                if batch.view == ui_layout_entity.0 {
+                    image_bind_groups
+                        .values
+                        .entry(batch.image.clone_weak())
+                        .or_insert_with(|| {
+                            let gpu_image = gpu_images.get(&batch.image).unwrap();
+                            render_device.create_bind_group(&BindGroupDescriptor {
+                                entries: &[
+                                    BindGroupEntry {
+                                        binding: 0,
+                                        resource: BindingResource::TextureView(&gpu_image.texture_view),
+                                    },
+                                    BindGroupEntry {
+                                        binding: 1,
+                                        resource: BindingResource::Sampler(&gpu_image.sampler),
+                                    },
+                                ],
+                                label: Some("ui_material_bind_group"),
+                                layout: &ui_pipeline.image_layout,
+                            })
+                        });
+                    transparent_phase.add(TransparentUi {
+                        draw_function: draw_ui_function,
+                        pipeline,
+                        entity,
+                        sort_key: FloatOrd(batch.z),
                     });
-                transparent_phase.add(TransparentUi {
-                    draw_function: draw_ui_function,
-                    pipeline,
-                    entity,
-                    sort_key: FloatOrd(batch.z),
-                });
+                }
             }
         }
     }
