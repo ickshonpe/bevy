@@ -231,23 +231,18 @@ pub enum LayoutError {
     TaffyError(taffy::error::TaffyError),
 }
 
-#[derive(Resource, Default)]
-pub struct UiViews {
-    pub(crate) views: Vec<Entity>,
-}
 
 /// Updates the UI's layout tree, computes the new layout geometry and then updates the sizes and transforms of all the UI nodes.
 #[allow(clippy::too_many_arguments)]
 pub fn ui_layout_system(
     ui_scale: Res<UiScale>,
-    mut ui_stacks: ResMut<UiStacks>,
+    ui_stacks: Res<UiStacks>,
     mut removed_layouts: RemovedComponents<LayoutContext>,
     mut context_params: ParamSet<(
         Query<(&Window, &mut LayoutContext)>,
         Query<(Entity, Ref<LayoutContext>)>,
     )>,
     mut ui_surface: ResMut<UiSurface>,
-    root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
     style_query: Query<Ref<Style>, With<Node>>,
     mut measure_query: Query<(Entity, &mut ContentSize)>,
     children_query: Query<(Entity, Ref<Children>), With<Node>>,
