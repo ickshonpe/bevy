@@ -1,12 +1,12 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Node, Style, UiScale, UiStacks, UiView};
+use crate::{ContentSize, Node, Style, UiScale, UiStacks};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
     prelude::Component,
-    query::{With, Without},
+    query::With,
     reflect::ReflectComponent,
     removal_detection::RemovedComponents,
     system::{ParamSet, Query, Res, ResMut, Resource},
@@ -23,7 +23,7 @@ use std::fmt;
 use taffy::{prelude::Size, style_helpers::TaffyMaxContent, Taffy};
 
 /// Marks an entity as `UI root entity` with an associated root Taffy node and holds the resolution and scale factor information necessary to compute a UI layout.
-#[derive(Component, Debug, Reflect)]
+#[derive(Component, Debug, Reflect, PartialEq)]
 #[reflect(Component, Default)]
 pub struct LayoutContext {
     /// The size of the root node in the layout tree.
@@ -214,23 +214,17 @@ pub enum LayoutError {
     TaffyError(taffy::error::TaffyError),
 }
 
-#[derive(Resource, Default)]
-pub struct UiViews {
-    pub(crate) views: Vec<Entity>,
-}
-
 /// Updates the UI's layout tree, computes the new layout geometry and then updates the sizes and transforms of all the UI nodes.
 #[allow(clippy::too_many_arguments)]
 pub fn ui_layout_system(
     ui_scale: Res<UiScale>,
-    mut ui_stacks: ResMut<UiStacks>,
+    ui_stacks: ResMut<UiStacks>,
     mut removed_layouts: RemovedComponents<LayoutContext>,
     mut context_params: ParamSet<(
         Query<(&Window, &mut LayoutContext)>,
         Query<(Entity, Ref<LayoutContext>)>,
     )>,
     mut ui_surface: ResMut<UiSurface>,
-    root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
     style_query: Query<Ref<Style>, With<Node>>,
     mut measure_query: Query<(Entity, &mut ContentSize)>,
     children_query: Query<(Entity, Ref<Children>), With<Node>>,
@@ -255,7 +249,7 @@ pub fn ui_layout_system(
             ),
             combined_scale_factor: window.resolution.scale_factor() * ui_scale.scale,
         };
-        if layout_context.relative_ne(&new_layout_context) {
+        if *layout_context != new_layout_context {
             *layout_context = new_layout_context;
         }
     }
@@ -324,13 +318,10 @@ pub fn ui_layout_system(
     // compute layouts
     ui_surface.compute_window_layouts();
 
-
-
-
     for (view, context) in ui_roots_query.iter() {
         let ui_stack = &ui_stacks.view_to_stacks[&view];
         let layout_to_logical_factor = context.combined_scale_factor.recip();
-        let to_logical = |v| ( layout_to_logical_factor * v as f64) as f32;
+        let to_logical = |v| (layout_to_logical_factor * v as f64) as f32;
         for entity in ui_stack.uinodes.iter() {
             // PERF: try doing this incrementally
             if let Ok((mut node, mut transform, parent)) = node_transform_query.get_mut(*entity) {

@@ -9,9 +9,9 @@ pub use pipeline::*;
 pub use render_pass::*;
 
 use crate::LayoutContext;
-
 use crate::UiScale;
-use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage, UiStack};
+use crate::UiStacks;
+use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
@@ -327,33 +327,18 @@ pub fn extract_text_uinodes(
     >,
 ) {
     // TODO: Support window-independent UI scale: https://github.com/bevyengine/bevy/issues/5621
+
     let scale_factor = windows
         .get_single()
         .map(|window| window.resolution.scale_factor())
         .unwrap_or(1.0)
         * ui_scale.scale;
 
-    let inverse_scale_factor = scale_factor.recip();
+    let inverse_scale_factor = scale_factor.recip() as f32;
     for (view, ui_stack) in ui_stacks.view_to_stacks.iter() {
         for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
             if let Ok((uinode, global_transform, text, text_layout_info, visibility, clip)) =
-                uinode_query.get(*entity) {
-
-            // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
-            if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
-                continue;
-            }
-            let transform = global_transform.compute_matrix()
-                * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
-
-            let mut color = Color::WHITE;
-            let mut current_section = usize::MAX;
-            for PositionedGlyph {
-                position,
-                atlas_info,
-                section_index,
-                ..
-            } in &text_layout_info.glyphs
+                uinode_query.get(*entity)
             {
                 // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
                 if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {

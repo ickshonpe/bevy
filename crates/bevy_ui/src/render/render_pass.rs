@@ -5,7 +5,6 @@ use bevy_ecs::{
     system::{lifetimeless::*, SystemParamItem},
 };
 use bevy_render::{
-    camera::ExtractedCamera,
     render_graph::*,
     render_phase::*,
     render_resource::{CachedRenderPipelineId, LoadOp, Operations, RenderPassDescriptor},
@@ -63,7 +62,7 @@ impl Node for UiPassNode {
         }
 
         // use the "default" view entity if it is defined
-        let view_entity = if let Ok((default_view, ui_layout_entity)) = self
+        let view_entity = if let Ok((default_view, _ui_layout_entity)) = self
             .default_camera_view_query
             .get_manual(world, input_view_entity)
         {

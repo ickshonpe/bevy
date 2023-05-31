@@ -85,7 +85,6 @@ impl Plugin for UiPlugin {
             .init_resource::<UiSurface>()
             .init_resource::<UiScale>()
             .init_resource::<UiStacks>()
-            .init_resource::<UiViews>()
             .register_type::<AlignContent>()
             .register_type::<AlignItems>()
             .register_type::<AlignSelf>()
@@ -122,7 +121,7 @@ impl Plugin for UiPlugin {
                 PreUpdate,
                 (ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),),
             );
-            ;
+
         // add these systems to front because these must run before transform update systems
         #[cfg(feature = "bevy_text")]
         app.add_systems(

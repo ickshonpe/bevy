@@ -469,7 +469,6 @@ mod tests {
         let viewport_values = LayoutContext {
             combined_scale_factor: 1.0,
             root_node_size: bevy_math::Vec2::new(800., 600.),
-            layout_to_logical_factor: 1.0,
         };
         let taffy_style = from_style(&viewport_values, &bevy_style);
         assert_eq!(taffy_style.display, taffy::style::Display::Flex);
@@ -640,7 +639,6 @@ mod tests {
         let context = LayoutContext {
             combined_scale_factor: 2.0,
             root_node_size: bevy_math::Vec2::new(800., 600.),
-            layout_to_logical_factor: 2.0,
         };
         let cases = [
             (Val::Auto, LengthPercentage::Points(0.)),
