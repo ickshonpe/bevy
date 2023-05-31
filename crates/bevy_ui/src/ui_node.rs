@@ -1677,9 +1677,9 @@ impl Default for ZIndex {
 #[reflect(FromReflect, Component)]
 pub struct Outline {
     /// The color of the outline
-    color: Color,
+    pub color: Color,
     /// The thickness of the outline
-    width: f32,
+    pub width: Val,
 }
 
 #[cfg(test)]

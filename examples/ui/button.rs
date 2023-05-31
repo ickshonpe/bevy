@@ -66,7 +66,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         })
         .with_children(|parent| {
             parent
-                .spawn(ButtonBundle {
+                .spawn((ButtonBundle {
                     style: Style {
                         width: Val::Px(150.0),
                         height: Val::Px(65.0),
@@ -80,7 +80,12 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     border_color: BorderColor(Color::BLACK),
                     background_color: NORMAL_BUTTON.into(),
                     ..default()
-                })
+                },
+                    Outline {
+                        color: Color::BLACK.with_a(0.1),
+                        width: Val::Px(10.0),
+                    }
+                ))
                 .with_children(|parent| {
                     parent.spawn(TextBundle::from_section(
                         "Button",
