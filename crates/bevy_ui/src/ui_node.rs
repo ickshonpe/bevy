@@ -1672,6 +1672,16 @@ impl Default for ZIndex {
     }
 }
 
+/// An outline is a line drawn outside a UI node's border.
+#[derive(Component, Default, Clone, Debug, Reflect, FromReflect)]
+#[reflect(FromReflect, Component)]
+pub struct Outline {
+    /// The color of the outline
+    color: Color,
+    /// The thickness of the outline
+    width: f32,
+}
+
 #[cfg(test)]
 mod tests {
     use crate::ValArithmeticError;

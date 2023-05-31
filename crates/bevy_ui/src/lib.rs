@@ -116,6 +116,7 @@ impl Plugin for UiPlugin {
             .register_type::<UiImageSize>()
             .register_type::<Val>()
             .register_type::<BorderColor>()
+            .register_type::<Outline>()
             .register_type::<widget::Button>()
             .register_type::<widget::Label>()
             .add_systems(
