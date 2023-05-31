@@ -9,7 +9,6 @@ use bevy_render::{
     color::Color,
     texture::{Image, DEFAULT_IMAGE_HANDLE},
 };
-use bevy_transform::prelude::GlobalTransform;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::ops::{Div, DivAssign, Mul, MulAssign};
@@ -19,6 +18,11 @@ use thiserror::Error;
 pub struct UiView {
     pub view: Entity,
 }
+
+/// Describes the position of a UI node
+#[derive(Component, Debug, Default, Copy, Clone, Reflect)]
+#[reflect(Component, Default)]
+pub struct UiPosition(pub(crate) Vec2);
 
 /// Describes the size of a UI node
 #[derive(Component, Debug, Copy, Clone, Reflect)]
@@ -47,19 +51,19 @@ impl Node {
 
     /// Returns the logical pixel coordinates of the UI node, based on its [`GlobalTransform`].
     #[inline]
-    pub fn logical_rect(&self, transform: &GlobalTransform) -> Rect {
-        Rect::from_center_size(transform.translation().truncate(), self.size())
+    pub fn logical_rect(&self, position: &UiPosition) -> Rect {
+        Rect::from_center_size(position.0, self.size())
     }
 
     /// Returns the physical pixel coordinates of the UI node, based on its [`GlobalTransform`] and the scale factor.
     #[inline]
     pub fn physical_rect(
         &self,
-        transform: &GlobalTransform,
+        position: &UiPosition,
         scale_factor: f64,
         ui_scale: f64,
     ) -> Rect {
-        let rect = self.logical_rect(transform);
+        let rect = self.logical_rect(position);
         Rect {
             min: Vec2::new(
                 (rect.min.x as f64 * scale_factor * ui_scale) as f32,

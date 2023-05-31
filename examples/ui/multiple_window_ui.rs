@@ -1,7 +1,7 @@
 //! Demonstrates multiple windows each with their own UI layout
 
 use bevy::{prelude::*, render::camera::RenderTarget, window::WindowRef};
-use bevy_internal::{ui::LayoutContext, window::PrimaryWindow};
+use bevy_internal::ui::LayoutContext;
 
 fn main() {
     App::new()

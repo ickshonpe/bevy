@@ -1,12 +1,12 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Node, Style, UiScale, UiStacks};
+use crate::{ContentSize, Node, Style, UiScale, UiStacks, UiPosition};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
     prelude::Component,
-    query::With,
+    query::{With, Without},
     reflect::ReflectComponent,
     removal_detection::RemovedComponents,
     system::{ParamSet, Query, Res, ResMut, Resource},
@@ -16,7 +16,6 @@ use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
 use bevy_math::Vec2;
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
-use bevy_transform::components::Transform;
 use bevy_utils::HashMap;
 use bevy_window::Window;
 use std::fmt;
@@ -227,10 +226,12 @@ pub fn ui_layout_system(
     mut ui_surface: ResMut<UiSurface>,
     style_query: Query<Ref<Style>, With<Node>>,
     mut measure_query: Query<(Entity, &mut ContentSize)>,
-    children_query: Query<(Entity, Ref<Children>), With<Node>>,
+    ref_children_query: Query<(Entity, Ref<Children>), With<Node>>,
+    children_query: Query<&Children>,
     mut removed_children: RemovedComponents<Children>,
     mut removed_content_sizes: RemovedComponents<ContentSize>,
-    mut node_transform_query: Query<(&mut Node, &mut Transform, Option<&Parent>)>,
+    mut node_geometry_query: Query<(&mut Node, &mut UiPosition)>,
+    root_ui_nodes_query: Query<Entity, (With<Node>, With<UiPosition>, Without<Parent>)>,
     mut removed_nodes: RemovedComponents<Node>,
 ) {
     // If a UI root entity is deleted, its associated Taffy root node must also be deleted.
@@ -309,7 +310,7 @@ pub fn ui_layout_system(
     }
 
     // If the `Children` of a UI node entity have been changed since the last layout update, the children of the associated Taffy node must be updated.
-    for (entity, children) in &children_query {
+    for (entity, children) in &ref_children_query {
         if children.is_changed() {
             ui_surface.update_children(entity, &children);
         }
@@ -318,41 +319,56 @@ pub fn ui_layout_system(
     // compute layouts
     ui_surface.compute_window_layouts();
 
-    for (view, context) in ui_roots_query.iter() {
-        let ui_stack = &ui_stacks.view_to_stacks[&view];
-        let layout_to_logical_factor = context.combined_scale_factor.recip();
-        let to_logical = |v| (layout_to_logical_factor * v as f64) as f32;
-        for entity in ui_stack.uinodes.iter() {
-            // PERF: try doing this incrementally
-            if let Ok((mut node, mut transform, parent)) = node_transform_query.get_mut(*entity) {
-                let layout = ui_surface.get_layout(*entity).unwrap();
-                let new_size = Vec2::new(
-                    to_logical(layout.size.width),
-                    to_logical(layout.size.height),
-                );
-                // only trigger change detection when the new value is different
-                if node.calculated_size != new_size {
-                    node.calculated_size = new_size;
-                }
+    fn update_ui_nodes_recursively(
+        ui_surface: &UiSurface,
+        entity: Entity,
+        inverse_combined_scale_factor: f32,
+        ui_node_query: &mut Query<(&mut Node, &mut UiPosition)>,
+        children_query: &Query<&Children>,
+        inherited_position: Vec2,
+    ) {
+        let layout = ui_surface.get_layout(entity).unwrap();
+        let new_size = Vec2::new(
+            layout.size.width,
+            layout.size.height,
+        ) * inverse_combined_scale_factor;
+        let local_position = Vec2::new(
+            layout.location.x,
+            layout.location.y,
+        ) * inverse_combined_scale_factor;
+        let next_position = local_position + inherited_position;
+        let new_position = next_position + 0.5 * new_size;
 
-                let mut new_position = transform.translation;
+        let (mut node, mut position) = ui_node_query.get_mut(entity).unwrap();
+        if node.calculated_size != new_size {
+            node.calculated_size = new_size;
+        }
 
-                new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
-                new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
+        if position.0 != new_position {
+            position.0 = new_position;
+        }
 
-                if let Some(parent) = parent {
-                    if let Ok(parent_layout) = ui_surface.get_layout(**parent) {
-                        new_position.x -= to_logical(parent_layout.size.width / 2.0);
-                        new_position.y -= to_logical(parent_layout.size.height / 2.0);
-                    }
-                }
-                // only trigger change detection when the new value is different
-                if transform.translation != new_position {
-                    transform.translation = new_position;
-                }
+        if let Ok(children) = children_query.get(entity) {
+            for &child_entity in children.iter() {
+                update_ui_nodes_recursively(ui_surface, child_entity, inverse_combined_scale_factor, ui_node_query, children_query, next_position);
             }
         }
     }
+
+    for entity in root_ui_nodes_query.iter() {
+        // let taffy_id = ui_surface.entity_to_taffy[&entity];
+        // let taffy_parent_id = ui_surface.taffy.parent(taffy_id).unwrap();
+        // let layout_size = ui_surface.taffy.layout(taffy_parent_id);
+        let inverse_combined_scale_factor = 1.5f32.recip();
+        update_ui_nodes_recursively(
+            &ui_surface, 
+            entity, 
+            inverse_combined_scale_factor, 
+            &mut node_geometry_query,
+            &children_query,
+            Vec2::ZERO
+        );
+    }  
 }
 
 #[cfg(test)]
@@ -448,7 +464,5 @@ mod tests {
             0,
             "Taffy root node has children after despawning all root UI nodes."
         );
-
-        debug::print_ui_layout_tree(ui_surface);
     }
 }

@@ -1,4 +1,4 @@
-use crate::{camera_config::UiCameraConfig, CalculatedClip, Node, UiScale, UiStacks};
+use crate::{camera_config::UiCameraConfig, CalculatedClip, Node, UiScale, UiStacks, UiPosition};
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     change_detection::DetectChangesMut,
@@ -125,7 +125,7 @@ pub struct State {
 pub struct NodeQuery {
     entity: Entity,
     node: &'static Node,
-    global_transform: &'static GlobalTransform,
+    position: &'static UiPosition,
     interaction: Option<&'static mut Interaction>,
     relative_cursor_position: Option<&'static mut RelativeCursorPosition>,
     focus_policy: Option<&'static FocusPolicy>,
@@ -254,8 +254,7 @@ pub fn ui_focus_system(
                         }
                     }
 
-                    let position = node.global_transform.translation();
-                    let ui_position = position.truncate();
+                    let ui_position = node.position.0;
                     let extents = node.node.size() / 2.0;
                     let mut min = ui_position - extents;
                     if let Some(clip) = node.calculated_clip {
