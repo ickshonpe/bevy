@@ -144,7 +144,8 @@ pub fn ui_focus_system(
     windows: Query<(Entity, &Window)>,
     mouse_button_input: Res<Input<MouseButton>>,
     touches_input: Res<Touches>,
-    ui_stacks: Res<UiStacks>,
+    ui_scale: Res<UiScale>,
+    ui_stack: Res<UiStack>,
     mut node_query: Query<NodeQuery>,
     primary_window_query: Query<Entity, With<PrimaryWindow>>,
 ) {
@@ -210,15 +211,12 @@ pub fn ui_focus_system(
     let mouse_clicked =
         mouse_button_input.just_pressed(MouseButton::Left) || touches_input.any_just_pressed();
 
-
-
     let cursor_position =
         cursor_state
         .or_else(|| touches_input.first_pressed_position().and_then(|position| 
             primary_window.map(|primary_window| (primary_window, position))
-        ));
-
-
+        ))
+        .map(|cursor_position| cursor_position * ui_scale.scale as f32);
 
     // prepare an iterator that contains all the nodes that have the cursor in their rect,
     // from the top node to the bottom one. this will also reset the interaction to `None`

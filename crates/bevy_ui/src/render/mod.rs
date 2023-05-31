@@ -9,7 +9,9 @@ pub use pipeline::*;
 pub use render_pass::*;
 
 use crate::LayoutContext;
-use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage, UiStacks};
+
+use crate::UiScale;
+use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage, UiStack};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
@@ -238,10 +240,12 @@ pub struct UiLayoutEntity(pub Entity);
 
 pub fn extract_default_ui_camera_view<T: Component>(
     mut commands: Commands,
+    ui_scale: Extract<Res<UiScale>>,
     query: Extract<Query<(Entity, &Camera, Option<&UiCameraConfig>), With<T>>>,
     primary_window: Extract<Query<Entity, With<PrimaryWindow>>>,
     layout_query: Extract<Query<&LayoutContext>>,
 ) {
+    let scale = (ui_scale.scale as f32).recip();
     for (entity, camera, camera_ui) in &query {
         // ignore cameras with disabled ui
         if matches!(camera_ui, Some(&UiCameraConfig { show_ui: false, .. })) {
@@ -268,8 +272,14 @@ pub fn extract_default_ui_camera_view<T: Component>(
             camera.physical_viewport_size(),
         ) {
             // use a projection matrix with the origin in the top left instead of the bottom left that comes with OrthographicProjection
-            let projection_matrix =
-                Mat4::orthographic_rh(0.0, logical_size.x, logical_size.y, 0.0, 0.0, UI_CAMERA_FAR);
+            let projection_matrix = Mat4::orthographic_rh(
+                0.0,
+                logical_size.x * scale,
+                logical_size.y * scale,
+                0.0,
+                0.0,
+                UI_CAMERA_FAR,
+            );
             let default_camera_view = commands
                 .spawn(ExtractedView {
                     projection: projection_matrix,
@@ -304,6 +314,7 @@ pub fn extract_text_uinodes(
     ui_stacks: Extract<Res<UiStacks>>,
     texture_atlases: Extract<Res<Assets<TextureAtlas>>>,
     windows: Extract<Query<&Window, With<PrimaryWindow>>>,
+    ui_scale: Extract<Res<UiScale>>,
     uinode_query: Extract<
         Query<(
             &Node,
@@ -318,14 +329,31 @@ pub fn extract_text_uinodes(
     // TODO: Support window-independent UI scale: https://github.com/bevyengine/bevy/issues/5621
     let scale_factor = windows
         .get_single()
-        .map(|window| window.resolution.scale_factor() as f32)
-        .unwrap_or(1.0);
+        .map(|window| window.resolution.scale_factor())
+        .unwrap_or(1.0)
+        * ui_scale.scale;
 
     let inverse_scale_factor = scale_factor.recip();
     for (view, ui_stack) in ui_stacks.view_to_stacks.iter() {
         for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
             if let Ok((uinode, global_transform, text, text_layout_info, visibility, clip)) =
-                uinode_query.get(*entity)
+                uinode_query.get(*entity) {
+
+            // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
+            if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
+                continue;
+            }
+            let transform = global_transform.compute_matrix()
+                * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
+
+            let mut color = Color::WHITE;
+            let mut current_section = usize::MAX;
+            for PositionedGlyph {
+                position,
+                atlas_info,
+                section_index,
+                ..
+            } in &text_layout_info.glyphs
             {
                 // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
                 if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {

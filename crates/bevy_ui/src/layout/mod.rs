@@ -34,10 +34,6 @@ pub struct LayoutContext {
     ///
     /// `combined_scale_factor` is calculated by multiplying together the `scale_factor` of the output window and [`crate::UiScale`].
     pub combined_scale_factor: f64,
-    /// After a UI layout has been computed, the layout coordinates are multiplied by `layout_to_logical_factor` to determine the final size of each UI Node entity to be stored in its [`Node`] component.
-    ///
-    /// `layout_to_logical_factor` is the reciprocal of the target window's `scale_factor` and doesn't include [`crate::UiScale`].
-    pub layout_to_logical_factor: f64,
 }
 
 impl Default for LayoutContext {
@@ -45,20 +41,7 @@ impl Default for LayoutContext {
         Self {
             root_node_size: Vec2::new(800., 600.),
             combined_scale_factor: 1.0,
-            layout_to_logical_factor: 1.0,
         }
-    }
-}
-
-impl LayoutContext {
-    fn relative_ne(&self, other: &Self) -> bool {
-        approx::relative_ne!(self.root_node_size.x, other.root_node_size.x,)
-            || approx::relative_ne!(self.root_node_size.y, other.root_node_size.y,)
-            || approx::relative_ne!(self.combined_scale_factor, other.combined_scale_factor)
-            || approx::relative_ne!(
-                self.layout_to_logical_factor,
-                other.layout_to_logical_factor,
-            )
     }
 }
 
@@ -271,7 +254,6 @@ pub fn ui_layout_system(
                 window.resolution.physical_height() as f32,
             ),
             combined_scale_factor: window.resolution.scale_factor() * ui_scale.scale,
-            layout_to_logical_factor: window.resolution.scale_factor().recip(),
         };
         if layout_context.relative_ne(&new_layout_context) {
             *layout_context = new_layout_context;
@@ -342,11 +324,13 @@ pub fn ui_layout_system(
     // compute layouts
     ui_surface.compute_window_layouts();
 
+
+
+
     for (view, context) in ui_roots_query.iter() {
         let ui_stack = &ui_stacks.view_to_stacks[&view];
-
-        // `layout_to_logical_factor` is the reciprocal of the `scale_factor` of the target window, and does not include `UiScale`.
-        let to_logical = |v| (context.layout_to_logical_factor * v as f64) as f32;
+        let layout_to_logical_factor = context.combined_scale_factor.recip();
+        let to_logical = |v| ( layout_to_logical_factor * v as f64) as f32;
         for entity in ui_stack.uinodes.iter() {
             // PERF: try doing this incrementally
             if let Ok((mut node, mut transform, parent)) = node_transform_query.get_mut(*entity) {
