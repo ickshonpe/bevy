@@ -15,21 +15,22 @@ use bevy_utils::FloatOrd;
 
 pub struct UiPassNode {
     ui_view_query: QueryState<
-        (
+        ( 
             &'static RenderPhase<TransparentUi>,
             &'static ViewTarget,
-            Option<&'static UiCameraConfig>,
+            //Option<&'static UiCameraConfig>,
+            &'static UiLayoutEntity,
         ),
         With<ExtractedView>,
     >,
-    default_camera_view_query: QueryState<(&'static DefaultCameraView, &'static UiLayoutEntity)>,
+    //default_camera_view_query: QueryState<(&'static DefaultCameraView, &'static UiLayoutEntity)>,
 }
 
 impl UiPassNode {
     pub fn new(world: &mut World) -> Self {
         Self {
             ui_view_query: world.query_filtered(),
-            default_camera_view_query: world.query(),
+            //default_camera_view_query: world.query(),
         }
     }
 }
@@ -37,7 +38,7 @@ impl UiPassNode {
 impl Node for UiPassNode {
     fn update(&mut self, world: &mut World) {
         self.ui_view_query.update_archetypes(world);
-        self.default_camera_view_query.update_archetypes(world);
+       // self.default_camera_view_query.update_archetypes(world);
     }
 
     fn run(
@@ -48,7 +49,7 @@ impl Node for UiPassNode {
     ) -> Result<(), NodeRunError> {
         let input_view_entity = graph.view_entity();
 
-        let Ok((transparent_phase, target, camera_ui)) =
+        let Ok((transparent_phase, target, layout)) =
                 self.ui_view_query.get_manual(world, input_view_entity)
              else {
                 return Ok(());
@@ -56,20 +57,14 @@ impl Node for UiPassNode {
         if transparent_phase.items.is_empty() {
             return Ok(());
         }
-        // Don't render UI for cameras where it is explicitly disabled
-        if matches!(camera_ui, Some(&UiCameraConfig { show_ui: false })) {
-            return Ok(());
-        }
+        // // Don't render UI for cameras where it is explicitly disabled
+        // if matches!(camera_ui, Some(&UiCameraConfig { show_ui: false })) {
+        //     return Ok(());
+        // }
 
         // use the "default" view entity if it is defined
-        let view_entity = if let Ok((default_view, _ui_layout_entity)) = self
-            .default_camera_view_query
-            .get_manual(world, input_view_entity)
-        {
-            default_view.0
-        } else {
-            input_view_entity
-        };
+        let view_entity = 
+            input_view_entity;
         let mut render_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
             label: Some("ui_pass"),
             color_attachments: &[Some(target.get_unsampled_color_attachment(Operations {

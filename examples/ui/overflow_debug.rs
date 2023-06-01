@@ -201,40 +201,40 @@ fn spawn_container(
 
     update_transform.update(0.0, &mut transform);
 
-    parent
-        .spawn((
-            NodeBundle {
-                style: Style {
-                    width: Val::Px(CONTAINER_SIZE),
-                    height: Val::Px(CONTAINER_SIZE),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    overflow: Overflow::clip(),
-                    ..default()
-                },
-                background_color: Color::DARK_GRAY.into(),
-                ..default()
-            },
-            Container(0),
-        ))
-        .with_children(|parent| {
-            parent
-                .spawn((
-                    NodeBundle {
-                        style: Style {
-                            align_items: AlignItems::Center,
-                            justify_content: JustifyContent::Center,
-                            top: Val::Px(transform.translation.x),
-                            left: Val::Px(transform.translation.y),
-                            ..default()
-                        },
-                        transform,
-                        ..default()
-                    },
-                    update_transform,
-                ))
-                .with_children(spawn_children);
-        });
+    // parent
+    //     .spawn((
+    //         NodeBundle {
+    //             style: Style {
+    //                 width: Val::Px(CONTAINER_SIZE),
+    //                 height: Val::Px(CONTAINER_SIZE),
+    //                 align_items: AlignItems::Center,
+    //                 justify_content: JustifyContent::Center,
+    //                 overflow: Overflow::clip(),
+    //                 ..default()
+    //             },
+    //             background_color: Color::DARK_GRAY.into(),
+    //             ..default()
+    //         },
+    //         Container(0),
+    //     ))
+    //     .with_children(|parent| {
+    //         parent
+    //             .spawn((
+    //                 NodeBundle {
+    //                     style: Style {
+    //                         align_items: AlignItems::Center,
+    //                         justify_content: JustifyContent::Center,
+    //                         top: Val::Px(transform.translation.x),
+    //                         left: Val::Px(transform.translation.y),
+    //                         ..default()
+    //                     },
+    //                     transform,
+    //                     ..default()
+    //                 },
+    //                 update_transform,
+    //             ))
+    //             .with_children(spawn_children);
+    //     });
 }
 
 fn update_animation(

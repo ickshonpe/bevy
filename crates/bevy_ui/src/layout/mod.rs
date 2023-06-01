@@ -5,21 +5,35 @@ use crate::{ContentSize, Node, Style, UiScale, UiStacks, UiPosition};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
-    prelude::Component,
+    prelude::{Component, Bundle},
     query::{With, Without},
     reflect::ReflectComponent,
     removal_detection::RemovedComponents,
-    system::{ParamSet, Query, Res, ResMut, Resource},
+    system::{Query, Res, ResMut, Resource},
     world::Ref,
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
 use bevy_math::Vec2;
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
+use bevy_render::camera::RenderTarget;
 use bevy_utils::HashMap;
 use bevy_window::Window;
 use std::fmt;
 use taffy::{prelude::Size, style_helpers::TaffyMaxContent, Taffy};
+
+#[derive(Component, Default)]
+pub struct UiLayoutViewportNodeId(taffy::node::Node);
+
+#[derive(Component)]
+pub struct UiTarget(pub Entity);
+
+#[derive(Bundle)]
+pub struct UiLayoutBundle {
+    pub viewport_id: UiLayoutViewportNodeId,    
+    pub target: UiTarget,
+    pub layout_context: LayoutContext,
+}
 
 /// Marks an entity as `UI root entity` with an associated root Taffy node and holds the resolution and scale factor information necessary to compute a UI layout.
 #[derive(Component, Debug, Reflect, PartialEq)]
@@ -138,16 +152,10 @@ without UI components as a child of an entity with UI components, results may be
     }
 
     /// Retrieve or insert the root layout node and update its size to match the size of the window.
-    pub fn update_root_nodes(&mut self, window: Entity, physical_size: Vec2) {
-        let taffy = &mut self.taffy;
-        let node = self
-            .root_nodes
-            .entry(window)
-            .or_insert_with(|| taffy.new_leaf(taffy::style::Style::default()).unwrap());
-
-        taffy
+    pub fn update_root_node(&mut self, taffy_node: taffy::node::Node, physical_size: Vec2) {
+        self.taffy
             .set_style(
-                *node,
+                taffy_node,
                 taffy::style::Style {
                     size: taffy::geometry::Size {
                         width: taffy::style::Dimension::Points(physical_size.x),
@@ -219,10 +227,8 @@ pub fn ui_layout_system(
     ui_scale: Res<UiScale>,
     ui_stacks: ResMut<UiStacks>,
     mut removed_layouts: RemovedComponents<LayoutContext>,
-    mut context_params: ParamSet<(
-        Query<(&Window, &mut LayoutContext)>,
-        Query<(Entity, Ref<LayoutContext>)>,
-    )>,
+    windows_query: Query<&Window>,
+    mut layout_query: Query<(Entity, &mut LayoutContext, &UiTarget, &mut UiLayoutViewportNodeId)>,
     mut ui_surface: ResMut<UiSurface>,
     style_query: Query<Ref<Style>, With<Node>>,
     mut measure_query: Query<(Entity, &mut ContentSize)>,
@@ -234,6 +240,7 @@ pub fn ui_layout_system(
     root_ui_nodes_query: Query<Entity, (With<Node>, With<UiPosition>, Without<Parent>)>,
     mut removed_nodes: RemovedComponents<Node>,
 ) {
+    bevy_log::info!("ui_layout_system");
     // If a UI root entity is deleted, its associated Taffy root node must also be deleted.
     for entity in removed_layouts.iter() {
         if let Some(taffy_node) = ui_surface.root_nodes.remove(&entity) {
@@ -241,36 +248,39 @@ pub fn ui_layout_system(
         }
     }
 
-    let mut windows_query = context_params.p0();
-    for (window, mut layout_context) in &mut windows_query {
-        let new_layout_context = LayoutContext {
-            root_node_size: Vec2::new(
-                window.resolution.physical_width() as f32,
-                window.resolution.physical_height() as f32,
-            ),
-            combined_scale_factor: window.resolution.scale_factor() * ui_scale.scale,
-        };
-        if *layout_context != new_layout_context {
-            *layout_context = new_layout_context;
+    for (_entity, mut layout_context, target, _id) in layout_query.iter_mut() {
+        if let Ok(window) = windows_query.get(target.0) {
+            let new_layout_context = LayoutContext {
+                root_node_size: Vec2::new(
+                    window.resolution.physical_width() as f32,
+                    window.resolution.physical_height() as f32,
+                ),
+                combined_scale_factor: window.resolution.scale_factor() * ui_scale.scale,
+            };
+            if *layout_context != new_layout_context {
+                *layout_context = new_layout_context;
+            }
         }
     }
 
-    let ui_roots_query = context_params.p1();
-
-    for (ui_root_entity, layout_context) in ui_roots_query.iter() {
-        ui_surface.update_root_nodes(ui_root_entity, layout_context.root_node_size);
+    for (ui_layout_entity, layout_context, _target, mut id) in layout_query.iter_mut() {
+        if id.0 == taffy::node::Node::default() {
+            id.0 = ui_surface.taffy.new_leaf(taffy::style::Style::default()).unwrap();
+            ui_surface.root_nodes.insert(ui_layout_entity, id.0);
+        }
+        ui_surface.update_root_node(id.0, layout_context.root_node_size);
 
         if layout_context.is_changed() {
             // Update all nodes in stack for this context
             //
             // All nodes have to be updated on changes to the `LayoutContext` so any viewport values can be recalculated.
-            for &ui_node in ui_stacks.view_to_stacks[&ui_root_entity].uinodes.iter() {
+            for &ui_node in ui_stacks.view_to_stacks[&ui_layout_entity].uinodes.iter() {
                 if let Ok(style) = style_query.get(ui_node) {
                     ui_surface.upsert_node(ui_node, &style, &layout_context);
                 }
             }
         } else {
-            for &ui_node in ui_stacks.view_to_stacks[&ui_root_entity].uinodes.iter() {
+            for &ui_node in ui_stacks.view_to_stacks[&ui_layout_entity].uinodes.iter() {
                 if let Ok(style) = style_query.get(ui_node) {
                     if style.is_changed() {
                         ui_surface.upsert_node(ui_node, &style, &layout_context);
@@ -299,6 +309,7 @@ pub fn ui_layout_system(
 
     // Set the associated Taffy nodes of UI node entities without a `Parent` component to be children of the UI's root Taffy node
     for (ui_root_entity, ui_stack) in ui_stacks.view_to_stacks.iter() {
+        bevy_log::info!("set children for root node: {ui_root_entity:?}");
         ui_surface.set_root_nodes_children(*ui_root_entity, ui_stack.roots.iter().copied());
     }
 
@@ -369,11 +380,12 @@ pub fn ui_layout_system(
             Vec2::ZERO
         );
     }  
+
+    debug::print_ui_layout_tree(&ui_surface);
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::debug;
     use crate::prelude::*;
     use crate::ui_layout_system;
     use crate::LayoutContext;

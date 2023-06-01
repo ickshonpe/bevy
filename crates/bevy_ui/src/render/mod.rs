@@ -2,7 +2,9 @@ mod pipeline;
 mod render_pass;
 
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
+use bevy_render::camera::{NormalizedRenderTarget, RenderTarget, ExtractedCamera, CameraRenderGraph};
 use bevy_render::{ExtractSchedule, Render};
+use bevy_window::NormalizedWindowRef;
 #[cfg(feature = "bevy_text")]
 use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
@@ -12,11 +14,12 @@ use crate::LayoutContext;
 use crate::UiScale;
 use crate::UiStacks;
 use crate::UiPosition;
+use crate::UiTarget;
 use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
-use bevy_math::{Mat4, Rect, UVec4, Vec2, Vec3, Vec4Swizzles};
+use bevy_math::{Mat4, Rect, UVec4, Vec2, Vec3, Vec4Swizzles, UVec2};
 use bevy_reflect::TypeUuid;
 use bevy_render::texture::DEFAULT_IMAGE_HANDLE;
 use bevy_render::{
@@ -79,8 +82,7 @@ pub fn build_ui_render(app: &mut App) {
         .add_systems(
             ExtractSchedule,
             (
-                extract_default_ui_camera_view::<Camera2d>,
-                extract_default_ui_camera_view::<Camera3d>,
+                extract_ui_camera_view,
                 extract_uinodes.in_set(RenderUiSystem::ExtractNode),
                 #[cfg(feature = "bevy_text")]
                 extract_text_uinodes.after(RenderUiSystem::ExtractNode),
@@ -239,75 +241,131 @@ pub struct DefaultCameraView(pub Entity);
 #[derive(Component)]
 pub struct UiLayoutEntity(pub Entity);
 
-pub fn extract_default_ui_camera_view<T: Component>(
+pub fn extract_ui_camera_view(
     mut commands: Commands,
-    ui_scale: Extract<Res<UiScale>>,
-    query: Extract<Query<(Entity, &Camera, Option<&UiCameraConfig>), With<T>>>,
-    primary_window: Extract<Query<Entity, With<PrimaryWindow>>>,
-    layout_query: Extract<Query<&LayoutContext>>,
+    layout_query: Extract<Query<(Entity, &LayoutContext, &UiTarget)>>,
+    window_query: Extract<Query<&Window>>,
 ) {
-    let scale = (ui_scale.scale as f32).recip();
-    for (entity, camera, camera_ui) in &query {
-        // ignore cameras with disabled ui
-        if matches!(camera_ui, Some(&UiCameraConfig { show_ui: false, .. })) {
-            continue;
-        }
-
-        let target = match camera.target {
-            bevy_render::camera::RenderTarget::Window(window_ref) => {
-                let target = match window_ref {
-                    bevy_window::WindowRef::Primary => primary_window.single(),
-                    bevy_window::WindowRef::Entity(entity) => entity,
-                };
-                if layout_query.contains(target) {
-                    target
-                } else {
-                    continue;
-                }
-            }
-            bevy_render::camera::RenderTarget::Image(_) => continue,
-        };
-        if let (Some(logical_size), Some((physical_origin, _)), Some(physical_size)) = (
-            camera.logical_viewport_size(),
-            camera.physical_viewport_rect(),
-            camera.physical_viewport_size(),
-        ) {
-            // use a projection matrix with the origin in the top left instead of the bottom left that comes with OrthographicProjection
-            let projection_matrix = Mat4::orthographic_rh(
-                0.0,
-                logical_size.x * scale,
-                logical_size.y * scale,
-                0.0,
-                0.0,
-                UI_CAMERA_FAR,
-            );
-            let default_camera_view = commands
-                .spawn(ExtractedView {
-                    projection: projection_matrix,
-                    transform: GlobalTransform::from_xyz(
-                        0.0,
-                        0.0,
-                        UI_CAMERA_FAR + UI_CAMERA_TRANSFORM_OFFSET,
-                    ),
-                    view_projection: None,
-                    hdr: camera.hdr,
-                    viewport: UVec4::new(
-                        physical_origin.x,
-                        physical_origin.y,
-                        physical_size.x,
-                        physical_size.y,
-                    ),
-                    color_grading: Default::default(),
-                })
-                .id();
-            commands.get_or_spawn(entity).insert((
-                DefaultCameraView(default_camera_view),
-                UiLayoutEntity(target),
-                RenderPhase::<TransparentUi>::default(),
-            ));
-        }
+    for (entity, layout, target) in layout_query.iter() {
+        let physical_viewport_size = UVec2::new(
+            layout.root_node_size.x as u32,
+            layout.root_node_size.y as u32,
+        );
+        let projection_matrix = Mat4::orthographic_rh(
+            0.0,
+            layout.root_node_size.x * layout.combined_scale_factor as f32,
+            layout.root_node_size.y * layout.combined_scale_factor as f32,
+            0.0,
+            0.0,
+            UI_CAMERA_FAR,
+        );
+        let render_target = RenderTarget::Window(bevy_window::WindowRef::Entity(target.0))
+        .normalize(None);
+        let camera = commands.spawn((
+            ExtractedView {
+                projection: projection_matrix,
+                transform: GlobalTransform::from_xyz(
+                    0.,
+                    0.,
+                    UI_CAMERA_FAR + UI_CAMERA_TRANSFORM_OFFSET,
+                ),
+                view_projection: None,
+                hdr: false,
+                viewport: UVec4::new(
+                    0,
+                    0,
+                    layout.root_node_size.x as u32,
+                    layout.root_node_size.y as u32,
+                ),
+                color_grading: Default::default(),
+            },
+            ExtractedCamera {
+                target: render_target,
+                physical_viewport_size: Some(physical_viewport_size),
+                physical_target_size: Some(physical_viewport_size),
+                viewport: None,
+                render_graph: bevy_core_pipeline::core_2d::graph::NAME.into(),
+                order: 0,
+                output_mode: bevy_render::camera::CameraOutputMode::default(),
+                msaa_writeback: true,
+                sorted_camera_index_for_target: 0,
+            },
+            UiLayoutEntity(target.0),
+            RenderPhase::<TransparentUi>::default(),
+        )).id();
+        bevy_log::info!("spawned extracted view: {camera:?}");
     }
 }
+
+// pub fn extract_default_ui_camera_view<T: Component>(
+//     mut commands: Commands,
+//     ui_scale: Extract<Res<UiScale>>,
+//     query: Extract<Query<(Entity, &Camera, Option<&UiCameraConfig>), With<T>>>,
+//     primary_window: Extract<Query<Entity, With<PrimaryWindow>>>,
+//     layout_query: Extract<Query<&LayoutContext>>,
+// ) {
+//     let scale = (ui_scale.scale as f32).recip();
+//     for (entity, camera, camera_ui) in &query {
+//         // ignore cameras with disabled ui
+//         if matches!(camera_ui, Some(&UiCameraConfig { show_ui: false, .. })) {
+//             continue;
+//         }
+
+//         let target = match camera.target {
+//             bevy_render::camera::RenderTarget::Window(window_ref) => {
+//                 let target = match window_ref {
+//                     bevy_window::WindowRef::Primary => primary_window.single(),
+//                     bevy_window::WindowRef::Entity(entity) => entity,
+//                 };
+//                 if layout_query.contains(target) {
+//                     target
+//                 } else {
+//                     continue;
+//                 }
+//             }
+//             bevy_render::camera::RenderTarget::Image(_) => continue,
+//         };
+//         if let (Some(logical_size), Some((physical_origin, _)), Some(physical_size)) = (
+//             camera.logical_viewport_size(),
+//             camera.physical_viewport_rect(),
+//             camera.physical_viewport_size(),
+//         ) {
+//             // use a projection matrix with the origin in the top left instead of the bottom left that comes with OrthographicProjection
+//             let projection_matrix = Mat4::orthographic_rh(
+//                 0.0,
+//                 logical_size.x * scale,
+//                 logical_size.y * scale,
+//                 0.0,
+//                 0.0,
+//                 UI_CAMERA_FAR,
+//             );
+//             let default_camera_view = commands
+//                 .spawn(ExtractedView {
+//                     projection: projection_matrix,
+//                     transform: GlobalTransform::from_xyz(
+//                         0.0,
+//                         0.0,
+//                         UI_CAMERA_FAR + UI_CAMERA_TRANSFORM_OFFSET,
+//                     ),
+//                     view_projection: None,
+//                     hdr: camera.hdr,
+//                     viewport: UVec4::new(
+//                         physical_origin.x,
+//                         physical_origin.y,
+//                         physical_size.x,
+//                         physical_size.y,
+//                     ),
+//                     color_grading: Default::default(),
+//                 })
+//                 .id();
+//             commands.get_or_spawn(entity).insert((
+//                 DefaultCameraView(default_camera_view),
+//                 UiLayoutEntity(target),
+//                 RenderPhase::<TransparentUi>::default(),
+//             ));
+//         }
+//     }
+// }
 
 #[cfg(feature = "bevy_text")]
 pub fn extract_text_uinodes(

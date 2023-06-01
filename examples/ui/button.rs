@@ -45,7 +45,7 @@ fn button_system(
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // ui camera
-    commands.spawn(Camera2dBundle::default());
+    //commands.spawn(Camera2dBundle::default());
     commands
         .spawn(NodeBundle {
             style: Style {
@@ -54,6 +54,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 justify_content: JustifyContent::Center,
                 ..default()
             },
+            background_color: BackgroundColor(Color::RED),
             ..default()
         })
         .with_children(|parent| {

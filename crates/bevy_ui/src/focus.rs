@@ -14,7 +14,6 @@ use bevy_reflect::{
     FromReflect, Reflect, ReflectDeserialize, ReflectFromReflect, ReflectSerialize,
 };
 use bevy_render::{camera::NormalizedRenderTarget, prelude::Camera, view::ComputedVisibility};
-use bevy_transform::components::GlobalTransform;
 
 use bevy_window::{PrimaryWindow, Window};
 use serde::{Deserialize, Serialize};

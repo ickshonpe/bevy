@@ -67,7 +67,7 @@ pub enum UiSystem {
 ///
 /// A multiplier to fixed-sized ui values.
 /// **Note:** This will only affect fixed ui values like [`Val::Px`]
-#[derive(Debug, Resource)]
+#[derive(Component, Debug, Resource)]
 pub struct UiScale {
     /// The scale to be applied.
     pub scale: f64,
@@ -167,15 +167,16 @@ impl Plugin for UiPlugin {
                 update_clipping_system.after(TransformSystem::TransformPropagate),
             ),
         );
-
-        if let Ok(entity) = app
+        
+        if let Ok(primary_window_entity) = app
             .world
             .query_filtered::<Entity, With<bevy_window::PrimaryWindow>>()
-            .get_single(&app.world)
-        {
-            app.world
-                .entity_mut(entity)
-                .insert(LayoutContext::default());
+            .get_single(&app.world) {
+            app.world.spawn(UiLayoutBundle {
+                target: UiTarget(primary_window_entity),
+                viewport_id: Default::default(),
+                layout_context: Default::default()
+            });
         }
 
         crate::render::build_ui_render(app);
