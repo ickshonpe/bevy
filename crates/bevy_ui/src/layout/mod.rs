@@ -1,11 +1,11 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Node, Style, UiScale, UiStacks, UiPosition};
+use crate::{ContentSize, Node, Style, UiPosition, UiScale, UiStacks};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
-    prelude::{Component, Bundle},
+    prelude::{Bundle, Component},
     query::{With, Without},
     reflect::ReflectComponent,
     removal_detection::RemovedComponents,
@@ -30,7 +30,7 @@ pub struct UiTarget(pub Entity);
 
 #[derive(Bundle)]
 pub struct UiLayoutBundle {
-    pub viewport_id: UiLayoutViewportNodeId,    
+    pub viewport_id: UiLayoutViewportNodeId,
     pub target: UiTarget,
     pub layout_context: LayoutContext,
 }
@@ -228,7 +228,12 @@ pub fn ui_layout_system(
     ui_stacks: ResMut<UiStacks>,
     mut removed_layouts: RemovedComponents<LayoutContext>,
     windows_query: Query<&Window>,
-    mut layout_query: Query<(Entity, &mut LayoutContext, &UiTarget, &mut UiLayoutViewportNodeId)>,
+    mut layout_query: Query<(
+        Entity,
+        &mut LayoutContext,
+        &UiTarget,
+        &mut UiLayoutViewportNodeId,
+    )>,
     mut ui_surface: ResMut<UiSurface>,
     style_query: Query<Ref<Style>, With<Node>>,
     mut measure_query: Query<(Entity, &mut ContentSize)>,
@@ -265,7 +270,10 @@ pub fn ui_layout_system(
 
     for (ui_layout_entity, layout_context, _target, mut id) in layout_query.iter_mut() {
         if id.0 == taffy::node::Node::default() {
-            id.0 = ui_surface.taffy.new_leaf(taffy::style::Style::default()).unwrap();
+            id.0 = ui_surface
+                .taffy
+                .new_leaf(taffy::style::Style::default())
+                .unwrap();
             ui_surface.root_nodes.insert(ui_layout_entity, id.0);
         }
         ui_surface.update_root_node(id.0, layout_context.root_node_size);
@@ -339,14 +347,10 @@ pub fn ui_layout_system(
         inherited_position: Vec2,
     ) {
         let layout = ui_surface.get_layout(entity).unwrap();
-        let new_size = Vec2::new(
-            layout.size.width,
-            layout.size.height,
-        ) * inverse_combined_scale_factor;
-        let local_position = Vec2::new(
-            layout.location.x,
-            layout.location.y,
-        ) * inverse_combined_scale_factor;
+        let new_size =
+            Vec2::new(layout.size.width, layout.size.height) * inverse_combined_scale_factor;
+        let local_position =
+            Vec2::new(layout.location.x, layout.location.y) * inverse_combined_scale_factor;
         let next_position = local_position + inherited_position;
         let new_position = next_position + 0.5 * new_size;
 
@@ -361,7 +365,14 @@ pub fn ui_layout_system(
 
         if let Ok(children) = children_query.get(entity) {
             for &child_entity in children.iter() {
-                update_ui_nodes_recursively(ui_surface, child_entity, inverse_combined_scale_factor, ui_node_query, children_query, next_position);
+                update_ui_nodes_recursively(
+                    ui_surface,
+                    child_entity,
+                    inverse_combined_scale_factor,
+                    ui_node_query,
+                    children_query,
+                    next_position,
+                );
             }
         }
     }
@@ -372,14 +383,14 @@ pub fn ui_layout_system(
         // let layout_size = ui_surface.taffy.layout(taffy_parent_id);
         let inverse_combined_scale_factor = 1.5f32.recip();
         update_ui_nodes_recursively(
-            &ui_surface, 
-            entity, 
-            inverse_combined_scale_factor, 
+            &ui_surface,
+            entity,
+            inverse_combined_scale_factor,
             &mut node_geometry_query,
             &children_query,
-            Vec2::ZERO
+            Vec2::ZERO,
         );
-    }  
+    }
 
     debug::print_ui_layout_tree(&ui_surface);
 }

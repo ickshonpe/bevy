@@ -11,7 +11,6 @@ use bevy_ecs::{
 use bevy_hierarchy::{Children, Parent};
 use bevy_math::Rect;
 
-
 /// Updates clipping for all nodes
 pub fn update_clipping_system(
     mut commands: Commands,

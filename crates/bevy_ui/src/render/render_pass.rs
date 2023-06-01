@@ -15,7 +15,7 @@ use bevy_utils::FloatOrd;
 
 pub struct UiPassNode {
     ui_view_query: QueryState<
-        ( 
+        (
             &'static RenderPhase<TransparentUi>,
             &'static ViewTarget,
             //Option<&'static UiCameraConfig>,
@@ -38,7 +38,7 @@ impl UiPassNode {
 impl Node for UiPassNode {
     fn update(&mut self, world: &mut World) {
         self.ui_view_query.update_archetypes(world);
-       // self.default_camera_view_query.update_archetypes(world);
+        // self.default_camera_view_query.update_archetypes(world);
     }
 
     fn run(
@@ -63,8 +63,7 @@ impl Node for UiPassNode {
         // }
 
         // use the "default" view entity if it is defined
-        let view_entity = 
-            input_view_entity;
+        let view_entity = input_view_entity;
         let mut render_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
             label: Some("ui_pass"),
             color_attachments: &[Some(target.get_unsampled_color_attachment(Operations {

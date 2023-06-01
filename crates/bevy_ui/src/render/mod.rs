@@ -2,7 +2,9 @@ mod pipeline;
 mod render_pass;
 
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
-use bevy_render::camera::{NormalizedRenderTarget, RenderTarget, ExtractedCamera, CameraRenderGraph};
+use bevy_render::camera::{
+    CameraRenderGraph, ExtractedCamera, NormalizedRenderTarget, RenderTarget,
+};
 use bevy_render::{ExtractSchedule, Render};
 use bevy_window::NormalizedWindowRef;
 #[cfg(feature = "bevy_text")]
@@ -11,15 +13,15 @@ pub use pipeline::*;
 pub use render_pass::*;
 
 use crate::LayoutContext;
+use crate::UiPosition;
 use crate::UiScale;
 use crate::UiStacks;
-use crate::UiPosition;
 use crate::UiTarget;
 use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
-use bevy_math::{Mat4, Rect, UVec4, Vec2, Vec3, Vec4Swizzles, UVec2};
+use bevy_math::{Mat4, Rect, UVec2, UVec4, Vec2, Vec3, Vec4Swizzles};
 use bevy_reflect::TypeUuid;
 use bevy_render::texture::DEFAULT_IMAGE_HANDLE;
 use bevy_render::{
@@ -259,40 +261,42 @@ pub fn extract_ui_camera_view(
             0.0,
             UI_CAMERA_FAR,
         );
-        let render_target = RenderTarget::Window(bevy_window::WindowRef::Entity(target.0))
-        .normalize(None);
-        let camera = commands.spawn((
-            ExtractedView {
-                projection: projection_matrix,
-                transform: GlobalTransform::from_xyz(
-                    0.,
-                    0.,
-                    UI_CAMERA_FAR + UI_CAMERA_TRANSFORM_OFFSET,
-                ),
-                view_projection: None,
-                hdr: false,
-                viewport: UVec4::new(
-                    0,
-                    0,
-                    layout.root_node_size.x as u32,
-                    layout.root_node_size.y as u32,
-                ),
-                color_grading: Default::default(),
-            },
-            ExtractedCamera {
-                target: render_target,
-                physical_viewport_size: Some(physical_viewport_size),
-                physical_target_size: Some(physical_viewport_size),
-                viewport: None,
-                render_graph: bevy_core_pipeline::core_2d::graph::NAME.into(),
-                order: 0,
-                output_mode: bevy_render::camera::CameraOutputMode::default(),
-                msaa_writeback: true,
-                sorted_camera_index_for_target: 0,
-            },
-            UiLayoutEntity(target.0),
-            RenderPhase::<TransparentUi>::default(),
-        )).id();
+        let render_target =
+            RenderTarget::Window(bevy_window::WindowRef::Entity(target.0)).normalize(None);
+        let camera = commands
+            .spawn((
+                ExtractedView {
+                    projection: projection_matrix,
+                    transform: GlobalTransform::from_xyz(
+                        0.,
+                        0.,
+                        UI_CAMERA_FAR + UI_CAMERA_TRANSFORM_OFFSET,
+                    ),
+                    view_projection: None,
+                    hdr: false,
+                    viewport: UVec4::new(
+                        0,
+                        0,
+                        layout.root_node_size.x as u32,
+                        layout.root_node_size.y as u32,
+                    ),
+                    color_grading: Default::default(),
+                },
+                ExtractedCamera {
+                    target: render_target,
+                    physical_viewport_size: Some(physical_viewport_size),
+                    physical_target_size: Some(physical_viewport_size),
+                    viewport: None,
+                    render_graph: bevy_core_pipeline::core_2d::graph::NAME.into(),
+                    order: 0,
+                    output_mode: bevy_render::camera::CameraOutputMode::default(),
+                    msaa_writeback: true,
+                    sorted_camera_index_for_target: 0,
+                },
+                UiLayoutEntity(target.0),
+                RenderPhase::<TransparentUi>::default(),
+            ))
+            .id();
         bevy_log::info!("spawned extracted view: {camera:?}");
     }
 }

@@ -13,6 +13,7 @@ mod ui_node;
 
 #[cfg(feature = "bevy_text")]
 mod accessibility;
+pub mod camera;
 pub mod camera_config;
 pub mod measurement;
 pub mod node_bundles;
@@ -167,15 +168,16 @@ impl Plugin for UiPlugin {
                 update_clipping_system.after(TransformSystem::TransformPropagate),
             ),
         );
-        
+
         if let Ok(primary_window_entity) = app
             .world
             .query_filtered::<Entity, With<bevy_window::PrimaryWindow>>()
-            .get_single(&app.world) {
+            .get_single(&app.world)
+        {
             app.world.spawn(UiLayoutBundle {
                 target: UiTarget(primary_window_entity),
                 viewport_id: Default::default(),
-                layout_context: Default::default()
+                layout_context: Default::default(),
             });
         }
 

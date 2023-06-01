@@ -57,12 +57,7 @@ impl Node {
 
     /// Returns the physical pixel coordinates of the UI node, based on its [`GlobalTransform`] and the scale factor.
     #[inline]
-    pub fn physical_rect(
-        &self,
-        position: &UiPosition,
-        scale_factor: f64,
-        ui_scale: f64,
-    ) -> Rect {
+    pub fn physical_rect(&self, position: &UiPosition, scale_factor: f64, ui_scale: f64) -> Rect {
         let rect = self.logical_rect(position);
         Rect {
             min: Vec2::new(
