@@ -245,7 +245,7 @@ pub fn ui_layout_system(
     root_ui_nodes_query: Query<Entity, (With<Node>, With<UiPosition>, Without<Parent>)>,
     mut removed_nodes: RemovedComponents<Node>,
 ) {
-    bevy_log::info!("ui_layout_system");
+    bevy_log::debug!("ui_layout_system");
     // If a UI root entity is deleted, its associated Taffy root node must also be deleted.
     for entity in removed_layouts.iter() {
         if let Some(taffy_node) = ui_surface.root_nodes.remove(&entity) {
@@ -317,7 +317,7 @@ pub fn ui_layout_system(
 
     // Set the associated Taffy nodes of UI node entities without a `Parent` component to be children of the UI's root Taffy node
     for (ui_root_entity, ui_stack) in ui_stacks.view_to_stacks.iter() {
-        bevy_log::info!("set children for root node: {ui_root_entity:?}");
+        bevy_log::debug!("set children for root node: {ui_root_entity:?}");
         ui_surface.set_root_nodes_children(*ui_root_entity, ui_stack.roots.iter().copied());
     }
 
@@ -392,7 +392,7 @@ pub fn ui_layout_system(
         );
     }
 
-    debug::print_ui_layout_tree(&ui_surface);
+    //debug::print_ui_layout_tree(&ui_surface);
 }
 
 #[cfg(test)]

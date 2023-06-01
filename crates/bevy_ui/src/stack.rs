@@ -46,18 +46,18 @@ pub fn ui_stack_system(
     zindex_query: Query<&ZIndex, With<Node>>,
     children_query: Query<&Children>,
 ) {
-    info!("ui_stack_system");
+    debug!("ui_stack_system");
     ui_stacks.view_to_stacks.clear();
 
     let Some(primary_layout_entity) = layout_context_query.iter().next() else {
-        info!("no primary!!!");
+        debug!("no primary!!!");
         return;
     };
 
-    info!("primary layout entity: {primary_layout_entity:?}");
+    debug!("primary layout entity: {primary_layout_entity:?}");
 
     for view in layout_context_query.iter() {
-        info!("view entity: {view:?}");
+        debug!("view entity: {view:?}");
         let mut roots = vec![];
         for (root_entity, maybe_view) in root_node_query.iter() {
             let roots_view = maybe_view

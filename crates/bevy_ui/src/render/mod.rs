@@ -297,7 +297,7 @@ pub fn extract_ui_camera_view(
                 RenderPhase::<TransparentUi>::default(),
             ))
             .id();
-        bevy_log::info!("spawned extracted view: {camera:?}");
+        bevy_log::debug!("spawned extracted view: {camera:?}");
     }
 }
 

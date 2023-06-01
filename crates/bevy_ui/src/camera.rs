@@ -11,7 +11,8 @@ use bevy_render::view::VisibleEntities;
 use bevy_transform::prelude::GlobalTransform;
 use bevy_transform::prelude::Transform;
 
-pub const NAME: &str = "ui_camera";
+use crate::draw_ui_graph;
+
 
 #[derive(Component)]
 pub struct UiCamera;
@@ -47,7 +48,7 @@ impl Default for UiCameraBundle {
             projection.far(),
         );
         Self {
-            camera_render_graph: CameraRenderGraph::new(NAME),
+            camera_render_graph: CameraRenderGraph::new(draw_ui_graph::node::UI_PASS),
             projection,
             visible_entities: VisibleEntities::default(),
             frustum,
