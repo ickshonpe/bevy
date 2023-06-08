@@ -102,6 +102,7 @@ impl Plugin for UiPlugin {
             .register_type::<JustifyContent>()
             .register_type::<JustifyItems>()
             .register_type::<JustifySelf>()
+            .register_type::<UiNodeId>()
             .register_type::<Node>()
             .register_type::<ZIndex>()
             // NOTE: used by Style::aspect_ratio

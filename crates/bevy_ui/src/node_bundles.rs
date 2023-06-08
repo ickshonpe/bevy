@@ -2,7 +2,7 @@
 
 use crate::{
     widget::{Button, TextFlags, UiImageSize},
-    BackgroundColor, ContentSize, FocusPolicy, Interaction, Node, Style, UiImage, ZIndex,
+    BackgroundColor, ContentSize, FocusPolicy, Interaction, Node, Style, UiImage, UiNodeId, ZIndex,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_render::{
@@ -16,8 +16,10 @@ use bevy_transform::prelude::{GlobalTransform, Transform};
 /// The basic UI node
 ///
 /// Useful as a container for a variety of child nodes.
-#[derive(Bundle, Clone, Debug)]
+#[derive(Bundle, Debug)]
 pub struct NodeBundle {
+    /// Used internally. All UI nodes must have this component.
+    pub id: UiNodeId,
     /// Describes the logical size of the node
     pub node: Node,
     /// Styles which control the layout (size and position) of the node and it's children
@@ -50,6 +52,7 @@ impl Default for NodeBundle {
         NodeBundle {
             // Transparent background
             background_color: Color::NONE.into(),
+            id: Default::default(),
             node: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
@@ -65,6 +68,8 @@ impl Default for NodeBundle {
 /// A UI node that is an image
 #[derive(Bundle, Debug, Default)]
 pub struct ImageBundle {
+    /// Used internally. All UI nodes must have this component.
+    pub id: UiNodeId,
     /// Describes the logical size of the node
     ///
     /// This field is automatically managed by the UI layout system.
@@ -109,6 +114,8 @@ pub struct ImageBundle {
 /// A UI node that is text
 #[derive(Bundle, Debug)]
 pub struct TextBundle {
+    /// Used internally. All UI nodes must have this component.
+    pub id: UiNodeId,
     /// Describes the logical size of the node
     pub node: Node,
     /// Styles which control the layout (size and position) of the node and it's children
@@ -154,6 +161,7 @@ impl Default for TextBundle {
             calculated_size: Default::default(),
             // Transparent background
             background_color: BackgroundColor(Color::NONE),
+            id: Default::default(),
             node: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
@@ -208,8 +216,10 @@ impl TextBundle {
 }
 
 /// A UI node that is a button
-#[derive(Bundle, Clone, Debug)]
+#[derive(Bundle, Debug)]
 pub struct ButtonBundle {
+    /// Used internally. All UI nodes must have this component.
+    pub id: UiNodeId,
     /// Describes the logical size of the node
     pub node: Node,
     /// Marker component that signals this node is a button
@@ -249,6 +259,7 @@ impl Default for ButtonBundle {
     fn default() -> Self {
         Self {
             focus_policy: FocusPolicy::Block,
+            id: Default::default(),
             node: Default::default(),
             button: Default::default(),
             style: Default::default(),
