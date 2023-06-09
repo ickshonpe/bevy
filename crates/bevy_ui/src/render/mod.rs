@@ -346,7 +346,7 @@ pub fn extract_text_uinodes(
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 struct UiVertex {
-    pub position: [f32; 3],
+    pub position: [f32; 2],
     pub uv: [f32; 2],
     pub color: [f32; 4],
     pub mode: u32,
@@ -367,11 +367,11 @@ impl Default for UiMeta {
     }
 }
 
-const QUAD_VERTEX_POSITIONS: [Vec3; 4] = [
-    Vec3::new(-0.5, -0.5, 0.0),
-    Vec3::new(0.5, -0.5, 0.0),
-    Vec3::new(0.5, 0.5, 0.0),
-    Vec3::new(-0.5, 0.5, 0.0),
+const QUAD_VERTEX_POSITIONS: [Vec2; 4] = [
+    Vec2::new(-0.5, -0.5),
+    Vec2::new(0.5, -0.5),
+    Vec2::new(0.5, 0.5),
+    Vec2::new(-0.5, 0.5),
 ];
 
 const QUAD_INDICES: [usize; 6] = [0, 2, 3, 0, 1, 2];
@@ -428,11 +428,11 @@ pub fn prepare_uinodes(
 
         let mut uinode_rect = extracted_uinode.rect;
 
-        let rect_size = uinode_rect.size().extend(1.0);
+        let rect_size = uinode_rect.size();
 
         // Specify the corners of the node
         let positions = QUAD_VERTEX_POSITIONS
-            .map(|pos| (extracted_uinode.transform * (pos * rect_size).extend(1.)).xyz());
+            .map(|pos| (extracted_uinode.transform.transform_point3((pos * rect_size).extend(1.)).truncate()));
 
         // Calculate the effect of clipping
         // Note: this won't work with rotation/scaling, but that's much more complex (may need more that 2 quads)
@@ -460,13 +460,13 @@ pub fn prepare_uinodes(
         };
 
         let positions_clipped = [
-            positions[0] + positions_diff[0].extend(0.),
-            positions[1] + positions_diff[1].extend(0.),
-            positions[2] + positions_diff[2].extend(0.),
-            positions[3] + positions_diff[3].extend(0.),
+            positions[0] + positions_diff[0],
+            positions[1] + positions_diff[1],
+            positions[2] + positions_diff[2],
+            positions[3] + positions_diff[3],
         ];
 
-        let transformed_rect_size = extracted_uinode.transform.transform_vector3(rect_size);
+        let transformed_rect_size = extracted_uinode.transform.transform_vector3(rect_size.extend(0.));
 
         // Don't try to cull nodes that have a rotation
         // In a rotation around the Z-axis, this value is 0.0 for an angle of 0.0 or π
