@@ -29,11 +29,6 @@ pub struct NodeBundle {
     pub background_color: BackgroundColor,
     /// Whether this node should block interaction with lower nodes
     pub focus_policy: FocusPolicy,
-    /// The transform of the node
-    ///
-    /// This field is automatically managed by the UI layout system.
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub transform: Transform,
     /// The global transform of the node
     ///
     /// This field is automatically managed by the UI layout system.
@@ -56,7 +51,6 @@ impl Default for NodeBundle {
             node: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
-            transform: Default::default(),
             global_transform: Default::default(),
             visibility: Default::default(),
             computed_visibility: Default::default(),
@@ -92,11 +86,6 @@ pub struct ImageBundle {
     pub image_size: UiImageSize,
     /// Whether this node should block interaction with lower nodes
     pub focus_policy: FocusPolicy,
-    /// The transform of the node
-    ///
-    /// This field is automatically managed by the UI layout system.
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub transform: Transform,
     /// The global transform of the node
     ///
     /// This field is automatically managed by the UI layout system.
@@ -131,11 +120,7 @@ pub struct TextBundle {
     pub calculated_size: ContentSize,
     /// Whether this node should block interaction with lower nodes
     pub focus_policy: FocusPolicy,
-    /// The transform of the node
-    ///
-    /// This field is automatically managed by the UI layout system.
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub transform: Transform,
+
     /// The global transform of the node
     ///
     /// This field is automatically managed by the UI layout system.
@@ -165,7 +150,6 @@ impl Default for TextBundle {
             node: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
-            transform: Default::default(),
             global_transform: Default::default(),
             visibility: Default::default(),
             computed_visibility: Default::default(),
@@ -237,11 +221,6 @@ pub struct ButtonBundle {
     pub background_color: BackgroundColor,
     /// The image of the node
     pub image: UiImage,
-    /// The transform of the node
-    ///
-    /// This field is automatically managed by the UI layout system.
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub transform: Transform,
     /// The global transform of the node
     ///
     /// This field is automatically managed by the UI layout system.
@@ -266,7 +245,6 @@ impl Default for ButtonBundle {
             interaction: Default::default(),
             background_color: Default::default(),
             image: Default::default(),
-            transform: Default::default(),
             global_transform: Default::default(),
             visibility: Default::default(),
             computed_visibility: Default::default(),

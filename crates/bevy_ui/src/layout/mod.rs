@@ -13,8 +13,8 @@ use bevy_ecs::{
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
-use bevy_math::Vec2;
-use bevy_transform::components::Transform;
+use bevy_math::{Vec2, Affine3A};
+use bevy_transform::prelude::GlobalTransform;
 use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowResolution, WindowScaleFactorChanged};
 use std::fmt;
@@ -223,13 +223,15 @@ pub fn ui_layout_system(
     mut ui_queries_param_set: ParamSet<(
         Query<(Entity, &mut UiNodeId)>,
         (
-            Query<(&UiNodeId, &mut Node, &mut Transform)>,
+            Query<(&UiNodeId, &mut Node, &mut GlobalTransform)>,
             Query<(&UiNodeId, Ref<Children>)>,
             Query<(&UiNodeId, &mut ContentSize)>,
             Query<(&UiNodeId, Ref<Style>)>,
             Query<&UiNodeId, Without<Parent>>,
-        ),
+            Query<Entity, (With<UiNodeId>, Without<Parent>)>,
+        )
     )>,
+    just_children_query: Query<&Children>,
 ) {
     ui_surface.needs_update = false;
 
@@ -256,7 +258,7 @@ pub fn ui_layout_system(
         ui_surface.needs_update |= ui_surface.try_remove_children(entity);
     }
 
-    let (mut node_transform_query, children_query, mut measure_query, style_query, root_node_query) =
+    let (mut uinode_geometry_query, children_query, mut measure_query, style_query, root_node_query, roots) =
         ui_queries_param_set.p1();
 
     // update children
@@ -357,38 +359,56 @@ pub fn ui_layout_system(
         // compute layouts
         ui_surface.compute_window_layouts();
 
-        let physical_to_logical_factor = 1. / logical_to_physical_factor;
+        let inverse_scale_factor = 1. / logical_to_physical_factor;
 
-        let to_logical = |v| (physical_to_logical_factor * v as f64) as f32;
+        fn update_uinode_geometry_recursive(
+            uinode: Entity,
+            ui_surface: &UiSurface,
+            uinode_geometry_query: &mut Query<(&UiNodeId, &mut Node, &mut GlobalTransform)>,
+            children_query: &Query<&Children>,
+            inverse_target_scale_factor: f32,
+            inherited_position: Vec2,
+        ) {
+            let (id, mut node, mut transform) = uinode_geometry_query.get_mut(uinode).unwrap();
+            let layout = ui_surface.taffy.layout(id.0).unwrap();
+            let size =
+                Vec2::new(layout.size.width, layout.size.height) * inverse_target_scale_factor;
+            let position = 
+                inherited_position +
+                Vec2::new(layout.location.x, layout.location.y) * inverse_target_scale_factor;
+                
 
-        let taffy_window = ui_surface.window_nodes.get(&primary_window_entity).unwrap();
-
-        // PERF: try doing this incrementally
-        for (ui_key, mut node_size, mut transform) in &mut node_transform_query {
-            let layout = ui_surface.taffy.layout(**ui_key).unwrap();
-            let new_size = Vec2::new(
-                to_logical(layout.size.width),
-                to_logical(layout.size.height),
-            );
-            // only trigger change detection when the new value is different
-            if node_size.calculated_size != new_size {
-                node_size.calculated_size = new_size;
-            }
-            let mut new_position = transform.translation;
-            new_position.x = to_logical(layout.location.x + layout.size.width / 2.0);
-            new_position.y = to_logical(layout.location.y + layout.size.height / 2.0);
-
-            let taffy_parent = taffy::tree::LayoutTree::parent(&ui_surface.taffy, **ui_key).unwrap();
-            if taffy_parent != *taffy_window {
-                if let Ok(parent_layout) = ui_surface.taffy.layout(taffy_parent) {
-                    new_position.x -= to_logical(parent_layout.size.width / 2.0);
-                    new_position.y -= to_logical(parent_layout.size.height / 2.0);
+            // only trigger change detection when the new values are different
+            if node.calculated_size != size {
+                node.calculated_size = size;
             }
 
-            if new_position != transform.translation {
-                transform.translation = new_position;
+            *transform = GlobalTransform::from(Affine3A::from_translation((position + 0.5 * size).extend(0.)));
+            
+            if let Ok(children) = children_query.get(uinode) {
+                for &child_uinode in children.iter() {
+                    update_uinode_geometry_recursive(
+                        child_uinode,
+                        ui_surface,
+                        uinode_geometry_query,
+                        children_query,
+                        inverse_target_scale_factor as f32,
+                        position,
+                    );
+                }
             }
         }
+        for root_uinode in roots.iter() {
+            update_uinode_geometry_recursive(
+                root_uinode,
+                &ui_surface,
+                &mut uinode_geometry_query,
+                &just_children_query,
+                inverse_scale_factor as f32,
+                Vec2::ZERO,
+            );
+        }
     }
+
 }
-}
+
