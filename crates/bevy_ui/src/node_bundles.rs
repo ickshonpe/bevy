@@ -11,7 +11,7 @@ use bevy_render::{
 };
 #[cfg(feature = "bevy_text")]
 use bevy_text::{Text, TextAlignment, TextLayoutInfo, TextSection, TextStyle};
-use bevy_transform::prelude::{GlobalTransform, Transform};
+use bevy_transform::prelude::GlobalTransform;
 
 /// The basic UI node
 ///
