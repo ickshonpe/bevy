@@ -368,6 +368,7 @@ pub fn ui_layout_system(
             children_query: &Query<&Children>,
             inverse_target_scale_factor: f32,
             inherited_position: Vec2,
+            z: u32,
         ) {
             let (id, mut node, mut transform) = uinode_geometry_query.get_mut(uinode).unwrap();
             let layout = ui_surface.taffy.layout(id.0).unwrap();
@@ -394,6 +395,7 @@ pub fn ui_layout_system(
                         children_query,
                         inverse_target_scale_factor as f32,
                         position,
+                        z + 1
                     );
                 }
             }
@@ -406,6 +408,7 @@ pub fn ui_layout_system(
                 &just_children_query,
                 inverse_scale_factor as f32,
                 Vec2::ZERO,
+                0
             );
         }
     }

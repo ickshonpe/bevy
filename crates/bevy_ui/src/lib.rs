@@ -8,7 +8,6 @@ mod focus;
 mod geometry;
 mod layout;
 mod render;
-mod stack;
 mod ui_node;
 
 #[cfg(feature = "bevy_text")]
@@ -44,8 +43,6 @@ use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
 use bevy_input::InputSystem;
 use bevy_transform::TransformSystem;
-use stack::ui_stack_system;
-pub use stack::UiStack;
 use update::update_clipping_system;
 
 /// The basic plugin for Bevy UI
@@ -84,7 +81,6 @@ impl Plugin for UiPlugin {
         app.add_plugin(ExtractComponentPlugin::<UiCameraConfig>::default())
             .init_resource::<UiSurface>()
             .init_resource::<UiScale>()
-            .init_resource::<UiStack>()
             .register_type::<AlignContent>()
             .register_type::<AlignItems>()
             .register_type::<AlignSelf>()
@@ -162,10 +158,6 @@ impl Plugin for UiPlugin {
                 ui_layout_system
                     .in_set(UiSystem::Layout)
                     .before(TransformSystem::TransformPropagate),
-                ui_stack_system
-                    .run_if(|ui_surface: Res<UiSurface>| ui_surface.needs_update())
-                    .after(UiSystem::Layout)
-                    .in_set(UiSystem::Stack),
                 update_clipping_system
                     .run_if(|ui_surface: Res<UiSurface>| ui_surface.needs_update())
                     .after(TransformSystem::TransformPropagate),

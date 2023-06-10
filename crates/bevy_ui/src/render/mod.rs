@@ -8,7 +8,7 @@ use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
 pub use render_pass::*;
 
-use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage, UiStack};
+use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
@@ -37,6 +37,8 @@ use bevy_utils::FloatOrd;
 use bevy_utils::HashMap;
 use bytemuck::{Pod, Zeroable};
 use std::ops::Range;
+use crate::ZIndex;
+
 
 pub mod node {
     pub const UI_PASS_DRIVER: &str = "ui_pass_driver";
@@ -145,7 +147,7 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
 }
 
 pub struct ExtractedUiNode {
-    pub stack_index: usize,
+    pub stack_index: u32,
     pub transform: Mat4,
     pub color: Color,
     pub rect: Rect,
@@ -164,7 +166,6 @@ pub struct ExtractedUiNodes {
 pub fn extract_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     images: Extract<Res<Assets<Image>>>,
-    ui_stack: Extract<Res<UiStack>>,
     uinode_query: Extract<
         Query<(
             &Node,
@@ -173,13 +174,12 @@ pub fn extract_uinodes(
             Option<&UiImage>,
             &ComputedVisibility,
             Option<&CalculatedClip>,
+            &ZIndex,
         )>,
     >,
 ) {
     extracted_uinodes.uinodes.clear();
-    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, transform, color, maybe_image, visibility, clip)) =
-            uinode_query.get(*entity)
+    for (uinode, transform, color, maybe_image, visibility, clip, z) in uinode_query.iter()
         {
             // Skip invisible and completely transparent nodes
             if !visibility.is_visible() || color.0.a() == 0.0 {
@@ -197,7 +197,6 @@ pub fn extract_uinodes(
             };
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index,
                 transform: transform.compute_matrix(),
                 color: color.0,
                 rect: Rect {
@@ -209,10 +208,11 @@ pub fn extract_uinodes(
                 clip: clip.map(|clip| clip.clip),
                 flip_x,
                 flip_y,
+                stack_index: z.0,
             });
         }
     }
-}
+
 
 /// The UI camera is "moved back" by this many units (plus the [`UI_CAMERA_TRANSFORM_OFFSET`]) and also has a view
 /// distance of this many units. This ensures that with a left-handed projection,
@@ -277,7 +277,6 @@ pub fn extract_text_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     texture_atlases: Extract<Res<Assets<TextureAtlas>>>,
     windows: Extract<Query<&Window, With<PrimaryWindow>>>,
-    ui_stack: Extract<Res<UiStack>>,
     uinode_query: Extract<
         Query<(
             &Node,
@@ -286,10 +285,12 @@ pub fn extract_text_uinodes(
             &TextLayoutInfo,
             &ComputedVisibility,
             Option<&CalculatedClip>,
+            &ZIndex
         )>,
     >,
 ) {
     // TODO: Support window-independent UI scale: https://github.com/bevyengine/bevy/issues/5621
+
     let scale_factor = windows
         .get_single()
         .map(|window| window.resolution.scale_factor() as f32)
@@ -297,9 +298,7 @@ pub fn extract_text_uinodes(
 
     let inverse_scale_factor = scale_factor.recip();
 
-    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, global_transform, text, text_layout_info, visibility, clip)) =
-            uinode_query.get(*entity)
+    for (uinode, global_transform, text, text_layout_info, visibility, clip, z) in uinode_query.iter() {
         {
             // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
             if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
@@ -327,7 +326,7 @@ pub fn extract_text_uinodes(
                 rect.min *= inverse_scale_factor;
                 rect.max *= inverse_scale_factor;
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
-                    stack_index,
+                    stack_index: z.0,
                     transform: transform
                         * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
                     color,
