@@ -399,12 +399,13 @@ pub fn prepare_uinodes(
     let mut end = 0;
     let mut current_batch_handle = DEFAULT_IMAGE_HANDLE.typed();
     let mut last_z = 0.0;
+
+    let is_textured = |image: &Handle<Image>| image.id() != DEFAULT_IMAGE_HANDLE.id();
+
     for extracted_uinode in &extracted_uinodes.uinodes {
-        if current_batch_handle.id() != extracted_uinode.image.id() {
-            if current_batch_handle.id() != DEFAULT_IMAGE_HANDLE.id()
-                && extracted_uinode.image.id() != DEFAULT_IMAGE_HANDLE.id()
-                && start != end
-            {
+        if is_textured(&extracted_uinode.image) {
+            if is_textured(&current_batch_handle)
+                && current_batch_handle.id() != extracted_uinode.image.id() {
                 commands.spawn(UiBatch {
                     range: start..end,
                     image: current_batch_handle,
