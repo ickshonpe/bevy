@@ -404,16 +404,17 @@ pub fn prepare_uinodes(
 
     for extracted_uinode in &extracted_uinodes.uinodes {
         if is_textured(&extracted_uinode.image) {
-            if is_textured(&current_batch_handle)
-                && current_batch_handle.id() != extracted_uinode.image.id() {
-                commands.spawn(UiBatch {
-                    range: start..end,
-                    image: current_batch_handle,
-                    z: last_z,
-                });
-                start = end;
+            if current_batch_handle.id() != extracted_uinode.image.id() {
+                if is_textured(&current_batch_handle) {
+                    commands.spawn(UiBatch {
+                        range: start..end,
+                        image: current_batch_handle,
+                        z: last_z,
+                    });
+                    start = end;
+                }
+                current_batch_handle = extracted_uinode.image.clone_weak();
             }
-            current_batch_handle = extracted_uinode.image.clone_weak();
         }
 
         let mut uinode_rect = extracted_uinode.rect;
@@ -472,7 +473,7 @@ pub fn prepare_uinodes(
                 continue;
             }
         }
-        let uvs = if current_batch_handle.id() == DEFAULT_IMAGE_HANDLE.id() {
+        let uvs = if !is_textured(&extracted_uinode.image) {
             [
                 Vec2::splat(f32::MAX),
                 Vec2::splat(f32::MAX),
