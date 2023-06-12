@@ -136,6 +136,75 @@ pub fn from_style(context: &LayoutContext, style: &Style) -> taffy::style::Style
     }
 }
 
+pub fn from_content_style(context: &LayoutContext, style: &Style<()>) -> taffy::style::Style {
+    taffy::style::Style {
+        display: style.display.into(),
+        position: style.position_type.into(),
+        flex_direction: style.flex_direction.into(),
+        flex_wrap: style.flex_wrap.into(),
+        align_items: style.align_items.into(),
+        justify_items: style.justify_items.into(),
+        align_self: style.align_self.into(),
+        justify_self: style.justify_self.into(),
+        align_content: style.align_content.into(),
+        justify_content: style.justify_content.into(),
+        inset: taffy::prelude::Rect {
+            left: style.left.into_length_percentage_auto(context),
+            right: style.right.into_length_percentage_auto(context),
+            top: style.top.into_length_percentage_auto(context),
+            bottom: style.bottom.into_length_percentage_auto(context),
+        },
+        margin: style
+            .margin
+            .map_to_taffy_rect(|m| m.into_length_percentage_auto(context)),
+        padding: taffy::prelude::Rect::zero(),
+        border: taffy::prelude::Rect::zero(),
+        flex_grow: style.flex_grow,
+        flex_shrink: style.flex_shrink,
+        flex_basis: style.flex_basis.into_dimension(context),
+        size: taffy::prelude::Size {
+            width: style.width.into_dimension(context),
+            height: style.height.into_dimension(context),
+        },
+        min_size: taffy::prelude::Size {
+            width: style.min_width.into_dimension(context),
+            height: style.min_height.into_dimension(context),
+        },
+        max_size: taffy::prelude::Size {
+            width: style.max_width.into_dimension(context),
+            height: style.max_height.into_dimension(context),
+        },
+        aspect_ratio: style.aspect_ratio,
+        gap: taffy::prelude::Size {
+            width: style.column_gap.into_length_percentage(context),
+            height: style.row_gap.into_length_percentage(context),
+        },
+        grid_auto_flow: style.grid_auto_flow.into(),
+        grid_template_rows: style
+            .grid_template_rows
+            .iter()
+            .map(|track| track.clone_into_repeated_taffy_track(context))
+            .collect::<Vec<_>>(),
+        grid_template_columns: style
+            .grid_template_columns
+            .iter()
+            .map(|track| track.clone_into_repeated_taffy_track(context))
+            .collect::<Vec<_>>(),
+        grid_auto_rows: style
+            .grid_auto_rows
+            .iter()
+            .map(|track| track.into_taffy_track(context))
+            .collect::<Vec<_>>(),
+        grid_auto_columns: style
+            .grid_auto_columns
+            .iter()
+            .map(|track| track.into_taffy_track(context))
+            .collect::<Vec<_>>(),
+        grid_row: style.grid_row.into(),
+        grid_column: style.grid_column.into(),
+    }
+}
+
 impl From<AlignItems> for Option<taffy::style::AlignItems> {
     fn from(value: AlignItems) -> Self {
         match value {

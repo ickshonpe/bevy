@@ -296,7 +296,10 @@ impl Val {
 
 #[derive(Component, Clone, PartialEq, Debug, Reflect, FromReflect)]
 #[reflect(Component, FromReflect, Default, PartialEq)]
-pub struct Style {
+pub struct Style<T = UiRect>
+where
+    T: Default + PartialEq + Clone + std::fmt::Debug + FromReflect,
+{
     /// Which layout algorithm to use when laying out this node's contents:
     ///   - [`Display::Flex`]: Use the Flexbox layout algorithm
     ///   - [`Display::Grid`]: Use the CSS Grid layout algorithm
@@ -484,7 +487,7 @@ pub struct Style {
     /// A node with this style and a parent with dimensions of 300px by 100px, will have calculated padding of 3px on the left, 6px on the right, 9px on the top and 12px on the bottom.
     ///
     /// <https://developer.mozilla.org/en-US/docs/Web/CSS/padding>
-    pub padding: UiRect,
+    pub padding: T,
 
     /// The amount of space between the margins of a node and its padding.
     ///
@@ -495,7 +498,7 @@ pub struct Style {
     /// Rendering for borders is not yet implemented.
     ///
     /// <https://developer.mozilla.org/en-US/docs/Web/CSS/border-width>
-    pub border: UiRect,
+    pub border: T,
 
     /// Whether a Flexbox container should be a row or a column. This property has no effect of Grid nodes.
     ///
@@ -578,52 +581,50 @@ pub struct Style {
     pub grid_column: GridPlacement,
 }
 
-impl Style {
-    pub const DEFAULT: Self = Self {
-        display: Display::DEFAULT,
-        position_type: PositionType::DEFAULT,
-        left: Val::Auto,
-        right: Val::Auto,
-        top: Val::Auto,
-        bottom: Val::Auto,
-        direction: Direction::DEFAULT,
-        flex_direction: FlexDirection::DEFAULT,
-        flex_wrap: FlexWrap::DEFAULT,
-        align_items: AlignItems::DEFAULT,
-        justify_items: JustifyItems::DEFAULT,
-        align_self: AlignSelf::DEFAULT,
-        justify_self: JustifySelf::DEFAULT,
-        align_content: AlignContent::DEFAULT,
-        justify_content: JustifyContent::DEFAULT,
-        margin: UiRect::DEFAULT,
-        padding: UiRect::DEFAULT,
-        border: UiRect::DEFAULT,
-        flex_grow: 0.0,
-        flex_shrink: 1.0,
-        flex_basis: Val::Auto,
-        width: Val::Auto,
-        height: Val::Auto,
-        min_width: Val::Auto,
-        min_height: Val::Auto,
-        max_width: Val::Auto,
-        max_height: Val::Auto,
-        aspect_ratio: None,
-        overflow: Overflow::DEFAULT,
-        row_gap: Val::Px(0.0),
-        column_gap: Val::Px(0.0),
-        grid_auto_flow: GridAutoFlow::DEFAULT,
-        grid_template_rows: Vec::new(),
-        grid_template_columns: Vec::new(),
-        grid_auto_rows: Vec::new(),
-        grid_auto_columns: Vec::new(),
-        grid_column: GridPlacement::DEFAULT,
-        grid_row: GridPlacement::DEFAULT,
-    };
-}
-
-impl Default for Style {
+impl<T: Default + Default + PartialEq + Clone + std::fmt::Debug + FromReflect> Default
+    for Style<T>
+{
     fn default() -> Self {
-        Self::DEFAULT
+        Self {
+            display: Display::DEFAULT,
+            position_type: PositionType::DEFAULT,
+            left: Val::Auto,
+            right: Val::Auto,
+            top: Val::Auto,
+            bottom: Val::Auto,
+            direction: Direction::DEFAULT,
+            flex_direction: FlexDirection::DEFAULT,
+            flex_wrap: FlexWrap::DEFAULT,
+            align_items: AlignItems::DEFAULT,
+            justify_items: JustifyItems::DEFAULT,
+            align_self: AlignSelf::DEFAULT,
+            justify_self: JustifySelf::DEFAULT,
+            align_content: AlignContent::DEFAULT,
+            justify_content: JustifyContent::DEFAULT,
+            margin: UiRect::DEFAULT,
+            padding: T::default(),
+            border: T::default(),
+            flex_grow: 0.0,
+            flex_shrink: 1.0,
+            flex_basis: Val::Auto,
+            width: Val::Auto,
+            height: Val::Auto,
+            min_width: Val::Auto,
+            min_height: Val::Auto,
+            max_width: Val::Auto,
+            max_height: Val::Auto,
+            aspect_ratio: None,
+            overflow: Overflow::DEFAULT,
+            row_gap: Val::Px(0.0),
+            column_gap: Val::Px(0.0),
+            grid_auto_flow: GridAutoFlow::DEFAULT,
+            grid_template_rows: Vec::new(),
+            grid_template_columns: Vec::new(),
+            grid_auto_rows: Vec::new(),
+            grid_auto_columns: Vec::new(),
+            grid_column: GridPlacement::DEFAULT,
+            grid_row: GridPlacement::DEFAULT,
+        }
     }
 }
 

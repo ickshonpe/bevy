@@ -72,7 +72,7 @@ pub struct ImageBundle {
     pub node: Node,
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
-    pub style: Style,
+    pub style: Style<()>,
     /// The calculated size based on the given image
     pub calculated_size: ContentSize,
     /// The background color, which serves as a "fill" for this node
@@ -113,7 +113,7 @@ pub struct TextBundle {
     pub node: Node,
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
-    pub style: Style,
+    pub style: Style<()>,
     /// Contains the text of the node
     pub text: Text,
     /// Text layout information
@@ -195,7 +195,7 @@ impl TextBundle {
     }
 
     /// Returns this [`TextBundle`] with a new [`Style`].
-    pub fn with_style(mut self, style: Style) -> Self {
+    pub fn with_style(mut self, style: Style<()>) -> Self {
         self.style = style;
         self
     }
