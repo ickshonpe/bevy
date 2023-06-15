@@ -72,7 +72,7 @@ impl SpecializedRenderPipeline for UiPipeline {
             VertexStepMode::Vertex,
             vec![
                 // position
-                VertexFormat::Float32x3,
+                VertexFormat::Float32x2,
                 // uv
                 VertexFormat::Float32x2,
                 // color
