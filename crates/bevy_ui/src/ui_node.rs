@@ -86,7 +86,7 @@ impl Default for Node {
 /// Describes the position of a UI node
 #[derive(Component, Debug, Default, Copy, Clone, Reflect, Deref)]
 #[reflect(Component)]
-pub struct UiPosition(pub (crate) Vec2);
+pub struct UiPosition(pub(crate) Vec2);
 
 /// Represents the possible value types for layout properties.
 ///

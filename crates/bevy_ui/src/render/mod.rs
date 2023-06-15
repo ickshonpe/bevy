@@ -9,10 +9,11 @@ pub use pipeline::*;
 pub use render_pass::*;
 
 use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage};
+use crate::{UiPosition, ZIndex};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
-use bevy_math::{Mat4, Rect, UVec4, Vec2, Affine2};
+use bevy_math::{Affine2, Mat4, Rect, UVec4, Vec2};
 use bevy_reflect::TypeUuid;
 use bevy_render::texture::DEFAULT_IMAGE_HANDLE;
 use bevy_render::{
@@ -33,12 +34,9 @@ use bevy_sprite::TextureAtlas;
 #[cfg(feature = "bevy_text")]
 use bevy_text::{PositionedGlyph, Text, TextLayoutInfo};
 use bevy_transform::components::GlobalTransform;
-use bevy_utils::FloatOrd;
 use bevy_utils::HashMap;
 use bytemuck::{Pod, Zeroable};
 use std::ops::Range;
-use crate::{ZIndex, UiPosition};
-
 
 pub mod node {
     pub const UI_PASS_DRIVER: &str = "ui_pass_driver";
@@ -179,40 +177,38 @@ pub fn extract_uinodes(
     >,
 ) {
     extracted_uinodes.uinodes.clear();
-    for (uinode, position, color, maybe_image, visibility, clip, z) in uinode_query.iter()
-        {
-            // Skip invisible and completely transparent nodes
-            if !visibility.is_visible() || color.0.a() == 0.0 {
+    for (uinode, position, color, maybe_image, visibility, clip, z) in uinode_query.iter() {
+        // Skip invisible and completely transparent nodes
+        if !visibility.is_visible() || color.0.a() == 0.0 {
+            continue;
+        }
+
+        let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
+            // Skip loading images
+            if !images.contains(&image.texture) {
                 continue;
             }
+            (image.texture.clone_weak(), image.flip_x, image.flip_y)
+        } else {
+            (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), false, false)
+        };
 
-            let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
-                // Skip loading images
-                if !images.contains(&image.texture) {
-                    continue;
-                }
-                (image.texture.clone_weak(), image.flip_x, image.flip_y)
-            } else {
-                (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), false, false)
-            };
-
-            extracted_uinodes.uinodes.push(ExtractedUiNode {
-                transform: Affine2::from_translation(position.0),
-                color: color.0,
-                rect: Rect {
-                    min: Vec2::ZERO,
-                    max: uinode.calculated_size,
-                },
-                image,
-                atlas_size: None,
-                clip: clip.map(|clip| clip.clip),
-                flip_x,
-                flip_y,
-                stack_index: z.0,
-            });
-        }
+        extracted_uinodes.uinodes.push(ExtractedUiNode {
+            transform: Affine2::from_translation(position.0),
+            color: color.0,
+            rect: Rect {
+                min: Vec2::ZERO,
+                max: uinode.calculated_size,
+            },
+            image,
+            atlas_size: None,
+            clip: clip.map(|clip| clip.clip),
+            flip_x,
+            flip_y,
+            stack_index: z.0,
+        });
     }
-
+}
 
 /// The UI camera is "moved back" by this many units (plus the [`UI_CAMERA_TRANSFORM_OFFSET`]) and also has a view
 /// distance of this many units. This ensures that with a left-handed projection,
@@ -285,7 +281,7 @@ pub fn extract_text_uinodes(
             &TextLayoutInfo,
             &ComputedVisibility,
             Option<&CalculatedClip>,
-            &ZIndex
+            &ZIndex,
         )>,
     >,
 ) {
@@ -396,7 +392,6 @@ pub fn prepare_uinodes(
     let mut start = 0;
     let mut end = 0;
     let mut current_batch_handle = DEFAULT_IMAGE_HANDLE.typed();
-    let mut last_z = 0.0;
 
     let is_textured = |image: &Handle<Image>| image.id() != DEFAULT_IMAGE_HANDLE.id();
 

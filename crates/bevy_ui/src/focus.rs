@@ -1,4 +1,4 @@
-use crate::{camera_config::UiCameraConfig, CalculatedClip, Node, ZIndex, UiPosition, UiStack};
+use crate::{camera_config::UiCameraConfig, CalculatedClip, Node, UiPosition, UiStack};
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     change_detection::DetectChangesMut,
@@ -196,8 +196,7 @@ pub fn ui_focus_system(
     // prepare an iterator that contains all the nodes that have the cursor in their rect,
     // from the top node to the bottom one. this will also reset the interaction to `None`
     // for all nodes encountered that are no longer hovered.
-    let mut hovered_nodes = 
-        ui_stack
+    let mut hovered_nodes = ui_stack
         .iter()
         // reverse the iterator to traverse the tree from closest nodes to furthest
         .rev()

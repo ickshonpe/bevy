@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Node, Style, UiKey, UiScale, UiPosition};
+use crate::{ContentSize, Node, Style, UiKey, UiPosition, UiScale};
 use bevy_derive::Deref;
 use bevy_ecs::{
     change_detection::DetectChanges,
@@ -80,11 +80,9 @@ impl Default for UiSurface {
 }
 
 impl UiSurface {
-
     pub fn needs_update(&self) -> bool {
         self.needs_update
     }
-
 
     pub fn insert_node(&mut self, entity: Entity) -> taffy::node::Node {
         let id = self.taffy.new_leaf(taffy::style::Style::default()).unwrap();
@@ -235,7 +233,7 @@ pub fn ui_layout_system(
             Query<(&UiKey, Ref<Style>)>,
             Query<&UiKey, Without<Parent>>,
             Query<Entity, (With<UiKey>, Without<Parent>)>,
-        )
+        ),
     )>,
     just_children_query: Query<&Children>,
 ) {
@@ -264,8 +262,14 @@ pub fn ui_layout_system(
         ui_surface.needs_update |= ui_surface.try_remove_children(entity);
     }
 
-    let (mut uinode_geometry_query, children_query, mut measure_query, style_query, root_node_query, roots) =
-        ui_queries_param_set.p1();
+    let (
+        mut uinode_geometry_query,
+        children_query,
+        mut measure_query,
+        style_query,
+        root_node_query,
+        roots,
+    ) = ui_queries_param_set.p1();
 
     // update children
     for (ui_node_id, children) in &children_query {
@@ -335,11 +339,12 @@ pub fn ui_layout_system(
             ui_surface.set_measure(uinode_id.0, measure_func);
         }
     }
-   
+
     // update window children (for now assuming all Nodes live in the primary window)
-    ui_surface.needs_update |= ui_surface
-        .set_window_children(primary_window_entity, root_node_query.iter().map(|uinode_id| uinode_id.0))
-        && !removed_content_sizes.is_empty();
+    ui_surface.needs_update |= ui_surface.set_window_children(
+        primary_window_entity,
+        root_node_query.iter().map(|uinode_id| uinode_id.0),
+    ) && !removed_content_sizes.is_empty();
 
     // clean up removed nodes
     ui_surface.remove_entities(removed_nodes.iter());
@@ -384,10 +389,8 @@ pub fn ui_layout_system(
             let layout = ui_surface.taffy.layout(id.0).unwrap();
             let size =
                 Vec2::new(layout.size.width, layout.size.height) * inverse_target_scale_factor;
-            let position = 
-                inherited_position +
-                Vec2::new(layout.location.x, layout.location.y) * inverse_target_scale_factor;
-                
+            let position = inherited_position
+                + Vec2::new(layout.location.x, layout.location.y) * inverse_target_scale_factor;
 
             // only trigger change detection when the new values are different
             if node.calculated_size != size {
@@ -395,7 +398,7 @@ pub fn ui_layout_system(
             }
 
             ui_position.0 = position + 0.5 * size;
-            
+
             if let Ok(children) = children_query.get(uinode) {
                 for &child_uinode in children.iter() {
                     update_uinode_geometry_recursive(
@@ -406,7 +409,7 @@ pub fn ui_layout_system(
                         children_query,
                         inverse_target_scale_factor as f32,
                         position,
-                        z + 1
+                        z + 1,
                     );
                 }
             }
@@ -420,10 +423,8 @@ pub fn ui_layout_system(
                 &just_children_query,
                 inverse_scale_factor as f32,
                 Vec2::ZERO,
-                0
+                0,
             );
         }
     }
-
 }
-
