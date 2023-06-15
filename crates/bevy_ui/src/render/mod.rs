@@ -37,6 +37,8 @@ use bevy_utils::FloatOrd;
 use bevy_utils::HashMap;
 use bytemuck::{Pod, Zeroable};
 use std::ops::Range;
+use crate::{UiStackIndex, stack};
+
 
 pub mod node {
     pub const UI_PASS_DRIVER: &str = "ui_pass_driver";
@@ -167,6 +169,7 @@ pub fn extract_uinodes(
     ui_stack: Extract<Res<UiStack>>,
     uinode_query: Extract<
         Query<(
+            &UiStackIndex,
             &Node,
             &GlobalTransform,
             &BackgroundColor,
@@ -177,7 +180,7 @@ pub fn extract_uinodes(
     >,
 ) {
     extracted_uinodes.uinodes.clear();
-    for (stack_index, (uinode, transform, color, maybe_image, visibility, clip)) in uinode_query.iter_many(&ui_stack.uinodes).enumerate() {
+    for (stack_index, uinode, transform, color, maybe_image, visibility, clip) in uinode_query.iter_many(&ui_stack.uinodes) {
         {
             // Skip invisible and completely transparent nodes
             if !visibility.is_visible() || color.0.a() == 0.0 {
@@ -195,7 +198,7 @@ pub fn extract_uinodes(
             };
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index,
+                stack_index: stack_index.get(),
                 transform: transform.compute_matrix(),
                 color: color.0,
                 rect: Rect {
@@ -278,7 +281,7 @@ pub fn extract_text_uinodes(
     ui_stack: Extract<Res<UiStack>>,
     uinode_query: Extract<
         Query<(
-            Entity,
+            &UiStackIndex,
             &Node,
             &GlobalTransform,
             &Text,
@@ -289,6 +292,7 @@ pub fn extract_text_uinodes(
     >,
 ) {
     // TODO: Support window-independent UI scale: https://github.com/bevyengine/bevy/issues/5621
+
     let scale_factor = windows
         .get_single()
         .map(|window| window.resolution.scale_factor() as f32)
@@ -296,11 +300,9 @@ pub fn extract_text_uinodes(
 
     let inverse_scale_factor = scale_factor.recip();
 
-    for ((stack_index, (entity, uinode, global_transform, text, text_layout_info, visibility, clip)), (index_2, entity_2)) in 
-        uinode_query.iter_many(&ui_stack.uinodes).enumerate().zip(ui_stack.uinodes.iter().enumerate())
+    for (stack_index,  uinode, global_transform, text, text_layout_info, visibility, clip) in 
+        uinode_query.iter_many(&ui_stack.uinodes)
     {
-        assert_eq!(entity, *entity_2);
-        assert_eq!(stack_index, index_2);
         // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
         if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
             continue;
@@ -327,7 +329,7 @@ pub fn extract_text_uinodes(
             rect.min *= inverse_scale_factor;
             rect.max *= inverse_scale_factor;
             extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index,
+                stack_index: stack_index.get(),
                 transform: transform
                     * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
                 color,

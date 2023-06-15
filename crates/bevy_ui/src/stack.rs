@@ -2,8 +2,9 @@
 
 use bevy_ecs::prelude::*;
 use bevy_hierarchy::prelude::*;
+use bevy_render::mesh::INDEX_BUFFER_ASSET_INDEX;
 
-use crate::{Node, ZIndex};
+use crate::{Node, ZIndex, UiStackIndex};
 
 /// The current UI stack, which contains all UI nodes ordered by their depth (back-to-front).
 ///
@@ -32,9 +33,10 @@ struct StackingContextEntry {
 /// Then flatten that tree into back-to-front ordered `UiStack`.
 pub fn ui_stack_system(
     mut ui_stack: ResMut<UiStack>,
-    root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
-    zindex_query: Query<&ZIndex, With<Node>>,
+    root_node_query: Query<Entity, (With<Node>, Without<Parent>, With<UiStackIndex>)>,
+    zindex_query: Query<&ZIndex, (With<Node>, With<UiStackIndex>)>,
     children_query: Query<&Children>,
+    mut stack_index_query: Query<&mut UiStackIndex>,
 ) {
     // Generate `StackingContext` tree
     let mut global_context = StackingContext::default();
@@ -55,11 +57,17 @@ pub fn ui_stack_system(
     ui_stack.uinodes.clear();
     ui_stack.uinodes.reserve(total_entry_count);
     fill_stack_recursively(&mut ui_stack.uinodes, &mut global_context);
+    let mut index_iter = stack_index_query.iter_many_mut(&ui_stack.uinodes);
+    let mut x = 0;
+    while let Some(mut stack_index) = index_iter.fetch_next() {
+        stack_index.0 = x;
+        x += 1;
+    }
 }
 
 /// Generate z-index based UI node tree
 fn insert_context_hierarchy(
-    zindex_query: &Query<&ZIndex, With<Node>>,
+    zindex_query: &Query<&ZIndex, (With<Node>, With<UiStackIndex>)>,
     children_query: &Query<&Children>,
     entity: Entity,
     global_context: &mut StackingContext,

@@ -74,6 +74,18 @@ impl Default for Node {
     }
 }
 
+/// STACK INDEX
+#[derive(Component, Debug, Default, Copy, Clone, Reflect)]
+#[reflect(Component, Default)]
+pub struct UiStackIndex(pub (crate) usize);
+
+impl UiStackIndex {
+    /// GET IT
+    pub fn get(&self) -> usize {
+        self.0
+    }
+}
+
 /// Represents the possible value types for layout properties.
 ///
 /// This enum allows specifying values for various [`Style`] properties in different units,
