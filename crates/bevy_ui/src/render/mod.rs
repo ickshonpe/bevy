@@ -177,9 +177,7 @@ pub fn extract_uinodes(
     >,
 ) {
     extracted_uinodes.uinodes.clear();
-    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, transform, color, maybe_image, visibility, clip)) =
-            uinode_query.get(*entity)
+    for (stack_index, (uinode, transform, color, maybe_image, visibility, clip)) in uinode_query.iter_many(&ui_stack.uinodes).enumerate() {
         {
             // Skip invisible and completely transparent nodes
             if !visibility.is_visible() || color.0.a() == 0.0 {
@@ -280,6 +278,7 @@ pub fn extract_text_uinodes(
     ui_stack: Extract<Res<UiStack>>,
     uinode_query: Extract<
         Query<(
+            Entity,
             &Node,
             &GlobalTransform,
             &Text,
@@ -297,48 +296,48 @@ pub fn extract_text_uinodes(
 
     let inverse_scale_factor = scale_factor.recip();
 
-    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, global_transform, text, text_layout_info, visibility, clip)) =
-            uinode_query.get(*entity)
+    for ((stack_index, (entity, uinode, global_transform, text, text_layout_info, visibility, clip)), (index_2, entity_2)) in 
+        uinode_query.iter_many(&ui_stack.uinodes).enumerate().zip(ui_stack.uinodes.iter().enumerate())
+    {
+        assert_eq!(entity, *entity_2);
+        assert_eq!(stack_index, index_2);
+        // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
+        if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
+            continue;
+        }
+        let transform = global_transform.compute_matrix()
+            * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
+
+        let mut color = Color::WHITE;
+        let mut current_section = usize::MAX;
+        for PositionedGlyph {
+            position,
+            atlas_info,
+            section_index,
+            ..
+        } in &text_layout_info.glyphs
         {
-            // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
-            if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
-                continue;
+            if *section_index != current_section {
+                color = text.sections[*section_index].style.color.as_rgba_linear();
+                current_section = *section_index;
             }
-            let transform = global_transform.compute_matrix()
-                * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
+            let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
 
-            let mut color = Color::WHITE;
-            let mut current_section = usize::MAX;
-            for PositionedGlyph {
-                position,
-                atlas_info,
-                section_index,
-                ..
-            } in &text_layout_info.glyphs
-            {
-                if *section_index != current_section {
-                    color = text.sections[*section_index].style.color.as_rgba_linear();
-                    current_section = *section_index;
-                }
-                let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
-
-                let mut rect = atlas.textures[atlas_info.glyph_index];
-                rect.min *= inverse_scale_factor;
-                rect.max *= inverse_scale_factor;
-                extracted_uinodes.uinodes.push(ExtractedUiNode {
-                    stack_index,
-                    transform: transform
-                        * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
-                    color,
-                    rect,
-                    image: atlas.texture.clone_weak(),
-                    atlas_size: Some(atlas.size * inverse_scale_factor),
-                    clip: clip.map(|clip| clip.clip),
-                    flip_x: false,
-                    flip_y: false,
-                });
-            }
+            let mut rect = atlas.textures[atlas_info.glyph_index];
+            rect.min *= inverse_scale_factor;
+            rect.max *= inverse_scale_factor;
+            extracted_uinodes.uinodes.push(ExtractedUiNode {
+                stack_index,
+                transform: transform
+                    * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
+                color,
+                rect,
+                image: atlas.texture.clone_weak(),
+                atlas_size: Some(atlas.size * inverse_scale_factor),
+                clip: clip.map(|clip| clip.clip),
+                flip_x: false,
+                flip_y: false,
+            });
         }
     }
 }
