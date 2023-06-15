@@ -16,7 +16,7 @@ use bevy_utils::tracing::Instrument;
 use fixedbitset::FixedBitSet;
 use std::{borrow::Borrow, fmt, mem::MaybeUninit};
 
-use super::{NopWorldQuery, QueryManyIter, ROQueryItem, ReadOnlyWorldQuery};
+use super::{NopWorldQuery, QueryManyIter, ROQueryItem, ReadOnlyWorldQuery, iter_enumerated::QueryManyEnumeratedIter};
 
 /// Provides scoped access to a [`World`] state according to a given [`WorldQuery`] and query filter.
 #[repr(C)]
@@ -652,6 +652,27 @@ impl<Q: WorldQuery, F: ReadOnlyWorldQuery> QueryState<Q, F> {
         }
     }
 
+    #[inline]
+    pub fn iter_many_enumerated<'w, 's, EntityList: IntoIterator>(
+        &'s mut self,
+        world: &'w World,
+        entities: EntityList,
+    ) -> QueryManyEnumeratedIter<'w, 's, Q::ReadOnly, F::ReadOnly, EntityList::IntoIter>
+    where
+        EntityList::Item: Borrow<Entity>,
+    {
+        self.update_archetypes(world);
+        // SAFETY: query is read only
+        unsafe {
+            self.as_readonly().iter_many_enumerated_unchecked_manual(
+                entities,
+                world,
+                world.last_change_tick(),
+                world.read_change_tick(),
+            )
+        }
+    }
+
     /// Returns an [`Iterator`] over the read-only query items generated from an [`Entity`] list.
     ///
     /// Items are returned in the order of the list of entities.
@@ -785,6 +806,30 @@ impl<Q: WorldQuery, F: ReadOnlyWorldQuery> QueryState<Q, F> {
         EntityList::Item: Borrow<Entity>,
     {
         QueryManyIter::new(world, self, entities, last_run, this_run)
+    }
+
+     /// Returns an [`Iterator`] for the given [`World`] and list of [`Entity`]'s, where the last change and
+    /// the current change tick are given.
+    ///
+    /// # Safety
+    ///
+    /// This does not check for mutable query correctness. To be safe, make sure mutable queries
+    /// have unique access to the components they query.
+    /// This does not check for entity uniqueness
+    /// This does not validate that `world.id()` matches `self.world_id`. Calling this on a `world`
+    /// with a mismatched [`WorldId`] is unsound.
+    #[inline]
+    pub(crate) unsafe fn iter_many_enumerated_unchecked_manual<'w, 's, EntityList: IntoIterator>(
+        &'s self,
+        entities: EntityList,
+        world: &'w World,
+        last_run: Tick,
+        this_run: Tick,
+    ) -> QueryManyEnumeratedIter<'w, 's, Q, F, EntityList::IntoIter>
+    where
+        EntityList::Item: Borrow<Entity>,
+    {
+        QueryManyEnumeratedIter::new(world, self, entities, last_run, this_run)
     }
 
     /// Returns an [`Iterator`] over all possible combinations of `K` query results for the
