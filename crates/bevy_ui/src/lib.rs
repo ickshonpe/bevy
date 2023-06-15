@@ -80,6 +80,7 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(ExtractComponentPlugin::<UiCameraConfig>::default())
             .init_resource::<UiSurface>()
+            .init_resource::<UiStack>()
             .init_resource::<UiScale>()
             .register_type::<AlignContent>()
             .register_type::<AlignItems>()

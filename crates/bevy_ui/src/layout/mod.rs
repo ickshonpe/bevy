@@ -2,6 +2,7 @@ mod convert;
 pub mod debug;
 
 use crate::{ContentSize, Node, Style, UiKey, UiScale, UiPosition};
+use bevy_derive::Deref;
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -13,11 +14,16 @@ use bevy_ecs::{
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
-use bevy_math::{Vec2};
+use bevy_math::Vec2;
 use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowResolution, WindowScaleFactorChanged};
 use std::fmt;
 use taffy::{node::MeasureFunc, prelude::Size, style_helpers::TaffyMaxContent, Taffy};
+
+#[derive(Resource, Default, Deref)]
+pub struct UiStack {
+    pub uinodes: Vec<Entity>,
+}
 
 pub struct LayoutContext {
     pub scale_factor: f64,
@@ -212,6 +218,7 @@ pub fn ui_layout_system(
     primary_window: Query<(Entity, &Window), With<PrimaryWindow>>,
     windows: Query<(Entity, &Window)>,
     ui_scale: Res<UiScale>,
+    mut ui_stack: ResMut<UiStack>,
     mut scale_factor_events: EventReader<WindowScaleFactorChanged>,
     mut window_resized_events: EventReader<bevy_window::WindowResized>,
     mut window_created_events: EventReader<bevy_window::WindowCreated>,
@@ -355,6 +362,8 @@ pub fn ui_layout_system(
     }
 
     if ui_surface.needs_update {
+        ui_stack.uinodes.clear();
+
         // compute layouts
         ui_surface.compute_window_layouts();
 
@@ -363,12 +372,14 @@ pub fn ui_layout_system(
         fn update_uinode_geometry_recursive(
             uinode: Entity,
             ui_surface: &UiSurface,
+            ui_stack: &mut UiStack,
             uinode_geometry_query: &mut Query<(&UiKey, &mut Node, &mut UiPosition)>,
             children_query: &Query<&Children>,
             inverse_target_scale_factor: f32,
             inherited_position: Vec2,
             z: u32,
         ) {
+            ui_stack.uinodes.push(uinode);
             let (id, mut node, mut ui_position) = uinode_geometry_query.get_mut(uinode).unwrap();
             let layout = ui_surface.taffy.layout(id.0).unwrap();
             let size =
@@ -390,6 +401,7 @@ pub fn ui_layout_system(
                     update_uinode_geometry_recursive(
                         child_uinode,
                         ui_surface,
+                        ui_stack,
                         uinode_geometry_query,
                         children_query,
                         inverse_target_scale_factor as f32,
@@ -403,6 +415,7 @@ pub fn ui_layout_system(
             update_uinode_geometry_recursive(
                 root_uinode,
                 &ui_surface,
+                &mut ui_stack,
                 &mut uinode_geometry_query,
                 &just_children_query,
                 inverse_scale_factor as f32,

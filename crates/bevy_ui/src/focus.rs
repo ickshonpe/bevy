@@ -1,4 +1,4 @@
-use crate::{camera_config::UiCameraConfig, CalculatedClip, Node, ZIndex, UiPosition};
+use crate::{camera_config::UiCameraConfig, CalculatedClip, Node, ZIndex, UiPosition, UiStack};
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     change_detection::DetectChangesMut,
@@ -144,7 +144,7 @@ pub fn ui_focus_system(
     touches_input: Res<Touches>,
     mut node_query: Query<NodeQuery>,
     primary_window: Query<Entity, With<PrimaryWindow>>,
-    z_query: Query<(Entity, &ZIndex)>,
+    ui_stack: Res<UiStack>,
 ) {
     let primary_window = primary_window.iter().next();
 
@@ -193,19 +193,15 @@ pub fn ui_focus_system(
         })
         .or_else(|| touches_input.first_pressed_position());
 
-    let mut z_stack: Vec<(Entity, &ZIndex)> = z_query.iter().collect();
-    z_stack.sort_by_key(|(_, z)| z.0);
-
     // prepare an iterator that contains all the nodes that have the cursor in their rect,
     // from the top node to the bottom one. this will also reset the interaction to `None`
     // for all nodes encountered that are no longer hovered.
     let mut hovered_nodes = 
-        z_stack
+        ui_stack
         .iter()
-        .map(|(entity, ..)| *entity)
         // reverse the iterator to traverse the tree from closest nodes to furthest
         .rev()
-        .filter_map(|entity| {
+        .filter_map(|&entity| {
             if let Ok(node) = node_query.get_mut(entity) {
                 // Nodes that are not rendered should not be interactable
                 if let Some(computed_visibility) = node.computed_visibility {
