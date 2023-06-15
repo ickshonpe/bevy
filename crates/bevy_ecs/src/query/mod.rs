@@ -12,6 +12,7 @@ pub use access::*;
 pub use fetch::*;
 pub use filter::*;
 pub use iter::*;
+pub use iter_enumerated::*;
 pub use par_iter::*;
 pub use state::*;
 

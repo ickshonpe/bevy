@@ -3,7 +3,7 @@ use crate::{
     entity::Entity,
     query::{
         BatchingStrategy, QueryCombinationIter, QueryEntityError, QueryIter, QueryManyIter,
-        QueryParIter, QuerySingleError, QueryState, ROQueryItem, ReadOnlyWorldQuery, WorldQuery,
+        QueryParIter, QuerySingleError, QueryState, ROQueryItem, ReadOnlyWorldQuery, WorldQuery, QueryManyEnumeratedIter,
     },
     world::{Mut, World},
 };
@@ -525,6 +525,26 @@ impl<'w, 's, Q: WorldQuery, F: ReadOnlyWorldQuery> Query<'w, 's, Q, F> {
         // same-system queries have runtime borrow checks when they conflict
         unsafe {
             self.state.as_readonly().iter_many_unchecked_manual(
+                entities,
+                self.world,
+                self.last_run,
+                self.this_run,
+            )
+        }
+    }
+
+    #[inline]
+    pub fn iter_many_enumerated<EntityList: IntoIterator>(
+        &self,
+        entities: EntityList,
+    ) -> QueryManyEnumeratedIter<'_, 's, Q::ReadOnly, F::ReadOnly, EntityList::IntoIter>
+    where
+        EntityList::Item: Borrow<Entity>,
+    {
+        // SAFETY: system runs without conflicts with other systems.
+        // same-system queries have runtime borrow checks when they conflict
+        unsafe {
+            self.state.as_readonly().iter_many_enumerated_unchecked_manual(
                 entities,
                 self.world,
                 self.last_run,

@@ -177,7 +177,7 @@ pub fn extract_uinodes(
     >,
 ) {
     extracted_uinodes.uinodes.clear();
-    for (stack_index, (uinode, transform, color, maybe_image, visibility, clip)) in uinode_query.iter_many(&ui_stack.uinodes).enumerate() {
+    for (stack_index, (uinode, transform, color, maybe_image, visibility, clip)) in uinode_query.iter_many_enumerated(&ui_stack.uinodes) {
         {
             // Skip invisible and completely transparent nodes
             if !visibility.is_visible() || color.0.a() == 0.0 {
@@ -278,7 +278,6 @@ pub fn extract_text_uinodes(
     ui_stack: Extract<Res<UiStack>>,
     uinode_query: Extract<
         Query<(
-            Entity,
             &Node,
             &GlobalTransform,
             &Text,
@@ -296,11 +295,9 @@ pub fn extract_text_uinodes(
 
     let inverse_scale_factor = scale_factor.recip();
 
-    for ((stack_index, (entity, uinode, global_transform, text, text_layout_info, visibility, clip)), (index_2, entity_2)) in 
-        uinode_query.iter_many(&ui_stack.uinodes).enumerate().zip(ui_stack.uinodes.iter().enumerate())
-    {
-        assert_eq!(entity, *entity_2);
-        assert_eq!(stack_index, index_2);
+    for (stack_index, (uinode, global_transform, text, text_layout_info, visibility, clip)) in 
+        uinode_query.iter_many_enumerated(&ui_stack.uinodes) {
+        
         // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
         if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
             continue;
