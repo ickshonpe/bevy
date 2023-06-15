@@ -6,6 +6,7 @@ mod filter;
 mod iter;
 mod par_iter;
 mod state;
+mod iter_enumerated;
 
 pub use access::*;
 pub use fetch::*;
