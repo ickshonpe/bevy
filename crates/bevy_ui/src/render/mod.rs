@@ -37,7 +37,7 @@ use bevy_utils::FloatOrd;
 use bevy_utils::HashMap;
 use bytemuck::{Pod, Zeroable};
 use std::ops::Range;
-use crate::ZIndex;
+use crate::{ZIndex, UiPosition};
 
 
 pub mod node {
@@ -169,7 +169,7 @@ pub fn extract_uinodes(
     uinode_query: Extract<
         Query<(
             &Node,
-            &GlobalTransform,
+            &UiPosition,
             &BackgroundColor,
             Option<&UiImage>,
             &ComputedVisibility,
@@ -179,7 +179,7 @@ pub fn extract_uinodes(
     >,
 ) {
     extracted_uinodes.uinodes.clear();
-    for (uinode, transform, color, maybe_image, visibility, clip, z) in uinode_query.iter()
+    for (uinode, position, color, maybe_image, visibility, clip, z) in uinode_query.iter()
         {
             // Skip invisible and completely transparent nodes
             if !visibility.is_visible() || color.0.a() == 0.0 {
@@ -197,7 +197,7 @@ pub fn extract_uinodes(
             };
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
-                transform: transform.compute_matrix(),
+                transform: Mat4::from_translation(position.extend(0.)),
                 color: color.0,
                 rect: Rect {
                     min: Vec2::ZERO,
@@ -280,7 +280,7 @@ pub fn extract_text_uinodes(
     uinode_query: Extract<
         Query<(
             &Node,
-            &GlobalTransform,
+            &UiPosition,
             &Text,
             &TextLayoutInfo,
             &ComputedVisibility,
@@ -298,14 +298,13 @@ pub fn extract_text_uinodes(
 
     let inverse_scale_factor = scale_factor.recip();
 
-    for (uinode, global_transform, text, text_layout_info, visibility, clip, z) in uinode_query.iter() {
+    for (uinode, position, text, text_layout_info, visibility, clip, z) in uinode_query.iter() {
         {
             // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
             if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
                 continue;
             }
-            let transform = global_transform.compute_matrix()
-                * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
+            let transform = Mat4::from_translation((position.0 - 0.5 * uinode.size()).extend(0.));
 
             let mut color = Color::WHITE;
             let mut current_section = usize::MAX;

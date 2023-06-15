@@ -2,7 +2,7 @@
 
 use crate::{
     widget::{Button, TextFlags, UiImageSize},
-    BackgroundColor, ContentSize, FocusPolicy, Interaction, Node, Style, UiImage, UiNodeId, ZIndex,
+    BackgroundColor, ContentSize, FocusPolicy, Interaction, Node, Style, UiImage, UiKey, ZIndex, UiPosition,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_render::{
@@ -11,7 +11,6 @@ use bevy_render::{
 };
 #[cfg(feature = "bevy_text")]
 use bevy_text::{Text, TextAlignment, TextLayoutInfo, TextSection, TextStyle};
-use bevy_transform::prelude::GlobalTransform;
 
 /// The basic UI node
 ///
@@ -19,7 +18,7 @@ use bevy_transform::prelude::GlobalTransform;
 #[derive(Bundle, Debug)]
 pub struct NodeBundle {
     /// Used internally. All UI nodes must have this component.
-    pub id: UiNodeId,
+    pub id: UiKey,
     /// Describes the logical size of the node
     pub node: Node,
     /// Styles which control the layout (size and position) of the node and it's children
@@ -33,7 +32,7 @@ pub struct NodeBundle {
     ///
     /// This field is automatically managed by the UI layout system.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub global_transform: GlobalTransform,
+    pub position: UiPosition,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Algorithmically-computed indication of whether an entity is visible and should be extracted for rendering
@@ -51,7 +50,7 @@ impl Default for NodeBundle {
             node: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
-            global_transform: Default::default(),
+            position: Default::default(),
             visibility: Default::default(),
             computed_visibility: Default::default(),
             z_index: Default::default(),
@@ -63,7 +62,7 @@ impl Default for NodeBundle {
 #[derive(Bundle, Debug, Default)]
 pub struct ImageBundle {
     /// Used internally. All UI nodes must have this component.
-    pub id: UiNodeId,
+    pub id: UiKey,
     /// Describes the logical size of the node
     ///
     /// This field is automatically managed by the UI layout system.
@@ -90,7 +89,7 @@ pub struct ImageBundle {
     ///
     /// This field is automatically managed by the UI layout system.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub global_transform: GlobalTransform,
+    pub position: UiPosition,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Algorithmically-computed indication of whether an entity is visible and should be extracted for rendering
@@ -104,7 +103,7 @@ pub struct ImageBundle {
 #[derive(Bundle, Debug)]
 pub struct TextBundle {
     /// Used internally. All UI nodes must have this component.
-    pub id: UiNodeId,
+    pub id: UiKey,
     /// Describes the logical size of the node
     pub node: Node,
     /// Styles which control the layout (size and position) of the node and it's children
@@ -125,7 +124,7 @@ pub struct TextBundle {
     ///
     /// This field is automatically managed by the UI layout system.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub global_transform: GlobalTransform,
+    pub position: UiPosition,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Algorithmically-computed indication of whether an entity is visible and should be extracted for rendering
@@ -150,7 +149,7 @@ impl Default for TextBundle {
             node: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
-            global_transform: Default::default(),
+            position: Default::default(),
             visibility: Default::default(),
             computed_visibility: Default::default(),
             z_index: Default::default(),
@@ -203,7 +202,7 @@ impl TextBundle {
 #[derive(Bundle, Debug)]
 pub struct ButtonBundle {
     /// Used internally. All UI nodes must have this component.
-    pub id: UiNodeId,
+    pub id: UiKey,
     /// Describes the logical size of the node
     pub node: Node,
     /// Marker component that signals this node is a button
@@ -225,7 +224,7 @@ pub struct ButtonBundle {
     ///
     /// This field is automatically managed by the UI layout system.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub global_transform: GlobalTransform,
+    pub position: UiPosition,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Algorithmically-computed indication of whether an entity is visible and should be extracted for rendering
@@ -245,7 +244,7 @@ impl Default for ButtonBundle {
             interaction: Default::default(),
             background_color: Default::default(),
             image: Default::default(),
-            global_transform: Default::default(),
+            position: Default::default(),
             visibility: Default::default(),
             computed_visibility: Default::default(),
             z_index: Default::default(),

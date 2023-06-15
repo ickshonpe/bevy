@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Node, Style, UiNodeId, UiScale};
+use crate::{ContentSize, Node, Style, UiKey, UiScale, UiPosition};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -13,8 +13,7 @@ use bevy_ecs::{
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
-use bevy_math::{Vec2, Affine3A};
-use bevy_transform::prelude::GlobalTransform;
+use bevy_math::{Vec2};
 use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowResolution, WindowScaleFactorChanged};
 use std::fmt;
@@ -217,18 +216,18 @@ pub fn ui_layout_system(
     mut window_resized_events: EventReader<bevy_window::WindowResized>,
     mut window_created_events: EventReader<bevy_window::WindowCreated>,
     mut ui_surface: ResMut<UiSurface>,
-    mut removed_nodes: RemovedComponents<UiNodeId>,
+    mut removed_nodes: RemovedComponents<UiKey>,
     mut removed_children: RemovedComponents<Children>,
     mut removed_content_sizes: RemovedComponents<ContentSize>,
     mut ui_queries_param_set: ParamSet<(
-        Query<(Entity, &mut UiNodeId)>,
+        Query<(Entity, &mut UiKey)>,
         (
-            Query<(&UiNodeId, &mut Node, &mut GlobalTransform)>,
-            Query<(&UiNodeId, Ref<Children>)>,
-            Query<(&UiNodeId, &mut ContentSize)>,
-            Query<(&UiNodeId, Ref<Style>)>,
-            Query<&UiNodeId, Without<Parent>>,
-            Query<Entity, (With<UiNodeId>, Without<Parent>)>,
+            Query<(&UiKey, &mut Node, &mut UiPosition)>,
+            Query<(&UiKey, Ref<Children>)>,
+            Query<(&UiKey, &mut ContentSize)>,
+            Query<(&UiKey, Ref<Style>)>,
+            Query<&UiKey, Without<Parent>>,
+            Query<Entity, (With<UiKey>, Without<Parent>)>,
         )
     )>,
     just_children_query: Query<&Children>,
@@ -364,13 +363,13 @@ pub fn ui_layout_system(
         fn update_uinode_geometry_recursive(
             uinode: Entity,
             ui_surface: &UiSurface,
-            uinode_geometry_query: &mut Query<(&UiNodeId, &mut Node, &mut GlobalTransform)>,
+            uinode_geometry_query: &mut Query<(&UiKey, &mut Node, &mut UiPosition)>,
             children_query: &Query<&Children>,
             inverse_target_scale_factor: f32,
             inherited_position: Vec2,
             z: u32,
         ) {
-            let (id, mut node, mut transform) = uinode_geometry_query.get_mut(uinode).unwrap();
+            let (id, mut node, mut ui_position) = uinode_geometry_query.get_mut(uinode).unwrap();
             let layout = ui_surface.taffy.layout(id.0).unwrap();
             let size =
                 Vec2::new(layout.size.width, layout.size.height) * inverse_target_scale_factor;
@@ -384,7 +383,7 @@ pub fn ui_layout_system(
                 node.calculated_size = size;
             }
 
-            *transform = GlobalTransform::from(Affine3A::from_translation((position + 0.5 * size).extend(0.)));
+            ui_position.0 = position + 0.5 * size;
             
             if let Ok(children) = children_query.get(uinode) {
                 for &child_uinode in children.iter() {
