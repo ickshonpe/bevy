@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Node, Style};
+use crate::{ContentSize, UiSize, Style};
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     change_detection::DetectChanges,
@@ -216,14 +216,14 @@ pub fn ui_layout_system(
     default_view: ResMut<UiDefaultView>,
     mut removed_children: RemovedComponents<Children>,
     mut removed_content_sizes: RemovedComponents<ContentSize>,
-    mut removed_ui_nodes: RemovedComponents<Node>,
-    default_root_node_query: Query<Entity, (With<Node>, Without<Parent>, Without<UiView>)>,
-    root_uinode_query: Query<(Entity, &UiView), (With<Node>, Without<Parent>)>,
+    mut removed_ui_nodes: RemovedComponents<UiSize>,
+    default_root_node_query: Query<Entity, (With<UiSize>, Without<Parent>, Without<UiView>)>,
+    root_uinode_query: Query<(Entity, &UiView), (With<UiSize>, Without<Parent>)>,
     mut measure_query: Query<(Entity, &mut ContentSize)>,
-    uinode_query: Query<(Ref<Style>, Option<Ref<Children>>), With<Node>>,
+    uinode_query: Query<(Ref<Style>, Option<Ref<Children>>), With<UiSize>>,
     mut uinode_queries_paramset: ParamSet<(
-        Query<Entity, Added<Node>>,
-        Query<(&mut Node, &mut Transform)>,
+        Query<Entity, Added<UiSize>>,
+        Query<(&mut UiSize, &mut Transform)>,
     )>,
     children_query: Query<&Children>,
 ) {
@@ -289,7 +289,7 @@ pub fn ui_layout_system(
         uinode: Entity,
         ui_surface: &mut UiSurface,
         context: &LayoutContext,
-        uinode_query: &Query<(Ref<Style>, Option<Ref<Children>>), With<Node>>,
+        uinode_query: &Query<(Ref<Style>, Option<Ref<Children>>), With<UiSize>>,
     ) {
         if let Ok((style, maybe_children)) = uinode_query.get(uinode) {
             let taffy_node = *ui_surface.entity_to_taffy.get(&uinode).unwrap();
@@ -311,7 +311,7 @@ pub fn ui_layout_system(
         uinode: Entity,
         ui_surface: &mut UiSurface,
         context: &LayoutContext,
-        uinode_query: &Query<(Ref<Style>, Option<Ref<Children>>), With<Node>>,
+        uinode_query: &Query<(Ref<Style>, Option<Ref<Children>>), With<UiSize>>,
     ) {
         if let Ok((style, maybe_children)) = uinode_query.get(uinode) {
             if style.is_changed() {
@@ -374,7 +374,7 @@ pub fn ui_layout_system(
     fn update_uinode_geometry_recursive(
         uinode: Entity,
         ui_surface: &UiSurface,
-        uinode_geometry_query: &mut Query<(&mut Node, &mut Transform)>,
+        uinode_geometry_query: &mut Query<(&mut UiSize, &mut Transform)>,
         children_query: &Query<&Children>,
         inverse_target_scale_factor: f32,
         parent_size: Vec2,

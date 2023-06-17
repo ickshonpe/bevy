@@ -1,4 +1,4 @@
-use crate::{camera_config::UiCameraConfig, CalculatedClip, Node, UiStacks};
+use crate::{camera_config::UiCameraConfig, CalculatedClip, UiSize, UiStacks};
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     change_detection::DetectChangesMut,
@@ -124,7 +124,7 @@ pub struct State {
 #[world_query(mutable)]
 pub struct NodeQuery {
     entity: Entity,
-    node: &'static Node,
+    node: &'static UiSize,
     global_transform: &'static GlobalTransform,
     interaction: Option<&'static mut Interaction>,
     relative_cursor_position: Option<&'static mut RelativeCursorPosition>,

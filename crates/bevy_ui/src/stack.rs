@@ -10,7 +10,7 @@ use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window};
 
 use crate::{
-    prelude::UiCameraConfig, Node, LayoutContext, UiDefaultView, UiLayout, UiLayouts, UiScale,
+    prelude::UiCameraConfig, UiSize, LayoutContext, UiDefaultView, UiLayout, UiLayouts, UiScale,
     UiSurface, UiView, ZIndex,
 };
 
@@ -63,8 +63,8 @@ pub fn ui_stack_system(
     primary_window_query: Query<Entity, With<PrimaryWindow>>,
     windows: Query<&Window>,
     mut ui_stacks: ResMut<UiStacks>,
-    root_node_query: Query<(Entity, Option<&UiView>), (With<Node>, Without<Parent>)>,
-    zindex_query: Query<&ZIndex, With<Node>>,
+    root_node_query: Query<(Entity, Option<&UiView>), (With<UiSize>, Without<Parent>)>,
+    zindex_query: Query<&ZIndex, With<UiSize>>,
     children_query: Query<&Children>,
     mut uinode_map: ResMut<UiNodeToView>,
 ) {
@@ -174,7 +174,7 @@ pub fn ui_stack_system(
 
 /// Generate z-index based UI node tree
 fn insert_context_hierarchy(
-    zindex_query: &Query<&ZIndex, With<Node>>,
+    zindex_query: &Query<&ZIndex, With<UiSize>>,
     children_query: &Query<&Children>,
     entity: Entity,
     global_context: &mut StackingContext,

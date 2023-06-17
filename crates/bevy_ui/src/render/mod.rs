@@ -2,7 +2,7 @@ mod pipeline;
 mod render_pass;
 
 use crate::stack::UiStacks;
-use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage, UiLayouts};
+use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, UiSize, UiImage, UiLayouts};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
@@ -166,7 +166,7 @@ pub fn extract_uinodes(
     ui_stacks: Extract<Res<UiStacks>>,
     uinode_query: Extract<
         Query<(
-            &Node,
+            &UiSize,
             &GlobalTransform,
             &BackgroundColor,
             Option<&UiImage>,
@@ -282,7 +282,7 @@ pub fn extract_text_uinodes(
     ui_layouts: Extract<Res<UiLayouts>>,
     uinode_query: Extract<
         Query<(
-            &Node,
+            &UiSize,
             &GlobalTransform,
             &Text,
             &TextLayoutInfo,
