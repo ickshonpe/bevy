@@ -10,7 +10,7 @@ use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window};
 
 use crate::{
-    prelude::UiCameraConfig, UiSize, LayoutContext, UiDefaultView, UiLayout, UiLayouts, UiScale,
+    prelude::UiCameraConfig, LayoutContext, UiDefaultView, UiLayout, UiLayouts, UiScale, UiSize,
     UiSurface, UiView, ZIndex,
 };
 

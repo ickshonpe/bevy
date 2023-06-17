@@ -1,6 +1,6 @@
 use crate::{
     prelude::{Button, Label},
-    UiSize, UiImage,
+    UiImage, UiSize,
 };
 use bevy_a11y::{
     accesskit::{NodeBuilder, Rect, Role},

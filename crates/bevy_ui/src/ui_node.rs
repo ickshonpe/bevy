@@ -14,6 +14,41 @@ use smallvec::SmallVec;
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use thiserror::Error;
 
+/// Component that wraps a key that can be used to look up a UI node's associated entry in the UI's internal layout tree.
+///
+/// Users can only instantiate null nodes using `UiNode::default()`, the keys are set and managed internally by [`super::layout::ui_layout_system`].
+/// All UI nodes must have this component.
+#[derive(Component, Debug, Default, Reflect)]
+#[reflect(Component, Default)]
+pub struct UiNode {
+    /// The id of the taffy node associated with the entity possessing this component.
+    #[reflect(ignore)]
+    key: taffy::node::Node,
+}
+
+impl UiNode {
+    /// A null `UiKey` signifies that a UI node entity does not have an associated Taffy node in the UI layout tree.
+    pub fn is_null(&self) -> bool {
+        self.key == taffy::node::Node::default()
+    }
+    /// Set the key value.
+    /// Panics if already set.   
+    pub(crate) fn set(&mut self, key: taffy::node::Node) {
+        if self.is_null() {
+            self.key = key;
+        } else {
+            panic!(
+                "Tried to change UiNode taffy key from {:?} to {:?}",
+                self.key, key
+            );
+        }
+    }
+    /// Returns the key of the taffy node associated with the entity that has this component.
+    pub fn get(&self) -> taffy::node::Node {
+        self.key
+    }
+}
+
 /// Describes the size of a UI node
 #[derive(Component, Debug, Copy, Clone, Reflect)]
 #[reflect(Component, Default)]

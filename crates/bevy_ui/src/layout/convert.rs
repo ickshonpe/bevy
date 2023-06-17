@@ -343,7 +343,10 @@ impl MaxTrackSizingFunction {
 }
 
 impl GridTrack {
-    fn into_taffy_track(self, context: &LayoutContext) -> taffy::style::NonRepeatedTrackSizingFunction {
+    fn into_taffy_track(
+        self,
+        context: &LayoutContext,
+    ) -> taffy::style::NonRepeatedTrackSizingFunction {
         let min = self.min_sizing_function.into_taffy(context);
         let max = self.max_sizing_function.into_taffy(context);
         taffy::style_helpers::minmax(min, max)

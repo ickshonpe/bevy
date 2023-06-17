@@ -2,7 +2,7 @@ mod pipeline;
 mod render_pass;
 
 use crate::stack::UiStacks;
-use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, UiSize, UiImage, UiLayouts};
+use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, UiImage, UiLayouts, UiSize};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
