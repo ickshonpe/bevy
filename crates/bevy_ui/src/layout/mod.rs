@@ -1,12 +1,12 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Style, UiSize};
+use crate::{ContentSize, Style, UiSize, BackgroundColor, UiNode};
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
-    prelude::Component,
+    prelude::{Component, Bundle},
     query::{Added, With, Without},
     removal_detection::RemovedComponents,
     system::{ParamSet, Query, ResMut, Resource},
@@ -22,6 +22,18 @@ use std::fmt;
 use taffy::{prelude::Size, style_helpers::TaffyMaxContent, Taffy};
 
 type TaffyNode = taffy::node::Node;
+
+#[derive(Bundle)]
+pub struct UiLayoutBundle {
+    /// Layout info
+    pub layout: UiLayout,
+    /// Size of the layout, derived from `UiLayout` and the layout's render target
+    pub size: UiSize,
+    /// Key for the root Taffy node of the layout
+    pub root: UiNode,
+    /// Background color of the layout
+    pub color: BackgroundColor,
+}
 
 /// The size and scaling information for a UI layout derived from its render target.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -61,7 +73,7 @@ impl LayoutContext {
 }
 
 /// Describes a UI layout
-#[derive(Debug)]
+#[derive(Component, Debug)]
 pub struct UiLayout {
     /// Root node of this layout's Taffy tree.
     pub(crate) taffy_root: TaffyNode,
