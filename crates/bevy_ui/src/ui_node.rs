@@ -109,6 +109,20 @@ impl Default for UiSize {
     }
 }
 
+/// Relative index of the UI node.
+/// A UI node with a higher stack index is in front of a node with a lower stack index. If they overlap, the higher indexed node will be drawn over the lower indexed node.A UI node with a higher stack index will be drawn in font of another node if they are part of the same layout.
+/// No two UI nodes should have the same stack index after the UI layouts have been updated.
+#[derive(Component, Debug, Default, Clone, Reflect)]
+#[reflect(Component, Default)]
+pub struct UiStackIndex(pub(crate) u32);
+
+impl UiStackIndex {
+    /// Get the stack index value
+    pub fn get(&self) -> u32 {
+        self.0
+    }
+}
+
 /// Represents the possible value types for layout properties.
 ///
 /// This enum allows specifying values for various [`Style`] properties in different units,
