@@ -7,7 +7,7 @@ use bevy_internal::{
     render::render_resource::{
         Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
     },
-    ui::UiView,
+    ui::UiLayoutTarget,
 };
 
 fn main() {
@@ -122,7 +122,7 @@ fn setup_scene(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
                 background_color: Color::WHITE.into(),
                 ..Default::default()
             },
-            UiView {
+            UiLayoutTarget {
                 entity: sprite_camera,
             },
         ))
@@ -225,7 +225,7 @@ fn spawn_nodes<M: Component + Default>(
     });
 
     if let Some(view) = camera_target {
-        entity_commands.insert(UiView { entity: view });
+        entity_commands.insert(UiLayoutTarget { entity: view });
     }
 
     entity_commands.with_children(|builder| {

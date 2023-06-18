@@ -1,11 +1,12 @@
 mod pipeline;
 mod render_pass;
 
-use crate::stack::UiStacks;
+use crate::{UiStackIndex, UiLayout, UiLayoutTarget};
 use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, UiImage, UiLayouts, UiSize};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
+use bevy_derive::{DerefMut, Deref};
 use bevy_ecs::prelude::*;
 use bevy_math::{Mat4, Rect, UVec4, Vec2, Vec3, Vec4Swizzles};
 use bevy_reflect::TypeUuid;
@@ -143,7 +144,7 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
 }
 
 pub struct ExtractedUiNode {
-    pub stack_index: usize,
+    pub stack_index: u32,
     pub transform: Mat4,
     pub color: Color,
     pub rect: Rect,
@@ -152,7 +153,6 @@ pub struct ExtractedUiNode {
     pub clip: Option<Rect>,
     pub flip_x: bool,
     pub flip_y: bool,
-    pub view: Entity,
 }
 
 #[derive(Resource, Default)]
@@ -163,9 +163,9 @@ pub struct ExtractedUiNodes {
 pub fn extract_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     images: Extract<Res<Assets<Image>>>,
-    ui_stacks: Extract<Res<UiStacks>>,
     uinode_query: Extract<
         Query<(
+            &UiStackIndex,
             &UiSize,
             &GlobalTransform,
             &BackgroundColor,
@@ -176,43 +176,37 @@ pub fn extract_uinodes(
     >,
 ) {
     extracted_uinodes.uinodes.clear();
-    for ui_stack in &ui_stacks.stacks {
-        for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-            if let Ok((uinode, transform, color, maybe_image, visibility, clip)) =
-                uinode_query.get(*entity)
-            {
-                // Skip invisible and completely transparent nodes
-                if !visibility.is_visible() || color.0.a() == 0.0 {
-                    continue;
-                }
-
-                let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
-                    // Skip loading images
-                    if !images.contains(&image.texture) {
-                        continue;
-                    }
-                    (image.texture.clone_weak(), image.flip_x, image.flip_y)
-                } else {
-                    (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), false, false)
-                };
-
-                extracted_uinodes.uinodes.push(ExtractedUiNode {
-                    stack_index,
-                    transform: transform.compute_matrix(),
-                    color: color.0,
-                    rect: Rect {
-                        min: Vec2::ZERO,
-                        max: uinode.calculated_size,
-                    },
-                    image,
-                    atlas_size: None,
-                    clip: clip.map(|clip| clip.clip),
-                    flip_x,
-                    flip_y,
-                    view: ui_stack.view,
-                });
-            }
+    
+    for (&UiStackIndex(stack_index), uinode, transform, color, maybe_image, visibility, clip) in uinode_query.iter() {
+        // Skip invisible and completely transparent nodes
+        if !visibility.is_visible() || color.0.a() == 0.0 {
+            continue;
         }
+
+        let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
+            // Skip loading images
+            if !images.contains(&image.texture) {
+                continue;
+            }
+            (image.texture.clone_weak(), image.flip_x, image.flip_y)
+        } else {
+            (DEFAULT_IMAGE_HANDLE.typed().clone_weak(), false, false)
+        };
+
+        extracted_uinodes.uinodes.push(ExtractedUiNode {
+            stack_index,
+            transform: transform.compute_matrix(),
+            color: color.0,
+            rect: Rect {
+                min: Vec2::ZERO,
+                max: uinode.calculated_size,
+            },
+            image,
+            atlas_size: None,
+            clip: clip.map(|clip| clip.clip),
+            flip_x,
+            flip_y,
+        });
     }
 }
 
@@ -229,6 +223,35 @@ const UI_CAMERA_TRANSFORM_OFFSET: f32 = -0.1;
 
 #[derive(Component)]
 pub struct DefaultCameraView(pub Entity);
+
+#[derive(Resource, Default, Deref, DerefMut)]
+pub struct ExtractedUiLayouts {
+    layouts: Vec<ExtractedUiLayout>,
+}
+
+pub struct ExtractedUiLayout {
+    view: Entity,
+    stack_range: Range<u32>,
+}
+
+pub fn extract_ui_layouts(
+    mut extracted_layouts: ResMut<ExtractedUiLayouts>,
+    layouts: Extract<Query<(
+        &UiLayout,
+        &UiLayoutTarget,
+    )>>,
+) {
+    extracted_layouts.clear();
+    let mut uinode_count = 0;
+    for (layout, target) in layouts.iter() {
+        let stack_start = uinode_count;
+        uinode_count += layout.uinodes.len() as u32;
+        extracted_layouts.push(ExtractedUiLayout { 
+            view: target.entity, 
+            stack_range: stack_start..uinode_count 
+        });
+    }
+}
 
 pub fn extract_default_ui_camera_view<T: Component>(
     mut commands: Commands,
@@ -278,10 +301,10 @@ pub fn extract_default_ui_camera_view<T: Component>(
 pub fn extract_text_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     texture_atlases: Extract<Res<Assets<TextureAtlas>>>,
-    ui_stacks: Extract<Res<UiStacks>>,
-    ui_layouts: Extract<Res<UiLayouts>>,
+    _ui_layouts: Extract<Res<UiLayouts>>,
     uinode_query: Extract<
         Query<(
+            &UiStackIndex,
             &UiSize,
             &GlobalTransform,
             &Text,
@@ -291,61 +314,58 @@ pub fn extract_text_uinodes(
         )>,
     >,
 ) {
-    for ui_stack in &ui_stacks.stacks {
-        for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-            if let Ok((uinode, global_transform, text, text_layout_info, visibility, clip)) =
-                uinode_query.get(*entity)
-            {
-                let inverse_scale_factor = ui_layouts
-                    .get(&ui_stack.view)
-                    .map(|layout| {
-                        layout.context.combined_scale_factor.recip() * layout.context.ui_scale
-                    })
-                    .unwrap_or(1.) as f32;
 
-                // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
-                if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
-                    continue;
-                }
-                let transform = global_transform.compute_matrix()
-                    * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
+    for (&UiStackIndex(stack_index), uinode, global_transform, text, text_layout_info, visibility, clip) in uinode_query.iter() {
+        let inverse_scale_factor = 
+        // ui_layouts
+        //     .get(&ui_stack.view)
+        //     .map(|layout| {
+        //         layout.context.combined_scale_factor.recip() * layout.context.ui_scale
+        //     })
+        //     .unwrap_or(1.) as f32;
+            1.;
 
-                let mut color = Color::WHITE;
-                let mut current_section = usize::MAX;
-                for PositionedGlyph {
-                    position,
-                    atlas_info,
-                    section_index,
-                    ..
-                } in &text_layout_info.glyphs
-                {
-                    if *section_index != current_section {
-                        color = text.sections[*section_index].style.color.as_rgba_linear();
-                        current_section = *section_index;
-                    }
-                    let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+        // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
+        if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
+            continue;
+        }
+        let transform = global_transform.compute_matrix()
+            * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
 
-                    let mut rect = atlas.textures[atlas_info.glyph_index];
-                    rect.min *= inverse_scale_factor;
-                    rect.max *= inverse_scale_factor;
-                    extracted_uinodes.uinodes.push(ExtractedUiNode {
-                        stack_index: stack_index + ui_stack.base_index,
-                        transform: transform
-                            * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
-                        color,
-                        rect,
-                        image: atlas.texture.clone_weak(),
-                        atlas_size: Some(atlas.size * inverse_scale_factor),
-                        clip: clip.map(|clip| clip.clip),
-                        flip_x: false,
-                        flip_y: false,
-                        view: ui_stack.view,
-                    });
-                }
+        let mut color = Color::WHITE;
+        let mut current_section = usize::MAX;
+        for PositionedGlyph {
+            position,
+            atlas_info,
+            section_index,
+            ..
+        } in &text_layout_info.glyphs
+        {
+            if *section_index != current_section {
+                color = text.sections[*section_index].style.color.as_rgba_linear();
+                current_section = *section_index;
             }
+            let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+
+            let mut rect = atlas.textures[atlas_info.glyph_index];
+            rect.min *= inverse_scale_factor;
+            rect.max *= inverse_scale_factor;
+            extracted_uinodes.uinodes.push(ExtractedUiNode {
+                stack_index,
+                transform: transform
+                    * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
+                color,
+                rect,
+                image: atlas.texture.clone_weak(),
+                atlas_size: Some(atlas.size * inverse_scale_factor),
+                clip: clip.map(|clip| clip.clip),
+                flip_x: false,
+                flip_y: false,
+            });
         }
     }
 }
+
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
@@ -392,6 +412,7 @@ pub fn prepare_uinodes(
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     mut ui_meta: ResMut<UiMeta>,
+    mut extracted_layouts: ResMut<ExtractedUiLayouts>,
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
 ) {
     ui_meta.vertices.clear();
@@ -401,18 +422,19 @@ pub fn prepare_uinodes(
         .uinodes
         .sort_by_key(|node| node.stack_index);
 
+    
     let mut start = 0;
     let mut end = 0;
     let mut current_batch_handle = Default::default();
     let mut last_z = 0.0;
-    let Some(mut current_batch_view) = extracted_uinodes.uinodes.first()
-        .map(|extracted_uinode| extracted_uinode.view) else {
-        return;
-    };
+    let Some(mut layout) = extracted_layouts.pop() else { return; };
+    let mut current_batch_view = layout.view;
+
     for extracted_uinode in &extracted_uinodes.uinodes {
-        if current_batch_handle != extracted_uinode.image
-            || current_batch_view != extracted_uinode.view
-        {
+        if layout.stack_range.end <= extracted_uinode.stack_index {
+            layout = extracted_layouts.pop().unwrap();
+        }
+        if current_batch_handle != extracted_uinode.image || layout.view != current_batch_view {
             if start != end {
                 commands.spawn(UiBatch {
                     range: start..end,
@@ -423,7 +445,7 @@ pub fn prepare_uinodes(
                 start = end;
             }
             current_batch_handle = extracted_uinode.image.clone_weak();
-            current_batch_view = extracted_uinode.view;
+            current_batch_view = layout.view
         }
 
         let mut uinode_rect = extracted_uinode.rect;

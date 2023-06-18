@@ -11,7 +11,7 @@ use bevy_window::{PrimaryWindow, Window};
 
 use crate::{
     prelude::UiCameraConfig, LayoutContext, UiDefaultView, UiLayout, UiLayouts, UiScale, UiSize,
-    UiSurface, UiView, ZIndex,
+    UiSurface, UiLayoutTarget, ZIndex,
 };
 
 /// List of UI stacks, one for each UI layout
@@ -63,7 +63,7 @@ pub fn ui_stack_system(
     primary_window_query: Query<Entity, With<PrimaryWindow>>,
     windows: Query<&Window>,
     mut ui_stacks: ResMut<UiStacks>,
-    root_node_query: Query<(Entity, Option<&UiView>), (With<UiSize>, Without<Parent>)>,
+    root_node_query: Query<(Entity, Option<&UiLayoutTarget>), (With<UiSize>, Without<Parent>)>,
     zindex_query: Query<&ZIndex, With<UiSize>>,
     children_query: Query<&Children>,
     mut uinode_map: ResMut<UiNodeToView>,

@@ -86,6 +86,7 @@ pub struct UiLayout {
     pub(crate) root_uinodes: Vec<Entity>,
     /// Indicates the scale factor for this UI layout has been changed since the last update
     pub(crate) scale_factor_changed: bool,
+    pub(crate) uinodes: Vec<Entity>,
 }
 
 impl UiLayout {
@@ -95,14 +96,15 @@ impl UiLayout {
             context: layout_context,
             needs_full_update: true,
             root_uinodes: vec![],
+            uinodes: vec![],
             scale_factor_changed: true,
         }
     }
 }
 
-/// The camera view that will show this UI layout
+/// The target that will display this UI layout
 #[derive(Component, Debug, Reflect, FromReflect)]
-pub struct UiView {
+pub struct UiLayoutTarget {
     pub entity: Entity,
 }
 
@@ -229,8 +231,8 @@ pub fn ui_layout_system(
     mut removed_children: RemovedComponents<Children>,
     mut removed_content_sizes: RemovedComponents<ContentSize>,
     mut removed_ui_nodes: RemovedComponents<UiSize>,
-    default_root_node_query: Query<Entity, (With<UiSize>, Without<Parent>, Without<UiView>)>,
-    root_uinode_query: Query<(Entity, &UiView), (With<UiSize>, Without<Parent>)>,
+    default_root_node_query: Query<Entity, (With<UiSize>, Without<Parent>, Without<UiLayoutTarget>)>,
+    root_uinode_query: Query<(Entity, &UiLayoutTarget), (With<UiSize>, Without<Parent>)>,
     mut measure_query: Query<(Entity, &mut ContentSize)>,
     uinode_query: Query<(Ref<Style>, Option<Ref<Children>>), With<UiSize>>,
     mut uinode_queries_paramset: ParamSet<(
