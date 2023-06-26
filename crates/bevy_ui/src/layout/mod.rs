@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Node, Style, UiScale, UiStack, ZIndex};
+use crate::{ContentSize, Node, Style, UiScale, UiStack, UiStackIndex, ZIndex};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -229,7 +229,7 @@ pub fn ui_layout_system(
     (just_children_query, z_index_query): (Query<&Children>, Query<&ZIndex>),
     mut removed_children: RemovedComponents<Children>,
     mut removed_content_sizes: RemovedComponents<ContentSize>,
-    mut node_transform_query: Query<(&mut Node, &mut Transform)>,
+    mut node_transform_query: Query<(&mut Node, &mut Transform, &mut UiStackIndex)>,
     mut removed_nodes: RemovedComponents<Node>,
 ) {
     // assume one window for time being...
@@ -310,18 +310,24 @@ pub fn ui_layout_system(
     ui_stack.uinodes.clear();
     ui_stack.uinodes.reserve(ui_surface.entity_to_taffy.len());
 
+    // Walks the UI layout tree depth first. The first node visited is rendered first, nodes that are visited later in the walk are renderd on top of nodes that were visited earlier.
+    // At each step, the node's [`Node`], [`Transform`] and [`UiStackIndex`] components are updated and its entity is pushed onto the `UiStack`.
     fn update_uinode_geometry_recursive(
         entity: Entity,
         ui_surface: &UiSurface,
         ui_stack: &mut Vec<Entity>,
-        node_transform_query: &mut Query<(&mut Node, &mut Transform)>,
+        node_transform_query: &mut Query<(&mut Node, &mut Transform, &mut UiStackIndex)>,
         children_query: &Query<&Children>,
         z_index_query: &Query<&ZIndex>,
         inverse_target_scale_factor: f32,
         parent_size: Vec2,
     ) {
-        if let Ok((mut node, mut transform)) = node_transform_query.get_mut(entity) {
+        if let Ok((mut node, mut transform, mut ui_stack_index)) =
+            node_transform_query.get_mut(entity)
+        {
+            ui_stack_index.0 = ui_stack.len() as u32;
             ui_stack.push(entity);
+
             let layout = ui_surface.get_layout(entity).unwrap();
             let new_size =
                 inverse_target_scale_factor * Vec2::new(layout.size.width, layout.size.height);

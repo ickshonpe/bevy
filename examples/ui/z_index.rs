@@ -32,83 +32,101 @@ fn setup(mut commands: Commands) {
         .with_children(|parent| {
             parent
                 .spawn(NodeBundle {
-                    background_color: Color::GRAY.into(),
                     style: Style {
                         width: Val::Px(180.0),
                         height: Val::Px(100.0),
                         ..default()
                     },
-                    ..default()
+                    ..Default::default()
                 })
                 .with_children(|parent| {
-                    // spawn a node with default z-index.
+                    // The purple node is the first child, but it has the greatest `ZIndex` of the nodes in this stacking context.
+                    // It is rendered last, showing on top of the other colored UI nodes.
                     parent.spawn(NodeBundle {
-                        background_color: Color::RED.into(),
-                        style: Style {
-                            position_type: PositionType::Absolute,
-                            left: Val::Px(10.0),
-                            bottom: Val::Px(40.0),
-                            width: Val::Px(100.0),
-                            height: Val::Px(50.0),
-                            ..default()
-                        },
-                        ..default()
-                    });
-
-                    // spawn a node with a positive local z-index of 2.
-                    // it will show above other nodes in the gray container.
-                    parent.spawn(NodeBundle {
-                        z_index: ZIndex::Local(2),
-                        background_color: Color::BLUE.into(),
-                        style: Style {
-                            position_type: PositionType::Absolute,
-                            left: Val::Px(45.0),
-                            bottom: Val::Px(30.0),
-                            width: Val::Px(100.),
-                            height: Val::Px(50.),
-                            ..default()
-                        },
-                        ..default()
-                    });
-
-                    // spawn a node with a negative local z-index.
-                    // it will show under other nodes in the gray container.
-                    parent.spawn(NodeBundle {
-                        z_index: ZIndex::Local(-1),
-                        background_color: Color::GREEN.into(),
-                        style: Style {
-                            position_type: PositionType::Absolute,
-                            left: Val::Px(70.0),
-                            bottom: Val::Px(20.0),
-                            width: Val::Px(100.),
-                            height: Val::Px(75.),
-                            ..default()
-                        },
-                        ..default()
-                    });
-
-                    // spawn a node with a positive global z-index of 1.
-                    // it will show above all other nodes, because it's the highest global z-index in this example.
-                    // by default, boxes all share the global z-index of 0 that the gray container is added to.
-                    parent.spawn(NodeBundle {
-                        z_index: ZIndex::Global(1),
-                        background_color: Color::PURPLE.into(),
                         style: Style {
                             position_type: PositionType::Absolute,
                             left: Val::Px(15.0),
                             bottom: Val::Px(10.0),
                             width: Val::Px(100.),
                             height: Val::Px(60.),
-                            ..default()
+                            ..Default::default()
                         },
+                        z_index: ZIndex(1),
+                        background_color: Color::PURPLE.into(),
                         ..default()
                     });
 
-                    // spawn a node with a negative global z-index of -1.
-                    // this will show under all other nodes including its parent, because it's the lowest global z-index
-                    // in this example.
+                    // The grey node is given the default `ZIndex` which is equal to `0`.
+                    // The children of the grey node will be in a new stacking context.
+                    parent
+                        .spawn(NodeBundle {
+                            background_color: Color::GRAY.into(),
+                            style: Style {
+                                position_type: PositionType::Absolute,
+                                width: Val::Px(180.0),
+                                height: Val::Px(100.0),
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|grey_parent| {
+                            // Spawn a red node with default z-index.
+                            grey_parent.spawn(NodeBundle {
+                                background_color: Color::RED.into(),
+                                style: Style {
+                                    position_type: PositionType::Absolute,
+                                    left: Val::Px(10.0),
+                                    bottom: Val::Px(40.0),
+                                    width: Val::Px(100.0),
+                                    height: Val::Px(50.0),
+                                    ..default()
+                                },
+                                ..default()
+                            });
+
+                            // Spawn a blue  node with a positive local z-index of 2.
+                            // it will show above other nodes in the gray container.
+                            // Because this node is in a new stacking context, even though it has a `ZIndex` of 2
+                            // it will be shown behind the purple node as the the purple node has a higher `ZIndex` in
+                            // the stacking context containing the purple node and this node's parent.
+                            grey_parent.spawn(NodeBundle {
+                                z_index: ZIndex(2),
+                                background_color: Color::BLUE.into(),
+                                style: Style {
+                                    position_type: PositionType::Absolute,
+                                    left: Val::Px(45.0),
+                                    bottom: Val::Px(30.0),
+                                    width: Val::Px(100.),
+                                    height: Val::Px(50.),
+                                    ..default()
+                                },
+                                ..default()
+                            });
+
+                            // Spawn a geen node with a negative local z-index.
+                            // It will show under other nodes in the gray container.
+                            // Because this node is in a new stacking context, even though it has a `ZIndex` of -2
+                            // it will be shown in front of the yellow node as the the yellow node has a lower `ZIndex` in
+                            // the stacking context containing the yellow node and this node's parent.
+                            grey_parent.spawn(NodeBundle {
+                                z_index: ZIndex(-2),
+                                background_color: Color::GREEN.into(),
+                                style: Style {
+                                    position_type: PositionType::Absolute,
+                                    left: Val::Px(70.0),
+                                    bottom: Val::Px(20.0),
+                                    width: Val::Px(100.),
+                                    height: Val::Px(75.),
+                                    ..default()
+                                },
+                                ..default()
+                            });
+                        });
+
+                    // The yellow node is the last child but it has the lowest `ZIndex` in the local stacking context.
+                    // It is rendered first and is shown behind the other colored UI nodes.
                     parent.spawn(NodeBundle {
-                        z_index: ZIndex::Global(-1),
+                        z_index: ZIndex(-1),
                         background_color: Color::YELLOW.into(),
                         style: Style {
                             position_type: PositionType::Absolute,

@@ -18,12 +18,25 @@ use thiserror::Error;
 
 /// The current UI stack, which contains all UI nodes ordered by their depth (back-to-front).
 ///
-/// The first entry is the furthest node from the camera and is the first one to get rendered
-/// while the last entry is the first node to receive interactions.
+/// The first entry is the first node to get rendered, while the last entry is the first node to receive interactions.
 #[derive(Debug, Resource, Default)]
 pub struct UiStack {
     /// List of UI nodes ordered from back-to-front
     pub uinodes: Vec<Entity>,
+}
+
+/// A UI node's position in the `UiStack`.
+///
+/// UI nodes with a lower stack index are further from the camera and rendered behind nodes with a higher stack index.
+#[derive(Component, Copy, Clone, Default, Debug, Reflect, FromReflect)]
+#[reflect(Component, FromReflect)]
+pub struct UiStackIndex(pub(crate) u32);
+
+impl UiStackIndex {
+    /// Returns the stack index value
+    pub fn get(&self) -> u32 {
+        self.0
+    }
 }
 
 /// Describes the size of a UI node
@@ -1676,15 +1689,9 @@ pub struct CalculatedClip {
 /// will appear in front of this parent's other children.
 ///
 /// Nodes without this component will be treated as if they had a value of [`ZIndex::Local(0)`].
-#[derive(Component, Copy, Clone, Debug, Reflect, FromReflect)]
+#[derive(Component, Copy, Clone, Debug, Default, Reflect, FromReflect)]
 #[reflect(Component, FromReflect)]
 pub struct ZIndex(pub i32);
-
-impl Default for ZIndex {
-    fn default() -> Self {
-        Self(0)
-    }
-}
 
 #[cfg(test)]
 mod tests {
