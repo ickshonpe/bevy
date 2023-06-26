@@ -8,7 +8,6 @@ mod focus;
 mod geometry;
 mod layout;
 mod render;
-mod stack;
 mod ui_node;
 
 #[cfg(feature = "bevy_text")]
@@ -44,8 +43,6 @@ use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
 use bevy_input::InputSystem;
 use bevy_transform::TransformSystem;
-use stack::ui_stack_system;
-pub use stack::UiStack;
 use update::update_clipping_system;
 
 /// The basic plugin for Bevy UI
@@ -55,12 +52,10 @@ pub struct UiPlugin;
 /// The label enum labeling the types of systems in the Bevy UI
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub enum UiSystem {
-    /// After this label, the ui layout state has been updated
+    /// After this label, the ui layout state and the [`UiStack`] resource have been updated
     Layout,
     /// After this label, input interactions with UI entities have been updated for this frame
     Focus,
-    /// After this label, the [`UiStack`] resource has been updated
-    Stack,
 }
 
 /// The current scale of the UI.
@@ -168,7 +163,6 @@ impl Plugin for UiPlugin {
                 ui_layout_system
                     .in_set(UiSystem::Layout)
                     .before(TransformSystem::TransformPropagate),
-                ui_stack_system.in_set(UiSystem::Stack),
                 update_clipping_system.after(TransformSystem::TransformPropagate),
             ),
         );

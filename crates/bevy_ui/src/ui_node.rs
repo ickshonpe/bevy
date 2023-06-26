@@ -1,5 +1,7 @@
 use crate::UiRect;
 use bevy_asset::Handle;
+use bevy_ecs::prelude::Entity;
+use bevy_ecs::system::Resource;
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
 use bevy_math::{Rect, Vec2};
 use bevy_reflect::prelude::*;
@@ -13,6 +15,16 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use thiserror::Error;
+
+/// The current UI stack, which contains all UI nodes ordered by their depth (back-to-front).
+///
+/// The first entry is the furthest node from the camera and is the first one to get rendered
+/// while the last entry is the first node to receive interactions.
+#[derive(Debug, Resource, Default)]
+pub struct UiStack {
+    /// List of UI nodes ordered from back-to-front
+    pub uinodes: Vec<Entity>,
+}
 
 /// Describes the size of a UI node
 #[derive(Component, Debug, Copy, Clone, Reflect, FromReflect)]
@@ -1663,24 +1675,14 @@ pub struct CalculatedClip {
 /// appear in the UI hierarchy. In such a case, the last node to be added to its parent
 /// will appear in front of this parent's other children.
 ///
-/// Internally, nodes with a global z-index share the stacking context of root UI nodes
-/// (nodes that have no parent). Because of this, there is no difference between using
-/// [`ZIndex::Local(n)`] and [`ZIndex::Global(n)`] for root nodes.
-///
 /// Nodes without this component will be treated as if they had a value of [`ZIndex::Local(0)`].
 #[derive(Component, Copy, Clone, Debug, Reflect, FromReflect)]
 #[reflect(Component, FromReflect)]
-pub enum ZIndex {
-    /// Indicates the order in which this node should be rendered relative to its siblings.
-    Local(i32),
-    /// Indicates the order in which this node should be rendered relative to root nodes and
-    /// all other nodes that have a global z-index.
-    Global(i32),
-}
+pub struct ZIndex(pub i32);
 
 impl Default for ZIndex {
     fn default() -> Self {
-        Self::Local(0)
+        Self(0)
     }
 }
 

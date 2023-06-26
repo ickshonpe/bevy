@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Node, Style, UiScale};
+use crate::{ContentSize, Node, Style, UiScale, UiStack, ZIndex};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -218,6 +218,7 @@ pub fn ui_layout_system(
     primary_window: Query<(Entity, &Window), With<PrimaryWindow>>,
     windows: Query<(Entity, &Window)>,
     ui_scale: Res<UiScale>,
+    mut ui_stack: ResMut<UiStack>,
     mut scale_factor_events: EventReader<WindowScaleFactorChanged>,
     mut resize_events: EventReader<bevy_window::WindowResized>,
     mut ui_surface: ResMut<UiSurface>,
@@ -225,7 +226,7 @@ pub fn ui_layout_system(
     style_query: Query<(Entity, Ref<Style>), With<Node>>,
     mut measure_query: Query<(Entity, &mut ContentSize)>,
     children_query: Query<(Entity, Ref<Children>), With<Node>>,
-    just_children_query: Query<&Children>,
+    (just_children_query, z_index_query): (Query<&Children>, Query<&ZIndex>),
     mut removed_children: RemovedComponents<Children>,
     mut removed_content_sizes: RemovedComponents<ContentSize>,
     mut node_transform_query: Query<(&mut Node, &mut Transform)>,
@@ -306,28 +307,27 @@ pub fn ui_layout_system(
 
     let inverse_target_scale_factor = 1. / logical_to_physical_factor;
 
+    ui_stack.uinodes.clear();
+    ui_stack.uinodes.reserve(ui_surface.entity_to_taffy.len());
+
     fn update_uinode_geometry_recursive(
         entity: Entity,
         ui_surface: &UiSurface,
+        ui_stack: &mut Vec<Entity>,
         node_transform_query: &mut Query<(&mut Node, &mut Transform)>,
         children_query: &Query<&Children>,
+        z_index_query: &Query<&ZIndex>,
         inverse_target_scale_factor: f32,
         parent_size: Vec2,
-        mut absolute_location: Vec2,
     ) {
         if let Ok((mut node, mut transform)) = node_transform_query.get_mut(entity) {
+            ui_stack.push(entity);
             let layout = ui_surface.get_layout(entity).unwrap();
-            let layout_size = Vec2::new(layout.size.width, layout.size.height);
-            let layout_location = Vec2::new(layout.location.x, layout.location.y);
-
-            absolute_location += layout_location;
-            let rounded_location = round_layout_coords(layout_location);
-            let rounded_size = round_layout_coords(absolute_location + layout_size)
-                - round_layout_coords(absolute_location);
-
-            let new_size = inverse_target_scale_factor * rounded_size;
-            let new_position =
-                inverse_target_scale_factor * rounded_location + 0.5 * (new_size - parent_size);
+            let new_size =
+                inverse_target_scale_factor * Vec2::new(layout.size.width, layout.size.height);
+            let new_position = inverse_target_scale_factor
+                * Vec2::new(layout.location.x, layout.location.y)
+                + 0.5 * (new_size - parent_size);
 
             // only trigger change detection when the new values are different
             if node.calculated_size != new_size {
@@ -337,15 +337,20 @@ pub fn ui_layout_system(
                 transform.translation = new_position.extend(0.);
             }
             if let Ok(children) = children_query.get(entity) {
-                for &child_uinode in children {
+                let mut children_vec: Vec<Entity> = children.iter().copied().collect();
+                children_vec
+                    .sort_by_key(|&child| z_index_query.get(child).map_or(0, |z_index| z_index.0));
+
+                for child_uinode in children_vec {
                     update_uinode_geometry_recursive(
                         child_uinode,
                         ui_surface,
+                        ui_stack,
                         node_transform_query,
                         children_query,
+                        z_index_query,
                         inverse_target_scale_factor,
                         new_size,
-                        absolute_location,
                     );
                 }
             }
@@ -356,36 +361,12 @@ pub fn ui_layout_system(
         update_uinode_geometry_recursive(
             entity,
             &ui_surface,
+            &mut ui_stack.uinodes,
             &mut node_transform_query,
             &just_children_query,
+            &z_index_query,
             inverse_target_scale_factor as f32,
             Vec2::ZERO,
-            Vec2::ZERO,
         );
-    }
-}
-
-#[inline]
-/// Round `value` to the closest whole integer, with ties (values with a fractional part equal to 0.5) rounded towards positive infinity.
-fn round_ties_up(value: f32) -> f32 {
-    if 0. <= value || value.fract() != 0.5 {
-        // The `round` function rounds ties away from zero. For positive numbers "away from zero" is towards positive infinity.
-        // So for all positive values, and negative values with a fractional part not equal to 0.5, `round` returns the correct result.
-        value.round()
-    } else {
-        // In the remaining cases, where `value` is negative and its fractional part is equal to 0.5, we use `ceil` to round it up towards positive infinity.
-        value.ceil()
-    }
-}
-
-#[inline]
-/// Rust `f32` only has support for rounding ties away from zero.
-/// When rounding the layout coordinates we need to round ties up, otherwise we can gain a pixel.
-/// For example consider a node with left and right bounds of -50.5 and 49.5 (width: 49.5 - (-50.5) == 100).
-/// After rounding left and right away from zero we get -51 and 50 (width: 50 - (-51) == 101), gaining a pixel.
-fn round_layout_coords(value: Vec2) -> Vec2 {
-    Vec2 {
-        x: round_ties_up(value.x),
-        y: round_ties_up(value.y),
     }
 }
