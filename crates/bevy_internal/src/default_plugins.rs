@@ -105,7 +105,9 @@ impl PluginGroup for DefaultPlugins {
 
         #[cfg(feature = "bevy_ui")]
         {
-            group = group.add(bevy_ui::UiPlugin::default());
+            group = group
+                .add(bevy_ui::UiPlugin::default())
+                .add(bevy_ui::UiRenderPlugin::default());
         }
 
         #[cfg(feature = "bevy_pbr")]

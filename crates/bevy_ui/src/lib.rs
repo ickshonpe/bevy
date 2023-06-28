@@ -172,7 +172,15 @@ impl Plugin for UiPlugin {
                 update_clipping_system.after(TransformSystem::TransformPropagate),
             ),
         );
+    }
+}
 
+// Adds rendering for Bevy UI
+#[derive(Default)]
+pub struct UiRenderPlugin;
+
+impl Plugin for UiRenderPlugin {
+    fn build(&self, app: &mut App) {
         crate::render::build_ui_render(app);
     }
 
