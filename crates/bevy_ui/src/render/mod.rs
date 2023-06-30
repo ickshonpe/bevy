@@ -153,6 +153,7 @@ pub struct ExtractedUiNode {
     pub stack_index: usize,
     pub transform: Mat4,
     pub color: Color,
+    pub border_color: Color,
     pub rect: Rect,
     pub image: Handle<Image>,
     pub atlas_size: Option<Vec2>,
@@ -262,6 +263,7 @@ pub fn extract_atlas_uinodes(
                     viewport_size,
                     ui_scale.scale,
                 ),
+                border_color: Color::NONE,
                 invert: false,
                 border: [0.; 4],
             });
@@ -365,7 +367,7 @@ pub fn extract_uinode_borders(
                 stack_index,
                 // This translates the uinode's transform to the center of the current border rectangle
                 transform,
-                color: border_color.0,
+                color: Color::NONE,
                 rect: Rect {
                     min: Vec2::ZERO,
                     max: node.size(),
@@ -383,6 +385,7 @@ pub fn extract_uinode_borders(
                 ),
                 invert: true,
                 border: [left, top, right, bottom],
+                border_color: border_color.0,
             });
         }
     }
@@ -457,6 +460,7 @@ pub fn extract_uinodes(
                 ),
                 invert: false,
                 border: [0.; 4],
+                border_color: Color::NONE,
             });
         };
     }
@@ -588,6 +592,7 @@ pub fn extract_text_uinodes(
                     border_radius: [0.; 4],
                     invert: false,
                     border: [0.; 4],
+                    border_color: Color::NONE,
                 });
             }
         }
@@ -600,6 +605,7 @@ struct UiVertex {
     pub position: [f32; 3],
     pub uv: [f32; 2],
     pub color: [f32; 4],
+    pub border_color: [f32; 4],
     pub mode: u32,
     pub radius: [f32; 4],
     pub border: [f32; 4],
@@ -781,6 +787,7 @@ pub fn prepare_uinodes(
         };
 
         let color = extracted_uinode.color.as_linear_rgba_f32();
+        let border_color = extracted_uinode.color.as_linear_rgba_f32();
         for i in QUAD_INDICES {
             ui_meta.vertices.push(UiVertex {
                 position: positions_clipped[i].into(),
@@ -789,6 +796,7 @@ pub fn prepare_uinodes(
                 mode: if extracted_uinode.invert { 2 } else { mode },
                 radius: extracted_uinode.border_radius,
                 border: extracted_uinode.border,
+                border_color,
                 size: extracted_uinode
                     .atlas_size
                     .unwrap_or_else(|| transformed_rect_size.xy())

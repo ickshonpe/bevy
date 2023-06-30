@@ -6,10 +6,11 @@ var<uniform> view: View;
 struct VertexOutput {
     @location(0) uv: vec2<f32>,
     @location(1) color: vec4<f32>,
-    @location(2) @interpolate(flat) size: vec2<f32>,
-    @location(3) @interpolate(flat) mode: u32,
-    @location(4) @interpolate(flat) radius: vec4<f32>,    
-    @location(5) @interpolate(flat) thickness: vec4<f32>,    
+    @location(2) border_color: vec4<f32>,
+    @location(3) @interpolate(flat) size: vec2<f32>,
+    @location(4) @interpolate(flat) mode: u32,
+    @location(5) @interpolate(flat) radius: vec4<f32>,    
+    @location(6) @interpolate(flat) thickness: vec4<f32>,    
     @builtin(position) position: vec4<f32>,
 };
 
@@ -18,15 +19,17 @@ fn vertex(
     @location(0) vertex_position: vec3<f32>,
     @location(1) vertex_uv: vec2<f32>,
     @location(2) vertex_color: vec4<f32>,
-    @location(3) mode: u32,
-    @location(4) radius: vec4<f32>,
-    @location(5) thickness: vec4<f32>,
-    @location(6) size: vec2<f32>,
+    @location(3) border_color: vec4<f32>,
+    @location(4) mode: u32,
+    @location(5) radius: vec4<f32>,
+    @location(6) thickness: vec4<f32>,
+    @location(7) size: vec2<f32>,
 ) -> VertexOutput {
     var out: VertexOutput;
     out.uv = vertex_uv;
     out.position = view.view_proj * vec4<f32>(vertex_position, 1.0);
     out.color = vertex_color;
+    out.border_color = border_color;
     out.mode = mode;
     out.radius = radius;
     out.size = size;
@@ -94,7 +97,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         // Textured rect
         case default, 0u: {
             let distance = sd_rounded_rect(point, in.size, in.radius);
-            return in.color * color;
+            return mix(in.color * color, vec4<f32>(0.0), smoothstep(-1.0, 1.0, distance));
         }
         // Untextured rect
         case 1u: {
