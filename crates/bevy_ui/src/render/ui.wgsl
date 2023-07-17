@@ -47,17 +47,27 @@ fn vertex(
     out.position = view.view_proj * vec4(vertex_position, 1.0);
     out.color = vertex_color;
     out.flags = flags;
+
+   
+
     out.radius = radius;
     out.size = size;
-    out.border = border;
-    var point = 0.49999 * size;
-    if (flags & RIGHT_VERTEX) == 0u {
-        point.x *= -1.;
+    //var point = 0.49999 * size;
+    // if (flags & RIGHT_VERTEX) == 0u {
+    //     point.x *= -1.;
+    // }
+    // if (flags & BOTTOM_VERTEX) == 0u {
+    //     point.y *= -1.;
+    // }
+    //out.point = point;
+
+     if enabled(flags, TEXTURED) {
+        out.point.x = select(border.x, border.z, enabled(flags, RIGHT_VERTEX));
+        out.point.y = select(border.y, border.w, enabled(flags, BOTTOM_VERTEX));
+    } else {
+        out.point = (vertex_uv - 0.49999) * size;
+        out.border = border;
     }
-    if (flags & BOTTOM_VERTEX) == 0u {
-        point.y *= -1.;
-    }
-    out.point = point;
 
     return out;
 }

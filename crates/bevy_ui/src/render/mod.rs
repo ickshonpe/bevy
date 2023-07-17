@@ -813,44 +813,40 @@ pub fn prepare_uinodes(
             }
         }
         let uvs = {
-            if flags == shader_flags::UNTEXTURED {
-                [Vec2::ZERO, Vec2::X, Vec2::ONE, Vec2::Y]
-            } else {
-                let atlas_extent = extracted_uinode.atlas_size.unwrap_or(uinode_rect.max);
-                if extracted_uinode.flip_x {
-                    std::mem::swap(&mut uinode_rect.max.x, &mut uinode_rect.min.x);
-                    positions_diff[0].x *= -1.;
-                    positions_diff[1].x *= -1.;
-                    positions_diff[2].x *= -1.;
-                    positions_diff[3].x *= -1.;
-                }
-                if extracted_uinode.flip_y {
-                    std::mem::swap(&mut uinode_rect.max.y, &mut uinode_rect.min.y);
-                    positions_diff[0].y *= -1.;
-                    positions_diff[1].y *= -1.;
-                    positions_diff[2].y *= -1.;
-                    positions_diff[3].y *= -1.;
-                }
-                [
-                    Vec2::new(
-                        uinode_rect.min.x + positions_diff[0].x,
-                        uinode_rect.min.y + positions_diff[0].y,
-                    ),
-                    Vec2::new(
-                        uinode_rect.max.x + positions_diff[1].x,
-                        uinode_rect.min.y + positions_diff[1].y,
-                    ),
-                    Vec2::new(
-                        uinode_rect.max.x + positions_diff[2].x,
-                        uinode_rect.max.y + positions_diff[2].y,
-                    ),
-                    Vec2::new(
-                        uinode_rect.min.x + positions_diff[3].x,
-                        uinode_rect.max.y + positions_diff[3].y,
-                    ),
-                ]
-                .map(|pos| pos / atlas_extent)
+            let atlas_extent = extracted_uinode.atlas_size.unwrap_or(uinode_rect.max);
+            if extracted_uinode.flip_x {
+                std::mem::swap(&mut uinode_rect.max.x, &mut uinode_rect.min.x);
+                positions_diff[0].x *= -1.;
+                positions_diff[1].x *= -1.;
+                positions_diff[2].x *= -1.;
+                positions_diff[3].x *= -1.;
             }
+            if extracted_uinode.flip_y {
+                std::mem::swap(&mut uinode_rect.max.y, &mut uinode_rect.min.y);
+                positions_diff[0].y *= -1.;
+                positions_diff[1].y *= -1.;
+                positions_diff[2].y *= -1.;
+                positions_diff[3].y *= -1.;
+            }
+            [
+                Vec2::new(
+                    uinode_rect.min.x + positions_diff[0].x,
+                    uinode_rect.min.y + positions_diff[0].y,
+                ),
+                Vec2::new(
+                    uinode_rect.max.x + positions_diff[1].x,
+                    uinode_rect.min.y + positions_diff[1].y,
+                ),
+                Vec2::new(
+                    uinode_rect.max.x + positions_diff[2].x,
+                    uinode_rect.max.y + positions_diff[2].y,
+                ),
+                Vec2::new(
+                    uinode_rect.min.x + positions_diff[3].x,
+                    uinode_rect.max.y + positions_diff[3].y,
+                ),
+            ]
+            .map(|pos| pos / atlas_extent)
         };
 
         let color = extracted_uinode.color.as_linear_rgba_f32();
@@ -860,6 +856,30 @@ pub fn prepare_uinodes(
             _ => {}
         }
 
+        let mut size: Vec2 = transformed_rect_size.xy().into();
+        let border =
+            if extracted_uinode.node_type == NodeType::Rect {
+                if let Some(clip) = extracted_uinode.clip {
+                    let target = extracted_uinode.rect.intersect(clip);
+                    let target = Rect {
+                        min: extracted_uinode.transform.transform_point3(target.min.extend(0.)).truncate(),
+                        max: extracted_uinode.transform.transform_point3(target.max.extend(0.)).truncate(),
+                    };
+                    size = extracted_uinode.transform.transform_vector3(extracted_uinode.rect.size().extend(0.)).truncate();
+                    let c = extracted_uinode.transform.transform_point3(Vec3::ZERO).truncate();
+                    [
+                        target.min.x - c.x,
+                        target.min.y - c.y,
+                        target.max.x - c.x,
+                        target.max.y - c.y
+                    ]
+                } else {
+                    extracted_uinode.border
+                }
+            } else {
+                extracted_uinode.border
+            };
+
         for i in 0..4 {
             let ui_vertex = UiVertex {
                 position: positions_clipped[i].into(),
@@ -867,8 +887,8 @@ pub fn prepare_uinodes(
                 color,
                 flags: flags | shader_flags::CORNERS[i],
                 radius: extracted_uinode.border_radius,
-                border: extracted_uinode.border,
-                size: transformed_rect_size.xy().into(),
+                border,
+                size: size.into(),
             };
             ui_meta.vertices.push(ui_vertex);
         }
