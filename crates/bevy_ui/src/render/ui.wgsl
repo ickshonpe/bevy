@@ -31,43 +31,27 @@ struct VertexOutput {
 fn vertex(
     @location(0) vertex_position: vec3<f32>,
     @location(1) vertex_uv: vec2<f32>,
-    @location(2) vertex_color: vec4<f32>,
-    @location(3) flags: u32,
+    @location(2) point: vec2<f32>,
+    @location(3) vertex_color: vec4<f32>,
+    @location(4) flags: u32,
 
     // radius.x = top left radius, .y = top right, .z = bottom right, .w = bottom left
-    @location(4) radius: vec4<f32>,
+    @location(5) radius: vec4<f32>,
 
     // border.x = left width, .y = top, .z = right, .w = bottom
-    @location(5) border: vec4<f32>,
+    @location(6) border: vec4<f32>,
 
-    @location(6) size: vec2<f32>,
+    @location(7) size: vec2<f32>,
 ) -> VertexOutput {
     var out: VertexOutput;
     out.uv = vertex_uv;
     out.position = view.view_proj * vec4(vertex_position, 1.0);
     out.color = vertex_color;
     out.flags = flags;
-
-   
-
     out.radius = radius;
     out.size = size;
-    //var point = 0.49999 * size;
-    // if (flags & RIGHT_VERTEX) == 0u {
-    //     point.x *= -1.;
-    // }
-    // if (flags & BOTTOM_VERTEX) == 0u {
-    //     point.y *= -1.;
-    // }
-    //out.point = point;
-
-     if enabled(flags, TEXTURED) {
-        out.point.x = select(border.x, border.z, enabled(flags, RIGHT_VERTEX));
-        out.point.y = select(border.y, border.w, enabled(flags, BOTTOM_VERTEX));
-    } else {
-        out.point = (vertex_uv - 0.49999) * size;
-        out.border = border;
-    }
+    out.point = point;
+    out.border = border;
 
     return out;
 }

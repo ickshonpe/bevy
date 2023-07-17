@@ -654,6 +654,7 @@ pub fn extract_text_uinodes(
 struct UiVertex {
     pub position: [f32; 3],
     pub uv: [f32; 2],
+    pub point: [f32; 2],
     pub color: [f32; 4],
     pub flags: u32,
     pub radius: [f32; 4],
@@ -857,37 +858,18 @@ pub fn prepare_uinodes(
         }
 
         let mut size: Vec2 = transformed_rect_size.xy().into();
-        let border =
-            if extracted_uinode.node_type == NodeType::Rect {
-                if let Some(clip) = extracted_uinode.clip {
-                    let target = extracted_uinode.rect.intersect(clip);
-                    let target = Rect {
-                        min: extracted_uinode.transform.transform_point3(target.min.extend(0.)).truncate(),
-                        max: extracted_uinode.transform.transform_point3(target.max.extend(0.)).truncate(),
-                    };
-                    size = extracted_uinode.transform.transform_vector3(extracted_uinode.rect.size().extend(0.)).truncate();
-                    let c = extracted_uinode.transform.transform_point3(Vec3::ZERO).truncate();
-                    [
-                        target.min.x - c.x,
-                        target.min.y - c.y,
-                        target.max.x - c.x,
-                        target.max.y - c.y
-                    ]
-                } else {
-                    extracted_uinode.border
-                }
-            } else {
-                extracted_uinode.border
-            };
 
         for i in 0..4 {
-            let ui_vertex = UiVertex {
+            //let point: Vec2 = positions[i].xy() - extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
+            let point = positions_clipped[i].xy() -extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
+            let ui_vertex = UiVertex {                
                 position: positions_clipped[i].into(),
                 uv: uvs[i].into(),
+                point: point.into(),
                 color,
                 flags: flags | shader_flags::CORNERS[i],
                 radius: extracted_uinode.border_radius,
-                border,
+                border: extracted_uinode.border,
                 size: size.into(),
             };
             ui_meta.vertices.push(ui_vertex);
