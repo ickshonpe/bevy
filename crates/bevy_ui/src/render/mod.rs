@@ -212,6 +212,28 @@ fn resolve_border_radius(
 }
 
 #[inline]
+fn clamp_corner_radius(r: f32, size: Vec2, offset: Vec2) -> f32 {
+    let s = 0.5 * size + offset;
+    let sm = s.x.min(s.y);
+    return r.min(sm);
+}
+
+#[inline]
+fn clamp_corner_radii(
+    [top_left, top_right, bottom_right, bottom_left]: [f32; 4],
+    size: Vec2,
+    border: Vec4,
+) -> [f32; 4] {
+    let s = size - border.xy() - border.zw();
+    [
+        clamp_corner_radius(top_left, s, border.xy()),
+        clamp_corner_radius(top_right, s, border.zy()),
+        clamp_corner_radius(bottom_right, s, border.zw()),
+        clamp_corner_radius(bottom_left, s, border.xw()),
+    ]
+}
+
+#[inline]
 fn resolve_shadow_offset(
     x: Val,
     y: Val,
@@ -252,6 +274,7 @@ pub fn extract_uinodes(
             Option<&UiImage>,
             Option<&Handle<TextureAtlas>>,
             Option<&UiTextureAtlasImage>,
+            Option<&Parent>,
         )>,
     >,
     parent_node_query: Extract<Query<&Node, With<Parent>>>,
@@ -276,6 +299,7 @@ pub fn extract_uinodes(
             maybe_image,
             maybe_atlas,
             maybe_atlas_image,
+            parent
         )) = uinode_query.get(*entity)
         {
             if !visibility.is_visible() || uinode.size().x <= 0. || uinode.size().y <= 0. {
@@ -342,12 +366,28 @@ pub fn extract_uinodes(
 
             let transform = global_transform.compute_matrix();
 
+            let parent_width = parent
+                .and_then(|parent| parent_node_query.get(parent.get()).ok())
+                .map(|parent_node| parent_node.size().x)
+                .unwrap_or(viewport_size.x);
+            let left = resolve_border_thickness(style.border.left, parent_width, viewport_size);
+            let right = resolve_border_thickness(style.border.right, parent_width, viewport_size);
+            let top = resolve_border_thickness(style.border.top, parent_width, viewport_size);
+            let bottom = resolve_border_thickness(style.border.bottom, parent_width, viewport_size);
+
             let border_radius = resolve_border_radius(
                 &style.border_radius,
                 uinode.calculated_size,
                 viewport_size,
                 ui_scale.scale,
             );
+
+            let border = [left, top, right, bottom];
+           
+
+            let border_radius = clamp_corner_radii(border_radius, uinode.size(), border.into());
+
+            
 
             if let Some(shadow) = maybe_shadow {
                 let shadow_blur_radius = 10.;
@@ -455,12 +495,15 @@ pub fn extract_uinode_borders(
             let top = resolve_border_thickness(style.border.top, parent_width, viewport_size);
             let bottom = resolve_border_thickness(style.border.bottom, parent_width, viewport_size);            
 
+            let border = [left, top, right, bottom];
             let border_radius = resolve_border_radius(
                 &style.border_radius,
                 uinode.calculated_size,
                 viewport_size,
                 ui_scale.scale,
             );
+
+            let border_radius = clamp_corner_radii(border_radius, uinode.size(), border.into());
 
             let transform = global_transform.compute_matrix();
             extracted_uinodes.uinodes.push(ExtractedUiNode {
@@ -478,7 +521,7 @@ pub fn extract_uinode_borders(
                 flip_x: false,
                 flip_y: false,
                 border_radius,
-                border: [left, top, right, bottom],
+                border,
                 node_type: NodeType::Border,
             });
         }
@@ -729,6 +772,12 @@ pub fn prepare_uinodes(
 
         let rect_size = uinode_rect.size().extend(1.0);
 
+        let aa_radius = 3.;
+        if flags & shader_flags::TEXTURED == 0 {
+            uinode_rect.min -= aa_radius;
+            uinode_rect.max += aa_radius;
+        } 
+
         // Specify the corners of the node
         let positions = QUAD_VERTEX_POSITIONS
             .map(|pos| (extracted_uinode.transform * (pos * rect_size).extend(1.)).xyz());
@@ -825,11 +874,12 @@ pub fn prepare_uinodes(
             _ => {}
         }
 
-        let mut size: Vec2 = transformed_rect_size.xy().into();
+
+        let size: Vec2 = transformed_rect_size.xy().into();
 
         for i in 0..4 {
             //let point: Vec2 = positions[i].xy() - extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
-            let point = positions_clipped[i].xy() -extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
+            let point = positions_clipped[i].xy() - extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
             let ui_vertex = UiVertex {                
                 position: positions_clipped[i].into(),
                 uv: uvs[i].into(),

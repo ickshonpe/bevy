@@ -706,7 +706,7 @@ mod menu {
             width: Val::Px(200.0),
             height: Val::Px(65.0),
             margin: UiRect::all(Val::Px(20.0)),
-            border_radius: UiBorderRadius::max(),
+            border_radius: UiBorderRadius::MAX,
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
             ..default()

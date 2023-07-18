@@ -210,7 +210,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         return vec4(color.rgb, t * color.a);
     }
     
-    // The item is a rectangle, draw normally with anti-aliasing at the edges
-    let t = 1. - smoothstep(0.0, fexternal, external_distance);
+    // The item is a rectangle, draw normally with anti-aliasing at the edges if untextured
+    let t = 1. - select(smoothstep(0.0, fexternal, external_distance), step(0.0, external_distance), enabled(in.flags, TEXTURED));
     return vec4(color.rgb, t * color.a);
 }
