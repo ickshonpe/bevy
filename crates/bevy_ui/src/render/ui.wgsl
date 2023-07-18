@@ -89,8 +89,7 @@ fn sd_rounded_box(point: vec2<f32>, size: vec2<f32>, corner_radii: vec4<f32>) ->
     return l + m - radius;
 }
 
-#ifdef CLAMP_INNER_RADIUS
-fn sd_inset_rounded_box(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, inset: vec4<f32>) -> f32 {
+fn sd_inset_rounded_box_clamped_inner_radius(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, inset: vec4<f32>) -> f32 {
     let inner_size = size - inset.xy - inset.zw;
     let inner_center = inset.xy + 0.5 * inner_size - 0.5 *size;
     let inner_point = point - inner_center;
@@ -133,7 +132,7 @@ fn sd_inset_rounded_box(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, in
 
     return sd_rounded_box(inner_point, inner_size, r);
 }
-#else
+
 fn sd_inset_rounded_box(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, inset: vec4<f32>) -> f32 {
     let inner_size = size - inset.xy - inset.zw;
     let inner_center = inset.xy + 0.5 * inner_size - 0.5 *size;
@@ -160,8 +159,6 @@ fn sd_inset_rounded_box(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, in
 
     return sd_rounded_box(inner_point, inner_size, r);
 }
-#endif
-
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
