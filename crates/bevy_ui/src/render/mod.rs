@@ -254,7 +254,6 @@ fn resolve_shadow_offset(
         .into()
 }
 
-
 pub fn extract_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     windows: Extract<Query<&Window, With<PrimaryWindow>>>,
@@ -299,7 +298,7 @@ pub fn extract_uinodes(
             maybe_image,
             maybe_atlas,
             maybe_atlas_image,
-            parent
+            parent,
         )) = uinode_query.get(*entity)
         {
             if !visibility.is_visible() || uinode.size().x <= 0. || uinode.size().y <= 0. {
@@ -383,11 +382,8 @@ pub fn extract_uinodes(
             );
 
             let border = [left, top, right, bottom];
-           
 
             let border_radius = clamp_corner_radii(border_radius, uinode.size(), border.into());
-
-            
 
             if let Some(shadow) = maybe_shadow {
                 let shadow_blur_radius = 10.;
@@ -493,7 +489,7 @@ pub fn extract_uinode_borders(
             let left = resolve_border_thickness(style.border.left, parent_width, viewport_size);
             let right = resolve_border_thickness(style.border.right, parent_width, viewport_size);
             let top = resolve_border_thickness(style.border.top, parent_width, viewport_size);
-            let bottom = resolve_border_thickness(style.border.bottom, parent_width, viewport_size);            
+            let bottom = resolve_border_thickness(style.border.bottom, parent_width, viewport_size);
 
             let border = [left, top, right, bottom];
             let border_radius = resolve_border_radius(
@@ -776,7 +772,7 @@ pub fn prepare_uinodes(
         if flags & shader_flags::TEXTURED == 0 {
             uinode_rect.min -= aa_radius;
             uinode_rect.max += aa_radius;
-        } 
+        }
 
         // Specify the corners of the node
         let positions = QUAD_VERTEX_POSITIONS
@@ -874,13 +870,13 @@ pub fn prepare_uinodes(
             _ => {}
         }
 
-
         let size: Vec2 = transformed_rect_size.xy().into();
 
         for i in 0..4 {
             //let point: Vec2 = positions[i].xy() - extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
-            let point = positions_clipped[i].xy() - extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
-            let ui_vertex = UiVertex {                
+            let point = positions_clipped[i].xy()
+                - extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
+            let ui_vertex = UiVertex {
                 position: positions_clipped[i].into(),
                 uv: uvs[i].into(),
                 point: point.into(),
