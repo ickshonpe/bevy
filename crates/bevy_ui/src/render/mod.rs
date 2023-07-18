@@ -232,27 +232,6 @@ fn resolve_shadow_offset(
         .into()
 }
 
-#[inline]
-fn clamp_corner(r: f32, size: Vec2, offset: Vec2) -> f32 {
-    let s = 0.5 * size + offset;
-    let sm = s.x.min(s.y);
-    return r.min(sm);
-}
-
-#[inline]
-fn clamp_radius(
-    [top_left, top_right, bottom_right, bottom_left]: [f32; 4],
-    size: Vec2,
-    border: Vec4,
-) -> [f32; 4] {
-    let s = size - border.xy() - border.zw();
-    [
-        clamp_corner(top_left, s, border.xy()),
-        clamp_corner(top_right, s, border.zy()),
-        clamp_corner(bottom_right, s, border.zw()),
-        clamp_corner(bottom_left, s, border.xw()),
-    ]
-}
 
 pub fn extract_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
@@ -474,11 +453,7 @@ pub fn extract_uinode_borders(
             let left = resolve_border_thickness(style.border.left, parent_width, viewport_size);
             let right = resolve_border_thickness(style.border.right, parent_width, viewport_size);
             let top = resolve_border_thickness(style.border.top, parent_width, viewport_size);
-            let bottom = resolve_border_thickness(style.border.bottom, parent_width, viewport_size);
-
-            let border = [left, top, right, bottom];
-
-            let transform = global_transform.compute_matrix();
+            let bottom = resolve_border_thickness(style.border.bottom, parent_width, viewport_size);            
 
             let border_radius = resolve_border_radius(
                 &style.border_radius,
@@ -486,8 +461,6 @@ pub fn extract_uinode_borders(
                 viewport_size,
                 ui_scale.scale,
             );
-
-            let border_radius = clamp_radius(border_radius, uinode.size(), border.into());
 
             let transform = global_transform.compute_matrix();
             extracted_uinodes.uinodes.push(ExtractedUiNode {
@@ -504,12 +477,7 @@ pub fn extract_uinode_borders(
                 clip: clip.map(|clip| clip.clip),
                 flip_x: false,
                 flip_y: false,
-                border_radius: resolve_border_radius(
-                    &style.border_radius,
-                    uinode.calculated_size,
-                    viewport_size,
-                    ui_scale.scale,
-                ),
+                border_radius,
                 border: [left, top, right, bottom],
                 node_type: NodeType::Border,
             });

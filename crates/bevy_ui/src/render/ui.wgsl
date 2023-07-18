@@ -89,34 +89,7 @@ fn sd_rounded_box(point: vec2<f32>, size: vec2<f32>, corner_radii: vec4<f32>) ->
     return l + m - radius;
 }
 
-fn sd_inset_rounded_box(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, inset: vec4<f32>) -> f32 {
-    let inner_size = size - inset.xy - inset.zw;
-    let inner_center = inset.xy + 0.5 * inner_size - 0.5 *size;
-    let inner_point = point - inner_center;
-
-    var r = radius;
-
-    // top left corner
-    r.x = r.x - max(inset.x, inset.y);
-
-    // top right corner
-    r.y = r.y - max(inset.z, inset.y);
-
-    // bottom right corner
-    r.z = r.z - max(inset.z, inset.w); 
-
-    // bottom left corner
-    r.w = r.w - max(inset.x, inset.w);
-
-    let half_size = inner_size * 0.5;
-    let min = min(half_size.x, half_size.y);
-    
-    r = min(max(r, vec4(0.0)), vec4<f32>(min));
-
-    return sd_rounded_box(inner_point, inner_size, r);
-}
-
-#ifdef CLAMP_INNER_CURVES
+#ifdef CLAMP_INNER_RADIUS
 fn sd_inset_rounded_box(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, inset: vec4<f32>) -> f32 {
     let inner_size = size - inset.xy - inset.zw;
     let inner_center = inset.xy + 0.5 * inner_size - 0.5 *size;
@@ -160,113 +133,38 @@ fn sd_inset_rounded_box(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, in
 
     return sd_rounded_box(inner_point, inner_size, r);
 }
+#else
+fn sd_inset_rounded_box(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, inset: vec4<f32>) -> f32 {
+    let inner_size = size - inset.xy - inset.zw;
+    let inner_center = inset.xy + 0.5 * inner_size - 0.5 *size;
+    let inner_point = point - inner_center;
+
+    var r = radius;
+
+    // top left corner
+    r.x = r.x - max(inset.x, inset.y);
+
+    // top right corner
+    r.y = r.y - max(inset.z, inset.y);
+
+    // bottom right corner
+    r.z = r.z - max(inset.z, inset.w); 
+
+    // bottom left corner
+    r.w = r.w - max(inset.x, inset.w);
+
+    let half_size = inner_size * 0.5;
+    let min = min(half_size.x, half_size.y);
+    
+    r = min(max(r, vec4(0.0)), vec4<f32>(min));
+
+    return sd_rounded_box(inner_point, inner_size, r);
+}
 #endif
 
-const RED: vec4<f32> = vec4<f32>(1., 0., 0., 1.);
-const GREEN: vec4<f32> = vec4<f32>(0., 1., 0., 1.);
-const BLUE: vec4<f32> = vec4<f32>(0., 0., 1., 1.);
-const WHITE = vec4<f32>(1., 1., 1., 1.);
-const BLACK = vec4<f32>(0., 0., 0., 1.);
 
-// draw the border in white, rest of rect black
-fn draw_border(in: VertexOutput) -> vec4<f32> {
-    // Distance from external border. Positive values outside.
-    let external_distance = sd_rounded_box(in.point, in.size, in.radius);
-
-    // Distance from internal border. Positive values inside.
-    let internal_distance = sd_inset_rounded_box(in.point, in.size, in.radius, in.border);
-
-    // Distance from border, positive values inside border.
-    let border = max(-internal_distance, external_distance);
-
-    if border < 0.0 {
-        return WHITE;
-    } else {
-        return BLACK;
-    }
-}
-
-// draw just the interior in white, rest of rect black
-fn draw_interior(in: VertexOutput) -> vec4<f32> {
-    // Distance from external border. Positive values outside.
-    let external_distance = sd_rounded_box(in.point, in.size, in.radius);
-
-    // Distance from internal border. Positive values inside.
-   // let internal_distance = sd_inset_rounded_box(in.point, in.size, in.radius, in.border);
-
-    // Distance from border, positive values inside border.
-
-    if external_distance < 0.0 {
-        return WHITE;
-    } else {
-        return BLACK;
-    }
-}
-
-// Draw all the geometry
-fn draw_test(in: VertexOutput) -> vec4<f32> {
-    // Distance from external border. Negative inside
-    let external_distance = sd_rounded_box(in.point, in.size, in.radius);
-
-    // Distance from internal border.
-    let internal_distance = sd_inset_rounded_box(in.point, in.size, in.radius, in.border);
-
-    // Distance from border.
-    let border = max(-internal_distance, external_distance);
-
-    // Draw the area outside the border in green 
-    if 0.0 < external_distance {
-        return GREEN;
-    }
-
-    // Draw the area inside the border in white
-    if border < 0.0 {
-        return WHITE;
-    }
-
-    // draw the interior in blue
-    if internal_distance < 0.0 {
-        return BLUE;
-    }
-
-    // fill anything else with red (the presence of any red is a bug).
-    return RED;
-}
-
-fn draw_no_aa(in: VertexOutput) -> vec4<f32> {
-    let texture_color = textureSample(sprite_texture, sprite_sampler, in.uv);
-    let color = select(in.color, in.color * texture_color, enabled(in.flags, TEXTURED));
-
-    // negative value => point inside external border
-    let external_distance = sd_rounded_box(in.point, in.size, in.radius);
-    // negative value => point inside internal border
-    let internal_distance = sd_inset_rounded_box(in.point, in.size, in.radius, in.border);
-    // negative value => point inside border
-    let border = max(external_distance, -internal_distance);
-
-    if enabled(in.flags, BOX_SHADOW) {
-        // copied from kayak
-        var rect_dist = 1.0 - sigmoid(sd_rounded_box(in.point,in.size - in.border.x * 2.0, in.radius));
-        let color = in.color.rgb;
-        return vec4(color, in.color.a * rect_dist * 1.42);
-    }
-
-    if enabled(in.flags, BORDER) {
-        if border < 0.0 {
-            return color;
-        } else {
-            return vec4(0.0);
-        }
-    }
-
-    if external_distance < 0.0 {
-        return color;
-    }
-
-    return vec4(0.0);
-}
-
-fn draw(in: VertexOutput) -> vec4<f32> {
+@fragment
+fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let texture_color = textureSample(sprite_texture, sprite_sampler, in.uv);
 
     // Only use the color sampled from the texture if the TEXTURED flag is enabled. 
@@ -315,9 +213,4 @@ fn draw(in: VertexOutput) -> vec4<f32> {
     // The item is a rectangle, draw normally with anti-aliasing at the edges
     let t = 1. - smoothstep(0.0, fexternal, external_distance);
     return vec4(color.rgb, t * color.a);
-}
-
-@fragment
-fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    return draw(in);
 }
