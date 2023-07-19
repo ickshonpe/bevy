@@ -903,9 +903,6 @@ for extracted_uinode in extracted_uinodes.uinodes.drain(..) {
         let size: Vec2 = transformed_rect_size.xy().into();
 
         for i in 0..4 {
-            // //let point: Vec2 = positions[i].xy() - extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
-            // let point = positions_clipped[i].xy()
-            //     - extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
             let ui_vertex = UiVertex {
                 position: positions_clipped[i].into(),
                 uv: uvs[i].into(),
