@@ -75,8 +75,6 @@ impl SpecializedRenderPipeline for UiPipeline {
                 VertexFormat::Float32x3,
                 // uv
                 VertexFormat::Float32x2,
-                // point
-                VertexFormat::Float32x2,
                 // color
                 VertexFormat::Float32x4,
                 // mode

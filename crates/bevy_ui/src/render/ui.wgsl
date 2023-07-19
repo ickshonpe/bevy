@@ -31,17 +31,16 @@ struct VertexOutput {
 fn vertex(
     @location(0) vertex_position: vec3<f32>,
     @location(1) vertex_uv: vec2<f32>,
-    @location(2) point: vec2<f32>,
-    @location(3) vertex_color: vec4<f32>,
-    @location(4) flags: u32,
+    @location(2) vertex_color: vec4<f32>,
+    @location(3) flags: u32,
 
     // radius.x = top left radius, .y = top right, .z = bottom right, .w = bottom left
-    @location(5) radius: vec4<f32>,
+    @location(4) radius: vec4<f32>,
 
     // border.x = left width, .y = top, .z = right, .w = bottom
-    @location(6) border: vec4<f32>,
+    @location(5) border: vec4<f32>,
 
-    @location(7) size: vec2<f32>,
+    @location(6) size: vec2<f32>,
 ) -> VertexOutput {
     var out: VertexOutput;
     out.uv = vertex_uv;
@@ -50,7 +49,7 @@ fn vertex(
     out.flags = flags;
     out.radius = radius;
     out.size = size;
-    out.point = point;
+    out.point = (vertex_uv - 0.5) * size;
     out.border = border;
 
     return out;
@@ -65,6 +64,42 @@ var sprite_sampler: sampler;
 fn sigmoid(t: f32) -> f32 {
     return 1.0 / (1.0 + exp(-t));
 }
+
+fn smooth_max(a: f32, b: f32, k: f32) -> f32 {
+    return -smooth_min(-a, -b, k);
+}
+
+fn smooth_min( a: f32, b: f32, k: f32) -> f32
+{
+    let h = max( k-abs(a-b), 0.0 )/k;
+    return min( a, b ) - h*h*k*(1.0/4.0);
+}
+
+fn smooth_min2(a: vec2<f32>, b: vec2<f32>, k: f32) -> vec2<f32>
+{
+    let h = max( k-abs(a-b), vec2(0.0) )/k;
+    return min( a, b ) - h*h*k*(1.0/4.0);
+}
+
+fn smooth_max2(a: vec2<f32>, b: vec2<f32>, k: f32) -> vec2<f32> {
+    return -smooth_min2(-a, -b, k);
+}
+
+fn smooth_min4(a: vec4<f32>, b: vec4<f32>, k: f32) -> vec4<f32>
+{
+    let h = max( k-abs(a-b), vec4(0.0) )/k;
+    return min( a, b ) - h*h*k*(1.0/4.0);
+}
+
+fn smooth_max4(a: vec4<f32>, b: vec4<f32>, k: f32) -> vec4<f32> {
+    return -smooth_min4(-a, -b, k);
+}
+
+fn smooth_intersection(d1: f32, d2: f32, k: f32) -> f32 {
+    let h = clamp( 0.5 - 0.5*(d2-d1)/k, 0.0, 1.0 );
+    return mix( d2, d1, h ) + k*h*(1.0-h); 
+}
+
 
 // The returned value is the shortest distance from the given point to the boundary of the rounded box.
 // Negative values indicate that the point is inside the rounded box, positive values that the point is outside, and zero is exactly on the boundary.
@@ -89,7 +124,7 @@ fn sd_rounded_box(point: vec2<f32>, size: vec2<f32>, corner_radii: vec4<f32>) ->
     return l + m - radius;
 }
 
-fn sd_inset_rounded_box_clamped_inner_radius(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, inset: vec4<f32>) -> f32 {
+fn sd_inset_rounded_box_clamped_inner_radius(point: vec2f, size: vec2<f32>, radius: vec4<f32>, inset: vec4<f32>) -> f32 {
     let inner_size = size - inset.xy - inset.zw;
     let inner_center = inset.xy + 0.5 * inner_size - 0.5 *size;
     let inner_point = point - inner_center;
