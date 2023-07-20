@@ -1,5 +1,6 @@
 mod pipeline;
 mod render_pass;
+pub mod sorted_nodes;
 
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
 use bevy_hierarchy::Parent;
@@ -41,6 +42,8 @@ use bevy_utils::FloatOrd;
 use bevy_utils::HashMap;
 use bytemuck::{Pod, Zeroable};
 use std::ops::Range;
+
+pub use sorted_nodes::ExtractedUiNodes;
 
 pub mod node {
     pub const UI_PASS_DRIVER: &str = "ui_pass_driver";
@@ -160,25 +163,6 @@ pub struct ExtractedUiNode {
     pub clip: Option<Rect>,
     pub flip_x: bool,
     pub flip_y: bool,
-}
-
-#[derive(Resource, Default)]
-pub struct ExtractedUiNodes {
-    pub uinodes: Vec<Vec<ExtractedUiNode>>,
-}
-
-impl ExtractedUiNodes {
-    /// Retrieves the next empty `ExtractedUiNode` buffer. If none exists, creates one before returning it.
-    pub fn next_buffer(&mut self) -> &mut Vec<ExtractedUiNode> {
-        let empty_index = self.uinodes.iter().position(|uinodes| uinodes.is_empty());
-        match empty_index {
-            Some(idx) => &mut self.uinodes[idx],
-            None => {
-                self.uinodes.push(vec![]);
-                self.uinodes.last_mut().unwrap()
-            }
-        }
-    }
 }
 
 pub fn extract_atlas_uinodes(
@@ -655,41 +639,7 @@ pub fn prepare_uinodes(
         image.id() != DEFAULT_IMAGE_HANDLE.id()
     }
 
-    let mut drains: Vec<_> = extracted_uinodes
-        .uinodes
-        .iter_mut()
-        .map(|uinodes| {
-            let mut d = uinodes.drain(..);
-            let first = d.next();
-            (first, d)
-        })
-        .collect();
-
-    let mut next_extracted_node = move || {
-        let mut min_stack_index = usize::MAX;
-        let mut n = usize::MAX;
-
-        for (i, (node, _)) in drains.iter_mut().enumerate() {
-            if let Some(node) = node {
-                if node.stack_index < min_stack_index {
-                    n = i;
-                    min_stack_index = node.stack_index;
-                }
-            }
-        }
-
-        if n == usize::MAX {
-            None
-        } else {
-            let (current, drain) = &mut drains[n];
-            let next = drain.next();
-            let out = current.take();
-            *current = next;
-            out
-        }
-    };
-
-    while let Some(extracted_uinode) = next_extracted_node() {
+    for extracted_uinode in extracted_uinodes.into_iter() {
         let mode = if is_textured(&extracted_uinode.image) {
             if current_batch_image.id() != extracted_uinode.image.id() {
                 if is_textured(&current_batch_image) && start != end {
