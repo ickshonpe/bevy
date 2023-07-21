@@ -41,7 +41,6 @@ use bevy_utils::FloatOrd;
 use bevy_utils::HashMap;
 use bytemuck::{Pod, Zeroable};
 use std::ops::Range;
-use std::vec::Drain;
 
 pub mod node {
     pub const UI_PASS_DRIVER: &str = "ui_pass_driver";
@@ -151,6 +150,7 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
     ui_graph
 }
 
+#[derive(Clone)]
 pub struct ExtractedUiNode {
     pub stack_index: usize,
     pub transform: Mat4,
@@ -165,66 +165,22 @@ pub struct ExtractedUiNode {
 
 #[derive(Resource, Default)]
 pub struct ExtractedUiNodes {
-    pub uinodes: Vec<Vec<ExtractedUiNode>>,
+    pub uinodes: Vec<Option<ExtractedUiNode>>,
 }
 
 impl ExtractedUiNodes {
-    /// Retrieves the next empty `ExtractedUiNode` buffer. If none exists, creates one before returning it.
-    pub fn next_buffer(&mut self) -> &mut Vec<ExtractedUiNode> {
-        let empty_index = self.uinodes.iter().position(|uinodes| uinodes.is_empty());
-        match empty_index {
-            Some(idx) => &mut self.uinodes[idx],
-            None => {
-                self.uinodes.push(vec![]);
-                self.uinodes.last_mut().unwrap()
-            }
+    /// Add `value` to the set of ui nodes to render.
+    pub fn set(&mut self, stack_size: usize, value: ExtractedUiNode) {
+        assert!(stack_size > value.stack_index);
+        if stack_size > self.uinodes.len() {
+            self.uinodes.resize(stack_size, None);
         }
+        let index = value.stack_index;
+        self.uinodes[index] = Some(value);
     }
-
-    fn drain<'a>(&'a mut self) -> ExtractedUiNodesDrainingIterator<'a> {
-        let mut drains: Vec<_> = self
-            .uinodes
-            .iter_mut()
-            .map(|uinodes| uinodes.drain(..))
-            .collect();
-        let next_uinodes = drains.iter_mut().map(|uinodes| uinodes.next()).collect();
-        ExtractedUiNodesDrainingIterator {
-            next_uinodes,
-            uinodes: drains,
-        }
-    }
-}
-
-struct ExtractedUiNodesDrainingIterator<'a> {
-    next_uinodes: Vec<Option<ExtractedUiNode>>,
-    uinodes: Vec<Drain<'a, ExtractedUiNode>>,
-}
-
-impl<'a> Iterator for ExtractedUiNodesDrainingIterator<'a> {
-    type Item = ExtractedUiNode;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut min_stack_index = usize::MAX;
-        let mut n = usize::MAX;
-        for (i, node) in self.next_uinodes.iter().enumerate() {
-            if let Some(node) = node {
-                if node.stack_index < min_stack_index {
-                    n = i;
-                    min_stack_index = node.stack_index;
-                }
-            }
-        }
-
-        if n == usize::MAX {
-            None
-        } else {
-            let drain = &mut self.uinodes[n];
-            let current = &mut self.next_uinodes[n];
-            let next = drain.next();
-            let out = current.take();
-            *current = next;
-            out
-        }
+    /// Remove all ui nodes from the set of nodes to render for next frame.
+    pub fn reset(&mut self) {
+        self.uinodes.fill(None)
     }
 }
 
@@ -248,7 +204,6 @@ pub fn extract_atlas_uinodes(
         >,
     >,
 ) {
-    let output_buffer = extracted_uinodes.next_buffer();
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, transform, color, visibility, clip, texture_atlas_handle, atlas_image)) =
             uinode_query.get(*entity)
@@ -290,17 +245,20 @@ pub fn extract_atlas_uinodes(
             atlas_rect.max *= scale;
             atlas_size *= scale;
 
-            output_buffer.push(ExtractedUiNode {
-                stack_index,
-                transform: transform.compute_matrix(),
-                color: color.0,
-                rect: atlas_rect,
-                clip: clip.map(|clip| clip.clip),
-                image,
-                atlas_size: Some(atlas_size),
-                flip_x: atlas_image.flip_x,
-                flip_y: atlas_image.flip_y,
-            });
+            extracted_uinodes.set(
+                ui_stack.uinodes.len(),
+                ExtractedUiNode {
+                    stack_index,
+                    transform: transform.compute_matrix(),
+                    color: color.0,
+                    rect: atlas_rect,
+                    clip: clip.map(|clip| clip.clip),
+                    image,
+                    atlas_size: Some(atlas_size),
+                    flip_x: atlas_image.flip_x,
+                    flip_y: atlas_image.flip_y,
+                },
+            );
         }
     }
 }
@@ -338,7 +296,6 @@ pub fn extract_uinode_borders(
     >,
     parent_node_query: Extract<Query<&Node, With<Parent>>>,
 ) {
-    let output_buffer = extracted_uinodes.next_buffer();
     let image = bevy_render::texture::DEFAULT_IMAGE_HANDLE.typed();
 
     let ui_logical_viewport_size = windows
@@ -416,21 +373,24 @@ pub fn extract_uinode_borders(
 
             for edge in border_rects {
                 if edge.min.x < edge.max.x && edge.min.y < edge.max.y {
-                    output_buffer.push(ExtractedUiNode {
-                        stack_index,
-                        // This translates the uinode's transform to the center of the current border rectangle
-                        transform: transform * Mat4::from_translation(edge.center().extend(0.)),
-                        color: border_color.0,
-                        rect: Rect {
-                            max: edge.size(),
-                            ..Default::default()
+                    extracted_uinodes.set(
+                        ui_stack.uinodes.len(),
+                        ExtractedUiNode {
+                            stack_index,
+                            // This translates the uinode's transform to the center of the current border rectangle
+                            transform: transform * Mat4::from_translation(edge.center().extend(0.)),
+                            color: border_color.0,
+                            rect: Rect {
+                                max: edge.size(),
+                                ..Default::default()
+                            },
+                            image: image.clone_weak(),
+                            atlas_size: None,
+                            clip: clip.map(|clip| clip.clip),
+                            flip_x: false,
+                            flip_y: false,
                         },
-                        image: image.clone_weak(),
-                        atlas_size: None,
-                        clip: clip.map(|clip| clip.clip),
-                        flip_x: false,
-                        flip_y: false,
-                    });
+                    );
                 }
             }
         }
@@ -455,7 +415,6 @@ pub fn extract_uinodes(
         >,
     >,
 ) {
-    let output_buffer = extracted_uinodes.next_buffer();
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, transform, color, maybe_image, visibility, clip)) =
             uinode_query.get(*entity)
@@ -475,20 +434,23 @@ pub fn extract_uinodes(
                 (DEFAULT_IMAGE_HANDLE.typed(), false, false)
             };
 
-            output_buffer.push(ExtractedUiNode {
-                stack_index,
-                transform: transform.compute_matrix(),
-                color: color.0,
-                rect: Rect {
-                    min: Vec2::ZERO,
-                    max: uinode.calculated_size,
+            extracted_uinodes.set(
+                ui_stack.uinodes.len(),
+                ExtractedUiNode {
+                    stack_index,
+                    transform: transform.compute_matrix(),
+                    color: color.0,
+                    rect: Rect {
+                        min: Vec2::ZERO,
+                        max: uinode.calculated_size,
+                    },
+                    clip: clip.map(|clip| clip.clip),
+                    image,
+                    atlas_size: None,
+                    flip_x,
+                    flip_y,
                 },
-                clip: clip.map(|clip| clip.clip),
-                image,
-                atlas_size: None,
-                flip_x,
-                flip_y,
-            });
+            );
         };
     }
 }
@@ -584,7 +546,6 @@ pub fn extract_text_uinodes(
         )>,
     >,
 ) {
-    let output_buffer = extracted_uinodes.next_buffer();
     // TODO: Support window-independent UI scale: https://github.com/bevyengine/bevy/issues/5621
     let scale_factor = windows
         .get_single()
@@ -623,18 +584,21 @@ pub fn extract_text_uinodes(
                 let mut rect = atlas.textures[atlas_info.glyph_index];
                 rect.min *= inverse_scale_factor;
                 rect.max *= inverse_scale_factor;
-                output_buffer.push(ExtractedUiNode {
-                    stack_index,
-                    transform: transform
-                        * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
-                    color,
-                    rect,
-                    image: atlas.texture.clone_weak(),
-                    atlas_size: Some(atlas.size * inverse_scale_factor),
-                    clip: clip.map(|clip| clip.clip),
-                    flip_x: false,
-                    flip_y: false,
-                });
+                extracted_uinodes.set(
+                    ui_stack.uinodes.len(),
+                    ExtractedUiNode {
+                        stack_index,
+                        transform: transform
+                            * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
+                        color,
+                        rect,
+                        image: atlas.texture.clone_weak(),
+                        atlas_size: Some(atlas.size * inverse_scale_factor),
+                        clip: clip.map(|clip| clip.clip),
+                        flip_x: false,
+                        flip_y: false,
+                    },
+                );
             }
         }
     }
@@ -702,7 +666,7 @@ pub fn prepare_uinodes(
         image.id() != DEFAULT_IMAGE_HANDLE.id()
     }
 
-    for extracted_uinode in extracted_uinodes.drain() {
+    for extracted_uinode in extracted_uinodes.uinodes.iter().flatten() {
         let mode = if is_textured(&extracted_uinode.image) {
             if current_batch_image.id() != extracted_uinode.image.id() {
                 if is_textured(&current_batch_image) && start != end {
@@ -830,6 +794,7 @@ pub fn prepare_uinodes(
         last_z = extracted_uinode.transform.w_axis[2];
         end += QUAD_INDICES.len() as u32;
     }
+    extracted_uinodes.reset();
 
     // if start != end, there is one last batch to process
     if start != end {
