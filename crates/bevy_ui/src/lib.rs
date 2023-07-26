@@ -160,10 +160,6 @@ impl Plugin for UiPlugin {
         });
         app.add_systems(
             PostUpdate,
-            widget::update_atlas_content_size_system.before(UiSystem::Layout),
-        );
-        app.add_systems(
-            PostUpdate,
             (
                 ui_layout_system
                     .in_set(UiSystem::Layout)

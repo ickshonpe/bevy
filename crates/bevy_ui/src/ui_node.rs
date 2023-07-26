@@ -7,6 +7,7 @@ use bevy_render::{
     color::Color,
     texture::{Image, DEFAULT_IMAGE_HANDLE},
 };
+use bevy_sprite::TextureAtlas;
 use bevy_transform::prelude::GlobalTransform;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -1605,18 +1606,38 @@ impl Default for BorderColor {
 #[derive(Component, Clone, Debug, Reflect)]
 #[reflect(Component, Default)]
 pub struct UiImage {
-    /// Handle to the texture
-    pub texture: Handle<Image>,
+    /// The texture to be rendered
+    pub texture: UiImageSource,
     /// Whether the image should be flipped along its x-axis
     pub flip_x: bool,
     /// Whether the image should be flipped along its y-axis
     pub flip_y: bool,
 }
 
+#[derive(Clone, Debug, Reflect)]
+pub enum UiImageSource {
+    TextureAtlas {
+        texture_atlas: Handle<TextureAtlas>,
+        index: usize,
+    },
+    Texture {
+        image: Handle<Image>,
+    },
+}
+
+impl From<Handle<Image>> for UiImage {
+    fn from(image: Handle<Image>) -> Self {
+        Self {
+            texture: UiImageSource::Texture { image },
+            ..Default::default()
+        }
+    }
+}
+
 impl Default for UiImage {
     fn default() -> UiImage {
         UiImage {
-            texture: DEFAULT_IMAGE_HANDLE.typed(),
+            texture: UiImageSource::Texture { image: DEFAULT_IMAGE_HANDLE.typed().into() },
             flip_x: false,
             flip_y: false,
         }
@@ -1625,10 +1646,7 @@ impl Default for UiImage {
 
 impl UiImage {
     pub fn new(texture: Handle<Image>) -> Self {
-        Self {
-            texture,
-            ..Default::default()
-        }
+        texture.into()
     }
 
     /// flip the image along its x-axis
@@ -1643,12 +1661,6 @@ impl UiImage {
     pub const fn with_flip_y(mut self) -> Self {
         self.flip_y = true;
         self
-    }
-}
-
-impl From<Handle<Image>> for UiImage {
-    fn from(texture: Handle<Image>) -> Self {
-        Self::new(texture)
     }
 }
 
