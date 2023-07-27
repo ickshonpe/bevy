@@ -9,11 +9,11 @@ use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
 pub use render_pass::*;
 
-use crate::{UiStackIndex, UiStack};
 use crate::{
     prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ContentSize, Node,
     Style, UiImage, UiScale, UiTextureAtlasImage, Val,
 };
+use crate::{UiStack, UiStackIndex};
 
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
@@ -174,7 +174,7 @@ struct ExtractedSpan {
 impl ExtractedSpan {
     #[inline]
     pub fn range(&self) -> Range<usize> {
-        self.range.start as usize .. self.range.end as usize
+        self.range.start as usize..self.range.end as usize
     }
 }
 
@@ -251,21 +251,16 @@ pub fn extract_atlas_uinodes(
         atlas_rect.max *= scale;
         atlas_size *= scale;
 
-
-
-            extracted_uinodes.uinodes[stack_index.0 as usize] = Some(
-                ExtractedUiNode {
-                    transform: transform.compute_matrix(),
-                    color: color.0,
-                    rect: atlas_rect,
-                    clip: clip.map(|clip| clip.clip),
-                    image,
-                    atlas_size: Some(atlas_size),
-                    flip_x: atlas_image.flip_x,
-                    flip_y: atlas_image.flip_y,
-                },
-            );
-
+        extracted_uinodes.uinodes[stack_index.0 as usize] = Some(ExtractedUiNode {
+            transform: transform.compute_matrix(),
+            color: color.0,
+            rect: atlas_rect,
+            clip: clip.map(|clip| clip.clip),
+            image,
+            atlas_size: Some(atlas_size),
+            flip_x: atlas_image.flip_x,
+            flip_y: atlas_image.flip_y,
+        });
     }
 }
 
@@ -368,31 +363,28 @@ pub fn extract_uinode_borders(
             },
         ];
 
-            let transform = global_transform.compute_matrix();
+        let transform = global_transform.compute_matrix();
 
-            for edge in border_rects {
-                if edge.min.x < edge.max.x && edge.min.y < edge.max.y {
-                    extracted_uinodes.uinodes[stack_index.0 as usize] = Some(
-                        ExtractedUiNode {
-                            // This translates the uinode's transform to the center of the current border rectangle
-                            transform: transform * Mat4::from_translation(edge.center().extend(0.)),
-                            color: border_color.0,
-                            rect: Rect {
-                                max: edge.size(),
-                                ..Default::default()
-                            },
-                            image: image.clone_weak(),
-                            atlas_size: None,
-                            clip: clip.map(|clip| clip.clip),
-                            flip_x: false,
-                            flip_y: false,
-                        },
-                    );
-                }
+        for edge in border_rects {
+            if edge.min.x < edge.max.x && edge.min.y < edge.max.y {
+                extracted_uinodes.uinodes[stack_index.0 as usize] = Some(ExtractedUiNode {
+                    // This translates the uinode's transform to the center of the current border rectangle
+                    transform: transform * Mat4::from_translation(edge.center().extend(0.)),
+                    color: border_color.0,
+                    rect: Rect {
+                        max: edge.size(),
+                        ..Default::default()
+                    },
+                    image: image.clone_weak(),
+                    atlas_size: None,
+                    clip: clip.map(|clip| clip.clip),
+                    flip_x: false,
+                    flip_y: false,
+                });
             }
         }
     }
-
+}
 
 pub fn extract_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
@@ -413,7 +405,9 @@ pub fn extract_uinodes(
         >,
     >,
 ) {
-    extracted_uinodes.uinodes.resize(ui_stack.uinodes.len(), None);
+    extracted_uinodes
+        .uinodes
+        .resize(ui_stack.uinodes.len(), None);
     for (stack_index, uinode, transform, color, maybe_image, visibility, clip) in
         uinode_query.iter()
     {
@@ -432,23 +426,19 @@ pub fn extract_uinodes(
             (DEFAULT_IMAGE_HANDLE.typed(), false, false)
         };
 
-
-            extracted_uinodes.uinodes[stack_index.0 as usize] = Some(                
-                ExtractedUiNode {
-                    transform: transform.compute_matrix(),
-                    color: color.0,
-                    rect: Rect {
-                        min: Vec2::ZERO,
-                        max: uinode.calculated_size,
-                    },
-                    clip: clip.map(|clip| clip.clip),
-                    image,
-                    atlas_size: None,
-                    flip_x,
-                    flip_y,
-                },
-            );
-
+        extracted_uinodes.uinodes[stack_index.0 as usize] = Some(ExtractedUiNode {
+            transform: transform.compute_matrix(),
+            color: color.0,
+            rect: Rect {
+                min: Vec2::ZERO,
+                max: uinode.calculated_size,
+            },
+            clip: clip.map(|clip| clip.clip),
+            image,
+            atlas_size: None,
+            flip_x,
+            flip_y,
+        });
     }
 }
 
@@ -580,19 +570,17 @@ pub fn extract_text_uinodes(
                 let mut rect = atlas.textures[atlas_info.glyph_index];
                 rect.min *= inverse_scale_factor;
                 rect.max *= inverse_scale_factor;
-                extracted_uinodes.uinodes[stack_index.0 as usize] = Some(
-                    ExtractedUiNode {
-                        transform: transform
-                            * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
-                        color,
-                        rect,
-                        image: atlas.texture.clone_weak(),
-                        atlas_size: Some(atlas.size * inverse_scale_factor),
-                        clip: clip.map(|clip| clip.clip),
-                        flip_x: false,
-                        flip_y: false,
-                    },
-                );
+                extracted_uinodes.uinodes[stack_index.0 as usize] = Some(ExtractedUiNode {
+                    transform: transform
+                        * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
+                    color,
+                    rect,
+                    image: atlas.texture.clone_weak(),
+                    atlas_size: Some(atlas.size * inverse_scale_factor),
+                    clip: clip.map(|clip| clip.clip),
+                    flip_x: false,
+                    flip_y: false,
+                });
             }
         }
     }
@@ -740,58 +728,57 @@ pub fn prepare_uinodes(
                 continue;
             }
         }
-            let uvs = if mode == UNTEXTURED_QUAD {
-                [Vec2::ZERO, Vec2::X, Vec2::ONE, Vec2::Y]
-            } else {
-                let atlas_extent = extracted_uinode.atlas_size.unwrap_or(uinode_rect.max);
-                if extracted_uinode.flip_x {
-                    std::mem::swap(&mut uinode_rect.max.x, &mut uinode_rect.min.x);
-                    positions_diff[0].x *= -1.;
-                    positions_diff[1].x *= -1.;
-                    positions_diff[2].x *= -1.;
-                    positions_diff[3].x *= -1.;
-                }
-                if extracted_uinode.flip_y {
-                    std::mem::swap(&mut uinode_rect.max.y, &mut uinode_rect.min.y);
-                    positions_diff[0].y *= -1.;
-                    positions_diff[1].y *= -1.;
-                    positions_diff[2].y *= -1.;
-                    positions_diff[3].y *= -1.;
-                }
-                [
-                    Vec2::new(
-                        uinode_rect.min.x + positions_diff[0].x,
-                        uinode_rect.min.y + positions_diff[0].y,
-                    ),
-                    Vec2::new(
-                        uinode_rect.max.x + positions_diff[1].x,
-                        uinode_rect.min.y + positions_diff[1].y,
-                    ),
-                    Vec2::new(
-                        uinode_rect.max.x + positions_diff[2].x,
-                        uinode_rect.max.y + positions_diff[2].y,
-                    ),
-                    Vec2::new(
-                        uinode_rect.min.x + positions_diff[3].x,
-                        uinode_rect.max.y + positions_diff[3].y,
-                    ),
-                ]
-                .map(|pos| pos / atlas_extent)
-            };
-
-            let color = extracted_uinode.color.as_linear_rgba_f32();
-            for i in QUAD_INDICES {
-                ui_meta.vertices.push(UiVertex {
-                    position: positions_clipped[i].into(),
-                    uv: uvs[i].into(),
-                    color,
-                    mode,
-                });
+        let uvs = if mode == UNTEXTURED_QUAD {
+            [Vec2::ZERO, Vec2::X, Vec2::ONE, Vec2::Y]
+        } else {
+            let atlas_extent = extracted_uinode.atlas_size.unwrap_or(uinode_rect.max);
+            if extracted_uinode.flip_x {
+                std::mem::swap(&mut uinode_rect.max.x, &mut uinode_rect.min.x);
+                positions_diff[0].x *= -1.;
+                positions_diff[1].x *= -1.;
+                positions_diff[2].x *= -1.;
+                positions_diff[3].x *= -1.;
             }
+            if extracted_uinode.flip_y {
+                std::mem::swap(&mut uinode_rect.max.y, &mut uinode_rect.min.y);
+                positions_diff[0].y *= -1.;
+                positions_diff[1].y *= -1.;
+                positions_diff[2].y *= -1.;
+                positions_diff[3].y *= -1.;
+            }
+            [
+                Vec2::new(
+                    uinode_rect.min.x + positions_diff[0].x,
+                    uinode_rect.min.y + positions_diff[0].y,
+                ),
+                Vec2::new(
+                    uinode_rect.max.x + positions_diff[1].x,
+                    uinode_rect.min.y + positions_diff[1].y,
+                ),
+                Vec2::new(
+                    uinode_rect.max.x + positions_diff[2].x,
+                    uinode_rect.max.y + positions_diff[2].y,
+                ),
+                Vec2::new(
+                    uinode_rect.min.x + positions_diff[3].x,
+                    uinode_rect.max.y + positions_diff[3].y,
+                ),
+            ]
+            .map(|pos| pos / atlas_extent)
+        };
 
-            last_z = extracted_uinode.transform.w_axis[2];
-            end += QUAD_INDICES.len() as u32;
-        
+        let color = extracted_uinode.color.as_linear_rgba_f32();
+        for i in QUAD_INDICES {
+            ui_meta.vertices.push(UiVertex {
+                position: positions_clipped[i].into(),
+                uv: uvs[i].into(),
+                color,
+                mode,
+            });
+        }
+
+        last_z = extracted_uinode.transform.w_axis[2];
+        end += QUAD_INDICES.len() as u32;
     }
 
     // if start != end, there is one last batch to process
@@ -804,7 +791,6 @@ pub fn prepare_uinodes(
     }
 
     ui_meta.vertices.write_buffer(&render_device, &render_queue);
-
 }
 
 #[derive(Resource, Default)]
