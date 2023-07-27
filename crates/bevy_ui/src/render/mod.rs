@@ -9,7 +9,7 @@ use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
 pub use render_pass::*;
 
-use crate::UiStackIndex;
+use crate::{UiStackIndex, UiStack};
 use crate::{
     prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ContentSize, Node,
     Style, UiImage, UiScale, UiTextureAtlasImage, Val,
@@ -372,7 +372,7 @@ pub fn extract_uinode_borders(
 
             for edge in border_rects {
                 if edge.min.x < edge.max.x && edge.min.y < edge.max.y {
-                    extracted_uinodes.uinodes[stack_index] = Some(
+                    extracted_uinodes.uinodes[stack_index.0 as usize] = Some(
                         ExtractedUiNode {
                             // This translates the uinode's transform to the center of the current border rectangle
                             transform: transform * Mat4::from_translation(edge.center().extend(0.)),
@@ -397,6 +397,7 @@ pub fn extract_uinode_borders(
 pub fn extract_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     images: Extract<Res<Assets<Image>>>,
+    ui_stack: Extract<Res<UiStack>>,
     uinode_query: Extract<
         Query<
             (
@@ -432,7 +433,7 @@ pub fn extract_uinodes(
         };
 
 
-            extracted_uinodes.uinodes[stack_index] = Some(                
+            extracted_uinodes.uinodes[stack_index.0 as usize] = Some(                
                 ExtractedUiNode {
                     transform: transform.compute_matrix(),
                     color: color.0,
@@ -579,7 +580,7 @@ pub fn extract_text_uinodes(
                 let mut rect = atlas.textures[atlas_info.glyph_index];
                 rect.min *= inverse_scale_factor;
                 rect.max *= inverse_scale_factor;
-                extracted_uinodes.uinodes[stack_index] = Some(
+                extracted_uinodes.uinodes[stack_index.0 as usize] = Some(
                     ExtractedUiNode {
                         transform: transform
                             * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
@@ -594,43 +595,6 @@ pub fn extract_text_uinodes(
                 );
             }
         }
-        let transform = global_transform.compute_matrix()
-            * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
-
-        let mut color = Color::WHITE;
-        let mut current_section = usize::MAX;
-        extracted_uinodes.push_nodes(
-            stack_index.0,
-            text_layout_info.glyphs.iter().map(
-                |PositionedGlyph {
-                     position,
-                     atlas_info,
-                     section_index,
-                     ..
-                 }| {
-                    if *section_index != current_section {
-                        color = text.sections[*section_index].style.color.as_rgba_linear();
-                        current_section = *section_index;
-                    }
-                    let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
-
-                    let mut rect = atlas.textures[atlas_info.glyph_index];
-                    rect.min *= inverse_scale_factor;
-                    rect.max *= inverse_scale_factor;
-                    ExtractedUiNode {
-                        transform: transform
-                            * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
-                        color,
-                        rect,
-                        image: atlas.texture.clone_weak(),
-                        atlas_size: Some(atlas.size * inverse_scale_factor),
-                        clip: clip.map(|clip| clip.clip),
-                        flip_x: false,
-                        flip_y: false,
-                    }
-                },
-            ),
-        );
     }
 }
 
@@ -841,7 +805,6 @@ pub fn prepare_uinodes(
 
     ui_meta.vertices.write_buffer(&render_device, &render_queue);
 
-    extracted_uinodes.clear();
 }
 
 #[derive(Resource, Default)]
