@@ -168,21 +168,13 @@ pub struct ExtractedUiNodes {
     pub uinodes: Vec<Option<ExtractedUiNode>>,
 }
 
-impl ExtractedUiNodes {
-    /// Add `value` to the set of ui nodes to render.
-    pub fn set(&mut self, stack_size: usize, value: ExtractedUiNode) {
-        assert!(stack_size > value.stack_index);
-        if stack_size > self.uinodes.len() {
-            self.uinodes.resize(stack_size, None);
-        }
-        let index = value.stack_index;
-        self.uinodes[index] = Some(value);
-    }
-    /// Remove all ui nodes from the set of nodes to render for next frame.
-    pub fn reset(&mut self) {
-        self.uinodes.fill(None)
-    }
-}
+// impl ExtractedUiNodes {
+//     /// Add `value` to the set of ui nodes to render.
+//     pub fn set(&mut self, stack_size: usize, value: ExtractedUiNode) {
+//         let index = value.stack_index;
+//         self.uinodes[index] = Some(value);
+//     }
+// }
 
 pub fn extract_atlas_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
@@ -204,6 +196,7 @@ pub fn extract_atlas_uinodes(
         >,
     >,
 ) {
+    
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, transform, color, visibility, clip, texture_atlas_handle, atlas_image)) =
             uinode_query.get(*entity)
@@ -245,8 +238,7 @@ pub fn extract_atlas_uinodes(
             atlas_rect.max *= scale;
             atlas_size *= scale;
 
-            extracted_uinodes.set(
-                ui_stack.uinodes.len(),
+            extracted_uinodes.uinodes[stack_index] = Some(
                 ExtractedUiNode {
                     stack_index,
                     transform: transform.compute_matrix(),
@@ -373,8 +365,7 @@ pub fn extract_uinode_borders(
 
             for edge in border_rects {
                 if edge.min.x < edge.max.x && edge.min.y < edge.max.y {
-                    extracted_uinodes.set(
-                        ui_stack.uinodes.len(),
+                    extracted_uinodes.uinodes[stack_index] = Some(
                         ExtractedUiNode {
                             stack_index,
                             // This translates the uinode's transform to the center of the current border rectangle
@@ -415,6 +406,7 @@ pub fn extract_uinodes(
         >,
     >,
 ) {
+    extracted_uinodes.uinodes.resize(ui_stack.uinodes.len(), None);
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, transform, color, maybe_image, visibility, clip)) =
             uinode_query.get(*entity)
@@ -434,8 +426,7 @@ pub fn extract_uinodes(
                 (DEFAULT_IMAGE_HANDLE.typed(), false, false)
             };
 
-            extracted_uinodes.set(
-                ui_stack.uinodes.len(),
+            extracted_uinodes.uinodes[stack_index] = Some(                
                 ExtractedUiNode {
                     stack_index,
                     transform: transform.compute_matrix(),
@@ -584,8 +575,7 @@ pub fn extract_text_uinodes(
                 let mut rect = atlas.textures[atlas_info.glyph_index];
                 rect.min *= inverse_scale_factor;
                 rect.max *= inverse_scale_factor;
-                extracted_uinodes.set(
-                    ui_stack.uinodes.len(),
+                extracted_uinodes.uinodes[stack_index] = Some(
                     ExtractedUiNode {
                         stack_index,
                         transform: transform
@@ -666,7 +656,10 @@ pub fn prepare_uinodes(
         image.id() != DEFAULT_IMAGE_HANDLE.id()
     }
 
-    for extracted_uinode in extracted_uinodes.uinodes.iter().flatten() {
+    for extracted_uinode in extracted_uinodes.uinodes.iter_mut() {
+        let Some(extracted_uinode) = extracted_uinode.take() else {
+            continue;
+        };
         let mode = if is_textured(&extracted_uinode.image) {
             if current_batch_image.id() != extracted_uinode.image.id() {
                 if is_textured(&current_batch_image) && start != end {
@@ -794,7 +787,6 @@ pub fn prepare_uinodes(
         last_z = extracted_uinode.transform.w_axis[2];
         end += QUAD_INDICES.len() as u32;
     }
-    extracted_uinodes.reset();
 
     // if start != end, there is one last batch to process
     if start != end {
