@@ -15,7 +15,10 @@ use bevy_utils::tracing::Instrument;
 use fixedbitset::FixedBitSet;
 use std::{borrow::Borrow, fmt, mem::MaybeUninit};
 
-use super::{NopWorldQuery, QueryManyIter, ROQueryItem, ReadOnlyWorldQuery, iter_enumerated::QueryManyEnumeratedIter};
+use super::{
+    iter_enumerated::QueryManyEnumeratedIter, NopWorldQuery, QueryManyIter, ROQueryItem,
+    ReadOnlyWorldQuery,
+};
 
 /// Provides scoped access to a [`World`] state according to a given [`WorldQuery`] and query filter.
 #[repr(C)]
@@ -858,7 +861,7 @@ impl<Q: WorldQuery, F: ReadOnlyWorldQuery> QueryState<Q, F> {
         QueryManyIter::new(world, self, entities, last_run, this_run)
     }
 
-     /// Returns an [`Iterator`] for the given [`World`] and list of [`Entity`]'s, where the last change and
+    /// Returns an [`Iterator`] for the given [`World`] and list of [`Entity`]'s, where the last change and
     /// the current change tick are given.
     ///
     /// # Safety

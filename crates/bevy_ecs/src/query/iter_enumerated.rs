@@ -25,7 +25,8 @@ where
     index: usize,
 }
 
-impl<'w, 's, Q: WorldQuery, F: ReadOnlyWorldQuery, I: Iterator> QueryManyEnumeratedIter<'w, 's, Q, F, I>
+impl<'w, 's, Q: WorldQuery, F: ReadOnlyWorldQuery, I: Iterator>
+    QueryManyEnumeratedIter<'w, 's, Q, F, I>
 where
     I::Item: Borrow<Entity>,
 {
@@ -106,7 +107,10 @@ where
             // `location.archetype_row` is an archetype index row in range of the current archetype, because if it was not, the match above would have `continue`d
             if F::filter_fetch(&mut self.filter, entity, location.table_row) {
                 // SAFETY: set_archetype was called prior, `location.archetype_row` is an archetype index in range of the current archetype
-                return Some((self.index - 1, Q::fetch(&mut self.fetch, entity, location.table_row)));
+                return Some((
+                    self.index - 1,
+                    Q::fetch(&mut self.fetch, entity, location.table_row),
+                ));
             }
         }
         None
@@ -118,7 +122,10 @@ where
         // SAFETY: we are limiting the returned reference to self,
         // making sure this method cannot be called multiple times without getting rid
         // of any previously returned unique references first, thus preventing aliasing.
-        unsafe { self.fetch_next_aliased_unchecked().map(|(index, item)|(index, Q::shrink(item))) }
+        unsafe {
+            self.fetch_next_aliased_unchecked()
+                .map(|(index, item)| (index, Q::shrink(item)))
+        }
     }
 }
 
