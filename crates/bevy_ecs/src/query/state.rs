@@ -16,7 +16,7 @@ use fixedbitset::FixedBitSet;
 use std::{borrow::Borrow, fmt, mem::MaybeUninit};
 
 use super::{
-    iter_enumerated::QueryManyEnumeratedIter, NopWorldQuery, QueryManyIter, ROQueryItem,
+    iter_many_enumerated::QueryManyEnumeratedIter, NopWorldQuery, QueryManyIter, ROQueryItem,
     ReadOnlyWorldQuery,
 };
 
@@ -699,6 +699,11 @@ impl<Q: WorldQuery, F: ReadOnlyWorldQuery> QueryState<Q, F> {
         }
     }
 
+    /// Returns an enumerated [`Iterator`] over the read-only query items generated from an [`Entity`] list.
+    ///
+    /// Items are returned in the order of the list of entities.
+    /// The enumeration for each item corresponds to the entity's position in the entity list, not the current count of items yielded.
+    /// Entities that don't match the query are skipped.
     #[inline]
     pub fn iter_many_enumerated<'w, 's, EntityList: IntoIterator>(
         &'s mut self,
@@ -713,7 +718,7 @@ impl<Q: WorldQuery, F: ReadOnlyWorldQuery> QueryState<Q, F> {
         unsafe {
             self.as_readonly().iter_many_enumerated_unchecked_manual(
                 entities,
-                world,
+                world.as_unsafe_world_cell_readonly(),
                 world.last_change_tick(),
                 world.read_change_tick(),
             )
@@ -875,7 +880,7 @@ impl<Q: WorldQuery, F: ReadOnlyWorldQuery> QueryState<Q, F> {
     pub(crate) unsafe fn iter_many_enumerated_unchecked_manual<'w, 's, EntityList: IntoIterator>(
         &'s self,
         entities: EntityList,
-        world: &'w World,
+        world: UnsafeWorldCell<'w>,
         last_run: Tick,
         this_run: Tick,
     ) -> QueryManyEnumeratedIter<'w, 's, Q, F, EntityList::IntoIter>

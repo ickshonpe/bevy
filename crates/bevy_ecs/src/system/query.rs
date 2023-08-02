@@ -3,7 +3,7 @@ use crate::{
     entity::Entity,
     query::{
         BatchingStrategy, QueryCombinationIter, QueryEntityError, QueryIter, QueryManyIter,
-        QueryParIter, QuerySingleError, QueryState, ROQueryItem, ReadOnlyWorldQuery, WorldQuery,
+        QueryParIter, QuerySingleError, QueryState, ROQueryItem, ReadOnlyWorldQuery, WorldQuery, QueryManyEnumeratedIter,
     },
     world::{unsafe_world_cell::UnsafeWorldCell, Mut},
 };
@@ -581,6 +581,32 @@ impl<'w, 's, Q: WorldQuery, F: ReadOnlyWorldQuery> Query<'w, 's, Q, F> {
         // - The query is read-only, so it can be aliased even if it was originally mutable.
         unsafe {
             self.state.as_readonly().iter_many_unchecked_manual(
+                entities,
+                self.world,
+                self.last_run,
+                self.this_run,
+            )
+        }
+    }
+
+    /// Returns an enumerated [`Iterator`] over the read-only query items generated from an [`Entity`] list.
+    ///
+    /// Items are returned in the order of the list of entities.
+    /// The enumeration for each item corresponds to the entity's position in the entity list, not the current count of items yielded.
+    /// Entities that don't match the query are skipped.
+    #[inline]
+    pub fn iter_many_enumerated<EntityList: IntoIterator>(
+        &self,
+        entities: EntityList,
+    ) -> QueryManyEnumeratedIter<'_, 's, Q::ReadOnly, F::ReadOnly, EntityList::IntoIter>
+    where
+        EntityList::Item: Borrow<Entity>,
+    {
+        // SAFETY:
+        // - `self.world` has permission to access the required components.
+        // - The query is read-only, so it can be aliased even if it was originally mutable.
+        unsafe {
+            self.state.as_readonly().iter_many_enumerated_unchecked_manual(
                 entities,
                 self.world,
                 self.last_run,

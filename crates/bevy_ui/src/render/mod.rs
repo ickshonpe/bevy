@@ -192,7 +192,7 @@ pub fn extract_atlas_uinodes(
     for (
         stack_index,
         (uinode, transform, color, visibility, clip, texture_atlas_handle, atlas_image),
-    ) in uinode_query.iter_many_enumerated()
+    ) in uinode_query.iter_many_enumerated(&ui_stack.uinodes)
     {
         // Skip invisible and completely transparent nodes
         if !visibility.is_visible() || color.0.a() == 0.0 {

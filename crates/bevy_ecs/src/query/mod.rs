@@ -4,7 +4,7 @@ mod access;
 mod fetch;
 mod filter;
 mod iter;
-mod iter_enumerated;
+mod iter_many_enumerated;
 mod par_iter;
 mod state;
 
@@ -14,6 +14,7 @@ pub use filter::*;
 pub use iter::*;
 pub use par_iter::*;
 pub use state::*;
+pub use iter_many_enumerated::*;
 
 /// A debug checked version of [`Option::unwrap_unchecked`]. Will panic in
 /// debug modes if unwrapping a `None` or `Err` value in debug mode, but is
