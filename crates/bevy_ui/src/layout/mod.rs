@@ -95,8 +95,8 @@ impl UiSurface {
     /// Update the `MeasureFunc` of the taffy node corresponding to the given [`Entity`].
     pub fn update_measure(&mut self, entity: Entity, measure: Option<Arc<Box<dyn Measure>>>) {
         let taffy_node = self.entity_to_taffy.get(&entity).unwrap();
-        if let Some(measure) = measure {
-            let measure_func =
+        let measure_func = measure.map(|measure| {
+            taffy::node::MeasureFunc::Boxed(Box::new(
                 move |size: Size<Option<f32>>, available_space: Size<AvailableSpace>| {
                     let size = measure.measure(
                         size.width,
@@ -108,16 +108,10 @@ impl UiSurface {
                         width: size.x,
                         height: size.y,
                     }
-                };
-            self.taffy
-                .set_measure(
-                    *taffy_node,
-                    Some(taffy::node::MeasureFunc::Boxed(Box::new(measure_func))),
-                )
-                .ok();
-        } else {
-            self.taffy.set_measure(*taffy_node, None).ok();
-        }
+                }
+            ))
+        });
+        self.taffy.set_measure(*taffy_node, measure_func).ok();
     }
 
     /// Update the children of the taffy node corresponding to the given [`Entity`].
