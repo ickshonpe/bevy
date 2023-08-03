@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Node, Style, UiScale};
+use crate::{ContentSize, Measure, Node, Style, UiScale};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -17,8 +17,8 @@ use bevy_math::Vec2;
 use bevy_transform::components::Transform;
 use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowResolution, WindowScaleFactorChanged};
-use std::fmt;
-use taffy::{prelude::Size, style_helpers::TaffyMaxContent, Taffy};
+use std::{fmt, sync::Arc};
+use taffy::{prelude::Size, style::AvailableSpace, style_helpers::TaffyMaxContent, Taffy};
 
 pub struct LayoutContext {
     pub scale_factor: f64,
@@ -93,9 +93,31 @@ impl UiSurface {
     }
 
     /// Update the `MeasureFunc` of the taffy node corresponding to the given [`Entity`].
-    pub fn update_measure(&mut self, entity: Entity, measure_func: taffy::node::MeasureFunc) {
+    pub fn update_measure(&mut self, entity: Entity, measure: Option<Arc<Box<dyn Measure>>>) {
         let taffy_node = self.entity_to_taffy.get(&entity).unwrap();
-        self.taffy.set_measure(*taffy_node, Some(measure_func)).ok();
+        if let Some(measure) = measure {
+            let measure_func =
+                move |size: Size<Option<f32>>, available_space: Size<AvailableSpace>| {
+                    let size = measure.measure(
+                        size.width,
+                        size.height,
+                        available_space.width,
+                        available_space.height,
+                    );
+                    Size {
+                        width: size.x,
+                        height: size.y,
+                    }
+                };
+            self.taffy
+                .set_measure(
+                    *taffy_node,
+                    Some(taffy::node::MeasureFunc::Boxed(Box::new(measure_func))),
+                )
+                .ok();
+        } else {
+            self.taffy.set_measure(*taffy_node, None).ok();
+        }
     }
 
     /// Update the children of the taffy node corresponding to the given [`Entity`].
@@ -223,7 +245,7 @@ pub fn ui_layout_system(
     mut ui_surface: ResMut<UiSurface>,
     root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
     style_query: Query<(Entity, Ref<Style>), With<Node>>,
-    mut measure_query: Query<(Entity, &mut ContentSize)>,
+    measure_query: Query<(Entity, Ref<ContentSize>)>,
     children_query: Query<(Entity, Ref<Children>), With<Node>>,
     just_children_query: Query<&Children>,
     mut removed_children: RemovedComponents<Children>,
@@ -274,9 +296,9 @@ pub fn ui_layout_system(
         }
     }
 
-    for (entity, mut content_size) in measure_query.iter_mut() {
-        if let Some(measure_func) = content_size.measure_func.take() {
-            ui_surface.update_measure(entity, measure_func);
+    for (entity, content_size) in measure_query.iter() {
+        if content_size.is_changed() {
+            ui_surface.update_measure(entity, content_size.measure.clone());
         }
     }
 

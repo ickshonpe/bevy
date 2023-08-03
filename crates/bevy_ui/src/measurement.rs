@@ -2,9 +2,8 @@ use bevy_ecs::prelude::Component;
 use bevy_ecs::reflect::ReflectComponent;
 use bevy_math::Vec2;
 use bevy_reflect::Reflect;
-use std::fmt::Formatter;
+use std::{fmt::Formatter, sync::Arc};
 pub use taffy::style::AvailableSpace;
-use taffy::{node::MeasureFunc, prelude::Size as TaffySize};
 
 impl std::fmt::Debug for ContentSize {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -51,27 +50,31 @@ impl Measure for FixedMeasure {
 pub struct ContentSize {
     /// The `Measure` used to compute the intrinsic size
     #[reflect(ignore)]
-    pub(crate) measure_func: Option<MeasureFunc>,
+    pub measure: Option<Arc<Box<dyn Measure>>>,
 }
 
 impl ContentSize {
     /// Set a `Measure` for this function
     pub fn set(&mut self, measure: impl Measure) {
-        let measure_func = move |size: TaffySize<_>, available: TaffySize<_>| {
-            let size = measure.measure(size.width, size.height, available.width, available.height);
-            TaffySize {
-                width: size.x,
-                height: size.y,
-            }
-        };
-        self.measure_func = Some(MeasureFunc::Boxed(Box::new(measure_func)));
+        self.measure = Some(Arc::new(Box::new(measure)));
+    }
+
+    /// Call the `Measure` manually, if present
+    pub fn measure(
+        &mut self,
+        width: Option<f32>,
+        height: Option<f32>,
+        available_width: AvailableSpace,
+        available_height: AvailableSpace,
+    ) -> Option<Vec2> {
+        self.measure.as_ref().map(|inner_measure| {
+            inner_measure.measure(width, height, available_width, available_height)
+        })
     }
 }
 
 impl Default for ContentSize {
     fn default() -> Self {
-        Self {
-            measure_func: Some(MeasureFunc::Raw(|_, _| TaffySize::ZERO)),
-        }
+        Self { measure: None }
     }
 }
