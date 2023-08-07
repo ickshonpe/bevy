@@ -341,6 +341,7 @@ Example | Description
 --- | ---
 [Borders](../examples/ui/borders.rs) | Demonstrates how to create a node with a border
 [Button](../examples/ui/button.rs) | Illustrates creating and updating a button
+[Clip Debug](../examples/ui/clip_debug.rs) | An example for debugging clipping
 [CSS Grid](../examples/ui/grid.rs) | An example for CSS Grid layout
 [Display and Visibility](../examples/ui/display_and_visibility.rs) | Demonstrates how Display and Visibility work in the UI.
 [Flex Layout](../examples/ui/flex_layout.rs) | Demonstrates how the AlignItems and JustifyContent properties can be composed to layout nodes and position text

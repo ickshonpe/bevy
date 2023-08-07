@@ -10,7 +10,7 @@ use bevy_render::{
 use bevy_transform::prelude::GlobalTransform;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use std::ops::{Div, DivAssign, Mul, MulAssign};
+use std::{ops::{Div, DivAssign, Mul, MulAssign}, mem::swap};
 use thiserror::Error;
 
 /// Describes the size of a UI node
@@ -103,7 +103,7 @@ pub enum UiContentTransform {
 
 impl UiContentTransform {
     /// Rotate the content to the left by 90 degrees
-    #[inline]
+    #[must_use]
     pub const fn rotate_left(self) -> Self {
         use UiContentTransform::*;
         match self {
@@ -111,15 +111,15 @@ impl UiContentTransform {
             East => South,
             South => West,
             West => North,
-            FlippedNorth => FlippedEast,
-            FlippedEast => FlippedSouth,
-            FlippedSouth => FlippedWest,
-            FlippedWest => FlippedNorth,
+            FlippedNorth => FlippedWest,
+            FlippedWest => FlippedSouth,
+            FlippedSouth => FlippedEast,
+            FlippedEast => FlippedNorth,
         }
     }
 
     /// Rotate The content to the right by 90 degrees
-    #[inline]
+    #[must_use]
     pub const fn rotate_right(self) -> Self {
         use UiContentTransform::*;
         match self {
@@ -127,51 +127,53 @@ impl UiContentTransform {
             East => North,
             South => East,
             West => South,
-            FlippedNorth => FlippedWest,
-            FlippedEast => FlippedNorth,
-            FlippedSouth => FlippedEast,
-            FlippedWest => FlippedSouth,
+            FlippedNorth => FlippedEast,
+            FlippedEast => FlippedSouth,
+            FlippedSouth => FlippedWest,
+            FlippedWest => FlippedNorth,
         }
     }
 
-    /// Rotate the content to the right by 90 degrees
+    /// Rotate the content by 180 degrees
+    #[must_use]
     pub const fn rotate_180(self) -> Self {
         self.rotate_left().rotate_left()
     }
 
     /// Flip the content along its x-axis
-    #[inline]
+    #[must_use]
     pub const fn flip_x(self) -> Self {
         use UiContentTransform::*;
         match self {
             North => FlippedNorth,
-            East => FlippedWest,
-            South => FlippedSouth,
-            West => FlippedEast,
-            FlippedNorth => North,
-            FlippedEast => West,
-            FlippedSouth => South,
-            FlippedWest => East,
-        }
-    }
-
-    /// Flip the content along its x-axis
-    #[inline]
-    pub const fn flip_y(self) -> Self {
-        use UiContentTransform::*;
-        match self {
-            North => FlippedSouth,
             East => FlippedEast,
-            South => FlippedNorth,
+            South => FlippedSouth,
             West => FlippedWest,
-            FlippedNorth => South,
+            FlippedNorth => North,
             FlippedEast => East,
-            FlippedSouth => North,
+            FlippedSouth => South,
             FlippedWest => West,
         }
     }
 
+    /// Flip the content along its y-axis
+    #[must_use]
+    pub const fn flip_y(self) -> Self {
+        use UiContentTransform::*;
+        match self {
+            North => FlippedSouth,
+            East => FlippedWest,
+            South => FlippedNorth,
+            West => FlippedEast,
+            FlippedNorth => South,
+            FlippedEast => West,
+            FlippedSouth => North,
+            FlippedWest => East,
+        }
+    }
+
     /// The original orientation of the content, not flipped or rotated.
+    #[must_use]
     pub const fn identity() -> Self {
         Self::North
     }
@@ -180,23 +182,45 @@ impl UiContentTransform {
         use UiContentTransform::*;
         matches!(self, East | West | FlippedEast | FlippedWest)
     }
+
+    pub const fn is_flipped(self) -> bool {
+        use UiContentTransform::*;
+        matches!(self, FlippedNorth | FlippedEast | FlippedSouth | FlippedWest)
+    }
+
+    #[inline]
+    pub fn transform_rect(self, rect: Rect) -> [Vec2; 4] {
+        let mut vs = rect.vertices();
+        let [ref mut a, ref mut b, ref mut c, ref mut d] = &mut vs;
+        if self.is_flipped() {
+            swap(&mut a.x, &mut b.x);
+            swap(&mut c.x, &mut d.x);
+        }
+        use UiContentTransform::*;
+        match self {
+            North | FlippedNorth => {},
+            East | FlippedEast => vs.rotate_left(1),
+            South | FlippedSouth => vs.rotate_right(2),
+            West | FlippedWest => vs.rotate_right(3),
+        }
+        vs
+    }
 }
 
 impl From<UiContentTransform> for Mat4 {
-    fn from(orientation: UiContentTransform) -> Self {
+    fn from(content_transform: UiContentTransform) -> Self {
         use std::f32::consts::*;
         use UiContentTransform::*;
-        let flip_x = || Mat4::from_scale(Vec3::new(-1., 1., 1.));
-        let flip_y = || Mat4::from_scale(Vec3::new(1., -1., 1.));
-        match orientation {
+        let flip_x = Mat4::from_scale(Vec3::new(-1., 1., 1.));
+        match content_transform {
             North => Mat4::IDENTITY,
             East => Mat4::from_rotation_z(FRAC_PI_2),
             South => Mat4::from_rotation_z(PI),
             West => Mat4::from_rotation_z(3. * FRAC_PI_2),
-            FlippedNorth => flip_x(),
-            FlippedEast => flip_y() * Mat4::from_rotation_z(FRAC_PI_2),
-            FlippedSouth => flip_x() * Mat4::from_rotation_z(PI),
-            FlippedWest => flip_y() * Mat4::from_rotation_z(3. * FRAC_PI_2),
+            FlippedNorth => flip_x,
+            FlippedEast => flip_x * Mat4::from_rotation_z(FRAC_PI_2) ,
+            FlippedSouth => flip_x * Mat4::from_rotation_z(PI),
+            FlippedWest => flip_x * Mat4::from_rotation_z(3. * FRAC_PI_2),
         }
     }
 }

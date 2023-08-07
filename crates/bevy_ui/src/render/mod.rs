@@ -157,9 +157,9 @@ pub struct ExtractedUiNode {
     pub stack_index: usize,
     pub transform: Mat4,
     pub color: Color,
-    pub rect: Rect,
     pub image: Handle<Image>,
-    pub atlas_size: Option<Vec2>,
+    pub size: Vec2,
+    pub uv_rect: Rect,
     pub clip: Option<Rect>,
 }
 
@@ -233,10 +233,13 @@ pub fn extract_atlas_uinodes(
                 continue;
             }
 
-            let scale = uinode.size() / atlas_rect.size();
-            atlas_rect.min *= scale;
-            atlas_rect.max *= scale;
-            atlas_size *= scale;
+            // let scale = uinode.size() / atlas_rect.size();
+            // atlas_rect.min *= scale;
+            // atlas_rect.max *= scale;
+            // atlas_size *= scale;
+
+            atlas_rect.min /= atlas_size;
+            atlas_rect.max /= atlas_size;
 
             let mut transform = transform.compute_matrix();
             if let Some(orientation) = orientation {
@@ -252,10 +255,10 @@ pub fn extract_atlas_uinodes(
                 stack_index,
                 transform,
                 color: color.0,
-                rect: atlas_rect,
+                size: uinode.size(),
                 clip: clip.map(|clip| clip.clip),
                 image,
-                atlas_size: Some(atlas_size),
+                uv_rect: atlas_rect,                
             });
         }
     }
@@ -376,12 +379,9 @@ pub fn extract_uinode_borders(
                         // This translates the uinode's transform to the center of the current border rectangle
                         transform: transform * Mat4::from_translation(edge.center().extend(0.)),
                         color: border_color.0,
-                        rect: Rect {
-                            max: edge.size(),
-                            ..Default::default()
-                        },
+                        size: edge.size(),
                         image: image.clone_weak(),
-                        atlas_size: None,
+                        uv_rect: Rect { min: Vec2::ZERO, max: Vec2::ONE },
                         clip: clip.map(|clip| clip.clip),
                     });
                 }
@@ -443,13 +443,10 @@ pub fn extract_uinodes(
                 stack_index,
                 transform,
                 color: color.0,
-                rect: Rect {
-                    min: Vec2::ZERO,
-                    max: size,
-                },
+                size,
                 clip: clip.map(|clip| clip.clip),
                 image,
-                atlas_size: None,
+                uv_rect: Rect { min: Vec2::ZERO, max: Vec2::ONE },
             });
         };
     }
@@ -588,6 +585,7 @@ pub fn extract_text_uinodes(
             let mut current_section = usize::MAX;
             for PositionedGlyph {
                 position,
+                size, 
                 atlas_info,
                 section_index,
                 ..
@@ -599,18 +597,18 @@ pub fn extract_text_uinodes(
                 }
                 let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
 
-                let mut rect = atlas.textures[atlas_info.glyph_index];
-                rect.min *= inverse_scale_factor;
-                rect.max *= inverse_scale_factor;
+                let mut uv_rect = atlas.textures[atlas_info.glyph_index];
+                uv_rect.min /= atlas.size;
+                uv_rect.max /= atlas.size;
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
-                    transform: transform
-                        * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
+                    transform: transform * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
                     color,
-                    rect,
+                    size: *size * inverse_scale_factor,
                     image: atlas.texture.clone_weak(),
-                    atlas_size: Some(atlas.size * inverse_scale_factor),
-                    clip: clip.map(|clip| clip.clip),
+                    uv_rect,
+                    clip: clip.map(|clip|
+                        clip.clip),
                 });
             }
         }
@@ -704,9 +702,9 @@ pub fn prepare_uinodes(
             UNTEXTURED_QUAD
         };
 
-        let uinode_rect = extracted_uinode.rect;
+        //let uinode_rect = extracted_uinode.rect;
 
-        let rect_size = uinode_rect.size().extend(1.0);
+        let rect_size = extracted_uinode.size.extend(1.0);
 
         // Specify the corners of the node
         let positions = QUAD_VERTEX_POSITIONS
@@ -714,28 +712,30 @@ pub fn prepare_uinodes(
 
         // Calculate the effect of clipping
         // Note: this won't work with rotation/scaling, but that's much more complex (may need more that 2 quads)
-        let positions_diff = if let Some(clip) = extracted_uinode.clip {
-            [
-                Vec2::new(
-                    f32::max(clip.min.x - positions[0].x, 0.),
-                    f32::max(clip.min.y - positions[0].y, 0.),
-                ),
-                Vec2::new(
-                    f32::min(clip.max.x - positions[1].x, 0.),
-                    f32::max(clip.min.y - positions[1].y, 0.),
-                ),
-                Vec2::new(
-                    f32::min(clip.max.x - positions[2].x, 0.),
-                    f32::min(clip.max.y - positions[2].y, 0.),
-                ),
-                Vec2::new(
-                    f32::max(clip.min.x - positions[3].x, 0.),
-                    f32::min(clip.max.y - positions[3].y, 0.),
-                ),
-            ]
-        } else {
-            [Vec2::ZERO; 4]
-        };
+        let positions_diff = 
+                if let Some(clip) = extracted_uinode.clip {
+
+                    let resolve = |p, min, max| {
+                        if p < min {
+                            min - p
+                        } else if max < p {
+                            max - p
+                        } else {
+                            0.
+                        }
+                    };
+                    let resolve_x = |x| resolve(x, clip.min.x, clip.max.x);
+                    let resolve_y = |y| resolve(y, clip.min.y, clip.max.y);
+                    let resolve_point = |p: Vec2| Vec2::new(resolve_x(p.x), resolve_y(p.y));
+                    [
+                        resolve_point(positions[0].truncate()),
+                        resolve_point(positions[1].truncate()),
+                        resolve_point(positions[2].truncate()),
+                        resolve_point(positions[3].truncate()),
+                    ]
+                } else {
+                    [Vec2::ZERO; 4]
+                };
 
         let positions_clipped = [
             positions[0] + positions_diff[0].extend(0.),
@@ -743,11 +743,6 @@ pub fn prepare_uinodes(
             positions[2] + positions_diff[2].extend(0.),
             positions[3] + positions_diff[3].extend(0.),
         ];
-
-        let transformed_rect_size = extracted_uinode
-            .transform
-            .transform_vector3(rect_size)
-            .abs();
 
         // Don't try to cull nodes that have a rotation
         // In a rotation around the Z-axis, this value is 0.0 for an angle of 0.0 or π
@@ -757,36 +752,56 @@ pub fn prepare_uinodes(
         // This does not properly handles all rotations on all axis
         if extracted_uinode.transform.x_axis[1] == 0.0 {
             // Cull nodes that are completely clipped
-            if positions_diff[0].x - positions_diff[1].x >= transformed_rect_size.x
-                || positions_diff[1].y - positions_diff[2].y >= transformed_rect_size.y
+            if positions_diff[0].x - positions_diff[1].x >= rect_size.x
+                || positions_diff[1].y - positions_diff[2].y >= rect_size.y
             {
                 continue;
             }
         }
-        let uvs = if mode == UNTEXTURED_QUAD {
+        let mut positions_diff = positions_diff.map(|p| p / extracted_uinode.size);
+        let uvs =
+        if mode == UNTEXTURED_QUAD {
             [Vec2::ZERO, Vec2::X, Vec2::ONE, Vec2::Y]
+        } else if extracted_uinode.clip.is_none() {
+            extracted_uinode.uv_rect.vertices()
         } else {
-            let atlas_extent = extracted_uinode.atlas_size.unwrap_or(uinode_rect.max);
+            let uv_rect = extracted_uinode.uv_rect;
+            let mut min = Vec2::MAX;
+            let mut max = Vec2::MIN;
+            for p in &mut positions_diff {
+                if p.x < min. x {
+                    min.x = p.x;
+                }
+                if p.y < min.y {
+                    min.y = p.y;
+                }
+                if p.x > max. x {
+                    max.x = p.x;
+                }
+                if p.y > max.y {
+                    max.y = p.y;
+                }
+            }
             [
                 Vec2::new(
-                    uinode_rect.min.x + positions_diff[0].x,
-                    uinode_rect.min.y + positions_diff[0].y,
+                    uv_rect.min.x + positions_diff[0].x,
+                    uv_rect.min.y + positions_diff[0].y,
                 ),
                 Vec2::new(
-                    uinode_rect.max.x + positions_diff[1].x,
-                    uinode_rect.min.y + positions_diff[1].y,
+                    uv_rect.max.x + positions_diff[1].x,
+                    uv_rect.min.y + positions_diff[1].y,
                 ),
                 Vec2::new(
-                    uinode_rect.max.x + positions_diff[2].x,
-                    uinode_rect.max.y + positions_diff[2].y,
+                    uv_rect.max.x + positions_diff[2].x,
+                    uv_rect.max.y + positions_diff[2].y,
                 ),
                 Vec2::new(
-                    uinode_rect.min.x + positions_diff[3].x,
-                    uinode_rect.max.y + positions_diff[3].y,
+                    uv_rect.min.x + positions_diff[3].x,
+                    uv_rect.max.y + positions_diff[3].y,
                 ),
             ]
-            .map(|pos| pos / atlas_extent)
         };
+        
 
         let color = extracted_uinode.color.as_linear_rgba_f32();
         for i in QUAD_INDICES {

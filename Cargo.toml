@@ -1826,6 +1826,16 @@ category = "UI (User Interface)"
 wasm = true
 
 [[example]]
+name = "clip_debug"
+path = "examples/ui/clip_debug.rs"
+
+[package.metadata.example.clip_debug]
+name = "Clip Debug"
+description = "An example for debugging clipping"
+category = "UI (User Interface)"
+wasm = true
+
+[[example]]
 name = "display_and_visibility"
 path = "examples/ui/display_and_visibility.rs"
 

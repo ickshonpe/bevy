@@ -309,6 +309,32 @@ impl Rect {
         r
     }
 
+    /// Returns an array containing the four vertices of the [`Rect`]. 
+    /// 
+    /// ```
+    /// # use bevy_math::{Rect, Vec2};
+    /// let r = Rect::new(0., 0., 1., 1.);
+    /// let vs = [
+    ///     r.min,
+    ///     Vec2::new(r.max.x, r.min.y),
+    ///     r.max,
+    ///     Vec2::new(r.min.x, r.max.y),
+    /// ];
+    /// assert_eq!(r.vertices()[0], vs[0]);
+    /// assert_eq!(r.vertices()[1], vs[1]);
+    /// assert_eq!(r.vertices()[2], vs[2]);
+    /// assert_eq!(r.vertices()[3], vs[3]);
+    /// ```
+    #[inline]
+    pub const fn vertices(&self) -> [Vec2; 4] {
+        [
+            self.min,
+            Vec2::new(self.max.x, self.min.y),
+            self.max,
+            Vec2::new(self.min.x, self.max.y),
+        ]
+    }
+
     /// Returns self as [`IRect`] (i32)
     #[inline]
     pub fn as_irect(&self) -> IRect {
