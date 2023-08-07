@@ -10,7 +10,10 @@ use bevy_render::{
 use bevy_transform::prelude::GlobalTransform;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use std::{ops::{Div, DivAssign, Mul, MulAssign}, mem::swap};
+use std::{
+    mem::swap,
+    ops::{Div, DivAssign, Mul, MulAssign},
+};
 use thiserror::Error;
 
 /// Describes the size of a UI node
@@ -80,7 +83,9 @@ impl Default for Node {
 
 #[derive(Component, Default, Clone, Copy, PartialEq, Debug, Serialize, Deserialize, Reflect)]
 #[reflect(Component, Default)]
-/// Controls the orientation of a node's content
+/// Limited transform that only affects the content displayed by a UI node.
+/// Allows rotation by quarter turns and flipping in both axis.
+/// Clipping works correctly and the UI layout systems will automatically resize the node to fit the rotated content, if required.
 pub enum UiContentTransform {
     #[default]
     /// Not flipped or rotated
@@ -185,7 +190,10 @@ impl UiContentTransform {
 
     pub const fn is_flipped(self) -> bool {
         use UiContentTransform::*;
-        matches!(self, FlippedNorth | FlippedEast | FlippedSouth | FlippedWest)
+        matches!(
+            self,
+            FlippedNorth | FlippedEast | FlippedSouth | FlippedWest
+        )
     }
 
     #[inline]
@@ -198,7 +206,7 @@ impl UiContentTransform {
         }
         use UiContentTransform::*;
         match self {
-            North | FlippedNorth => {},
+            North | FlippedNorth => {}
             East | FlippedEast => vs.rotate_left(1),
             South | FlippedSouth => vs.rotate_right(2),
             West | FlippedWest => vs.rotate_right(3),
@@ -218,7 +226,7 @@ impl From<UiContentTransform> for Mat4 {
             South => Mat4::from_rotation_z(PI),
             West => Mat4::from_rotation_z(3. * FRAC_PI_2),
             FlippedNorth => flip_x,
-            FlippedEast => flip_x * Mat4::from_rotation_z(FRAC_PI_2) ,
+            FlippedEast => flip_x * Mat4::from_rotation_z(FRAC_PI_2),
             FlippedSouth => flip_x * Mat4::from_rotation_z(PI),
             FlippedWest => flip_x * Mat4::from_rotation_z(3. * FRAC_PI_2),
         }

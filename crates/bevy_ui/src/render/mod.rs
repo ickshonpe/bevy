@@ -258,7 +258,7 @@ pub fn extract_atlas_uinodes(
                 size: uinode.size(),
                 clip: clip.map(|clip| clip.clip),
                 image,
-                uv_rect: atlas_rect,                
+                uv_rect: atlas_rect,
             });
         }
     }
@@ -381,7 +381,10 @@ pub fn extract_uinode_borders(
                         color: border_color.0,
                         size: edge.size(),
                         image: image.clone_weak(),
-                        uv_rect: Rect { min: Vec2::ZERO, max: Vec2::ONE },
+                        uv_rect: Rect {
+                            min: Vec2::ZERO,
+                            max: Vec2::ONE,
+                        },
                         clip: clip.map(|clip| clip.clip),
                     });
                 }
@@ -446,7 +449,10 @@ pub fn extract_uinodes(
                 size,
                 clip: clip.map(|clip| clip.clip),
                 image,
-                uv_rect: Rect { min: Vec2::ZERO, max: Vec2::ONE },
+                uv_rect: Rect {
+                    min: Vec2::ZERO,
+                    max: Vec2::ONE,
+                },
             });
         };
     }
@@ -585,7 +591,7 @@ pub fn extract_text_uinodes(
             let mut current_section = usize::MAX;
             for PositionedGlyph {
                 position,
-                size, 
+                size,
                 atlas_info,
                 section_index,
                 ..
@@ -602,13 +608,13 @@ pub fn extract_text_uinodes(
                 uv_rect.max /= atlas.size;
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
-                    transform: transform * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
+                    transform: transform
+                        * Mat4::from_translation(position.extend(0.) * inverse_scale_factor),
                     color,
                     size: *size * inverse_scale_factor,
                     image: atlas.texture.clone_weak(),
                     uv_rect,
-                    clip: clip.map(|clip|
-                        clip.clip),
+                    clip: clip.map(|clip| clip.clip),
                 });
             }
         }
@@ -712,30 +718,28 @@ pub fn prepare_uinodes(
 
         // Calculate the effect of clipping
         // Note: this won't work with rotation/scaling, but that's much more complex (may need more that 2 quads)
-        let positions_diff = 
-                if let Some(clip) = extracted_uinode.clip {
-
-                    let resolve = |p, min, max| {
-                        if p < min {
-                            min - p
-                        } else if max < p {
-                            max - p
-                        } else {
-                            0.
-                        }
-                    };
-                    let resolve_x = |x| resolve(x, clip.min.x, clip.max.x);
-                    let resolve_y = |y| resolve(y, clip.min.y, clip.max.y);
-                    let resolve_point = |p: Vec2| Vec2::new(resolve_x(p.x), resolve_y(p.y));
-                    [
-                        resolve_point(positions[0].truncate()),
-                        resolve_point(positions[1].truncate()),
-                        resolve_point(positions[2].truncate()),
-                        resolve_point(positions[3].truncate()),
-                    ]
+        let positions_diff = if let Some(clip) = extracted_uinode.clip {
+            let resolve = |p, min, max| {
+                if p < min {
+                    min - p
+                } else if max < p {
+                    max - p
                 } else {
-                    [Vec2::ZERO; 4]
-                };
+                    0.
+                }
+            };
+            let resolve_x = |x| resolve(x, clip.min.x, clip.max.x);
+            let resolve_y = |y| resolve(y, clip.min.y, clip.max.y);
+            let resolve_point = |p: Vec2| Vec2::new(resolve_x(p.x), resolve_y(p.y));
+            [
+                resolve_point(positions[0].truncate()),
+                resolve_point(positions[1].truncate()),
+                resolve_point(positions[2].truncate()),
+                resolve_point(positions[3].truncate()),
+            ]
+        } else {
+            [Vec2::ZERO; 4]
+        };
 
         let positions_clipped = [
             positions[0] + positions_diff[0].extend(0.),
@@ -759,8 +763,7 @@ pub fn prepare_uinodes(
             }
         }
         let mut positions_diff = positions_diff.map(|p| p / extracted_uinode.size);
-        let uvs =
-        if mode == UNTEXTURED_QUAD {
+        let uvs = if mode == UNTEXTURED_QUAD {
             [Vec2::ZERO, Vec2::X, Vec2::ONE, Vec2::Y]
         } else if extracted_uinode.clip.is_none() {
             extracted_uinode.uv_rect.vertices()
@@ -769,13 +772,13 @@ pub fn prepare_uinodes(
             let mut min = Vec2::MAX;
             let mut max = Vec2::MIN;
             for p in &mut positions_diff {
-                if p.x < min. x {
+                if p.x < min.x {
                     min.x = p.x;
                 }
                 if p.y < min.y {
                     min.y = p.y;
                 }
-                if p.x > max. x {
+                if p.x > max.x {
                     max.x = p.x;
                 }
                 if p.y > max.y {
@@ -801,7 +804,6 @@ pub fn prepare_uinodes(
                 ),
             ]
         };
-        
 
         let color = extracted_uinode.color.as_linear_rgba_f32();
         for i in QUAD_INDICES {

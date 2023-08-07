@@ -309,8 +309,8 @@ impl Rect {
         r
     }
 
-    /// Returns an array containing the four vertices of the [`Rect`]. 
-    /// 
+    /// Returns an array containing the four vertices of the [`Rect`].
+    ///
     /// ```
     /// # use bevy_math::{Rect, Vec2};
     /// let r = Rect::new(0., 0., 1., 1.);

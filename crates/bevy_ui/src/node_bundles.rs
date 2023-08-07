@@ -36,12 +36,16 @@ pub struct NodeBundle {
     pub focus_policy: FocusPolicy,
     /// The transform of the node
     ///
-    /// This field is automatically managed by the UI layout system.
+    /// The `translation` field is overwritten each frame by `ui_layout_system`.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
+    ///
+    /// `scale` and `rotation` can be applied to UI nodes but the result is purely visual and the
+    /// clipping and focus systems will not work reliably. Only rotations about the z-axis should be used,
+    /// other rotations may intefere with the UI's rendering for unpredictable results.
     pub transform: Transform,
     /// The global transform of the node
     ///
-    /// This field is automatically managed by the UI layout system.
+    /// This field is automatically updated by [`bevy_transform::systems::propagate_transforms`]
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
     pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
@@ -50,7 +54,9 @@ pub struct NodeBundle {
     pub computed_visibility: ComputedVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
-    /// Controls the orientation of a node's content
+    // Limited transform that only affects the content displayed by a UI node.
+    /// Allows rotation by quarter turns and flipping in both axis.
+    /// Clipping works correctly and the UI layout systems will automatically resize the node to fit the rotated content, if required.
     pub content_transform: UiContentTransform,
 }
 
@@ -100,12 +106,16 @@ pub struct ImageBundle {
     pub focus_policy: FocusPolicy,
     /// The transform of the node
     ///
-    /// This field is automatically managed by the UI layout system.
+    /// The `translation` field is overwritten each frame by `ui_layout_system`.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
+    ///
+    /// `scale` and `rotation` can be applied to UI nodes but the result is purely visual and the
+    /// clipping and focus systems will not work reliably. Only rotations about the z-axis should be used,
+    /// other rotations may intefere with the UI's rendering for unpredictable results.
     pub transform: Transform,
     /// The global transform of the node
     ///
-    /// This field is automatically managed by the UI layout system.
+    /// This field is automatically updated by [`bevy_transform::systems::propagate_transforms`]
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
     pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
@@ -114,8 +124,10 @@ pub struct ImageBundle {
     pub computed_visibility: ComputedVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
-    /// Controls the orientation of a node's content
-    pub content_orientation: UiContentTransform,
+    // Limited transform that only affects the content displayed by a UI node.
+    /// Allows rotation by quarter turns and flipping in both axis.
+    /// Clipping works correctly and the UI layout systems will automatically resize the node to fit the rotated content, if required.
+    pub content_transform: UiContentTransform,
 }
 
 /// A UI node that is a texture atlas sprite
@@ -147,12 +159,16 @@ pub struct AtlasImageBundle {
     pub image_size: UiImageSize,
     /// The transform of the node
     ///
-    /// This field is automatically managed by the UI layout system.
+    /// The `translation` field is overwritten each frame by `ui_layout_system`.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
+    ///
+    /// `scale` and `rotation` can be applied to UI nodes but the result is purely visual and the
+    /// clipping and focus systems will not work reliably. Only rotations about the z-axis should be used,
+    /// other rotations may intefere with the UI's rendering for unpredictable results.
     pub transform: Transform,
     /// The global transform of the node
     ///
-    /// This field is automatically managed by the UI layout system.
+    /// This field is automatically updated by [`bevy_transform::systems::propagate_transforms`]
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
     pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
@@ -161,8 +177,10 @@ pub struct AtlasImageBundle {
     pub computed_visibility: ComputedVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
-    /// Controls the orientation of a node's content
-    pub content_orientation: UiContentTransform,
+    // Limited transform that only affects the content displayed by a UI node.
+    /// Allows rotation by quarter turns and flipping in both axis.
+    /// Clipping works correctly and the UI layout systems will automatically resize the node to fit the rotated content, if required.
+    pub content_transform: UiContentTransform,
 }
 
 #[cfg(feature = "bevy_text")]
@@ -186,12 +204,16 @@ pub struct TextBundle {
     pub focus_policy: FocusPolicy,
     /// The transform of the node
     ///
-    /// This field is automatically managed by the UI layout system.
+    /// The `translation` field is overwritten each frame by `ui_layout_system`.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
+    ///
+    /// `scale` and `rotation` can be applied to UI nodes but the result is purely visual and the
+    /// clipping and focus systems will not work reliably. Only rotations about the z-axis should be used,
+    /// other rotations may intefere with the UI's rendering for unpredictable results.
     pub transform: Transform,
     /// The global transform of the node
     ///
-    /// This field is automatically managed by the UI layout system.
+    /// This field is automatically updated by [`bevy_transform::systems::propagate_transforms`]
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
     pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
@@ -202,7 +224,9 @@ pub struct TextBundle {
     pub z_index: ZIndex,
     /// The background color that will fill the containing node
     pub background_color: BackgroundColor,
-    /// Controls the orientation of a node's content
+    // Limited transform that only affects the content displayed by a UI node.
+    /// Allows rotation by quarter turns and flipping in both axis.
+    /// Clipping works correctly and the UI layout systems will automatically resize the node to fit the rotated content, if required.
     pub content_transform: UiContentTransform,
 }
 
@@ -307,12 +331,16 @@ pub struct ButtonBundle {
     pub image: UiImage,
     /// The transform of the node
     ///
-    /// This field is automatically managed by the UI layout system.
+    /// The `translation` field is overwritten each frame by `ui_layout_system`.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
+    ///
+    /// `scale` and `rotation` can be applied to UI nodes but the result is purely visual and the
+    /// clipping and focus systems will not work reliably. Only rotations about the z-axis should be used,
+    /// other rotations may intefere with the UI's rendering for unpredictable results.
     pub transform: Transform,
     /// The global transform of the node
     ///
-    /// This field is automatically managed by the UI layout system.
+    /// This field is automatically updated by [`bevy_transform::systems::propagate_transforms`]
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
     pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
@@ -321,8 +349,10 @@ pub struct ButtonBundle {
     pub computed_visibility: ComputedVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
-    /// Controls the orientation of a node's content
-    pub content_orientation: UiContentTransform,
+    // Limited transform that only affects the content displayed by a UI node.
+    /// Allows rotation by quarter turns and flipping in both axis.
+    /// Clipping works correctly and the UI layout systems will automatically resize the node to fit the rotated content, if required.
+    pub content_transform: UiContentTransform,
 }
 
 impl Default for ButtonBundle {
@@ -341,7 +371,7 @@ impl Default for ButtonBundle {
             visibility: Default::default(),
             computed_visibility: Default::default(),
             z_index: Default::default(),
-            content_orientation: Default::default(),
+            content_transform: Default::default(),
         }
     }
 }

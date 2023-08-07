@@ -320,7 +320,7 @@ pub fn text_system(
                     node_size = node_size.yx();
                 }
             }
-            
+
             queue_text(
                 &fonts,
                 &mut text_pipeline,
