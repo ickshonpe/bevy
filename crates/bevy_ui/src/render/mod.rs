@@ -206,7 +206,7 @@ pub fn extract_atlas_uinodes(
                 continue;
             }
 
-            let (mut atlas_rect, mut atlas_size, image) =
+            let (mut atlas_rect, atlas_size, image) =
                 if let Some(texture_atlas) = texture_atlases.get(texture_atlas_handle) {
                     let atlas_rect = *texture_atlas
                         .textures
