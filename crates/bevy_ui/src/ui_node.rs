@@ -197,21 +197,31 @@ impl UiContentTransform {
     }
 
     #[inline]
-    pub fn transform_rect(self, rect: Rect) -> [Vec2; 4] {
-        let mut vs = rect.vertices();
-        let [ref mut a, ref mut b, ref mut c, ref mut d] = &mut vs;
+    pub fn transform_rect(self, mut rect: Rect) -> [Vec2; 4] {
         if self.is_flipped() {
-            swap(&mut a.x, &mut b.x);
-            swap(&mut c.x, &mut d.x);
+            swap(&mut rect.min.x, &mut rect.max.x);
         }
+        let mut vs = rect.vertices();
+        
         use UiContentTransform::*;
         match self {
             North | FlippedNorth => {}
-            East | FlippedEast => vs.rotate_left(1),
+            East | FlippedEast => vs.rotate_right(1),
             South | FlippedSouth => vs.rotate_right(2),
             West | FlippedWest => vs.rotate_right(3),
         }
         vs
+    }
+
+    #[inline]
+    pub fn rotations(self) -> u8 {
+        use UiContentTransform::*;
+        match self {
+            North | FlippedNorth => 0,
+            East | FlippedEast => 1,
+            South | FlippedSouth => 2,
+            West | FlippedWest => 3,
+        }
     }
 }
 
