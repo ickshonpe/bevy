@@ -83,6 +83,19 @@ impl Default for Node {
     }
 }
 
+/// The position of the Ui Node in the [`UiStack`](`crate::UiStack`).
+/// UI nodes with a higher `UiStackIndex` are drawn in front of those with a lower `UiStackIndex`.
+#[derive(Component, Copy, Clone, Debug, Default, Reflect)]
+#[reflect(Component, Default)]
+pub struct UiStackIndex(pub(crate) u32);
+
+impl UiStackIndex {
+    // returns the stack index value
+    pub fn get(self) -> u32 {
+        self.0
+    }
+}
+
 /// Describes the position of a UI node
 #[derive(Component, Debug, Default, Copy, Clone, Reflect, Deref)]
 #[reflect(Component)]
