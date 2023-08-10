@@ -9,7 +9,7 @@ pub use pipeline::*;
 pub use render_pass::*;
 
 use crate::{prelude::UiCameraConfig, BackgroundColor, CalculatedClip, Node, UiImage};
-use crate::{UiPosition, ZIndex};
+use crate::{UiPosition, ZIndex, UiSurface};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
@@ -54,6 +54,7 @@ pub const UI_SHADER_HANDLE: HandleUntyped =
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub enum RenderUiSystem {
+    UiExtractionSetup,
     ExtractNode,
 }
 
@@ -77,10 +78,18 @@ pub fn build_ui_render(app: &mut App) {
             (
                 extract_default_ui_camera_view::<Camera2d>,
                 extract_default_ui_camera_view::<Camera3d>,
-                extract_uinodes.in_set(RenderUiSystem::ExtractNode),
+            )
+        )
+        .add_systems(
+            ExtractSchedule, 
+            (
+                clear_extracted_uinodes.in_set(RenderUiSystem::UiExtractionSetup),
+                extract_uinodes.in_set(RenderUiSystem::ExtractNode)
+                .after(RenderUiSystem::UiExtractionSetup),
                 #[cfg(feature = "bevy_text")]
-                extract_text_uinodes.after(RenderUiSystem::ExtractNode),
-            ),
+                extract_text_uinodes.after(RenderUiSystem::ExtractNode)
+                .after(RenderUiSystem::UiExtractionSetup),
+            ).run_if(|ui_surface: Extract<Res<UiSurface>>| ui_surface.needs_update()) ,
         )
         .add_systems(
             Render,
@@ -161,6 +170,12 @@ pub struct ExtractedUiNodes {
     pub uinodes: Vec<ExtractedUiNode>,
 }
 
+pub fn clear_extracted_uinodes(
+    mut extracted_uinodes: ResMut<ExtractedUiNodes>,
+) {    
+    extracted_uinodes.uinodes.clear();
+}
+
 pub fn extract_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     images: Extract<Res<Assets<Image>>>,
@@ -176,7 +191,6 @@ pub fn extract_uinodes(
         )>,
     >,
 ) {
-    extracted_uinodes.uinodes.clear();
     for (uinode, position, color, maybe_image, visibility, clip, z) in uinode_query.iter() {
         // Skip invisible and completely transparent nodes
         if !visibility.is_visible() || color.0.a() == 0.0 {
@@ -384,10 +398,12 @@ pub fn prepare_uinodes(
 ) {
     ui_meta.vertices.clear();
 
-    // sort by ui stack index, starting from the deepest node
-    extracted_uinodes
-        .uinodes
-        .sort_by_key(|node| node.stack_index);
+    if extracted_uinodes.is_changed() {
+        // sort by ui stack index, starting from the deepest node
+        extracted_uinodes
+            .uinodes
+            .sort_by_key(|node| node.stack_index);
+    }
 
     let mut start = 0;
     let mut end = 0;
