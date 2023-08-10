@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Node, Style, UiKey, UiPosition, UiScale};
+use crate::{ContentSize, Node, Style, UiKey, UiPosition, UiScale, UiStackIndex};
 use bevy_derive::Deref;
 use bevy_ecs::{
     change_detection::DetectChanges,
@@ -227,7 +227,7 @@ pub fn ui_layout_system(
     mut ui_queries_param_set: ParamSet<(
         Query<(Entity, &mut UiKey)>,
         (
-            Query<(&UiKey, &mut Node, &mut UiPosition)>,
+            Query<(&UiKey, &mut Node, &mut UiPosition, &mut UiStackIndex)>,
             Query<(&UiKey, Ref<Children>)>,
             Query<(&UiKey, &mut ContentSize)>,
             Query<(&UiKey, Ref<Style>)>,
@@ -378,14 +378,15 @@ pub fn ui_layout_system(
             uinode: Entity,
             ui_surface: &UiSurface,
             ui_stack: &mut UiStack,
-            uinode_geometry_query: &mut Query<(&UiKey, &mut Node, &mut UiPosition)>,
+            uinode_geometry_query: &mut Query<(&UiKey, &mut Node, &mut UiPosition, &mut UiStackIndex)>,
             children_query: &Query<&Children>,
             inverse_target_scale_factor: f32,
             inherited_position: Vec2,
             z: u32,
         ) {
             ui_stack.uinodes.push(uinode);
-            let (id, mut node, mut ui_position) = uinode_geometry_query.get_mut(uinode).unwrap();
+            let (id, mut node, mut ui_position, mut stack_index) = uinode_geometry_query.get_mut(uinode).unwrap();
+            stack_index.0 = z;
             let layout = ui_surface.taffy.layout(id.0).unwrap();
             let size =
                 Vec2::new(layout.size.width, layout.size.height) * inverse_target_scale_factor;
