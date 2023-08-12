@@ -17,7 +17,9 @@ use crate::UiContentTransform;
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
-use bevy_math::{Mat4, Rect, URect, UVec4, Vec2, Vec2Swizzles, Vec3, Vec4Swizzles, Vec3Swizzles, vec2};
+use bevy_math::{
+    vec2, Mat4, Rect, URect, UVec4, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4Swizzles, Mat2, Mat3,
+};
 use bevy_reflect::TypeUuid;
 use bevy_render::texture::DEFAULT_IMAGE_HANDLE;
 use bevy_render::{
@@ -40,6 +42,7 @@ use bevy_transform::components::GlobalTransform;
 use bevy_utils::FloatOrd;
 use bevy_utils::HashMap;
 use bytemuck::{Pod, Zeroable};
+use std::f32::consts::FRAC_PI_2;
 use std::mem::swap;
 use std::ops::Range;
 
@@ -95,7 +98,7 @@ pub fn build_ui_render(app: &mut App) {
         .add_systems(
             Render,
             (
-                prepare_uinodes_4.in_set(RenderSet::Prepare),
+                prepare_uinodes.in_set(RenderSet::Prepare),
                 queue_uinodes.in_set(RenderSet::Queue),
                 sort_phase_system::<TransparentUi>.in_set(RenderSet::PhaseSort),
             ),
@@ -235,27 +238,9 @@ pub fn extract_atlas_uinodes(
                 continue;
             }
 
-            // let scale = uinode.size() / atlas_rect.size();
-            // atlas_rect.min *= scale;
-            // atlas_rect.max *= scale;
-            // atlas_size *= scale;
-    
-            //println!("atlas size = {}", atlas_size);
             atlas_rect.min /= atlas_size;
             atlas_rect.max /= atlas_size;
-           // println!("atlas_rect = {:?}", atlas_rect);
-
             let mut transform = transform.compute_matrix();
-            // if let Some(orientation) = orientation {
-            //     transform *= Mat4::from(*orientation);
-
-            //     if orientation.is_sideways() {
-            //         let aspect = uinode.size().y / uinode.size().x;
-            //         transform *= Mat4::from_scale(Vec3::new(aspect, aspect.recip(), 1.));
-            //     }
-            // }
-
-
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
@@ -681,6 +666,8 @@ pub fn prepare_uinodes(
     mut ui_meta: ResMut<UiMeta>,
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
 ) {
+    // println!("prepare_uinodes");
+    // println!();
     ui_meta.vertices.clear();
 
     // sort by ui stack index, starting from the deepest node
@@ -713,112 +700,35 @@ pub fn prepare_uinodes(
             }
             TEXTURED_QUAD
         } else {
-            // Untextured `UiBatch`es are never spawned within the loop.
-            // If all the `extracted_uinodes` are untextured a single untextured UiBatch will be spawned after the loop terminates.
             UNTEXTURED_QUAD
         };
 
-        //let uinode_rect = extracted_uinode.rect;
+        let size = extracted_uinode.size;
 
-        let rect_size = extracted_uinode.size.extend(1.0);
+        let center = extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
 
-        // Specify the corners of the node
-        let positions = QUAD_VERTEX_POSITIONS
-            .map(|pos| (extracted_uinode.transform * (pos * rect_size).extend(1.)).xyz());
+        let rect = Rect::from_center_size(center, size);
 
-        // Calculate the effect of clipping
-        // Note: this won't work with rotation/scaling, but that's much more complex (may need more that 2 quads)
-        let positions_diff = if let Some(clip) = extracted_uinode.clip {
-            let resolve = |p, min, max| {
-                if p < min {
-                    min - p
-                } else if max < p {
-                    max - p
-                } else {
-                    0.
-                }
-            };
-            let resolve_x = |x| resolve(x, clip.min.x, clip.max.x);
-            let resolve_y = |y| resolve(y, clip.min.y, clip.max.y);
-            let resolve_point = |p: Vec2| Vec2::new(resolve_x(p.x), resolve_y(p.y));
-            [
-                resolve_point(positions[0].truncate()),
-                resolve_point(positions[1].truncate()),
-                resolve_point(positions[2].truncate()),
-                resolve_point(positions[3].truncate()),
-            ]
-        } else {
-            [Vec2::ZERO; 4]
-        };
-
-        let positions_clipped = [
-            positions[0] + positions_diff[0].extend(0.),
-            positions[1] + positions_diff[1].extend(0.),
-            positions[2] + positions_diff[2].extend(0.),
-            positions[3] + positions_diff[3].extend(0.),
-        ];
-
-        // Don't try to cull nodes that have a rotation
-        // In a rotation around the Z-axis, this value is 0.0 for an angle of 0.0 or π
-        // In those two cases, the culling check can proceed normally as corners will be on
-        // horizontal / vertical lines
-        // For all other angles, bypass the culling check
-        // This does not properly handles all rotations on all axis
-        if extracted_uinode.transform.x_axis[1] == 0.0 {
-            // Cull nodes that are completely clipped
-            if positions_diff[0].x - positions_diff[1].x >= rect_size.x
-                || positions_diff[1].y - positions_diff[2].y >= rect_size.y
-            {
-                continue;
-            }
+        let target =
+            extracted_uinode.clip.map(|c| rect.intersect(c))
+            .unwrap_or(rect);
+        if target.is_empty() {
+            continue;
         }
-        let mut positions_diff = positions_diff.map(|p| p / extracted_uinode.size);
-        let uvs = if mode == UNTEXTURED_QUAD {
-            [Vec2::ZERO, Vec2::X, Vec2::ONE, Vec2::Y]
-        } else if extracted_uinode.clip.is_none() {
-            extracted_uinode.uv_rect.vertices()
-        } else {
-            let uv_rect = extracted_uinode.uv_rect;
-            let mut min = Vec2::MAX;
-            let mut max = Vec2::MIN;
-            for p in &mut positions_diff {
-                if p.x < min.x {
-                    min.x = p.x;
-                }
-                if p.y < min.y {
-                    min.y = p.y;
-                }
-                if p.x > max.x {
-                    max.x = p.x;
-                }
-                if p.y > max.y {
-                    max.y = p.y;
-                }
-            }
-            [
-                Vec2::new(
-                    uv_rect.min.x + positions_diff[0].x,
-                    uv_rect.min.y + positions_diff[0].y,
-                ),
-                Vec2::new(
-                    uv_rect.max.x + positions_diff[1].x,
-                    uv_rect.min.y + positions_diff[1].y,
-                ),
-                Vec2::new(
-                    uv_rect.max.x + positions_diff[2].x,
-                    uv_rect.max.y + positions_diff[2].y,
-                ),
-                Vec2::new(
-                    uv_rect.min.x + positions_diff[3].x,
-                    uv_rect.max.y + positions_diff[3].y,
-                ),
-            ]
-        };
+
+        let [positions, uvs] = calculate_vertices(
+            rect,
+            target,
+            extracted_uinode.uv_rect,
+            extracted_uinode.content_transform.rotations(),
+            extracted_uinode.content_transform.is_flipped(),
+        );
 
         let color = extracted_uinode.color.as_linear_rgba_f32();
+
         for i in QUAD_INDICES {
             ui_meta.vertices.push(UiVertex {
-                position: positions_clipped[i].into(),
+                position: positions[i].extend(0.).into(),
                 uv: uvs[i].into(),
                 color,
                 mode,
@@ -829,7 +739,6 @@ pub fn prepare_uinodes(
         end += QUAD_INDICES.len() as u32;
     }
 
-    // if start != end, there is one last batch to process
     if start != end {
         commands.spawn(UiBatch {
             range: start..end,
@@ -842,520 +751,29 @@ pub fn prepare_uinodes(
 }
 
 
-pub fn prepare_uinodes_debug(
-    mut commands: Commands,
-    render_device: Res<RenderDevice>,
-    render_queue: Res<RenderQueue>,
-    mut ui_meta: ResMut<UiMeta>,
-    mut extracted_uinodes: ResMut<ExtractedUiNodes>,
-) {
-    //println!("prepare_uinodes");
-    ui_meta.vertices.clear();
-
-    // sort by ui stack index, starting from the deepest node
-    extracted_uinodes
-        .uinodes
-        .sort_by_key(|node| node.stack_index);
-
-    let mut start = 0;
-    let mut end = 0;
-    let mut current_batch_image = DEFAULT_IMAGE_HANDLE.typed();
-    let mut last_z = 0.0;
-
-    #[inline]
-    fn is_textured(image: &Handle<Image>) -> bool {
-        image.id() != DEFAULT_IMAGE_HANDLE.id()
-    }
-
-    for extracted_uinode in extracted_uinodes.uinodes.drain(..) {
-        let mode = if is_textured(&extracted_uinode.image) {
-            if current_batch_image.id() != extracted_uinode.image.id() {
-                if is_textured(&current_batch_image) && start != end {
-                    commands.spawn(UiBatch {
-                        range: start..end,
-                        image: current_batch_image,
-                        z: last_z,
-                    });
-                    start = end;
-                }
-                current_batch_image = extracted_uinode.image.clone_weak();
-            }
-            TEXTURED_QUAD
-        } else {
-            // Untextured `UiBatch`es are never spawned within the loop.
-            // If all the `extracted_uinodes` are untextured a single untextured UiBatch will be spawned after the loop terminates.
-            UNTEXTURED_QUAD
-        };
-
-        let size = extracted_uinode.transform.transform_vector3(extracted_uinode.size.extend(0.)).xy().abs();
-        let center = extracted_uinode.transform.transform_point3(Vec3::ZERO).xy().abs();
-        let rect = Rect::from_center_size(center, size);
-        let uv_rect = extracted_uinode.uv_rect;
-
-        let (clipped_rect, mut clipped_uv_rect) = 
-            if let Some(clip_rect) = extracted_uinode.clip {
-                let target_rect = rect.intersect(clip_rect);
-                let min = (target_rect.min - rect.min) / size;
-                let max = (target_rect.max - rect.min) / size;
-                let normed_target = Rect {
-                    min, max
-                };
-                let uv_size = uv_rect.size();
-                let clipped_uv_size = uv_size * normed_target.size();
-                let clipped_uv_rect = if extracted_uinode.content_transform.is_flipped() {
-                    
-                    let clipped_uv_min = Vec2::new(
-                         uv_rect.max.x - uv_size.x * min.x,
-                         uv_rect.min.y + uv_size.y * min.y,
-                    );
-                    let clipped_uv_max = Vec2::new(
-                        clipped_uv_min.x - clipped_uv_size.x,
-                        clipped_uv_min.y + clipped_uv_size.y,
-                    );
-                    
-                    Rect {
-                        min: clipped_uv_min,
-                        max: clipped_uv_max,
-                    }
-                } else {
-                    let clipped_uv_min = uv_rect.min + uv_size * min;
-                    let clipped_uv_max = clipped_uv_min + clipped_uv_size;
-                    Rect {
-                        min: clipped_uv_min,
-                        max: clipped_uv_max,
-                    }
-                };
-                (target_rect, clipped_uv_rect)
-            } else {
-                (rect, extracted_uinode.uv_rect)
-            };
-            
-        
-            let color = extracted_uinode.color.as_linear_rgba_f32();
-            let positions = clipped_rect.vertices();
-            if extracted_uinode.content_transform.is_flipped() {
-                if  extracted_uinode.content_transform.is_sideways() {
-                    let tx = clipped_uv_rect.min.y;
-                    clipped_uv_rect.min.y = clipped_uv_rect.max.y;
-                    clipped_uv_rect.max.y = tx;
-                } else {
-                    let tx = clipped_uv_rect.min.x;
-                    clipped_uv_rect.min.x = clipped_uv_rect.max.x;
-                    clipped_uv_rect.max.x = tx;
-                }
-            }
-            let mut uvs = clipped_uv_rect.vertices();
-            use UiContentTransform::*;
-            match extracted_uinode.content_transform {
-                North | FlippedNorth => {}
-                East | FlippedEast => uvs.rotate_right(1),
-                South | FlippedSouth => uvs.rotate_right(2),
-                West | FlippedWest => uvs.rotate_right(3),
-            }
-            
-          //  println!("\tpositions: {:?}", positions);
-          //  println!("\tuvs: {:?}", uvs);
-            for i in QUAD_INDICES {            
-                ui_meta.vertices.push(UiVertex {
-                    position: positions[i].extend(0.).into(),
-                    uv: uvs[i].into(),
-                    color,
-                    mode,
-                });
-            }
-           // println!("extracted");
-           // println!();
-    
-    
-            last_z = extracted_uinode.transform.w_axis[2];
-            end += QUAD_INDICES.len() as u32;
-        }
-    
-        // if start != end, there is one last batch to process
-        if start != end {
-            commands.spawn(UiBatch {
-                range: start..end,
-                image: current_batch_image,
-                z: last_z,
-            });
-        }
-    
-        ui_meta.vertices.write_buffer(&render_device, &render_queue);
-    
-        
-        // println!();
-        // println!();
-    }
-/*
-
-        // Specify the corners of the node
-        let positions = QUAD_VERTEX_POSITIONS
-            .map(|pos| (extracted_uinode.transform * (pos * rect_size).extend(1.)).xyz());
-
-        // Calculate the effect of clipping
-        // Note: this won't work with rotation/scaling, but that's much more complex (may need more that 2 quads)
-        let positions_diff = if let Some(clip) = extracted_uinode.clip {
-            let resolve = |p, min, max| {
-                if p < min {
-                    min - p
-                } else if max < p {
-                    max - p
-                } else {
-                    0.
-                }
-            };
-            let resolve_x = |x| resolve(x, clip.min.x, clip.max.x);
-            let resolve_y = |y| resolve(y, clip.min.y, clip.max.y);
-            let resolve_point = |p: Vec2| Vec2::new(resolve_x(p.x), resolve_y(p.y));
-            [
-                resolve_point(positions[0].truncate()),
-                resolve_point(positions[1].truncate()),
-                resolve_point(positions[2].truncate()),
-                resolve_point(positions[3].truncate()),
-            ]
-        } else {
-            [Vec2::ZERO; 4]
-        };
-
-        println!("\tpositions diff: {:?}", positions_diff);
-
-        let positions_clipped = [
-            positions[0] + positions_diff[0].extend(0.),
-            positions[1] + positions_diff[1].extend(0.),
-            positions[2] + positions_diff[2].extend(0.),
-            positions[3] + positions_diff[3].extend(0.),
-        ];
-
-        println!("\tpositions clipped: {:?}", positions_clipped);
-
-        let rect = Rect::from_center_size(extracted_uinode.transform.to_scale_rotation_translation().2.xy(), rect_size.truncate());
-        let target = 
-            if let Some(clip) = extracted_uinode.clip {
-                rect.intersect(clip)
-            } else {
-                rect
-            };
-        
-        let norm_rect = Rect {
-            min: 0.5 + (target.min - target.center()) / rect.size(),
-            max: 0.5 + (target.max - target.center()) / rect.size(),
-        };
-        println!("\ttarget_rect: {:?}", target);
-        println!("\tnorm_rect: {:?}", norm_rect);
-
-        // Don't try to cull nodes that have a rotation
-        // In a rotation around the Z-axis, this value is 0.0 for an angle of 0.0 or π
-        // In those two cases, the culling check can proceed normally as corners will be on
-        // horizontal / vertical lines
-        // For all other angles, bypass the culling check
-        // This does not properly handles all rotations on all axis
-        if extracted_uinode.transform.x_axis[1] == 0.0 {
-            // Cull nodes that are completely clipped
-            if positions_diff[0].x - positions_diff[1].x >= rect_size.x
-                || positions_diff[1].y - positions_diff[2].y >= rect_size.y
-            {
-                continue;
-            }
-        }
-        let mut positions_diff = positions_diff.map(|p| p / extracted_uinode.size);
-        let uvs = if mode == UNTEXTURED_QUAD {
-            println!("\tUV unit");
-            [Vec2::ZERO, Vec2::X, Vec2::ONE, Vec2::Y]
-        } else if extracted_uinode.clip.is_none() {
-            println!("\tuvs from rect: {:?}", extracted_uinode.uv_rect);
-            extracted_uinode.uv_rect.vertices()
-        } else {
-            let uv_rect = extracted_uinode.uv_rect;
-            let uv_size = uv_rect.size();
-            let min = uv_rect.min + uv_size * norm_rect.min;
-            let max = min + uv_size * norm_rect.size();
-            Rect { min, max }.vertices()
-        };
-
-        let color = extracted_uinode.color.as_linear_rgba_f32();
-        println!("\tpositions: {:?}", positions_clipped);
-        println!("\tuvs: {:?}", uvs);
-        for i in QUAD_INDICES {            
-            ui_meta.vertices.push(UiVertex {
-                position: positions_clipped[i].into(),
-                uv: uvs[i].into(),
-                color,
-                mode,
-            });
-        }
-        println!("extracted");
-        println!();
-
-
-        last_z = extracted_uinode.transform.w_axis[2];
-        end += QUAD_INDICES.len() as u32;
-    }
-
-    // if start != end, there is one last batch to process
-    if start != end {
-        commands.spawn(UiBatch {
-            range: start..end,
-            image: current_batch_image,
-            z: last_z,
-        });
-    }
-
-    ui_meta.vertices.write_buffer(&render_device, &render_queue);
-
-    
-    println!();
-    println!();
+fn calculate_vertices(
+    unclipped_target: Rect,
+    clipped_target: Rect,
+    uv_rect: Rect,
+    w: u8,
+    flip: bool,
+) -> [[Vec2; 4]; 2] {
+    let n = (clipped_target.center() - unclipped_target.center()) / unclipped_target.size();
+    let q = Mat2::from_angle(-FRAC_PI_2 * w as f32) * n;
+    let fs = clipped_target.size() / unclipped_target.size() * uv_rect.size();
+    let fc = if flip {
+        uv_rect.center() + vec2(-q.x, q.y) * uv_rect.size()
+    } else {
+        uv_rect.center() + q * uv_rect.size()
+    };
+    let mut f = Rect::from_center_size(fc, fs);
+    if flip {
+        swap(&mut f.min.x, &mut f.max.x);
+    } 
+    let mut uvs = f.vertices();
+    uvs.rotate_right(w as usize);
+    [clipped_target.vertices(), uvs]
 }
-*/
-
-
-pub fn prepare_uinodes_3(
-    mut commands: Commands,
-    render_device: Res<RenderDevice>,
-    render_queue: Res<RenderQueue>,
-    mut ui_meta: ResMut<UiMeta>,
-    mut extracted_uinodes: ResMut<ExtractedUiNodes>,
-) {
-    //println!("prepare_uinodes");
-    ui_meta.vertices.clear();
-
-    // sort by ui stack index, starting from the deepest node
-    extracted_uinodes
-        .uinodes
-        .sort_by_key(|node| node.stack_index);
-
-    let mut start = 0;
-    let mut end = 0;
-    let mut current_batch_image = DEFAULT_IMAGE_HANDLE.typed();
-    let mut last_z = 0.0;
-
-    #[inline]
-    fn is_textured(image: &Handle<Image>) -> bool {
-        image.id() != DEFAULT_IMAGE_HANDLE.id()
-    }
-
-    for extracted_uinode in extracted_uinodes.uinodes.drain(..) {
-        let mode = if is_textured(&extracted_uinode.image) {
-            if current_batch_image.id() != extracted_uinode.image.id() {
-                if is_textured(&current_batch_image) && start != end {
-                    commands.spawn(UiBatch {
-                        range: start..end,
-                        image: current_batch_image,
-                        z: last_z,
-                    });
-                    start = end;
-                }
-                current_batch_image = extracted_uinode.image.clone_weak();
-            }
-            TEXTURED_QUAD
-        } else {
-            // Untextured `UiBatch`es are never spawned within the loop.
-            // If all the `extracted_uinodes` are untextured a single untextured UiBatch will be spawned after the loop terminates.
-            UNTEXTURED_QUAD
-        };
-        
-
-        let size = 
-            if extracted_uinode.content_transform.is_sideways() {
-                extracted_uinode.size.yx()
-            } else {
-                extracted_uinode.size
-            };
-        let mut uv_rect = extracted_uinode.uv_rect;
-        if extracted_uinode.content_transform.is_flipped() {
-            swap(&mut uv_rect.min.x, &mut uv_rect.max.x);    
-        }
-        let mut uvs = extracted_uinode.uv_rect.vertices();
-
-        use UiContentTransform::*;
-        match extracted_uinode.content_transform {
-            North | FlippedNorth => {}
-            East | FlippedEast => uvs.rotate_right(1),
-            South | FlippedSouth => uvs.rotate_right(2),
-            West | FlippedWest => uvs.rotate_right(3),
-        }
-
-        let size = extracted_uinode.transform.transform_vector3(size.extend(0.)).xy().abs();
-        
-        let center = extracted_uinode.transform.transform_point3(Vec3::ZERO).xy().abs();
-        let rect = Rect::from_center_size(center, size);
-       
-
-        let (clipped_rect, mut clipped_uv_rect) = 
-            if let Some(clip_rect) = extracted_uinode.clip {
-                let target_rect = rect.intersect(clip_rect);
-                let d_min = (target_rect.min - rect.min) / size;
-                let d_max = (rect.max - target_rect.max) / size;
-                let diffs = [d_min, Vec2::new(d_max.x, d_min.y), d_max, Vec2::new(d_min.x, d_max.y)];
-                let uvs = [
-                    uvs[0]
-                ];
-
-                let min = (target_rect.min - rect.min) / size;
-                let max = (target_rect.max - rect.min) / size;
-                let normed_target = Rect {
-                    min, max
-                };
-                let uv_size = uv_rect.size();
-                let clipped_uv_size = uv_size * normed_target.size();
-                let clipped_uv_rect = if extracted_uinode.content_transform.is_flipped() {
-                    
-                    let clipped_uv_min = Vec2::new(
-                         uv_rect.max.x - clipped_uv_size.x, //uv_size.x * max.x,
-                         uv_rect.min.y + uv_size.y * min.y,
-                    );
-                    let clipped_uv_max = Vec2::new(
-                        clipped_uv_min.x + clipped_uv_size.x,
-                        clipped_uv_min.y + clipped_uv_size.y,
-                    );
-                    
-                    Rect {
-                        min: clipped_uv_min,
-                        max: clipped_uv_max,
-                    }
-                } else {
-                    let clipped_uv_min = uv_rect.min + uv_size * min;
-                    let clipped_uv_max = clipped_uv_min + clipped_uv_size;
-                    Rect {
-                        min: clipped_uv_min,
-                        max: clipped_uv_max,
-                    }
-                };
-                (target_rect, clipped_uv_rect)
-            } else {
-                (rect, extracted_uinode.uv_rect)
-            };
-            
-        
-            let color = extracted_uinode.color.as_linear_rgba_f32();
-            let positions = clipped_rect.vertices();
-            if extracted_uinode.content_transform.is_flipped() {
-                if  extracted_uinode.content_transform.is_sideways() {
-                    let tx = clipped_uv_rect.min.y;
-                    clipped_uv_rect.min.y = clipped_uv_rect.max.y;
-                    clipped_uv_rect.max.y = tx;
-                } else {
-                    let tx = clipped_uv_rect.min.x;
-                    clipped_uv_rect.min.x = clipped_uv_rect.max.x;
-                    clipped_uv_rect.max.x = tx;
-                }
-            }
-            let mut uvs = clipped_uv_rect.vertices();
-           
-            
-            for i in QUAD_INDICES {            
-                ui_meta.vertices.push(UiVertex {
-                    position: positions[i].extend(0.).into(),
-                    uv: uvs[i].into(),
-                    color,
-                    mode,
-                });
-            }
-    
-    
-            last_z = extracted_uinode.transform.w_axis[2];
-            end += QUAD_INDICES.len() as u32;
-        }
-    
-        if start != end {
-            commands.spawn(UiBatch {
-                range: start..end,
-                image: current_batch_image,
-                z: last_z,
-            });
-        }
-    
-        ui_meta.vertices.write_buffer(&render_device, &render_queue);
-
-    }
-
-
-    pub fn prepare_uinodes_4(
-        mut commands: Commands,
-        render_device: Res<RenderDevice>,
-        render_queue: Res<RenderQueue>,
-        mut ui_meta: ResMut<UiMeta>,
-        mut extracted_uinodes: ResMut<ExtractedUiNodes>,
-    ) {
-        //println!("prepare_uinodes");
-        ui_meta.vertices.clear();
-    
-        // sort by ui stack index, starting from the deepest node
-        extracted_uinodes
-            .uinodes
-            .sort_by_key(|node| node.stack_index);
-    
-        let mut start = 0;
-        let mut end = 0;
-        let mut current_batch_image = DEFAULT_IMAGE_HANDLE.typed();
-        let mut last_z = 0.0;
-    
-        #[inline]
-        fn is_textured(image: &Handle<Image>) -> bool {
-            image.id() != DEFAULT_IMAGE_HANDLE.id()
-        }
-    
-        for extracted_uinode in extracted_uinodes.uinodes.drain(..) {
-            let mode = if is_textured(&extracted_uinode.image) {
-                if current_batch_image.id() != extracted_uinode.image.id() {
-                    if is_textured(&current_batch_image) && start != end {
-                        commands.spawn(UiBatch {
-                            range: start..end,
-                            image: current_batch_image,
-                            z: last_z,
-                        });
-                        start = end;
-                    }
-                    current_batch_image = extracted_uinode.image.clone_weak();
-                }
-                TEXTURED_QUAD
-            } else {
-                UNTEXTURED_QUAD
-            };
-            
-    
-            let size = extracted_uinode.size;
-    
-            let center = extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
-          
-          
-            
-            let rect = Rect::from_center_size(center, size);
-
-            let [positions, uvs] =
-                calculate_vertices_combined(rect, extracted_uinode.clip, extracted_uinode.uv_rect, extracted_uinode.content_transform.rotations(), extracted_uinode.content_transform.is_flipped());
-            
-                
-            
-                let color = extracted_uinode.color.as_linear_rgba_f32();
-    
-                
-                for i in QUAD_INDICES {            
-                    ui_meta.vertices.push(UiVertex {
-                        position: positions[i].extend(0.).into(),
-                        uv: uvs[i].into(),
-                        color,
-                        mode,
-                    });
-                }
-        
-        
-                last_z = extracted_uinode.transform.w_axis[2];
-                end += QUAD_INDICES.len() as u32;
-            }
-        
-            if start != end {
-                commands.spawn(UiBatch {
-                    range: start..end,
-                    image: current_batch_image,
-                    z: last_z,
-                });
-            }
-        
-            ui_meta.vertices.write_buffer(&render_device, &render_queue);
-    
-        }
-    
 
 #[derive(Resource, Default)]
 pub struct UiImageBindGroups {
@@ -1432,322 +850,5 @@ pub fn queue_uinodes(
                 });
             }
         }
-    }
-}
-
-
-
-
-fn calculate_vertices(
-    node_rect: Rect,
-    clip_rect: Option<Rect>,
-    uv_rect: Rect
-) -> [[Vec2; 4]; 2] {
-    let target = 
-        clip_rect.map(|clip| node_rect.intersect(clip))
-        .unwrap_or(node_rect);
-    
-    let r_0 = node_rect.min;
-    let r_s = node_rect.size();
-    let t_0 = target.min;
-    let t_s = target.size();
-
-    let e_0 = uv_rect.min;
-    let e_s = uv_rect.size();//.yx();
-
-    let d_0 = e_s * (t_0 - r_0) / r_s;
-        
-    let f_0 = e_0 + d_0;
-    let f_s = (t_s / r_s) * e_s;
-    let f_2 = f_0 + f_s;
-
-    println!("r_0: {r_0}");
-    println!("r_s: {r_s}");
-    println!("t_0: {t_0}");
-    println!("t_s: {t_s}");
-    println!("e_0: {e_0}");
-    println!("e_s: {e_s}");
-    println!("e_0: {e_0}");
-    println!("f_0: {f_0}");
-    println!("f_2: {f_2}");
-    
-    let uvs =     [
-        f_0,
-        vec2(f_2.x, f_0.y),
-        f_2,
-        vec2(f_0.x, f_2.y),
-    ];
-    println!("uvs: {uvs:?}");
-    println!("ps: {:?}", target.vertices());
-
-    [
-        target.vertices(),
-        uvs
-    ]
-}
-
-fn calculate_vertices_flipped(
-    node_rect: Rect,
-    clip_rect: Option<Rect>,
-    uv_rect: Rect
-) -> [[Vec2; 4]; 2] 
-{
-    let target = 
-    clip_rect.map(|clip| node_rect.intersect(clip))
-    .unwrap_or(node_rect);
-
-    let r_0 = node_rect.min;
-    let r_s = node_rect.size();
-    let t_0 = target.min;
-    let t_s = target.size();
-
-    let e_0 = vec2(uv_rect.max.x, uv_rect.min.y);
-    let e_s = uv_rect.size();
-
-    let d_0 = e_s * (t_0 - r_0) / r_s;
-    let f_0 = e_0 - d_0;
-    let f_s =  (t_s / r_s) * e_s;
-    let f_2 = f_0 + vec2(-f_s.x, f_s.y);
-
-    let uvs =     [
-        f_0,
-        vec2(f_2.x, f_0.y),
-        f_2,
-        vec2(f_0.x, f_2.y),
-    ];
-
-    [
-        target.vertices(),
-        uvs
-    ]
-}
-
-
-
-fn calculate_vertices_rotated(
-    node_rect: Rect,
-    clip_rect: Option<Rect>,
-    uv_rect: Rect,
-    n: u8,
-) -> [[Vec2; 4]; 2] {
-    let [positions, mut uvs] = calculate_vertices(node_rect, clip_rect, uv_rect);
-
-    uvs.rotate_right(n as usize);
-    [positions, uvs]
-}
-
-fn calculate_vertices_combined(
-    mut node_rect: Rect,
-    mut clip_rect: Option<Rect>,
-    mut uv_rect: Rect,
-    n: u8,
-    flip: bool
-) -> [[Vec2; 4]; 2] {
-    if n == 1 || n == 3 {
-        // uv_rect.min = uv_rect.min.yx();
-        // uv_rect.max = uv_rect.max.yx();
-        // if let Some(mut clip) = clip_rect {
-        //     // clip.min = clip.min.yx();
-        //     // clip.max = clip.max.yx();
-        //     // clip_rect = Some(clip);
-        // }
-    }
-
-    let [positions, mut uvs] = 
-        if flip {
-            calculate_vertices_flipped(node_rect, clip_rect, uv_rect)
-        } else {
-            calculate_vertices(node_rect, clip_rect, uv_rect)
-        };
-    
-
-    uvs.rotate_right(n as usize);
-    [positions, uvs]
-}
-
-#[cfg(test)]
-mod tests {
-    use bevy_math::Rect;
-    use bevy_math::Vec2;
-    use bevy_math::vec2;
-
-    use crate::render::calculate_vertices_combined;
-    use crate::render::calculate_vertices_flipped;
-
-    use super::calculate_vertices;
-
-    const EPSILON: f32 = 0.0001;
-   
-    macro_rules! assert_approx_eq_arr {
-        ($a:expr, $b:expr) => {
-            assert!(
-                $a.len() == $b.len(),
-                "assertion failed: `(left.len() != right.len())` (left: `{:?}`, right: `{:?}`)",
-                $a,
-                $b
-            );
-            for (index, (left, right)) in $a.iter().zip($b.iter()).enumerate() {
-                assert!(
-                    left.abs_diff_eq(*right, EPSILON),
-                    "assertion failed at {index}: `(left != right)` (left: `{:?}`, right: `{:?}`, epsilon: `{:?}`)",
-                    left,
-                    right,
-                    EPSILON
-                );
-            }
-        };
-    }
-    macro_rules! assert_approx_eq {
-        ($a:expr, $b:expr) => {
-            
-            assert!(
-                $a.abs_diff_eq($b, EPSILON),
-                "assertion failed: `(left != right)` (left: `{:?}`, right: `{:?}`, epsilon: `{:?}`)",
-                $a,
-                $b,
-                EPSILON
-            )
-        };
-       
-        
-    }
-    
-
-    #[test]
-    fn node() {
-        let node_rect = Rect { min: Vec2::ZERO, max: vec2(200., 100.) };
-        let clip_rect = Rect { min: vec2(50., 25.), max: vec2(150., 50.) };
-        let uv_rect = Rect { min: vec2(0.5, 0.25), max: vec2(1.0, 0.5) };
-        let [ps, uvs] = calculate_vertices(node_rect, Some(clip_rect), uv_rect);
-        assert_approx_eq!(ps[0], clip_rect.min);
-        assert_approx_eq!(ps[1], vec2(clip_rect.max.x, clip_rect.min.y));
-        assert_approx_eq!(ps[2], clip_rect.max);
-        assert_approx_eq!(ps[3], vec2(clip_rect.min.x, clip_rect.max.y));
-        assert_approx_eq_arr!(uvs, [
-            vec2(0.625, 0.3125),
-            vec2(0.625 + 0.25, 0.3125),
-            vec2(0.625 + 0.25, 0.3125 + 1. / 16.),
-            vec2(0.625, 0.3125 + 1. / 16.),
-        ]);
-    }
-
-    fn x(v: Vec2) -> Vec2 {
-        v.x * Vec2::X
-    }
-
-    fn y(v: Vec2) -> Vec2 {
-        v.y * Vec2::Y
-    }
-
-    #[test]
-    fn node1() {
-        let node_rect = Rect { min: Vec2::ZERO, max: vec2(100., 100.) };
-        let clip_rect = Rect { min: Vec2::ZERO, max: vec2(150., 250.) };
-        let uv_rect = Rect { min: Vec2::ZERO, max: Vec2::ONE };
-        let [ps, uvs] = calculate_vertices(node_rect, Some(clip_rect), uv_rect);
-        assert_approx_eq!(ps[0], Vec2::ZERO);
-        assert_approx_eq!(ps[1], x(node_rect.max));
-        assert_approx_eq!(ps[2], node_rect.max);
-        assert_approx_eq!(ps[3], y(node_rect.max));
-        assert_approx_eq!(uvs[0], Vec2::ZERO);
-        assert_approx_eq!(uvs[1], Vec2::new(1., 0.));
-        assert_approx_eq!(uvs[2], Vec2::ONE);
-        assert_approx_eq!(uvs[3], Vec2::new(0., 1.));
-    }
-
-    
-    #[test]
-    fn node2() {
-        let node_rect = Rect { min: Vec2::ZERO, max: vec2(100., 100.) };
-        let clip_rect = Rect { min: Vec2::ZERO, max: vec2(50., 100.) };
-        let uv_rect = Rect { min: Vec2::ZERO, max: Vec2::ONE };
-        let [ps, uvs] = calculate_vertices(node_rect, Some(clip_rect), uv_rect);
-        assert_approx_eq!(ps[0], Vec2::ZERO);
-        assert_approx_eq!(ps[1], vec2(50., 0.));
-        assert_approx_eq!(ps[2], vec2(50., 100.));
-        assert_approx_eq!(ps[3], vec2(0., 100.));
-        assert_approx_eq!(uvs[0], Vec2::ZERO);
-        assert_approx_eq!(uvs[1], Vec2::new(0.5, 0.));
-        assert_approx_eq!(uvs[2], vec2(0.5, 1.0));
-        assert_approx_eq!(uvs[3], Vec2::new(0., 1.));
-    }
-
-    #[test]
-    fn node3() {
-        let node_rect = Rect { min: Vec2::ZERO, max: vec2(100., 100.) };
-        let clip_rect = Rect { min: Vec2::ZERO, max: vec2(100., 50.) };
-        let uv_rect = Rect { min: Vec2::ZERO, max: Vec2::ONE };
-        let [ps, uvs] = calculate_vertices(node_rect, Some(clip_rect), uv_rect);
-        assert_approx_eq!(ps[0], Vec2::ZERO);
-        assert_approx_eq!(ps[1], vec2(100., 0.));
-        assert_approx_eq!(ps[2], vec2(100., 50.));
-        assert_approx_eq!(ps[3], vec2(0., 50.));
-        assert_approx_eq!(uvs[0], Vec2::ZERO);
-        assert_approx_eq!(uvs[1], Vec2::new(1.0, 0.));
-        assert_approx_eq!(uvs[2], vec2(1.0, 0.5));
-        assert_approx_eq!(uvs[3], Vec2::new(0., 0.5));
-    }
-
-    
-    #[test]
-    fn node4() {
-        let node_rect = Rect { min: Vec2::ZERO, max: vec2(400., 100.) };
-        let clip_rect = Rect { min: vec2(100., 0.), max: vec2(200., 100.) };
-        let uv_rect = Rect { min: Vec2::ZERO, max: Vec2::ONE };
-        let [ps, uvs] = calculate_vertices(node_rect, Some(clip_rect), uv_rect);
-        assert_approx_eq!(ps[0], vec2(100., 0.));
-        assert_approx_eq!(ps[1], vec2(200., 0.));
-        assert_approx_eq!(ps[2], vec2(200., 100.));
-        assert_approx_eq!(ps[3], vec2(100., 100.));
-        assert_approx_eq!(uvs[0], vec2(0.25, 0.));
-        assert_approx_eq!(uvs[1], vec2(0.5, 0.));
-        assert_approx_eq!(uvs[2], vec2(0.5, 1.));
-        assert_approx_eq!(uvs[3], Vec2::new(0.25, 1.));
-    }
-
-    #[test]
-    fn node5() {
-        let node_rect = Rect { min: Vec2::ZERO, max: vec2(200., 100.) };
-        let clip_rect = Rect { min: vec2(50., 25.), max: vec2(150., 50.) };
-        let uv_rect = Rect { min: Vec2::ZERO, max: Vec2::ONE };
-        let [ps, uvs] = calculate_vertices(node_rect, Some(clip_rect), uv_rect);
-        assert_approx_eq!(ps[0], clip_rect.min);
-        assert_approx_eq!(ps[1], vec2(clip_rect.max.x, clip_rect.min.y));
-        assert_approx_eq!(ps[2], clip_rect.max);
-        assert_approx_eq!(ps[3], vec2(clip_rect.min.x, clip_rect.max.y));
-        assert_approx_eq!(uvs[0], vec2(0.25, 0.25));
-        assert_approx_eq!(uvs[1], vec2(0.75, 0.25));
-        assert_approx_eq!(uvs[2], vec2(0.75, 0.5));
-        assert_approx_eq!(uvs[3], vec2(0.25, 0.5));
-    }
-
-    #[test]
-    fn nodey_flip() {
-        let node_rect = Rect::new(0., 0., 100., 100.);
-        let clip_rect = Rect::new(50., 0., 100., 100.);
-        let uv = Rect::new(0., 0., 1., 1.);
-        let [ps, uvs] = calculate_vertices_flipped(node_rect, Some(clip_rect), uv);
-        assert_approx_eq_arr!(ps, [clip_rect.min, vec2(clip_rect.max.x, clip_rect.min.y), clip_rect.max, vec2(clip_rect.min.x, clip_rect.max.y),]);
-        assert_approx_eq_arr!(uvs, [vec2(0.5, 0.), vec2(0., 0.), vec2(0., 1.), vec2(0.5, 1.)]);    
-    }
-
-    #[test]
-    fn nodey_rot() {
-        let node_rect = Rect::new(0., 0., 100., 100.);
-        let clip_rect = Rect::new(0., 0., 50., 100.);
-        let uv = Rect::new(0., 0., 1., 1.);
-        let [ps, uvs] = calculate_vertices_combined(node_rect, Some(clip_rect), uv, 1, false);
-        assert_approx_eq_arr!(ps, [clip_rect.min, vec2(clip_rect.max.x, clip_rect.min.y), clip_rect.max, vec2(clip_rect.min.x, clip_rect.max.y),]);
-        assert_approx_eq_arr!(uvs, [vec2(1., 0.5), vec2(1., 1.), vec2(0., 1.), vec2(0., 0.5)]);    
-    }
-
-    #[test]
-    fn atlas_east_clipped() {
-        let node_rect = Rect::new(0.,0., 128., 128.);
-        let clip_rect = Rect::new(0., 0., 96., 48.);
-        let uv = Rect::new(0., 0., 128. / 256., 64. / 256.);
-        let [ps, vs] = calculate_vertices_combined(node_rect, Some(clip_rect), uv, 1, false);
-        println!("{:?}", ps);
-        println!("{:?}", vs);
     }
 }

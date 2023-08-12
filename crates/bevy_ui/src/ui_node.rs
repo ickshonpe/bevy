@@ -107,9 +107,9 @@ pub enum UiContentTransform {
 }
 
 impl UiContentTransform {
-    /// Rotate the content to the left by 90 degrees
+    /// Rotate the content to the right by 90 degrees
     #[must_use]
-    pub const fn rotate_left(self) -> Self {
+    pub const fn rotate_right(self) -> Self {
         use UiContentTransform::*;
         match self {
             North => East,
@@ -123,9 +123,9 @@ impl UiContentTransform {
         }
     }
 
-    /// Rotate The content to the right by 90 degrees
+    /// Rotate The content to the left by 90 degrees
     #[must_use]
-    pub const fn rotate_right(self) -> Self {
+    pub const fn rotate_left(self) -> Self {
         use UiContentTransform::*;
         match self {
             North => West,
@@ -202,7 +202,7 @@ impl UiContentTransform {
             swap(&mut rect.min.x, &mut rect.max.x);
         }
         let mut vs = rect.vertices();
-        
+
         use UiContentTransform::*;
         match self {
             North | FlippedNorth => {}
