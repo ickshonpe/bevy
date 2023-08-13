@@ -159,13 +159,10 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
 
 pub struct ExtractedUiNode {
     pub stack_index: usize,
-    pub transform: Mat4,
     pub color: Color,
     pub image: Handle<Image>,
-    pub size: Vec2,
-    pub uv_rect: Rect,
-    pub clip: Option<Rect>,
-    pub content_transform: Option<UiContentTransform>,
+    pub vertices: [Vec2; 4],
+    pub uvs: [Vec2; 4],
 }
 
 #[derive(Resource, Default)]
