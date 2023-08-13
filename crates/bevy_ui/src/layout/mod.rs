@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, NodeSize, Style, UiScale};
+use crate::{ContentSize, NodeSize, Style, UiScale, NodePosition};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -14,7 +14,6 @@ use bevy_ecs::{
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
 use bevy_math::Vec2;
-use bevy_transform::components::Transform;
 use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowResolution, WindowScaleFactorChanged};
 use std::fmt;
@@ -228,7 +227,7 @@ pub fn ui_layout_system(
     just_children_query: Query<&Children>,
     mut removed_children: RemovedComponents<Children>,
     mut removed_content_sizes: RemovedComponents<ContentSize>,
-    mut node_transform_query: Query<(&mut NodeSize, &mut Transform)>,
+    mut node_transform_query: Query<(&mut NodeSize, &mut NodePosition)>,
     mut removed_nodes: RemovedComponents<NodeSize>,
 ) {
     // assume one window for time being...
@@ -309,13 +308,12 @@ pub fn ui_layout_system(
     fn update_uinode_geometry_recursive(
         entity: Entity,
         ui_surface: &UiSurface,
-        node_transform_query: &mut Query<(&mut NodeSize, &mut Transform)>,
+        node_transform_query: &mut Query<(&mut NodeSize, &mut NodePosition)>,
         children_query: &Query<&Children>,
         inverse_target_scale_factor: f32,
-        parent_size: Vec2,
         mut absolute_location: Vec2,
     ) {
-        if let Ok((mut node, mut transform)) = node_transform_query.get_mut(entity) {
+        if let Ok((mut size, mut position)) = node_transform_query.get_mut(entity) {
             let layout = ui_surface.get_layout(entity).unwrap();
             let layout_size = Vec2::new(layout.size.width, layout.size.height);
             let layout_location = Vec2::new(layout.location.x, layout.location.y);
@@ -326,15 +324,14 @@ pub fn ui_layout_system(
                 - round_layout_coords(absolute_location);
 
             let new_size = inverse_target_scale_factor * rounded_size;
-            let new_position =
-                inverse_target_scale_factor * rounded_location + 0.5 * (new_size - parent_size);
+            let new_position = inverse_target_scale_factor * rounded_location;
 
             // only trigger change detection when the new values are different
-            if node.calculated_size != new_size {
-                node.calculated_size = new_size;
+            if size.calculated_size != new_size {
+                size.calculated_size = new_size;
             }
-            if transform.translation.truncate() != new_position {
-                transform.translation = new_position.extend(0.);
+            if position.calculated_position != new_position {
+                position.calculated_position = new_position;
             }
             if let Ok(children) = children_query.get(entity) {
                 for &child_uinode in children {
@@ -344,7 +341,6 @@ pub fn ui_layout_system(
                         node_transform_query,
                         children_query,
                         inverse_target_scale_factor,
-                        new_size,
                         absolute_location,
                     );
                 }
@@ -359,7 +355,6 @@ pub fn ui_layout_system(
             &mut node_transform_query,
             &just_children_query,
             inverse_target_scale_factor as f32,
-            Vec2::ZERO,
             Vec2::ZERO,
         );
     }
