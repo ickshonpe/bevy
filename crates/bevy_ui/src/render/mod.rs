@@ -13,7 +13,7 @@ use crate::{
     Style, UiImage, UiScale, UiStack, UiTextureAtlasImage, Val,
 };
 
-use crate::UiContentTransform;
+use crate::{UiContentTransform, NodePosition};
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
@@ -170,6 +170,11 @@ pub struct ExtractedUiNodes {
     pub uinodes: Vec<ExtractedUiNode>,
 }
 
+#[inline]
+fn rect(position: Vec2, size: Vec2) -> Rect {
+    Rect { min: position, max: position + size }
+}
+
 pub fn extract_atlas_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     images: Extract<Res<Assets<Image>>>,
@@ -179,7 +184,7 @@ pub fn extract_atlas_uinodes(
         Query<
             (
                 &NodeSize,
-                &GlobalTransform,
+                &NodePosition,
                 &BackgroundColor,
                 &ComputedVisibility,
                 Option<&CalculatedClip>,
@@ -193,8 +198,8 @@ pub fn extract_atlas_uinodes(
 ) {
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((
-            uinode,
-            transform,
+            node_size,
+            node_position,
             color,
             visibility,
             clip,
@@ -235,19 +240,18 @@ pub fn extract_atlas_uinodes(
                 continue;
             }
 
+            let vertices = Rect::from_corners(node_position.calculated_position, node_size.calculated_size).vertices();
+
             atlas_rect.min /= atlas_size;
             atlas_rect.max /= atlas_size;
-            let mut transform = transform.compute_matrix();
+            let uvs = atlas_rect.vertices();
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
-                transform,
                 color: color.0,
-                size: uinode.size(),
-                clip: clip.map(|clip| clip.clip),
                 image,
-                uv_rect: atlas_rect,
-                content_transform: orientation.copied(),
+                vertices,
+                uvs,
             });
         }
     }
@@ -365,17 +369,13 @@ pub fn extract_uinode_borders(
                 if edge.min.x < edge.max.x && edge.min.y < edge.max.y {
                     extracted_uinodes.uinodes.push(ExtractedUiNode {
                         stack_index,
-                        // This translates the uinode's transform to the center of the current border rectangle
-                        transform: transform * Mat4::from_translation(edge.center().extend(0.)),
                         color: border_color.0,
-                        size: edge.size(),
+                        vertices: edge.vertices(),
                         image: image.clone_weak(),
-                        uv_rect: Rect {
+                        uvs: Rect {
                             min: Vec2::ZERO,
                             max: Vec2::ONE,
-                        },
-                        clip: clip.map(|clip| clip.clip),
-                        content_transform: Default::default(),
+                        }.vertices(),
                     });
                 }
             }
@@ -391,7 +391,7 @@ pub fn extract_uinodes(
         Query<
             (
                 &NodeSize,
-                &GlobalTransform,
+                &NodePosition,
                 &BackgroundColor,
                 Option<&UiImage>,
                 &ComputedVisibility,
@@ -403,7 +403,7 @@ pub fn extract_uinodes(
     >,
 ) {
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, transform, color, maybe_image, visibility, clip, orientation)) =
+        if let Ok((node_size, node_position, color, maybe_image, visibility, clip, orientation)) =
             uinode_query.get(*entity)
         {
             // Skip invisible and completely transparent nodes
@@ -411,21 +411,10 @@ pub fn extract_uinodes(
                 continue;
             }
 
-            let mut transform = transform.compute_matrix();
-            let size = uinode.calculated_size;
-
             let image = if let Some(image) = maybe_image {
                 // Skip loading images
                 if !images.contains(&image.texture) {
                     continue;
-                }
-                if let Some(orientation) = orientation {
-                    transform *= Mat4::from(*orientation);
-
-                    if orientation.is_sideways() {
-                        let aspect = uinode.size().y / uinode.size().x;
-                        transform *= Mat4::from_scale(Vec3::new(aspect, aspect.recip(), 1.));
-                    }
                 }
                 image.texture.clone_weak()
             } else {
@@ -434,16 +423,13 @@ pub fn extract_uinodes(
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
-                transform,
                 color: color.0,
-                size,
-                clip: clip.map(|clip| clip.clip),
+                vertices: rect(node_position.calculated_position, node_size.calculated_size).vertices(),
                 image,
-                uv_rect: Rect {
+                uvs: Rect {
                     min: Vec2::ZERO,
                     max: Vec2::ONE,
-                },
-                content_transform: orientation.copied(),
+                }.vertices(),
             });
         };
     }
@@ -532,7 +518,7 @@ pub fn extract_text_uinodes(
     uinode_query: Extract<
         Query<(
             &NodeSize,
-            &GlobalTransform,
+            &NodePosition,
             &Text,
             &TextLayoutInfo,
             &ComputedVisibility,
@@ -555,7 +541,7 @@ pub fn extract_text_uinodes(
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((
             uinode,
-            global_transform,
+            node_position,
             text,
             text_layout_info,
             visibility,
@@ -571,14 +557,14 @@ pub fn extract_text_uinodes(
             let (rotations, flip) = orientation
                 .map(|o| (o.rotations(), o.is_flipped()))
                 .unwrap_or((0, false));
-            let mut transform = global_transform.compute_matrix();
+            // let mut transform = global_transform.compute_matrix();
 
-            transform *= Mat4::from_rotation_z(-FRAC_PI_2 * rotations as f32);
-            transform *= Mat4::from_translation(-0.5 * uinode.size().extend(0.));
+            // transform *= Mat4::from_rotation_z(-FRAC_PI_2 * rotations as f32);
+            // transform *= Mat4::from_translation(-0.5 * uinode.size().extend(0.));
 
-            if flip {
-                transform *= Mat4::from_scale(vec3(-1., 1., 1.));
-            }
+            // if flip {
+            //     transform *= Mat4::from_scale(vec3(-1., 1., 1.));
+            // }
 
             let mut color = Color::WHITE;
             let mut current_section = usize::MAX;
@@ -599,24 +585,15 @@ pub fn extract_text_uinodes(
                 let mut uv_rect = atlas.textures[atlas_info.glyph_index];
                 uv_rect.min /= atlas.size;
                 uv_rect.max /= atlas.size;
-                // let p = if sideways {
-                //     position.yx()
-                // } else {
-                //     *position
-                // };
                 let mut size = *size * inverse_scale_factor;
-                // if sideways {
-                //     size = size.yx();
-                // }
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
-                    transform: transform * Mat4::from_translation(position.extend(0.)),
                     color,
-                    size,
+                    
                     image: atlas.texture.clone_weak(),
-                    uv_rect,
-                    clip: clip.map(|clip| clip.clip),
-                    content_transform: Default::default(), //orientation.copied(),
+                    vertices: rect(*position + node_position.calculated_position, size).vertices(),
+                    uvs: uv_rect.vertices(),
+                    
                 });
             }
         }
@@ -709,65 +686,65 @@ pub fn prepare_uinodes(
         } else {
             UNTEXTURED_QUAD
         };
-        let [positions, uvs] = if let Some(content_transform) = extracted_uinode.content_transform {
-            let size = extracted_uinode.size;
+        // let [positions, uvs] = if let Some(content_transform) = extracted_uinode.content_transform {
+        //     let size = extracted_uinode.size;
 
-            let center = extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
+        //     let center = extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
 
-            let rect = Rect::from_center_size(center, size);
+        //     let rect = Rect::from_center_size(center, size);
 
-            let target = extracted_uinode
-                .clip
-                .map(|c| rect.intersect(c))
-                .unwrap_or(rect);
-            if target.is_empty() {
-                continue;
-            }
+        //     let target = extracted_uinode
+        //         .clip
+        //         .map(|c| rect.intersect(c))
+        //         .unwrap_or(rect);
+        //     if target.is_empty() {
+        //         continue;
+        //     }
 
-            let [positions, uvs] = calculate_vertices(
-                rect,
-                target,
-                extracted_uinode.uv_rect,
-                content_transform.rotations(),
-                content_transform.is_flipped(),
-            );
+        //     let [positions, uvs] = calculate_vertices(
+        //         rect,
+        //         target,
+        //         extracted_uinode.uv_rect,
+        //         content_transform.rotations(),
+        //         content_transform.is_flipped(),
+        //     );
 
-            [positions, uvs]
-        } else {
-            let size = extracted_uinode.size;
+        //     [positions, uvs]
+        // } else {
+        //     let size = extracted_uinode.size;
 
-            let center = extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
+        //     let center = extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
 
-            let rect = Rect::from_center_size(center, size);
-            let target = extracted_uinode
-                .clip
-                .map(|c| rect.intersect(c))
-                .unwrap_or(rect);
-            if target.is_empty() {
-                continue;
-            }
-            let mut positions = target.vertices();
-            for position in &mut positions {
-                *position = extracted_uinode
-                    .transform
-                    .transform_point3((*position - center).extend(0.))
-                    .xy();
-            }
+        //     let rect = Rect::from_center_size(center, size);
+        //     let target = extracted_uinode
+        //         .clip
+        //         .map(|c| rect.intersect(c))
+        //         .unwrap_or(rect);
+        //     if target.is_empty() {
+        //         continue;
+        //     }
+        //     let mut positions = target.vertices();
+        //     for position in &mut positions {
+        //         *position = extracted_uinode
+        //             .transform
+        //             .transform_point3((*position - center).extend(0.))
+        //             .xy();
+        //     }
 
-            [positions, extracted_uinode.uv_rect.vertices()]
-        };
+        //     [positions, extracted_uinode.uv_rect.vertices()]
+        // };
 
         let color = extracted_uinode.color.as_linear_rgba_f32();
         for i in QUAD_INDICES {
             ui_meta.vertices.push(UiVertex {
-                position: positions[i].extend(0.).into(),
-                uv: uvs[i].into(),
+                position: extracted_uinode.vertices[i].extend(0.).into(),
+                uv: extracted_uinode.uvs[i].into(),
                 color,
                 mode,
             });
         }
 
-        last_z = extracted_uinode.transform.w_axis[2];
+        last_z = extracted_uinode.stack_index as f32;
         end += QUAD_INDICES.len() as u32;
     }
 

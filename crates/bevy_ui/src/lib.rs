@@ -43,7 +43,6 @@ use crate::prelude::UiCameraConfig;
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
 use bevy_input::InputSystem;
-use bevy_transform::TransformSystem;
 use stack::ui_stack_system;
 pub use stack::UiStack;
 use update::update_clipping_system;
@@ -169,7 +168,7 @@ impl Plugin for UiPlugin {
                 ui_layout_system
                     .in_set(UiSystem::Layout),
                 ui_stack_system.in_set(UiSystem::Stack),
-                update_clipping_system,
+              //  update_clipping_system,
             ),
         );
 
