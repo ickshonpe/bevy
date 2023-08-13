@@ -18,8 +18,7 @@ use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
 use bevy_math::{
-    vec2, Mat2, Mat3, Mat4, Rect, URect, UVec4, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles,
-    Vec4Swizzles,
+    vec2, Mat2,  Mat4, Rect, URect, UVec4, Vec2, Vec3, Vec3Swizzles,
 };
 use bevy_reflect::TypeUuid;
 use bevy_render::texture::DEFAULT_IMAGE_HANDLE;
