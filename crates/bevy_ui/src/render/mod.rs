@@ -554,18 +554,6 @@ pub fn extract_text_uinodes(
                 continue;
             }
 
-            let (rotations, flip) = orientation
-                .map(|o| (o.rotations(), o.is_flipped()))
-                .unwrap_or((0, false));
-            // let mut transform = global_transform.compute_matrix();
-
-            // transform *= Mat4::from_rotation_z(-FRAC_PI_2 * rotations as f32);
-            // transform *= Mat4::from_translation(-0.5 * uinode.size().extend(0.));
-
-            // if flip {
-            //     transform *= Mat4::from_scale(vec3(-1., 1., 1.));
-            // }
-
             let mut color = Color::WHITE;
             let mut current_section = usize::MAX;
             for PositionedGlyph {
@@ -585,13 +573,11 @@ pub fn extract_text_uinodes(
                 let mut uv_rect = atlas.textures[atlas_info.glyph_index];
                 uv_rect.min /= atlas.size;
                 uv_rect.max /= atlas.size;
-                let mut size = *size * inverse_scale_factor;
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
                     color,
-                    
                     image: atlas.texture.clone_weak(),
-                    vertices: rect(*position + node_position.calculated_position, size).vertices(),
+                    vertices: Rect::from_center_size(*position * inverse_scale_factor + node_position.calculated_position, *size * inverse_scale_factor).vertices(),
                     uvs: uv_rect.vertices(),
                     
                 });
@@ -686,53 +672,6 @@ pub fn prepare_uinodes(
         } else {
             UNTEXTURED_QUAD
         };
-        // let [positions, uvs] = if let Some(content_transform) = extracted_uinode.content_transform {
-        //     let size = extracted_uinode.size;
-
-        //     let center = extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
-
-        //     let rect = Rect::from_center_size(center, size);
-
-        //     let target = extracted_uinode
-        //         .clip
-        //         .map(|c| rect.intersect(c))
-        //         .unwrap_or(rect);
-        //     if target.is_empty() {
-        //         continue;
-        //     }
-
-        //     let [positions, uvs] = calculate_vertices(
-        //         rect,
-        //         target,
-        //         extracted_uinode.uv_rect,
-        //         content_transform.rotations(),
-        //         content_transform.is_flipped(),
-        //     );
-
-        //     [positions, uvs]
-        // } else {
-        //     let size = extracted_uinode.size;
-
-        //     let center = extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
-
-        //     let rect = Rect::from_center_size(center, size);
-        //     let target = extracted_uinode
-        //         .clip
-        //         .map(|c| rect.intersect(c))
-        //         .unwrap_or(rect);
-        //     if target.is_empty() {
-        //         continue;
-        //     }
-        //     let mut positions = target.vertices();
-        //     for position in &mut positions {
-        //         *position = extracted_uinode
-        //             .transform
-        //             .transform_point3((*position - center).extend(0.))
-        //             .xy();
-        //     }
-
-        //     [positions, extracted_uinode.uv_rect.vertices()]
-        // };
 
         let color = extracted_uinode.color.as_linear_rgba_f32();
         for i in QUAD_INDICES {

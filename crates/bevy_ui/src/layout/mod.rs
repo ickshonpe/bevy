@@ -311,15 +311,15 @@ pub fn ui_layout_system(
         node_transform_query: &mut Query<(&mut NodeSize, &mut NodePosition)>,
         children_query: &Query<&Children>,
         inverse_target_scale_factor: f32,
-        mut absolute_location: Vec2,
+        parent_location: Vec2,
     ) {
         if let Ok((mut size, mut position)) = node_transform_query.get_mut(entity) {
             let layout = ui_surface.get_layout(entity).unwrap();
             let layout_size = Vec2::new(layout.size.width, layout.size.height);
             let layout_location = Vec2::new(layout.location.x, layout.location.y);
-
-            absolute_location += layout_location;
-            let rounded_location = round_layout_coords(layout_location);
+            
+            let absolute_location = parent_location + layout_location;
+            let rounded_location = round_layout_coords(absolute_location);
             let rounded_size = round_layout_coords(absolute_location + layout_size)
                 - round_layout_coords(absolute_location);
 
