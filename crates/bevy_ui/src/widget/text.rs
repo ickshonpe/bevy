@@ -1,5 +1,6 @@
 use crate::{
-    ContentSize, FixedMeasure, Measure, Node, SwappedDimensionsMeasure, UiContentTransform, UiScale,
+    ContentSize, FixedMeasure, Measure, NodeSize, SwappedDimensionsMeasure, UiContentTransform,
+    UiScale,
 };
 use bevy_asset::Assets;
 use bevy_ecs::{
@@ -145,7 +146,7 @@ pub fn measure_text_system(
             &mut TextFlags,
             Ref<UiContentTransform>,
         ),
-        With<Node>,
+        With<NodeSize>,
     >,
 ) {
     let window_scale_factor = windows
@@ -270,7 +271,7 @@ pub fn text_system(
     mut font_atlas_set_storage: ResMut<Assets<FontAtlasSet>>,
     mut text_pipeline: ResMut<TextPipeline>,
     mut text_query: Query<(
-        Ref<Node>,
+        Ref<NodeSize>,
         Option<Ref<UiContentTransform>>,
         &Text,
         &mut TextLayoutInfo,

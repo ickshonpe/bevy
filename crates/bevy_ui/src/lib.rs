@@ -103,7 +103,8 @@ impl Plugin for UiPlugin {
             .register_type::<JustifyContent>()
             .register_type::<JustifyItems>()
             .register_type::<JustifySelf>()
-            .register_type::<Node>()
+            .register_type::<NodeSize>()
+            .register_type::<NodePosition>()
             // NOTE: used by Style::aspect_ratio
             .register_type::<Option<f32>>()
             .register_type::<Overflow>()

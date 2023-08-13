@@ -4,8 +4,8 @@
 use crate::widget::TextFlags;
 use crate::{
     widget::{Button, UiImageSize},
-    BackgroundColor, BorderColor, ContentSize, FocusPolicy, Interaction, Node, Style,
-    UiContentTransform, UiImage, UiTextureAtlasImage, ZIndex,
+    BackgroundColor, BorderColor, ContentSize, FocusPolicy, Interaction, NodePosition, NodeSize,
+    Style, UiContentTransform, UiImage, UiTextureAtlasImage, ZIndex,
 };
 use bevy_asset::Handle;
 use bevy_ecs::bundle::Bundle;
@@ -16,7 +16,6 @@ use bevy_render::{
 use bevy_sprite::TextureAtlas;
 #[cfg(feature = "bevy_text")]
 use bevy_text::{BreakLineOn, Text, TextAlignment, TextLayoutInfo, TextSection, TextStyle};
-use bevy_transform::prelude::{GlobalTransform, Transform};
 
 /// The basic UI node
 ///
@@ -24,7 +23,9 @@ use bevy_transform::prelude::{GlobalTransform, Transform};
 #[derive(Bundle, Clone, Debug)]
 pub struct NodeBundle {
     /// Describes the logical size of the node
-    pub node: Node,
+    pub node_size: NodeSize,
+    /// Describes the logical position of the node
+    pub node_position: NodePosition,
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
@@ -34,20 +35,6 @@ pub struct NodeBundle {
     pub border_color: BorderColor,
     /// Whether this node should block interaction with lower nodes
     pub focus_policy: FocusPolicy,
-    /// The transform of the node
-    ///
-    /// The `translation` field is overwritten each frame by `ui_layout_system`.
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    ///
-    /// `scale` and `rotation` can be applied to UI nodes but the result is purely visual and the
-    /// clipping and focus systems will not work reliably. Only rotations about the z-axis should be used,
-    /// other rotations may intefere with the UI's rendering for unpredictable results.
-    pub transform: Transform,
-    /// The global transform of the node
-    ///
-    /// This field is automatically updated by [`bevy_transform::systems::propagate_transforms`]
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Algorithmically-computed indication of whether an entity is visible and should be extracted for rendering
@@ -66,11 +53,10 @@ impl Default for NodeBundle {
             // Transparent background
             background_color: Color::NONE.into(),
             border_color: Color::NONE.into(),
-            node: Default::default(),
+            node_size: Default::default(),
+            node_position: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
-            transform: Default::default(),
-            global_transform: Default::default(),
             visibility: Default::default(),
             computed_visibility: Default::default(),
             z_index: Default::default(),
@@ -86,7 +72,9 @@ pub struct ImageBundle {
     ///
     /// This field is automatically managed by the UI layout system.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub node: Node,
+    pub node_size: NodeSize,
+    /// Describes the logical position of the node
+    pub node_position: NodePosition,
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
@@ -104,20 +92,6 @@ pub struct ImageBundle {
     pub image_size: UiImageSize,
     /// Whether this node should block interaction with lower nodes
     pub focus_policy: FocusPolicy,
-    /// The transform of the node
-    ///
-    /// The `translation` field is overwritten each frame by `ui_layout_system`.
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    ///
-    /// `scale` and `rotation` can be applied to UI nodes but the result is purely visual and the
-    /// clipping and focus systems will not work reliably. Only rotations about the z-axis should be used,
-    /// other rotations may intefere with the UI's rendering for unpredictable results.
-    pub transform: Transform,
-    /// The global transform of the node
-    ///
-    /// This field is automatically updated by [`bevy_transform::systems::propagate_transforms`]
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Algorithmically-computed indication of whether an entity is visible and should be extracted for rendering
@@ -137,7 +111,9 @@ pub struct AtlasImageBundle {
     ///
     /// This field is automatically managed by the UI layout system.
     /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub node: Node,
+    pub node_size: NodeSize,
+    /// Describes the logical position of the node
+    pub node_position: NodePosition,
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
@@ -157,20 +133,6 @@ pub struct AtlasImageBundle {
     ///
     /// This field is set automatically
     pub image_size: UiImageSize,
-    /// The transform of the node
-    ///
-    /// The `translation` field is overwritten each frame by `ui_layout_system`.
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    ///
-    /// `scale` and `rotation` can be applied to UI nodes but the result is purely visual and the
-    /// clipping and focus systems will not work reliably. Only rotations about the z-axis should be used,
-    /// other rotations may intefere with the UI's rendering for unpredictable results.
-    pub transform: Transform,
-    /// The global transform of the node
-    ///
-    /// This field is automatically updated by [`bevy_transform::systems::propagate_transforms`]
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Algorithmically-computed indication of whether an entity is visible and should be extracted for rendering
@@ -188,7 +150,9 @@ pub struct AtlasImageBundle {
 #[derive(Bundle, Debug)]
 pub struct TextBundle {
     /// Describes the logical size of the node
-    pub node: Node,
+    pub node_size: NodeSize,
+    /// Describes the logical position of the node
+    pub node_position: NodePosition,
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
@@ -202,20 +166,6 @@ pub struct TextBundle {
     pub calculated_size: ContentSize,
     /// Whether this node should block interaction with lower nodes
     pub focus_policy: FocusPolicy,
-    /// The transform of the node
-    ///
-    /// The `translation` field is overwritten each frame by `ui_layout_system`.
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    ///
-    /// `scale` and `rotation` can be applied to UI nodes but the result is purely visual and the
-    /// clipping and focus systems will not work reliably. Only rotations about the z-axis should be used,
-    /// other rotations may intefere with the UI's rendering for unpredictable results.
-    pub transform: Transform,
-    /// The global transform of the node
-    ///
-    /// This field is automatically updated by [`bevy_transform::systems::propagate_transforms`]
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Algorithmically-computed indication of whether an entity is visible and should be extracted for rendering
@@ -240,11 +190,10 @@ impl Default for TextBundle {
             calculated_size: Default::default(),
             // Transparent background
             background_color: BackgroundColor(Color::NONE),
-            node: Default::default(),
+            node_size: Default::default(),
+            node_position: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
-            transform: Default::default(),
-            global_transform: Default::default(),
             visibility: Default::default(),
             computed_visibility: Default::default(),
             z_index: Default::default(),
@@ -311,7 +260,9 @@ impl TextBundle {
 #[derive(Bundle, Clone, Debug)]
 pub struct ButtonBundle {
     /// Describes the logical size of the node
-    pub node: Node,
+    pub node_size: NodeSize,
+    /// Describes the logical position of the node
+    pub node_position: NodePosition,
     /// Marker component that signals this node is a button
     pub button: Button,
     /// Styles which control the layout (size and position) of the node and it's children
@@ -329,20 +280,6 @@ pub struct ButtonBundle {
     pub border_color: BorderColor,
     /// The image of the node
     pub image: UiImage,
-    /// The transform of the node
-    ///
-    /// The `translation` field is overwritten each frame by `ui_layout_system`.
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    ///
-    /// `scale` and `rotation` can be applied to UI nodes but the result is purely visual and the
-    /// clipping and focus systems will not work reliably. Only rotations about the z-axis should be used,
-    /// other rotations may intefere with the UI's rendering for unpredictable results.
-    pub transform: Transform,
-    /// The global transform of the node
-    ///
-    /// This field is automatically updated by [`bevy_transform::systems::propagate_transforms`]
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Algorithmically-computed indication of whether an entity is visible and should be extracted for rendering
@@ -359,15 +296,14 @@ impl Default for ButtonBundle {
     fn default() -> Self {
         Self {
             focus_policy: FocusPolicy::Block,
-            node: Default::default(),
+            node_size: Default::default(),
+            node_position: Default::default(),
             button: Default::default(),
             style: Default::default(),
             border_color: BorderColor(Color::NONE),
             interaction: Default::default(),
             background_color: Default::default(),
             image: Default::default(),
-            transform: Default::default(),
-            global_transform: Default::default(),
             visibility: Default::default(),
             computed_visibility: Default::default(),
             z_index: Default::default(),

@@ -1,6 +1,7 @@
 use crate::UiContentTransform;
 use crate::{
-    measurement::AvailableSpace, ContentSize, Measure, Node, UiImage, UiScale, UiTextureAtlasImage,
+    measurement::AvailableSpace, ContentSize, Measure, NodeSize, UiImage, UiScale,
+    UiTextureAtlasImage,
 };
 use bevy_asset::{Assets, Handle};
 
@@ -72,9 +73,9 @@ impl Measure for ImageMeasure {
 }
 
 #[cfg(feature = "bevy_text")]
-type UpdateImageFilter = (With<Node>, Without<bevy_text::Text>);
+type UpdateImageFilter = (With<NodeSize>, Without<bevy_text::Text>);
 #[cfg(not(feature = "bevy_text"))]
-type UpdateImageFilter = With<Node>;
+type UpdateImageFilter = With<NodeSize>;
 
 /// Updates content size of the node based on the image provided
 pub fn update_image_content_size_system(

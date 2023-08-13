@@ -9,7 +9,7 @@ pub use pipeline::*;
 pub use render_pass::*;
 
 use crate::{
-    prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ContentSize, Node,
+    prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ContentSize, NodeSize,
     Style, UiImage, UiScale, UiStack, UiTextureAtlasImage, Val,
 };
 
@@ -18,7 +18,8 @@ use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
 use bevy_math::{
-    vec2, Mat4, Rect, URect, UVec4, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles, Vec4Swizzles, Mat2, Mat3,
+    vec2, Mat2, Mat3, Mat4, Rect, URect, UVec4, Vec2, Vec2Swizzles, Vec3, Vec3Swizzles,
+    Vec4Swizzles,
 };
 use bevy_reflect::TypeUuid;
 use bevy_render::texture::DEFAULT_IMAGE_HANDLE;
@@ -181,7 +182,7 @@ pub fn extract_atlas_uinodes(
     uinode_query: Extract<
         Query<
             (
-                &Node,
+                &NodeSize,
                 &GlobalTransform,
                 &BackgroundColor,
                 &ComputedVisibility,
@@ -276,7 +277,7 @@ pub fn extract_uinode_borders(
     uinode_query: Extract<
         Query<
             (
-                &Node,
+                &NodeSize,
                 &GlobalTransform,
                 &Style,
                 &BorderColor,
@@ -287,7 +288,7 @@ pub fn extract_uinode_borders(
             Without<ContentSize>,
         >,
     >,
-    node_query: Extract<Query<&Node>>,
+    node_query: Extract<Query<&NodeSize>>,
 ) {
     let image = bevy_render::texture::DEFAULT_IMAGE_HANDLE.typed();
 
@@ -393,7 +394,7 @@ pub fn extract_uinodes(
     uinode_query: Extract<
         Query<
             (
-                &Node,
+                &NodeSize,
                 &GlobalTransform,
                 &BackgroundColor,
                 Option<&UiImage>,
@@ -534,7 +535,7 @@ pub fn extract_text_uinodes(
     ui_scale: Extract<Res<UiScale>>,
     uinode_query: Extract<
         Query<(
-            &Node,
+            &NodeSize,
             &GlobalTransform,
             &Text,
             &TextLayoutInfo,
@@ -570,19 +571,18 @@ pub fn extract_text_uinodes(
             if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
                 continue;
             }
-            
-            let (rotations, flip) = orientation.map(|o| (o.rotations(), o.is_flipped())).unwrap_or((0, false));
+
+            let (rotations, flip) = orientation
+                .map(|o| (o.rotations(), o.is_flipped()))
+                .unwrap_or((0, false));
             let mut transform = global_transform.compute_matrix();
-            
-            
+
             transform *= Mat4::from_rotation_z(-FRAC_PI_2 * rotations as f32);
             transform *= Mat4::from_translation(-0.5 * uinode.size().extend(0.));
-
 
             if flip {
                 transform *= Mat4::from_scale(vec3(-1., 1., 1.));
             }
-
 
             let mut color = Color::WHITE;
             let mut current_section = usize::MAX;
@@ -614,9 +614,7 @@ pub fn extract_text_uinodes(
                 // }
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
-                    transform: transform
-                        * Mat4::from_translation(position.extend(0.))
-                        ,
+                    transform: transform * Mat4::from_translation(position.extend(0.)),
                     color,
                     size,
                     image: atlas.texture.clone_weak(),
@@ -715,16 +713,16 @@ pub fn prepare_uinodes(
         } else {
             UNTEXTURED_QUAD
         };
-        let [positions, uvs] =
-        if let Some(content_transform) = extracted_uinode.content_transform {
+        let [positions, uvs] = if let Some(content_transform) = extracted_uinode.content_transform {
             let size = extracted_uinode.size;
 
             let center = extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
 
             let rect = Rect::from_center_size(center, size);
 
-            let target =
-                extracted_uinode.clip.map(|c| rect.intersect(c))
+            let target = extracted_uinode
+                .clip
+                .map(|c| rect.intersect(c))
                 .unwrap_or(rect);
             if target.is_empty() {
                 continue;
@@ -739,27 +737,29 @@ pub fn prepare_uinodes(
             );
 
             [positions, uvs]
-
         } else {
             let size = extracted_uinode.size;
 
             let center = extracted_uinode.transform.transform_point3(Vec3::ZERO).xy();
 
             let rect = Rect::from_center_size(center, size);
-            let target =
-                extracted_uinode.clip.map(|c| rect.intersect(c))
+            let target = extracted_uinode
+                .clip
+                .map(|c| rect.intersect(c))
                 .unwrap_or(rect);
             if target.is_empty() {
                 continue;
             }
             let mut positions = target.vertices();
             for position in &mut positions {
-                *position = extracted_uinode.transform.transform_point3((*position - center).extend(0.)).xy();
+                *position = extracted_uinode
+                    .transform
+                    .transform_point3((*position - center).extend(0.))
+                    .xy();
             }
-            
+
             [positions, extracted_uinode.uv_rect.vertices()]
         };
-        
 
         let color = extracted_uinode.color.as_linear_rgba_f32();
         for i in QUAD_INDICES {
@@ -786,7 +786,6 @@ pub fn prepare_uinodes(
     ui_meta.vertices.write_buffer(&render_device, &render_queue);
 }
 
-
 fn calculate_vertices(
     unclipped_target: Rect,
     clipped_target: Rect,
@@ -800,7 +799,7 @@ fn calculate_vertices(
     //         Mat2::from_angle(FRAC_PI_2 * w as f32) * n
     //     } else {
             Mat2::from_angle(-FRAC_PI_2 * w as f32) * n;
-        //};
+    //};
     let fs = clipped_target.size() / unclipped_target.size() * uv_rect.size();
     let fc = if flip {
         uv_rect.center() + vec2(-q.x, q.y) * uv_rect.size()
@@ -810,7 +809,7 @@ fn calculate_vertices(
     let mut f = Rect::from_center_size(fc, fs);
     if flip {
         swap(&mut f.min.x, &mut f.max.x);
-    } 
+    }
     let mut uvs = f.vertices();
     uvs.rotate_right(w as usize);
     [clipped_target.vertices(), uvs]
