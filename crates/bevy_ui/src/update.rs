@@ -1,6 +1,6 @@
 //! This module contains systems that update the UI when something changes
 
-use crate::{CalculatedClip, OverflowAxis, Style};
+use crate::{CalculatedClip, OverflowAxis, Style, NodePosition};
 
 use super::NodeSize;
 use bevy_ecs::{
@@ -10,15 +10,14 @@ use bevy_ecs::{
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_math::Rect;
-use bevy_transform::components::GlobalTransform;
 
 /// Updates clipping for all nodes
 pub fn update_clipping_system(
     mut commands: Commands,
-    root_node_query: Query<Entity, (With<NodeSize>, Without<Parent>)>,
+    root_node_query: Query<Entity, (With<NodeSize>, With<NodePosition>, Without<Parent>)>,
     mut node_query: Query<(
         &NodeSize,
-        &GlobalTransform,
+        &NodePosition,
         &Style,
         Option<&mut CalculatedClip>,
     )>,
@@ -40,14 +39,14 @@ fn update_clipping(
     children_query: &Query<&Children>,
     node_query: &mut Query<(
         &NodeSize,
-        &GlobalTransform,
+        &NodePosition,
         &Style,
         Option<&mut CalculatedClip>,
     )>,
     entity: Entity,
     maybe_inherited_clip: Option<Rect>,
 ) {
-    let (node, global_transform, style, maybe_calculated_clip) =
+    let (size, position, style, maybe_calculated_clip) =
         node_query.get_mut(entity).unwrap();
 
     // Update this node's CalculatedClip component
@@ -82,7 +81,7 @@ fn update_clipping(
         // current node's clip and the inherited clip. This handles the case
         // of nested `Overflow::Hidden` nodes. If parent `clip` is not
         // defined, use the current node's clip.
-        let mut node_rect = node.logical_rect(global_transform);
+        let mut node_rect = Rect { min: position.calculated_position, max: position.calculated_position + size.calculated_size };
         if style.overflow.x == OverflowAxis::Visible {
             node_rect.min.x = -f32::INFINITY;
             node_rect.max.x = f32::INFINITY;

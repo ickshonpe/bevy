@@ -245,7 +245,7 @@ pub fn extract_atlas_uinodes(
             atlas_rect.min /= atlas_size;
             atlas_rect.max /= atlas_size;
             let uvs = atlas_rect.vertices();
-
+        
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
                 color: color.0,
@@ -278,7 +278,7 @@ pub fn extract_uinode_borders(
         Query<
             (
                 &NodeSize,
-                &GlobalTransform,
+                &NodePosition,
                 &Style,
                 &BorderColor,
                 Option<&Parent>,
@@ -301,7 +301,7 @@ pub fn extract_uinode_borders(
         / ui_scale.scale as f32;
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((node, global_transform, style, border_color, parent, visibility, clip)) =
+        if let Ok((node, position, style, border_color, parent, visibility, clip)) =
             uinode_query.get(*entity)
         {
             // Skip invisible borders
@@ -336,8 +336,8 @@ pub fn extract_uinode_borders(
 
             // Calculate the border rects, ensuring no overlap.
             // The border occupies the space between the node's bounding rect and the node's bounding rect inset in each direction by the node's corresponding border value.
-            let max = 0.5 * node.size();
-            let min = -max;
+            let min = position.calculated_position;
+            let max = min + node.calculated_size;
             let inner_min = min + Vec2::new(left, top);
             let inner_max = (max - Vec2::new(right, bottom)).max(inner_min);
             let border_rects = [
@@ -362,8 +362,6 @@ pub fn extract_uinode_borders(
                     max: Vec2::new(inner_max.x, max.y),
                 },
             ];
-
-            let transform = global_transform.compute_matrix();
 
             for edge in border_rects {
                 if edge.min.x < edge.max.x && edge.min.y < edge.max.y {
@@ -420,16 +418,36 @@ pub fn extract_uinodes(
             } else {
                 DEFAULT_IMAGE_HANDLE.typed()
             };
+            
+            let r = rect(node_position.calculated_position, node_size.calculated_size);
+            let [vertices, uvs] =
+                if let Some(clip) = clip {
+                    let target = r.intersect(clip.clip);
+                    if target.is_empty() {
+                        continue
+                    }
+                    let p = (target.min - r.min) / r.size();
+                    let s = target.size() / r.size();
+                    [
+                        target.vertices(),
+                        rect(p, s).vertices()
+                    ]
+                } else {
+                    [
+                        r.vertices(),
+                        Rect {
+                            min: Vec2::ZERO,
+                            max: Vec2::ONE,
+                        }.vertices()
+                    ]
+                };
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
                 color: color.0,
-                vertices: rect(node_position.calculated_position, node_size.calculated_size).vertices(),
+                vertices,
                 image,
-                uvs: Rect {
-                    min: Vec2::ZERO,
-                    max: Vec2::ONE,
-                }.vertices(),
+                uvs,
             });
         };
     }
