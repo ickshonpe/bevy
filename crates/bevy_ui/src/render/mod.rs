@@ -18,7 +18,7 @@ use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
 use bevy_math::{
-    vec2, Mat2,  Mat4, Rect, URect, UVec4, Vec2, Vec3, Vec3Swizzles,
+    Mat4, Rect, URect, UVec4, Vec2,
 };
 use bevy_reflect::TypeUuid;
 use bevy_render::texture::DEFAULT_IMAGE_HANDLE;
@@ -42,8 +42,6 @@ use bevy_transform::components::GlobalTransform;
 use bevy_utils::FloatOrd;
 use bevy_utils::HashMap;
 use bytemuck::{Pod, Zeroable};
-use std::f32::consts::FRAC_PI_2;
-use std::mem::swap;
 use std::ops::Range;
 
 pub mod node {
@@ -202,10 +200,10 @@ pub fn extract_atlas_uinodes(
             node_position,
             color,
             visibility,
-            clip,
+            maybe_clip,
             texture_atlas_handle,
             atlas_image,
-            orientation,
+            maybe_content_transform,
         )) = uinode_query.get(*entity)
         {
             // Skip invisible and completely transparent nodes
@@ -240,7 +238,13 @@ pub fn extract_atlas_uinodes(
                 continue;
             }
 
-            let vertices = Rect::from_corners(node_position.calculated_position, node_size.calculated_size).vertices();
+            let content_transform = 
+                maybe_content_transform.map(|content_transform| *content_transform)
+                .unwrap_or_default()
+                .compute_matrix(node_position.calculated_position, node_size.calculated_size);
+
+            let vertices = Rect { min: node_position.calculated_position, max: node_size.size() }.vertices()
+                .map(|vertex| content_transform.transform_point2(vertex));
 
             atlas_rect.min /= atlas_size;
             atlas_rect.max /= atlas_size;
@@ -301,7 +305,7 @@ pub fn extract_uinode_borders(
         / ui_scale.scale as f32;
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((node, position, style, border_color, parent, visibility, clip)) =
+        if let Ok((node, position, style, border_color, parent, visibility, maybe_clip)) =
             uinode_query.get(*entity)
         {
             // Skip invisible borders
@@ -401,7 +405,7 @@ pub fn extract_uinodes(
     >,
 ) {
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((node_size, node_position, color, maybe_image, visibility, clip, orientation)) =
+        if let Ok((node_size, node_position, color, maybe_image, visibility, clip, maybe_content_transform)) =
             uinode_query.get(*entity)
         {
             // Skip invisible and completely transparent nodes
@@ -441,6 +445,16 @@ pub fn extract_uinodes(
                         }.vertices()
                     ]
                 };
+
+            let node_size = node_size.size();
+            let node_pos = node_position.calculated_position;
+            let content_matrix = 
+                maybe_content_transform
+                .map(|content_transform| *content_transform)
+                .unwrap_or_default()
+                .compute_matrix(node_pos, node_size);
+
+            let vertices = vertices.map(|vertex| content_matrix.transform_point2(vertex));
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
@@ -546,8 +560,6 @@ pub fn extract_text_uinodes(
     >,
 ) {
     // TODO: Support window-independent UI scale: https://github.com/bevyengine/bevy/issues/5621
-
-    use bevy_math::vec3;
     let scale_factor = windows
         .get_single()
         .map(|window| window.resolution.scale_factor())
@@ -563,14 +575,21 @@ pub fn extract_text_uinodes(
             text,
             text_layout_info,
             visibility,
-            clip,
-            orientation,
+            maybe_clip,
+            maybe_content_transform,
         )) = uinode_query.get(*entity)
         {
             // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
             if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
                 continue;
             }
+            let node_size = uinode.size();
+            let node_pos = node_position.calculated_position;
+            let content_matrix = 
+                maybe_content_transform
+                .map(|content_transform| *content_transform)
+                .unwrap_or_default()
+                .compute_matrix(node_pos, node_size);
 
             let mut color = Color::WHITE;
             let mut current_section = usize::MAX;
@@ -591,11 +610,15 @@ pub fn extract_text_uinodes(
                 let mut uv_rect = atlas.textures[atlas_info.glyph_index];
                 uv_rect.min /= atlas.size;
                 uv_rect.max /= atlas.size;
+
+                let r = Rect::from_center_size(*position * inverse_scale_factor + node_pos, *size * inverse_scale_factor);
+                let vertices = r.vertices().map(|v| content_matrix.transform_point2(v));
+
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
                     color,
                     image: atlas.texture.clone_weak(),
-                    vertices: Rect::from_center_size(*position * inverse_scale_factor + node_position.calculated_position, *size * inverse_scale_factor).vertices(),
+                    vertices,
                     uvs: uv_rect.vertices(),
                     
                 });
@@ -627,13 +650,6 @@ impl Default for UiMeta {
         }
     }
 }
-
-const QUAD_VERTEX_POSITIONS: [Vec3; 4] = [
-    Vec3::new(-0.5, -0.5, 0.0),
-    Vec3::new(0.5, -0.5, 0.0),
-    Vec3::new(0.5, 0.5, 0.0),
-    Vec3::new(-0.5, 0.5, 0.0),
-];
 
 const QUAD_INDICES: [usize; 6] = [0, 2, 3, 0, 1, 2];
 
@@ -714,35 +730,6 @@ pub fn prepare_uinodes(
     }
 
     ui_meta.vertices.write_buffer(&render_device, &render_queue);
-}
-
-fn calculate_vertices(
-    unclipped_target: Rect,
-    clipped_target: Rect,
-    uv_rect: Rect,
-    w: u8,
-    flip: bool,
-) -> [[Vec2; 4]; 2] {
-    let n = (clipped_target.center() - unclipped_target.center()) / unclipped_target.size();
-    let q =
-    //     if flip {
-    //         Mat2::from_angle(FRAC_PI_2 * w as f32) * n
-    //     } else {
-            Mat2::from_angle(-FRAC_PI_2 * w as f32) * n;
-    //};
-    let fs = clipped_target.size() / unclipped_target.size() * uv_rect.size();
-    let fc = if flip {
-        uv_rect.center() + vec2(-q.x, q.y) * uv_rect.size()
-    } else {
-        uv_rect.center() + q * uv_rect.size()
-    };
-    let mut f = Rect::from_center_size(fc, fs);
-    if flip {
-        swap(&mut f.min.x, &mut f.max.x);
-    }
-    let mut uvs = f.vertices();
-    uvs.rotate_right(w as usize);
-    [clipped_target.vertices(), uvs]
 }
 
 #[derive(Resource, Default)]

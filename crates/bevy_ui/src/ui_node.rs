@@ -1,7 +1,7 @@
 use crate::UiRect;
 use bevy_asset::Handle;
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
-use bevy_math::{Mat4, Rect, Vec2, Vec3};
+use bevy_math::{Mat4, Rect, Vec2, Vec3, Mat3, vec3, vec2};
 use bevy_reflect::prelude::*;
 use bevy_render::{
     color::Color,
@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::{
     mem::swap,
-    ops::{Div, DivAssign, Mul, MulAssign},
+    ops::{Div, DivAssign, Mul, MulAssign}, f32::consts::{FRAC_PI_2, PI},
 };
 use thiserror::Error;
 
@@ -135,7 +135,41 @@ pub enum UiContentTransform {
     FlippedWest,
 }
 
+const FRAC_3_PI_2: f32 = 3.0 * std::f32::consts::FRAC_PI_2;
+
 impl UiContentTransform {
+    pub const fn radians(self) -> f32 {
+        use UiContentTransform::*;
+        match self {
+            North |FlippedNorth => 0.,
+            East |
+            FlippedEast =>  FRAC_PI_2,
+            FlippedSouth | 
+            South => PI,
+            West |
+            FlippedWest => FRAC_3_PI_2,
+        }
+    }
+
+    pub fn rotation(self) -> Mat3 {
+        Mat3::from_rotation_z(-self.radians())
+    }
+
+    pub fn transform_in_node(self, rect: Rect) -> Mat3 {
+        use UiContentTransform::*;
+        let pivot =
+            match self {
+                North | FlippedNorth => rect.min,
+                East | FlippedEast => vec2(rect.max.x, rect.min.y),
+                South | FlippedSouth => rect.max,
+                West | FlippedWest => vec2(rect.min.x, rect.max.x),
+            };
+        Mat3::from_translation(-pivot)
+        * self.rotation()
+        * Mat3::from_translation(pivot)
+    }
+    
+
     /// Rotate the content to the right by 90 degrees
     #[must_use]
     pub const fn rotate_right(self) -> Self {
@@ -251,6 +285,40 @@ impl UiContentTransform {
             South | FlippedSouth => 2,
             West | FlippedWest => 3,
         }
+    }
+
+    pub fn compute_matrix(self, min: Vec2, size: Vec2) -> Mat3 {
+        let flip_transform = if self.is_flipped() {
+            let c = min + 0.5 * size;
+            Mat3::from_translation(c)
+            * Mat3::from_scale(vec2(-1., 1.))
+            * Mat3::from_translation(-c)
+        } else {
+            Mat3::IDENTITY
+        };
+        let turn_transform = match self.rotations() {
+            0 => Mat3::IDENTITY,
+            1 => {
+                let p = min + 0.5 * size.min_element();       
+                Mat3::from_translation(p)
+                * Mat3::from_rotation_z(FRAC_PI_2)
+                * Mat3::from_translation(-p)
+            },
+            2 => {
+                let p = min + 0.5 * size;
+                Mat3::from_translation(p)
+                * Mat3::from_rotation_z(PI)
+                * Mat3::from_translation(-p)
+            }
+            _ => {
+                let p = min + 0.5 * size.min_element();
+                let q = size.min_element();        
+                Mat3::from_translation(p + q * Vec2::Y)
+                * Mat3::from_rotation_z(-FRAC_PI_2)
+                * Mat3::from_translation(-p)
+            }
+        };
+        flip_transform * turn_transform
     }
 }
 

@@ -44,7 +44,7 @@ fn setup(mut commands: Commands) {
             )
             .id();
         commands.entity(root).add_child(text);
-        content_transform = content_transform.rotate_left();
+        content_transform = content_transform.rotate_right();
         if i == 3 {
             content_transform = content_transform.flip_x();
         }
