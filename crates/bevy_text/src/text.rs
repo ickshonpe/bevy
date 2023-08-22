@@ -178,6 +178,18 @@ pub struct TextStyle {
     pub color: Color,
 }
 
+impl TextStyle {
+    #[cfg(feature = "default_font")]
+    pub fn color(color: Color) -> TextStyle {
+        TextStyle { color, ..default() }
+    }
+
+    #[cfg(feature = "default_font")]
+    pub fn size(font_size: f32) -> TextStyle {
+        TextStyle { font_size, ..Default::default() }
+    }
+}
+
 impl Default for TextStyle {
     fn default() -> Self {
         Self {
