@@ -4,7 +4,7 @@
 //! This bypasses the layout systems so that only the UI's rendering systems are put under stress.
 //!
 //! To run the demo with extraction iterating the UI stack use:
-//! `cargo run --example many_uirects --release iter-stack
+//! `cargo run --example many_rects --release iter-stack
 //!
 use bevy_internal::{
     render::{texture::DEFAULT_IMAGE_HANDLE, Extract, RenderApp},
@@ -23,8 +23,11 @@ const MIN_EDGE: f32 = 10.;
 const MAX_EDGE: f32 = 150.;
 const WIDTH: f32 = 1024.;
 const HEIGHT: f32 = 768.;
-const STACK_SIZE: usize = 1600;
+const STACK_SIZE: usize = 33000;
 const TEXTURED_RATIO: f32 = 0.2;
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct ExtractRect;
 
 fn main() {
     let mut app = App::new();
@@ -32,7 +35,7 @@ fn main() {
         DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 resolution: (WIDTH, HEIGHT).into(),
-                title: "many_uinodes".into(),
+                title: "many_rects".into(),
                 present_mode: PresentMode::AutoNoVsync,
                 ..default()
             }),
@@ -56,8 +59,11 @@ fn main() {
                 extract_rect_iter_stack::<2>,
                 extract_rect_iter_stack::<3>,
                 extract_rect_iter_stack::<4>,
-                extract_rect_iter_stack::<5>,
-            ),
+                extract_rect_iter_stack::<8>,
+                extract_rect_iter_stack::<16>,
+                extract_rect_iter_stack::<32>,
+            )
+                .chain(),
         );
     } else {
         render_app.add_systems(
@@ -65,10 +71,12 @@ fn main() {
             (
                 extract_rect::<1>,
                 extract_rect::<2>,
-                extract_rect::<3>,
                 extract_rect::<4>,
-                extract_rect::<5>,
-            ),
+                extract_rect::<8>,
+                extract_rect::<16>,
+                extract_rect::<32>,
+            )
+                .chain(),
         );
     }
 
@@ -114,24 +122,22 @@ fn extract_rect_iter_stack<const N: usize>(
             } else {
                 (DEFAULT_IMAGE_HANDLE.typed(), false, false)
             };
-            for _ in 0..N {
-                extracted_uinodes.push_node(
-                    stack_index as u32,
-                    ExtractedUiNode {
-                        transform: transform.compute_matrix(),
-                        color: color.0,
-                        rect: Rect {
-                            min: Vec2::ZERO,
-                            max: size.0,
-                        },
-                        clip: None,
-                        image: image.clone_weak(),
-                        atlas_size: None,
-                        flip_x,
-                        flip_y,
+            extracted_uinodes.push_nodes(
+                stack_index as u32,
+                (0..N).map(|_| ExtractedUiNode {
+                    transform: transform.compute_matrix(),
+                    color: color.0,
+                    rect: Rect {
+                        min: Vec2::ZERO,
+                        max: size.0,
                     },
-                );
-            }
+                    clip: None,
+                    image: image.clone_weak(),
+                    atlas_size: None,
+                    flip_x,
+                    flip_y,
+                }),
+            );
         }
     }
 }
@@ -153,7 +159,9 @@ fn extract_rect<const N: usize>(
         >,
     >,
 ) {
-    for (stack_index, size, transform, color, maybe_image, visibility) in uinode_query.iter() {
+    for (stack_index, size, transform, color, maybe_image, visibility) in
+        uinode_query.iter()
+    {
         // Skip invisible and completely transparent nodes
         if !visibility.is_visible() || color.0.a() == 0.0 {
             continue;
@@ -168,24 +176,22 @@ fn extract_rect<const N: usize>(
         } else {
             (DEFAULT_IMAGE_HANDLE.typed(), false, false)
         };
-        for _ in 0..N {
-            extracted_uinodes.push_node(
-                stack_index.0 as u32,
-                ExtractedUiNode {
-                    transform: transform.compute_matrix(),
-                    color: color.0,
-                    rect: Rect {
-                        min: Vec2::ZERO,
-                        max: size.0,
-                    },
-                    clip: None,
-                    image: image.clone_weak(),
-                    atlas_size: None,
-                    flip_x,
-                    flip_y,
+        extracted_uinodes.push_nodes(
+            stack_index.0 as u32,
+            (0..N).map(|_| ExtractedUiNode {
+                transform: transform.compute_matrix(),
+                color: color.0,
+                rect: Rect {
+                    min: Vec2::ZERO,
+                    max: size.0,
                 },
-            );
-        }
+                clip: None,
+                image: image.clone_weak(),
+                atlas_size: None,
+                flip_x,
+                flip_y,
+            }),
+        );
     }
 }
 
@@ -210,47 +216,48 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         Color::BLUE,
         Color::YELLOW,
     ];
-    let mut rect_stack = RectStack(Vec::with_capacity(STACK_SIZE));
     let mut rng = rand::rngs::StdRng::seed_from_u64(SEED);
-    let mut stack_index = 0;
-    let mut bundles: Vec<_> = (0..STACK_SIZE)
-        .map(|_| {
-            (
-                {
-                    let mut builder = match rng.gen_range(0..5) {
-                        0 => commands.spawn(ExtractionMarker::<1>),
-                        1 => commands.spawn(ExtractionMarker::<2>),
-                        2 => commands.spawn(ExtractionMarker::<4>),
-                        3 => commands.spawn(ExtractionMarker::<8>),
-                        4 => commands.spawn(ExtractionMarker::<16>),
-                        _ => commands.spawn(ExtractionMarker::<32>),
-                    };
-                    if rng.gen::<f32>() <= TEXTURED_RATIO {
-                        let image = image_handles.choose(&mut rng).unwrap();
-                        builder.insert(UiImage::new(asset_server.load(*image)));
-                    }
-                    rect_stack.push(builder.id());
-                    builder.id()
-                },
-                {
-                    stack_index += 1;
-                    let w = rng.gen_range(MIN_EDGE..MAX_EDGE);
-                    let h = rng.gen_range(MIN_EDGE..MAX_EDGE);
-                    let x = rng.gen_range(0.0..WIDTH);
-                    let y = rng.gen_range(0.0..HEIGHT);
-                    let color = *colors.choose(&mut rng).unwrap();
-                    (
-                        Size(Vec2::new(w, h)),
-                        Transform::from_translation(Vec3::new(x, y, 1.0)),
-                        GlobalTransform::default(),
-                        StackIndex(stack_index),
-                        BackgroundColor(color),
-                        VisibilityBundle::default(),
-                    )
-                },
-            )
+    let mut rect_stack = RectStack(Vec::with_capacity(STACK_SIZE));
+    for _ in 0..STACK_SIZE {
+        let n = rng.gen_range(0..63);
+        let mut builder = match n {
+            0..= 31 => commands.spawn(ExtractionMarker::<1>),
+            32..= 47 => commands.spawn(ExtractionMarker::<2>),
+            48..= 55 => commands.spawn(ExtractionMarker::<4>),
+            56..= 59 => commands.spawn(ExtractionMarker::<8>),
+            60..= 61 => commands.spawn(ExtractionMarker::<16>),
+            _ => commands.spawn(ExtractionMarker::<32>),
+        };
+        if rng.gen::<f32>() <= TEXTURED_RATIO {
+            let image = image_handles.choose(&mut rng).unwrap();
+            builder.insert(UiImage::new(asset_server.load(*image)));
+        }
+        rect_stack.push(builder.id());
+    }
+    rect_stack.shuffle(&mut rng);
+
+    let bundles: Vec<_> = rect_stack
+        .iter()
+        .enumerate()
+        .map(|(stack_index, entity)| {
+            (*entity, {
+                let w = rng.gen_range(MIN_EDGE..MAX_EDGE);
+                let h = rng.gen_range(MIN_EDGE..MAX_EDGE);
+                let x = rng.gen_range(0.0..WIDTH);
+                let y = rng.gen_range(0.0..HEIGHT);
+                let color = *colors.choose(&mut rng).unwrap();
+                (
+                    Size(Vec2::new(w, h)),
+                    Transform::from_translation(Vec3::new(x, y, 1.0)),
+                    GlobalTransform::default(),
+                    StackIndex(stack_index),
+                    BackgroundColor(color),
+                    VisibilityBundle::default(),
+                )
+            })
         })
         .collect();
-    bundles.shuffle(&mut rng);
+
     commands.insert_or_spawn_batch(bundles);
+    commands.insert_resource(rect_stack);
 }
