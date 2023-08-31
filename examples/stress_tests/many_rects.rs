@@ -1,10 +1,10 @@
 //! Draws a mix of approximately `100_000` textured and untextured rectangles on screen using the UI's renderer.
 //!
-//! This example doesn't spawn UI node bundles and instead implements its own extraction functions.
+//! This example doesn't spawn UI node bundles and instead add its own custom extraction functions to the `ExtractSchedule`.
 //! This bypasses the layout systems so that only the UI's rendering systems are put under stress.
 //!
 //! To run the demo with extraction iterating the UI stack use:
-//! `cargo run --example many_rects --release iter-stack
+//! `cargo run --example many_rects --release iter-stack`
 //!
 use bevy_internal::{
     render::{texture::DEFAULT_IMAGE_HANDLE, Extract, RenderApp},
