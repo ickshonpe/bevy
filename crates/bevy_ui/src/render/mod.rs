@@ -682,10 +682,7 @@ pub fn prepare_uinodes(
     mut previous_len: Local<usize>,
     pipeline_cache: Res<PipelineCache>,
     draw_functions: Res<DrawFunctions<TransparentUi>>,
-    mut render_phases: ParamSet<(
-        Query<&mut RenderPhase<TransparentUi>>,
-        Query<(&ExtractedView, &mut RenderPhase<TransparentUi>)>,
-    )>,
+    mut render_phases: Query<(&ExtractedView, &mut RenderPhase<TransparentUi>)>,
     mut pipelines: ResMut<SpecializedRenderPipelines<UiPipeline>>,
 ) {
     let draw_function = draw_functions.read().id::<DrawUi>();
@@ -694,26 +691,32 @@ pub fn prepare_uinodes(
         .ranges
         .sort_by_key(|extracted_range| extracted_range.stack_index);
 
-    for (view, mut transparent_phase) in &mut render_phases.p1() {
-        let pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &ui_pipeline,
-            UiPipelineKey { hdr: view.hdr },
-        );
+    // let pipeline = pipelines.specialize(
+    //     &pipeline_cache,
+    //     &ui_pipeline,
+    //     UiPipelineKey { hdr: view.hdr },
+    // );
 
-        transparent_phase
-            .items
-            .reserve(extracted_uinodes.ranges.len());
+    // for (view, mut transparent_phase) in &mut render_phases.iter_mut() {
+    //     let pipeline = pipelines.specialize(
+    //         &pipeline_cache,
+    //         &ui_pipeline,
+    //         UiPipelineKey { hdr: view.hdr },
+    //     );
 
-        for _extracted_range in extracted_uinodes.ranges.iter() {
-            transparent_phase.add(TransparentUi {
-                draw_function,
-                pipeline,
-                entity: commands.spawn_empty().id(),
-                batch_size: 0,
-            });
-        }
-    }
+    //     transparent_phase
+    //         .items
+    //         .reserve(extracted_uinodes.ranges.len());
+
+    //     for _extracted_range in extracted_uinodes.ranges.iter() {
+    //         transparent_phase.add(TransparentUi {
+    //             draw_function,
+    //             pipeline,
+    //             entity: commands.spawn_empty().id(),
+    //             batch_size: 0,
+    //         });
+    //     }
+    // }
 
     // If an image has changed, the GpuImage has (probably) changed
     for event in &events.images {
@@ -727,6 +730,7 @@ pub fn prepare_uinodes(
 
     if let Some(view_binding) = view_uniforms.uniforms.binding() {
         let mut batches: Vec<(Entity, UiBatch)> = Vec::with_capacity(*previous_len);
+        
 
         ui_meta.vertices.clear();
         ui_meta.view_bind_group = Some(render_device.create_bind_group(&BindGroupDescriptor {
@@ -740,8 +744,13 @@ pub fn prepare_uinodes(
 
         // Vertex buffer index
         let mut index = 0;
-        for mut ui_phase in &mut render_phases.p0() {
-            let mut batch_item_index = 0;
+        for (view, mut ui_phase) in &mut render_phases {
+            let pipeline = pipelines.specialize(
+                &pipeline_cache,
+                &ui_pipeline,
+                UiPipelineKey { hdr: view.hdr },
+            );
+            
             let mut batch_image_handle = DEFAULT_IMAGE_HANDLE.id();
 
             if let Some(gpu_image) = gpu_images.get(&DEFAULT_IMAGE_HANDLE.typed()) {
@@ -810,12 +819,18 @@ pub fn prepare_uinodes(
                         continue;
                     };
                     if existing_batch.is_none() {
-                        batch_item_index = n;
+                        let entity = commands.spawn_empty().id();
+                        ui_phase.add(TransparentUi {
+                            draw_function,
+                            pipeline,
+                            entity,
+                            batch_size: 1,
+                        });
                         let new_batch = UiBatch {
                             range: index..index,
                             image_handle_id: extracted_uinode.image.id(),
                         };
-                        batches.push((ui_phase.items[n].entity, new_batch));
+                        batches.push((entity, new_batch));
                     }
 
                     let mode = if extracted_uinode.image.id() == DEFAULT_IMAGE_HANDLE.id() {
@@ -933,7 +948,7 @@ pub fn prepare_uinodes(
                     index += QUAD_INDICES.len() as u32;
                     batches.last_mut().unwrap().1.range.end = index;
                 }
-                ui_phase.items[batch_item_index].batch_size += 1;
+                //ui_phase.items[batch_item_index].batch_size += 1;
             }
         }
         ui_meta.vertices.write_buffer(&render_device, &render_queue);
