@@ -696,9 +696,7 @@ pub struct UiImageBindGroups {
 }
 
 pub fn queue_uinodes(mut extracted_uinodes: ResMut<ExtractedUiNodes>) {
-    extracted_uinodes
-        .ranges
-        .sort_unstable_by_key(|extracted_range| extracted_range.sort_key);
+    radsort::sort_by_key(&mut extracted_uinodes.ranges, |range| range.sort_key);
 }
 
 #[allow(clippy::too_many_arguments)]
