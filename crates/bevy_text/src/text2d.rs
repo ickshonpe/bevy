@@ -1,3 +1,7 @@
+use crate::{
+    BreakLineOn, Font, FontAtlasSets, FontAtlasWarning, PositionedGlyph, Text, TextError,
+    TextLayoutInfo, TextPipeline, TextSettings, YAxisOrientation,
+};
 use bevy_asset::Assets;
 use bevy_ecs::{
     bundle::Bundle,
@@ -22,11 +26,6 @@ use bevy_transform::prelude::{GlobalTransform, Transform};
 use bevy_utils::HashSet;
 use bevy_window::{PrimaryWindow, Window, WindowScaleFactorChanged};
 
-use crate::{
-    BreakLineOn, Font, FontAtlasSet, FontAtlasWarning, PositionedGlyph, Text, TextError,
-    TextLayoutInfo, TextPipeline, TextSettings, YAxisOrientation,
-};
-
 /// The maximum width and height of text. The text will wrap according to the specified size.
 /// Characters out of the bounds after wrapping will be truncated. Text is aligned according to the
 /// specified [`TextAlignment`](crate::text::TextAlignment).
@@ -37,6 +36,7 @@ use crate::{
 #[derive(Component, Copy, Clone, Debug, Reflect)]
 #[reflect(Component)]
 pub struct Text2dBounds {
+    /// The maximum width and height of text in logical pixels.
     pub size: Vec2,
 }
 
@@ -110,10 +110,10 @@ pub fn extract_text2d_sprite(
         }
         let start = extracted_batches.sprite_ids.len();
         let text_anchor = -(anchor.as_vec() + 0.5);
-        let alignment_translation = text_layout_info.size * text_anchor;
+        let alignment_translation = text_layout_info.logical_size * text_anchor;
         let transform = *global_transform
-            * scaling
-            * GlobalTransform::from_translation(alignment_translation.extend(0.));
+            * GlobalTransform::from_translation(alignment_translation.extend(0.))
+            * scaling;
         let mut current_section = usize::MAX;
         let mut color = Color::WHITE;
         for PositionedGlyph {
@@ -167,7 +167,7 @@ pub fn update_text2d_layout(
     windows: Query<&Window, With<PrimaryWindow>>,
     mut scale_factor_changed: EventReader<WindowScaleFactorChanged>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
-    mut font_atlas_set_storage: ResMut<Assets<FontAtlasSet>>,
+    mut font_atlas_sets: ResMut<FontAtlasSets>,
     mut text_pipeline: ResMut<TextPipeline>,
     mut text_query: Query<(Entity, Ref<Text>, Ref<Text2dBounds>, &mut TextLayoutInfo)>,
 ) {
@@ -180,6 +180,8 @@ pub fn update_text2d_layout(
         .map(|window| window.resolution.scale_factor())
         .unwrap_or(1.0);
 
+    let inverse_scale_factor = scale_factor.recip();
+
     for (entity, text, bounds, mut text_layout_info) in &mut text_query {
         if factor_changed || text.is_changed() || bounds.is_changed() || queue.remove(&entity) {
             let text_bounds = Vec2::new(
@@ -190,7 +192,6 @@ pub fn update_text2d_layout(
                 },
                 scale_value(bounds.size.y, scale_factor),
             );
-
             match text_pipeline.queue_text(
                 &fonts,
                 &text.sections,
@@ -198,7 +199,7 @@ pub fn update_text2d_layout(
                 text.alignment,
                 text.linebreak_behavior,
                 text_bounds,
-                &mut font_atlas_set_storage,
+                &mut font_atlas_sets,
                 &mut texture_atlases,
                 &mut textures,
                 text_settings.as_ref(),
@@ -213,7 +214,11 @@ pub fn update_text2d_layout(
                 Err(e @ TextError::FailedToAddGlyph(_)) => {
                     panic!("Fatal error when processing text: {e}.");
                 }
-                Ok(info) => *text_layout_info = info,
+                Ok(mut info) => {
+                    info.logical_size.x = scale_value(info.logical_size.x, inverse_scale_factor);
+                    info.logical_size.y = scale_value(info.logical_size.y, inverse_scale_factor);
+                    *text_layout_info = info;
+                }
             }
         }
     }
