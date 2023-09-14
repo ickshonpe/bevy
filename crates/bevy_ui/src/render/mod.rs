@@ -18,7 +18,8 @@ use crate::{
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, AssetId, Assets, Handle};
 use bevy_ecs::prelude::*;
-use bevy_math::{Mat4, Rect, URect, UVec4, Vec2, Vec3, Vec4Swizzles, Quat, Vec3Swizzles};
+use bevy_math::{Affine3A, Vec4};
+use bevy_math::{Mat4, Quat, Rect, URect, UVec4, Vec2, Vec3, Vec3Swizzles, Vec4Swizzles};
 use bevy_render::{
     camera::Camera,
     color::Color,
@@ -38,7 +39,6 @@ use bevy_transform::components::GlobalTransform;
 use bevy_utils::{FloatOrd, HashMap};
 use bytemuck::{Pod, Zeroable};
 use std::ops::Range;
-use bevy_math::{Vec4, Affine3A};
 
 pub mod node {
     pub const UI_PASS_DRIVER: &str = "ui_pass_driver";
@@ -624,7 +624,6 @@ impl UiInstance {
     }
 }
 
-
 #[derive(Resource)]
 pub struct UiMeta {
     view_bind_group: Option<BindGroup>,
@@ -746,7 +745,6 @@ pub fn prepare_uinodes(
             let mut batch_item_index = 0;
             let mut batch_image_size = Vec2::ZERO;
             let mut batch_image_handle = AssetId::invalid();
-            
 
             for item_index in 0..ui_phase.items.len() {
                 let item = &mut ui_phase.items[item_index];
@@ -901,10 +899,10 @@ pub fn prepare_uinodes(
                     //     Quat::IDENTITY,
                     //     (0.5 * rect_size.xy()).extend(0.0),
                     // );
-                    
+
                     if batch_image_changed {
                         batch_item_index = item_index;
-    
+
                         batches.push((
                             item.entity,
                             UiBatch {
@@ -915,17 +913,16 @@ pub fn prepare_uinodes(
                     }
 
                     let center = extracted_uinode.transform.transform_point3(Vec3::ZERO);
-                    let position = center.xy() - 0.5 * rect_size.xy();   
-                    println!("ui instance [position: {position}, size: {rect_size}]");
-                    ui_meta.instance_buffer
-                        .push(UiInstance::from(
-                            position,
-                            rect_size.xy(),
-                            center.z,
-                            &extracted_uinode.color,
-                            mode
-                        ));
-                    
+                    let position = center.xy() - 0.5 * rect_size.xy();
+
+                    ui_meta.instance_buffer.push(UiInstance::from(
+                        position,
+                        rect_size.xy(),
+                        center.z,
+                        &extracted_uinode.color,
+                        mode,
+                    ));
+
                     batches.last_mut().unwrap().1.range.end += 1;
                     ui_phase.items[batch_item_index].batch_size += 1;
                 } else {
@@ -933,7 +930,9 @@ pub fn prepare_uinodes(
                 }
             }
         }
-        ui_meta.instance_buffer.write_buffer(&render_device, &render_queue);
+        ui_meta
+            .instance_buffer
+            .write_buffer(&render_device, &render_queue);
 
         if ui_meta.index_buffer.len() != 6 {
             ui_meta.index_buffer.clear();
@@ -959,14 +958,8 @@ pub fn prepare_uinodes(
                 .write_buffer(&render_device, &render_queue);
         }
 
-
         *previous_len = batches.len();
-        println!("batches generated: {}", batches.len());
-        for (entity, batch) in batches.iter() {
-            println!("\tbatch id: {entity:?}, batch_range: {:?}", batch.range);
-        }
-        println!("instance buffer len: {}", ui_meta.instance_buffer.len());
-        println!("index buffer len: {}",  ui_meta.index_buffer.len());
+
         commands.insert_or_spawn_batch(batches);
     }
     extracted_uinodes.uinodes.clear();

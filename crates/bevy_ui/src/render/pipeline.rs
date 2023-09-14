@@ -139,7 +139,7 @@ impl SpecializedRenderPipeline for UiPipeline {
                 alpha_to_coverage_enabled: false,
             },
             label: Some("ui_pipeline".into()),
-            push_constant_ranges: Vec::new(),            
+            push_constant_ranges: Vec::new(),
         }
     }
 }
