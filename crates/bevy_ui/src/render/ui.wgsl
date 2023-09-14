@@ -10,14 +10,12 @@ var<uniform> view: View;
 struct VertexInput {
     @builtin(vertex_index) index: u32,
     // NOTE: Instance-rate vertex buffer members prefixed with i_
-    // NOTE: i_model_transpose_colN are the 3 columns of a 3x4 matrix that is the transpose of the
-    // affine 4x3 model matrix.
     @location(0) i_location: vec2<f32>,
     @location(1) i_size: vec2<f32>,
     @location(2) i_z: f32,
-    @location(3) i_color: vec4<f32>,
-    //@location(4) i_uv_offset_scale: vec4<f32>,
- //  @location(5) i_mode: u32,
+    @location(3) i_uv_min: vec2<f32>,
+    @location(4) i_uv_max: vec2<f32>,
+    @location(5) i_color: vec4<f32>,
 }
 
 struct VertexOutput {
@@ -35,7 +33,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     let norm_location = vec2(norm_x, norm_y);
     let relative_location = in.i_size * norm_location;
     out.clip_position = view.view_proj * vec4(in.i_location + relative_location, in.i_z, 1.0);
-    out.uv = norm_location;
+    out.uv = in.i_uv_min + norm_location * in.i_uv_max;
     out.color = in.i_color;
     out.mode = TEXTURED_QUAD;
     return out;
