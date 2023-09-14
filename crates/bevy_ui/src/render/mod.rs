@@ -533,6 +533,8 @@ pub fn extract_text_uinodes(
 ) {
     // TODO: Support window-independent UI scale: https://github.com/bevyengine/bevy/issues/5621
 
+    println!();
+    println!("extract text");
     use bevy_math::vec2;
     let scale_factor = windows
         .get_single()
@@ -556,9 +558,10 @@ pub fn extract_text_uinodes(
 
             let mut color = Color::WHITE;
             let mut current_section = usize::MAX;
+            let mut red = false;
             for PositionedGlyph {
-                position,
-                size,
+                position: glyph_position,
+                size: glyph_size,
                 atlas_info,
                 section_index,
                 ..
@@ -577,14 +580,23 @@ pub fn extract_text_uinodes(
 
                 //let size = *size * inverse_scale_factor;
 
+
+                let position = node_position + *glyph_position * inverse_scale_factor - 0.5 * size * vec2(1., -1.);
+                
+                println!("gp: {glyph_position} gs: {glyph_size}, isf: {inverse_scale_factor} p: {position}, s: {size}");
+
+                
                 extracted_uinodes.uinodes.insert(
                     commands.spawn_empty().id(),
                     ExtractedUiNode {
                         stack_index,
-                        position: node_position + *position * inverse_scale_factor
-                            - 0.5 * size * vec2(1., -1.),
+                        position,
                         size,
-                        color,
+                        color: if red {
+                            Color::RED
+                        } else { 
+                            color
+                        },
                         uv_rect: Some(uv_rect),
                         image: atlas.texture.id(),
                         //atlas_size: Some(atlas.size * inverse_scale_factor),
@@ -593,6 +605,7 @@ pub fn extract_text_uinodes(
                         flip_y: false,
                     },
                 );
+                red = !red;
             }
         }
     }
@@ -742,57 +755,42 @@ pub fn prepare_uinodes(
             label: Some("ui_view_bind_group"),
             layout: &ui_pipeline.view_layout,
         }));
-
-        // Vertex buffer index
         let mut index = 0;
-
         for mut ui_phase in &mut phases {
             let mut batch_item_index = 0;
-            let mut batch_image_size = Vec2::ZERO;
-            let mut batch_image_handle = AssetId::invalid();
 
             for item_index in 0..ui_phase.items.len() {
                 let item = &mut ui_phase.items[item_index];
-                println!("item index: {item_index} -> entity {:?}", item.entity);
                 if let Some(extracted_uinode) = extracted_uinodes.uinodes.get(item.entity) {
-                    let existing_batch = batches
-                        .last_mut()
-                        .filter(|_| batch_image_handle == extracted_uinode.image);
-                    let batch_image_changed = batch_image_handle != extracted_uinode.image;
-                    if existing_batch.is_none() {
-                        if let Some(gpu_image) = gpu_images.get(extracted_uinode.image) {
-                            batch_item_index = item_index;
-                            batch_image_size = Vec2::new(gpu_image.size.x, gpu_image.size.y);
-                            batch_image_handle = extracted_uinode.image;
+                    if let Some(gpu_image) = gpu_images.get(extracted_uinode.image) {
 
-                            image_bind_groups
-                                .values
-                                .entry(batch_image_handle)
-                                .or_insert_with(|| {
-                                    render_device.create_bind_group(&BindGroupDescriptor {
-                                        entries: &[
-                                            BindGroupEntry {
-                                                binding: 0,
-                                                resource: BindingResource::TextureView(
-                                                    &gpu_image.texture_view,
-                                                ),
-                                            },
-                                            BindGroupEntry {
-                                                binding: 1,
-                                                resource: BindingResource::Sampler(
-                                                    &gpu_image.sampler,
-                                                ),
-                                            },
-                                        ],
-                                        label: Some("ui_material_bind_group"),
-                                        layout: &ui_pipeline.image_layout,
-                                    })
-                                });
+                        image_bind_groups
+                            .values
+                            .entry(extracted_uinode.image)
+                            .or_insert_with(|| {
+                                render_device.create_bind_group(&BindGroupDescriptor {
+                                    entries: &[
+                                        BindGroupEntry {
+                                            binding: 0,
+                                            resource: BindingResource::TextureView(
+                                                &gpu_image.texture_view,
+                                            ),
+                                        },
+                                        BindGroupEntry {
+                                            binding: 1,
+                                            resource: BindingResource::Sampler(
+                                                &gpu_image.sampler,
+                                            ),
+                                        },
+                                    ],
+                                    label: Some("ui_material_bind_group"),
+                                    layout: &ui_pipeline.image_layout,
+                                })
+                            });
 
-                            //existing_batch = batches.last_mut();
-                        } else {
-                            continue;
-                        }
+                        //existing_batch = batches.last_mut();
+                    } else {
+                        continue;
                     }
 
                     let mode = if is_textured(extracted_uinode.image) {
@@ -801,17 +799,17 @@ pub fn prepare_uinodes(
                         UNTEXTURED_QUAD
                     };
 
-                    if batch_image_changed {
-                        batch_item_index = item_index;
+                    // if batch_image_changed {
+                    //     batch_item_index = item_index;
 
-                        batches.push((
-                            item.entity,
-                            UiBatch {
-                                image: batch_image_handle,
-                                range: index..index,
-                            },
-                        ));
-                    }
+                    batches.push((
+                        item.entity,
+                        UiBatch {
+                            image: extracted_uinode.image,
+                            range: item_index as u32..item_index as u32 + 1,
+                        },
+                    ));
+                    //}
 
                     ui_meta.instance_buffer.push(UiInstance::from(
                         extracted_uinode.position,
@@ -824,11 +822,8 @@ pub fn prepare_uinodes(
                         &extracted_uinode.color,
                         mode,
                     ));
-
-                    batches.last_mut().unwrap().1.range.end += 1;
-                    ui_phase.items[batch_item_index].batch_size += 1;
-                } else {
-                    batch_image_handle = AssetId::invalid();
+                    index +=1;
+                    ui_phase.items[item_index].batch_size = 1;
                 }
             }
         }
@@ -862,6 +857,11 @@ pub fn prepare_uinodes(
 
         *previous_len = batches.len();
 
+        for mut ui_phase in &mut phases {
+            println!("PHASE ITEM COUNT: {}", ui_phase.items.len());
+        }
+        println!("EXTRACTED COUNT: {}", extracted_uinodes.uinodes.len());
+        println!("BATCH COUNT: {}", batches.len());
         commands.insert_or_spawn_batch(batches);
     }
     extracted_uinodes.uinodes.clear();
