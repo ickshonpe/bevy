@@ -576,12 +576,13 @@ pub fn extract_text_uinodes(
                 uv_rect.max /= atlas.size;
 
                 //let size = *size * inverse_scale_factor;
-                
+
                 extracted_uinodes.uinodes.insert(
                     commands.spawn_empty().id(),
                     ExtractedUiNode {
                         stack_index,
-                        position: node_position + *position * inverse_scale_factor - 0.5 * size * vec2(1., -1.),
+                        position: node_position + *position * inverse_scale_factor
+                            - 0.5 * size * vec2(1., -1.),
                         size,
                         color,
                         uv_rect: Some(uv_rect),
@@ -916,7 +917,10 @@ pub fn prepare_uinodes(
                         extracted_uinode.position,
                         extracted_uinode.size,
                         extracted_uinode.stack_index as f32 * 0.001,
-                        extracted_uinode.uv_rect.unwrap_or(Rect { min: Vec2::ZERO, max: Vec2::ONE }),
+                        extracted_uinode.uv_rect.unwrap_or(Rect {
+                            min: Vec2::ZERO,
+                            max: Vec2::ONE,
+                        }),
                         &extracted_uinode.color,
                         mode,
                     ));
