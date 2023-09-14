@@ -69,45 +69,33 @@ impl SpecializedRenderPipeline for UiPipeline {
 
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
         let instance_rate_vertex_buffer_layout = VertexBufferLayout {
-            array_stride: 80,
+            array_stride: 36,
             step_mode: VertexStepMode::Instance,
             attributes: vec![
-                // @location(0) i_model_transpose_col0: vec4<f32>,
+                // @location(0) i_location: vec2<f32>,
                 VertexAttribute {
-                    format: VertexFormat::Float32x4,
+                    format: VertexFormat::Float32x2,
                     offset: 0,
                     shader_location: 0,
                 },
-                // @location(1) i_model_transpose_col1: vec4<f32>,
+                // @location(1) i_size: vec2<f32>,
                 VertexAttribute {
-                    format: VertexFormat::Float32x4,
-                    offset: 16,
+                    format: VertexFormat::Float32x2,
+                    offset: 8,
                     shader_location: 1,
                 },
-                // @location(2) i_model_transpose_col2: vec4<f32>,
+                // @location(2) i_z: f32,
                 VertexAttribute {
-                    format: VertexFormat::Float32x4,
-                    offset: 32,
+                    format: VertexFormat::Float32,
+                    offset: 16,
                     shader_location: 2,
                 },
                 // @location(3) i_color: vec4<f32>,
                 VertexAttribute {
                     format: VertexFormat::Float32x4,
-                    offset: 48,
+                    offset: 20,
                     shader_location: 3,
                 },
-                // @location(4) i_uv_offset_scale: vec4<f32>,
-                VertexAttribute {
-                    format: VertexFormat::Float32x4,
-                    offset: 64,
-                    shader_location: 4,
-                },
-                // // @location(5) i_mode: u32,
-                // VertexAttribute {
-                //     format: VertexFormat::Uint32,
-                //     offset: 80,
-                //     shader_location: 5,
-                // },
             ],
         };
 

@@ -603,24 +603,22 @@ pub fn extract_text_uinodes(
 #[derive(Copy, Clone, Pod, Zeroable)]
 struct UiInstance {
     // Affine 4x3 transposed to 3x4
-    pub i_model_transpose: [Vec4; 3],
+    pub i_location: [f32; 2],
+    pub i_size: [f32; 2],
+    pub i_z: f32,
     pub i_color: [f32; 4],
-    pub i_uv_offset_scale: [f32; 4],
+    //pub i_uv_offset_scale: [f32; 4],
     //pub i_mode: u32,
 }
 
 impl UiInstance {
     #[inline]
-    fn from(transform: &Mat4, color: &Color, uv_offset_scale: &Vec4, mode: u32) -> Self {
-        //let transpose_model_3x3 = transform.matrix3.transpose();
+    fn from(location: Vec2, size: Vec2, z: f32, color: &Color, mode: u32) -> Self {
         Self {
-            i_model_transpose: [
-                transform.x_axis,
-                transform.y_axis,
-                transform.z_axis,
-            ],
+            i_location: location.into(),
+            i_size: size.into(),
+            i_z: z,
             i_color: color.as_linear_rgba_f32(),
-            i_uv_offset_scale: uv_offset_scale.to_array(),
             //i_mode: mode
         }
     }
@@ -649,8 +647,6 @@ const QUAD_VERTEX_POSITIONS: [Vec3; 4] = [
     Vec3::new(0.5, 0.5, 0.0),
     Vec3::new(-0.5, 0.5, 0.0),
 ];
-
-const QUAD_INDICES: [usize; 6] = [0, 2, 3, 0, 1, 2];
 
 #[derive(Component)]
 pub struct UiBatch {
@@ -898,15 +894,13 @@ pub fn prepare_uinodes(
                         .map(|pos| pos / atlas_extent)
                     };
 
-                    
-
-                    let uv_offset_scale = Vec4::new(0.0, 1.0, 1.0, -1.0);
-                    let transform = extracted_uinode.transform
-                    * Mat4::from_scale_rotation_translation(
-                        rect_size,
-                        Quat::IDENTITY,
-                        (0.5 * rect_size.xy()).extend(0.0),
-                    );
+                    // let uv_offset_scale = Vec4::new(0.0, 1.0, 1.0, -1.0);
+                    // let transform = extracted_uinode.transform
+                    // * Mat4::from_scale_rotation_translation(
+                    //     rect_size,
+                    //     Quat::IDENTITY,
+                    //     (0.5 * rect_size.xy()).extend(0.0),
+                    // );
                     
                     if batch_image_changed {
                         batch_item_index = item_index;
@@ -920,11 +914,15 @@ pub fn prepare_uinodes(
                         ));
                     }
 
+                    let center = extracted_uinode.transform.transform_point3(Vec3::ZERO);
+                    let position = center.xy() - 0.5 * rect_size.xy();   
+                    println!("ui instance [position: {position}, size: {rect_size}]");
                     ui_meta.instance_buffer
                         .push(UiInstance::from(
-                            &transform,
+                            position,
+                            rect_size.xy(),
+                            center.z,
                             &extracted_uinode.color,
-                            &uv_offset_scale,
                             mode
                         ));
                     
@@ -963,6 +961,12 @@ pub fn prepare_uinodes(
 
 
         *previous_len = batches.len();
+        println!("batches generated: {}", batches.len());
+        for (entity, batch) in batches.iter() {
+            println!("\tbatch id: {entity:?}, batch_range: {:?}", batch.range);
+        }
+        println!("instance buffer len: {}", ui_meta.instance_buffer.len());
+        println!("index buffer len: {}",  ui_meta.index_buffer.len());
         commands.insert_or_spawn_batch(batches);
     }
     extracted_uinodes.uinodes.clear();
