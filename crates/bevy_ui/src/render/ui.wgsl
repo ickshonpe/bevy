@@ -16,7 +16,9 @@ struct VertexInput {
     @location(3) i_uv_min: vec2<f32>,
     @location(4) i_uv_size: vec2<f32>,
     @location(5) i_color: vec4<f32>,
-    @location(6) i_mode: u32,
+    @location(6) i_radius: vec4<f32>,
+    @location(7) i_border: vec4<f32>,
+    @location(8) i_flags: u32,
 }
 
 struct VertexOutput {
@@ -36,7 +38,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.clip_position = view.view_proj * vec4(in.i_location + relative_location, in.i_z, 1.0);
     out.uv = in.i_uv_min + in.i_uv_size * norm_location;
     out.color = in.i_color;
-    out.mode = in.i_mode;
+    out.mode = in.i_flags;
     return out;
 }
 

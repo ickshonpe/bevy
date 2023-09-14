@@ -18,8 +18,7 @@ use crate::{
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, AssetId, Assets, Handle};
 use bevy_ecs::prelude::*;
-use bevy_math::{Affine3A, Vec4};
-use bevy_math::{Mat4, Quat, Rect, URect, UVec4, Vec2, Vec3, Vec3Swizzles, Vec4Swizzles};
+use bevy_math::{Mat4, Rect, URect, UVec4, Vec2};
 use bevy_render::{
     camera::Camera,
     color::Color,
@@ -160,6 +159,8 @@ pub struct ExtractedUiNode {
     pub clip: Option<Rect>,
     pub flip_x: bool,
     pub flip_y: bool,
+    pub border_thickness: [f32; 4],
+    pub corner_radius: [f32; 4],
 }
 
 #[derive(Resource, Default)]
@@ -203,7 +204,7 @@ pub fn extract_atlas_uinodes(
                 continue;
             }
 
-            let (mut atlas_rect, mut atlas_size, image) =
+            let (mut atlas_rect, image) =
                 if let Some(texture_atlas) = texture_atlases.get(texture_atlas_handle) {
                     let atlas_rect = *texture_atlas
                         .textures
@@ -217,7 +218,6 @@ pub fn extract_atlas_uinodes(
                         });
                     (
                         atlas_rect,
-                        texture_atlas.size,
                         texture_atlas.texture.clone(),
                     )
                 } else {
@@ -245,6 +245,8 @@ pub fn extract_atlas_uinodes(
                     image: image.id(),
                     flip_x: atlas_image.flip_x,
                     flip_y: atlas_image.flip_y,
+                    border_thickness: [0.; 4],
+                    corner_radius: [0.; 4],
                 },
             );
         }
@@ -372,6 +374,8 @@ pub fn extract_uinode_borders(
                             clip: clip.map(|clip| clip.clip),
                             flip_x: false,
                             flip_y: false,
+                            border_thickness: [0.; 4],
+                            corner_radius: [0.; 4],
                         },
                     );
                 }
@@ -429,6 +433,8 @@ pub fn extract_uinodes(
                     image,
                     flip_x,
                     flip_y,
+                    border_thickness: [0.; 4],
+                    corner_radius: [0.; 4],
                 },
             );
         };
@@ -549,10 +555,8 @@ pub fn extract_text_uinodes(
 
             let mut color = Color::WHITE;
             let mut current_section = usize::MAX;
-            let mut red = false;
             for PositionedGlyph {
                 position: glyph_position,
-                size: glyph_size,
                 atlas_info,
                 section_index,
                 ..
@@ -569,7 +573,7 @@ pub fn extract_text_uinodes(
                 uv_rect.min /= atlas.size;
                 uv_rect.max /= atlas.size;
 
-                let position = node_position + *glyph_position  * inverse_scale_factor;
+                let position = node_position + *glyph_position  * inverse_scale_factor - 0.5 * size;
                 
 
                 
@@ -579,19 +583,16 @@ pub fn extract_text_uinodes(
                         stack_index,
                         position,
                         size,
-                        color: if red {
-                            Color::RED
-                        } else { 
-                            color
-                        },
+                        color,
                         uv_rect: Some(uv_rect),
                         image: atlas.texture.id(),
                         clip: clip.map(|clip| clip.clip),
                         flip_x: false,
                         flip_y: false,
+                        border_thickness: [0.; 4],
+                        corner_radius: [0.; 4],
                     },
                 );
-                red = !red;
             }
         }
     }
@@ -607,12 +608,14 @@ struct UiInstance {
     pub i_uv_min: [f32; 2],
     pub i_uv_size: [f32; 2],
     pub i_color: [f32; 4],
-    pub i_mode: u32,
+    pub i_radius: [f32; 4],
+    pub i_border: [f32; 4],
+    pub i_flags: u32,
 }
 
 impl UiInstance {
     #[inline]
-    fn from(location: Vec2, size: Vec2, z: f32, uv_rect: Rect, color: &Color, mode: u32) -> Self {
+    fn from(location: Vec2, size: Vec2, z: f32, uv_rect: Rect, color: &Color, mode: u32, radius: [f32; 4], border: [f32; 4]) -> Self {
         Self {
             i_location: location.into(),
             i_size: size.into(),
@@ -620,7 +623,9 @@ impl UiInstance {
             i_uv_min: uv_rect.min.into(),
             i_uv_size: uv_rect.size().into(),
             i_color: color.as_linear_rgba_f32(),
-            i_mode: mode,
+            i_radius: radius,
+            i_border: border,
+            i_flags: mode,
         }
     }
 }
@@ -641,12 +646,6 @@ impl Default for UiMeta {
         }
     }
 }
-const QUAD_VERTEX_POSITIONS: [Vec3; 4] = [
-    Vec3::new(-0.5, -0.5, 0.0),
-    Vec3::new(0.5, -0.5, 0.0),
-    Vec3::new(0.5, 0.5, 0.0),
-    Vec3::new(-0.5, 0.5, 0.0),
-];
 
 #[derive(Component)]
 pub struct UiBatch {
@@ -738,10 +737,7 @@ pub fn prepare_uinodes(
             label: Some("ui_view_bind_group"),
             layout: &ui_pipeline.view_layout,
         }));
-        let mut index = 0;
         for mut ui_phase in &mut phases {
-            let mut batch_item_index = 0;
-
             for item_index in 0..ui_phase.items.len() {
                 let item = &mut ui_phase.items[item_index];
                 if let Some(extracted_uinode) = extracted_uinodes.uinodes.get(item.entity) {
@@ -804,8 +800,9 @@ pub fn prepare_uinodes(
                         }),
                         &extracted_uinode.color,
                         mode,
+                        extracted_uinode.corner_radius,
+                        extracted_uinode.border_thickness,
                     ));
-                    index +=1;
                     ui_phase.items[item_index].batch_size = 1;
                 }
             }

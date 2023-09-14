@@ -34,16 +34,6 @@ pub struct NodeBundle {
     pub border_color: BorderColor,
     /// Whether this node should block interaction with lower nodes
     pub focus_policy: FocusPolicy,
-    /// The transform of the node
-    ///
-    /// This component is automatically managed by the UI layout system.
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub transform: Transform,
-    /// The global transform of the node
-    ///
-    /// This component is automatically updated by the [`TransformPropagate`](`bevy_transform::TransformSystem::TransformPropagate`) systems.
-    /// To alter the position of the `NodeBundle`, use the properties of the [`Style`] component.
-    pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Inherited visibility of an entity.
@@ -63,8 +53,6 @@ impl Default for NodeBundle {
             computed_layout: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
-            transform: Default::default(),
-            global_transform: Default::default(),
             visibility: Default::default(),
             inherited_visibility: Default::default(),
             view_visibility: Default::default(),
@@ -95,15 +83,6 @@ pub struct ImageBundle {
     pub image_size: UiImageSize,
     /// Whether this node should block interaction with lower nodes
     pub focus_policy: FocusPolicy,
-    /// The transform of the node
-    ///
-    /// This component is automatically managed by the UI layout system.
-    /// To alter the position of the `ImageBundle`, use the properties of the [`Style`] component.
-    pub transform: Transform,
-    /// The global transform of the node
-    ///
-    /// This component is automatically updated by the [`TransformPropagate`](`bevy_transform::TransformSystem::TransformPropagate`) systems.
-    pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Inherited visibility of an entity.
@@ -138,15 +117,6 @@ pub struct AtlasImageBundle {
     ///
     /// This component is set automatically
     pub image_size: UiImageSize,
-    /// The transform of the node
-    ///
-    /// This component is automatically managed by the UI layout system.
-    /// To alter the position of the `AtlasImageBundle`, use the properties of the [`Style`] component.
-    pub transform: Transform,
-    /// The global transform of the node
-    ///
-    /// This component is automatically updated by the [`TransformPropagate`](`bevy_transform::TransformSystem::TransformPropagate`) systems.
-    pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Inherited visibility of an entity.
@@ -176,15 +146,6 @@ pub struct TextBundle {
     pub calculated_size: ContentSize,
     /// Whether this node should block interaction with lower nodes
     pub focus_policy: FocusPolicy,
-    /// The transform of the node
-    ///
-    /// This component is automatically managed by the UI layout system.
-    /// To alter the position of the `TextBundle`, use the properties of the [`Style`] component.
-    pub transform: Transform,
-    /// The global transform of the node
-    ///
-    /// This component is automatically updated by the [`TransformPropagate`](`bevy_transform::TransformSystem::TransformPropagate`) systems.
-    pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Inherited visibility of an entity.
@@ -208,8 +169,6 @@ impl Default for TextBundle {
             computed_layout: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
-            transform: Default::default(),
-            global_transform: Default::default(),
             visibility: Default::default(),
             inherited_visibility: Default::default(),
             view_visibility: Default::default(),
@@ -299,15 +258,6 @@ pub struct ButtonBundle {
     pub border_color: BorderColor,
     /// The image of the node
     pub image: UiImage,
-    /// The transform of the node
-    ///
-    /// This component is automatically managed by the UI layout system.
-    /// To alter the position of the `ButtonBundle`, use the properties of the [`Style`] component.
-    pub transform: Transform,
-    /// The global transform of the node
-    ///
-    /// This component is automatically updated by the [`TransformPropagate`](`bevy_transform::TransformSystem::TransformPropagate`) systems.
-    pub global_transform: GlobalTransform,
     /// Describes the visibility properties of the node
     pub visibility: Visibility,
     /// Inherited visibility of an entity.
@@ -329,8 +279,6 @@ impl Default for ButtonBundle {
             interaction: Default::default(),
             background_color: Default::default(),
             image: Default::default(),
-            transform: Default::default(),
-            global_transform: Default::default(),
             visibility: Default::default(),
             inherited_visibility: Default::default(),
             view_visibility: Default::default(),

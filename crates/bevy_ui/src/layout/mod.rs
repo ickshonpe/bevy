@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, ComputedLayout, Style, UiScale};
+use crate::{ContentSize, ComputedLayout, Style, UiScale, Val, BorderRadius};
 use bevy_ecs::{
     change_detection::{DetectChanges, DetectChangesMut},
     entity::Entity,
@@ -13,8 +13,8 @@ use bevy_ecs::{
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
-use bevy_math::Vec2;
-use bevy_transform::components::Transform;
+use bevy_math::{Vec2, Vec4, Vec4Swizzles};
+use bevy_render::view;
 use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowResolution, WindowScaleFactorChanged};
 use std::fmt;
@@ -228,7 +228,7 @@ pub fn ui_layout_system(
     just_children_query: Query<&Children>,
     mut removed_children: RemovedComponents<Children>,
     mut removed_content_sizes: RemovedComponents<ContentSize>,
-    mut node_transform_query: Query<(&mut ComputedLayout)>,
+    mut node_transform_query: Query<(&Style, &mut ComputedLayout)>,
     mut removed_nodes: RemovedComponents<ComputedLayout>,
 ) {
     // assume one window for time being...
@@ -309,12 +309,14 @@ pub fn ui_layout_system(
     fn update_uinode_geometry_recursive(
         entity: Entity,
         ui_surface: &UiSurface,
-        computed_layout_query: &mut Query<&mut ComputedLayout>,
+        computed_layout_query: &mut Query<(&Style, &mut ComputedLayout)>,
         children_query: &Query<&Children>,
         inverse_target_scale_factor: f32,
         mut absolute_location: Vec2,
+        parent_width: f32,
+        viewport_size: Vec2,
     ) {
-        if let Ok(mut computed_layout) = computed_layout_query.get_mut(entity) {
+        if let Ok((style, mut computed_layout)) = computed_layout_query.get_mut(entity) {
             let layout = ui_surface.get_layout(entity).unwrap();
             let layout_size = inverse_target_scale_factor * Vec2::new(layout.size.width, layout.size.height);
             let layout_location = inverse_target_scale_factor * Vec2::new(layout.location.x, layout.location.y);
@@ -323,7 +325,7 @@ pub fn ui_layout_system(
             let rounded_location = round_layout_coords(absolute_location);
             let rounded_size = round_layout_coords(absolute_location + layout_size)
                 - round_layout_coords(absolute_location);
-            
+                        
 
             // only trigger change detection when the new values are different
             if computed_layout.size != rounded_size {
@@ -331,7 +333,13 @@ pub fn ui_layout_system(
             }
 
             computed_layout.bypass_change_detection().position = rounded_location;
-
+            computed_layout.border_radius = resolve_border_radius(&style.border_radius, rounded_size, viewport_size);
+            computed_layout.border_thickness = [
+                resolve_border_thickness(style.border.left, parent_width, viewport_size),
+                resolve_border_thickness(style.border.top, parent_width, viewport_size),
+                resolve_border_thickness(style.border.right, parent_width, viewport_size),
+                resolve_border_thickness(style.border.bottom, parent_width, viewport_size),
+            ];
             if let Ok(children) = children_query.get(entity) {
                 for &child_uinode in children {
                     update_uinode_geometry_recursive(
@@ -341,12 +349,14 @@ pub fn ui_layout_system(
                         children_query,
                         inverse_target_scale_factor,
                         absolute_location,
+                        rounded_size.x,
+                        viewport_size
                     );
                 }
             }
         }
     }
-
+    let viewport_size = layout_context.physical_size * inverse_target_scale_factor as f32;
     for entity in root_node_query.iter() {
         update_uinode_geometry_recursive(
             entity,
@@ -355,6 +365,8 @@ pub fn ui_layout_system(
             &just_children_query,
             inverse_target_scale_factor as f32,
             Vec2::ZERO,
+            viewport_size.x,
+            viewport_size,
         );
     }
 }
@@ -385,6 +397,81 @@ fn round_layout_coords(value: Vec2) -> Vec2 {
         x: round_ties_up(value.x),
         y: round_ties_up(value.y),
     }
+}
+
+fn resolve_border_thickness(value: Val, parent_width: f32, viewport_size: Vec2) -> f32 {
+    match value {
+        Val::Auto => 0.,
+        Val::Px(px) => px.max(0.),
+        Val::Percent(percent) => (parent_width * percent / 100.).max(0.),
+        Val::Vw(percent) => (viewport_size.x * percent / 100.).max(0.),
+        Val::Vh(percent) => (viewport_size.y * percent / 100.).max(0.),
+        Val::VMin(percent) => (viewport_size.min_element() * percent / 100.).max(0.),
+        Val::VMax(percent) => (viewport_size.max_element() * percent / 100.).max(0.),
+    }
+}
+
+#[inline]
+fn resolve_border_radius(
+    &values: &BorderRadius,
+    node_size: Vec2,
+    viewport_size: Vec2,
+) -> [f32; 4] {
+    let max_radius = 0.5 * node_size.min_element();
+    <[Val; 4]>::from(values).map(|value| {
+        match value {
+            Val::Auto => 0.,
+            Val::Px(px) => px,
+            Val::Percent(percent) => node_size.min_element() * percent / 100.,
+            Val::Vw(percent) => viewport_size.x * percent / 100.,
+            Val::Vh(percent) => viewport_size.y * percent / 100.,
+            Val::VMin(percent) => viewport_size.min_element() * percent / 100.,
+            Val::VMax(percent) => viewport_size.max_element() * percent / 100.,
+        }
+        .clamp(0., max_radius)
+    })
+}
+
+#[inline]
+fn resolve_shadow_offset(
+    x: Val,
+    y: Val,
+    node_size: Vec2,
+    viewport_size: Vec2,
+) -> Vec2 {
+    [(x, node_size.x), (y, node_size.y)]
+        .map(|(value, size)| match value {
+            Val::Auto => 0.,
+            Val::Px(px) => px,
+            Val::Percent(percent) => percent / 100. * size,
+            Val::Vw(percent) => viewport_size.x * percent / 100.,
+            Val::Vh(percent) => viewport_size.y * percent / 100.,
+            Val::VMin(percent) => viewport_size.min_element() * percent / 100.,
+            Val::VMax(percent) => viewport_size.max_element() * percent / 100.,
+        })
+        .into()
+}
+
+#[inline]
+fn clamp_corner(r: f32, size: Vec2, offset: Vec2) -> f32 {
+    let s = 0.5 * size + offset;
+    let sm = s.x.min(s.y);
+    return r.min(sm);
+}
+
+#[inline]
+fn clamp_radius(
+    [top_left, top_right, bottom_right, bottom_left]: [f32; 4],
+    size: Vec2,
+    border: Vec4,
+) -> [f32; 4] {
+    let s = size - border.xy() - border.zw();
+    [
+        clamp_corner(top_left, s, border.xy()),
+        clamp_corner(top_right, s, border.zy()),
+        clamp_corner(bottom_right, s, border.zw()),
+        clamp_corner(bottom_left, s, border.xw()),
+    ]
 }
 
 #[cfg(test)]

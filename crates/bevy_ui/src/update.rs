@@ -10,13 +10,12 @@ use bevy_ecs::{
 };
 use bevy_hierarchy::{Children, Parent};
 use bevy_math::Rect;
-use bevy_transform::components::GlobalTransform;
 
 /// Updates clipping for all nodes
 pub fn update_clipping_system(
     mut commands: Commands,
     root_node_query: Query<Entity, (With<ComputedLayout>, Without<Parent>)>,
-    mut node_query: Query<(&ComputedLayout, &GlobalTransform, &Style, Option<&mut CalculatedClip>)>,
+    mut node_query: Query<(&ComputedLayout, &Style, Option<&mut CalculatedClip>)>,
     children_query: Query<&Children>,
 ) {
     for root_node in &root_node_query {
@@ -33,11 +32,11 @@ pub fn update_clipping_system(
 fn update_clipping(
     commands: &mut Commands,
     children_query: &Query<&Children>,
-    node_query: &mut Query<(&ComputedLayout, &GlobalTransform, &Style, Option<&mut CalculatedClip>)>,
+    node_query: &mut Query<(&ComputedLayout, &Style, Option<&mut CalculatedClip>)>,
     entity: Entity,
     maybe_inherited_clip: Option<Rect>,
 ) {
-    let Ok((node, global_transform, style, maybe_calculated_clip)) = node_query.get_mut(entity)
+    let Ok((node, style, maybe_calculated_clip)) = node_query.get_mut(entity)
     else {
         return;
     };

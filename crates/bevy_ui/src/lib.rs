@@ -45,7 +45,6 @@ use bevy_asset::Assets;
 use bevy_ecs::prelude::*;
 use bevy_input::InputSystem;
 use bevy_render::{extract_component::ExtractComponentPlugin, texture::Image, RenderApp};
-use bevy_transform::TransformSystem;
 use stack::ui_stack_system;
 pub use stack::UiStack;
 use update::update_clipping_system;
@@ -170,10 +169,9 @@ impl Plugin for UiPlugin {
             PostUpdate,
             (
                 ui_layout_system
-                    .in_set(UiSystem::Layout)
-                    .before(TransformSystem::TransformPropagate),
+                    .in_set(UiSystem::Layout),
                 ui_stack_system.in_set(UiSystem::Stack),
-                update_clipping_system.after(TransformSystem::TransformPropagate),
+                update_clipping_system.after(UiSystem::Layout),
             ),
         );
 
