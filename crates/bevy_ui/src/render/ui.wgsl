@@ -16,6 +16,7 @@ struct VertexInput {
     @location(3) i_uv_min: vec2<f32>,
     @location(4) i_uv_max: vec2<f32>,
     @location(5) i_color: vec4<f32>,
+    @location(6) i_mode: u32,
 }
 
 struct VertexOutput {
@@ -35,7 +36,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.clip_position = view.view_proj * vec4(in.i_location + relative_location, in.i_z, 1.0);
     out.uv = in.i_uv_min + norm_location * in.i_uv_max;
     out.color = in.i_color;
-    out.mode = TEXTURED_QUAD;
+    out.mode = in.i_mode;
     return out;
 }
 

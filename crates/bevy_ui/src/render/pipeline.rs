@@ -69,7 +69,7 @@ impl SpecializedRenderPipeline for UiPipeline {
 
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
         let instance_rate_vertex_buffer_layout = VertexBufferLayout {
-            array_stride: 52,
+            array_stride: 56,
             step_mode: VertexStepMode::Instance,
             attributes: vec![
                 // @location(0) i_location: vec2<f32>,
@@ -108,6 +108,12 @@ impl SpecializedRenderPipeline for UiPipeline {
                     offset: 36,
                     shader_location: 5,
                 },
+                // @location(6) i_mode: u32,
+                VertexAttribute {
+                    format: VertexFormat::Uint32,
+                    offset: 52,
+                    shader_location: 6,
+                }
             ],
         };
 
