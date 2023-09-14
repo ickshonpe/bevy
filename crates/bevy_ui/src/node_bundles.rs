@@ -4,7 +4,7 @@
 use crate::widget::TextFlags;
 use crate::{
     widget::{Button, UiImageSize},
-    BackgroundColor, BorderColor, ContentSize, FocusPolicy, Interaction, Node, Style, UiImage,
+    BackgroundColor, BorderColor, ContentSize, FocusPolicy, Interaction, ComputedLayout, Style, UiImage,
     UiTextureAtlasImage, ZIndex,
 };
 use bevy_asset::Handle;
@@ -24,7 +24,7 @@ use bevy_transform::prelude::{GlobalTransform, Transform};
 #[derive(Bundle, Clone, Debug)]
 pub struct NodeBundle {
     /// Describes the logical size of the node
-    pub node: Node,
+    pub computed_layout: ComputedLayout,
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
@@ -60,7 +60,7 @@ impl Default for NodeBundle {
             // Transparent background
             background_color: Color::NONE.into(),
             border_color: Color::NONE.into(),
-            node: Default::default(),
+            computed_layout: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
             transform: Default::default(),
@@ -77,7 +77,7 @@ impl Default for NodeBundle {
 #[derive(Bundle, Debug, Default)]
 pub struct ImageBundle {
     /// Describes the logical size of the node
-    pub node: Node,
+    pub computed_layout: ComputedLayout,
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
@@ -118,7 +118,7 @@ pub struct ImageBundle {
 #[derive(Bundle, Debug, Default)]
 pub struct AtlasImageBundle {
     /// Describes the logical size of the node
-    pub node: Node,
+    pub computed_layout: ComputedLayout,
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
@@ -162,7 +162,7 @@ pub struct AtlasImageBundle {
 #[derive(Bundle, Debug)]
 pub struct TextBundle {
     /// Describes the logical size of the node
-    pub node: Node,
+    pub computed_layout: ComputedLayout,
     /// Styles which control the layout (size and position) of the node and it's children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
@@ -205,7 +205,7 @@ impl Default for TextBundle {
             text_layout_info: Default::default(),
             text_flags: Default::default(),
             calculated_size: Default::default(),
-            node: Default::default(),
+            computed_layout: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
             transform: Default::default(),
@@ -281,7 +281,7 @@ where
 #[derive(Bundle, Clone, Debug)]
 pub struct ButtonBundle {
     /// Describes the logical size of the node
-    pub node: Node,
+    pub computed_layout: ComputedLayout,
     /// Marker component that signals this node is a button
     pub button: Button,
     /// Styles which control the layout (size and position) of the node and it's children
@@ -322,7 +322,7 @@ impl Default for ButtonBundle {
     fn default() -> Self {
         Self {
             focus_policy: FocusPolicy::Block,
-            node: Default::default(),
+            computed_layout: Default::default(),
             button: Default::default(),
             style: Default::default(),
             border_color: BorderColor(Color::NONE),

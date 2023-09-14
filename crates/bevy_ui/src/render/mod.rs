@@ -11,7 +11,7 @@ pub use pipeline::*;
 pub use render_pass::*;
 
 use crate::{
-    prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ContentSize, Node,
+    prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ContentSize, ComputedLayout,
     Style, UiImage, UiScale, UiStack, UiTextureAtlasImage, Val,
 };
 
@@ -176,8 +176,7 @@ pub fn extract_atlas_uinodes(
         Query<
             (
                 Entity,
-                &Node,
-                &GlobalTransform,
+                &ComputedLayout,
                 &BackgroundColor,
                 &ViewVisibility,
                 Option<&CalculatedClip>,
@@ -192,7 +191,6 @@ pub fn extract_atlas_uinodes(
         if let Ok((
             entity,
             uinode,
-            transform,
             color,
             view_visibility,
             clip,
@@ -239,8 +237,8 @@ pub fn extract_atlas_uinodes(
                 entity,
                 ExtractedUiNode {
                     stack_index,
-                    position: transform.translation().xy() - uinode.calculated_size,
-                    size: uinode.calculated_size,
+                    position: uinode.position,
+                    size: uinode.size,
                     color: color.0,
                     uv_rect: Some(atlas_rect),
                     clip: clip.map(|clip| clip.clip),
@@ -274,8 +272,7 @@ pub fn extract_uinode_borders(
     uinode_query: Extract<
         Query<
             (
-                &Node,
-                &GlobalTransform,
+                &ComputedLayout,
                 &Style,
                 &BorderColor,
                 Option<&Parent>,
@@ -285,7 +282,7 @@ pub fn extract_uinode_borders(
             Without<ContentSize>,
         >,
     >,
-    node_query: Extract<Query<&Node>>,
+    node_query: Extract<Query<&ComputedLayout>>,
 ) {
     let image = AssetId::<Image>::default();
 
@@ -298,7 +295,7 @@ pub fn extract_uinode_borders(
         / ui_scale.0 as f32;
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, global_transform, style, border_color, parent, view_visibility, clip)) =
+        if let Ok((uinode, style, border_color, parent, view_visibility, clip)) =
             uinode_query.get(*entity)
         {
             // Skip invisible borders
@@ -333,7 +330,7 @@ pub fn extract_uinode_borders(
 
             // Calculate the border rects, ensuring no overlap.
             // The border occupies the space between the node's bounding rect and the node's bounding rect inset in each direction by the node's corresponding border value.
-            let min = global_transform.translation().xy() - 0.5 * uinode.size();
+            let min = uinode.position();
             let max = min + uinode.size();
             let inner_min = min + Vec2::new(left, top);
             let inner_max = (max - Vec2::new(right, bottom)).max(inner_min);
@@ -391,8 +388,7 @@ pub fn extract_uinodes(
         Query<
             (
                 Entity,
-                &Node,
-                &GlobalTransform,
+                &ComputedLayout,
                 &BackgroundColor,
                 Option<&UiImage>,
                 &ViewVisibility,
@@ -403,7 +399,7 @@ pub fn extract_uinodes(
     >,
 ) {
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((entity, uinode, transform, color, maybe_image, view_visibility, clip)) =
+        if let Ok((entity, uinode, color, maybe_image, view_visibility, clip)) =
             uinode_query.get(*entity)
         {
             // Skip invisible and completely transparent nodes
@@ -424,9 +420,9 @@ pub fn extract_uinodes(
             extracted_uinodes.uinodes.insert(
                 entity,
                 ExtractedUiNode {
-                    stack_index,
-                    position: transform.translation().xy() - 0.5 * uinode.calculated_size,
-                    size: uinode.calculated_size,
+                    stack_index,                    
+                    position: uinode.position(),
+                    size: uinode.size(),
                     color: color.0,
                     uv_rect: None,
                     clip: clip.map(|clip| clip.clip),
@@ -522,8 +518,7 @@ pub fn extract_text_uinodes(
     ui_scale: Extract<Res<UiScale>>,
     uinode_query: Extract<
         Query<(
-            &Node,
-            &GlobalTransform,
+            &ComputedLayout,
             &Text,
             &TextLayoutInfo,
             &ViewVisibility,
@@ -533,9 +528,6 @@ pub fn extract_text_uinodes(
 ) {
     // TODO: Support window-independent UI scale: https://github.com/bevyengine/bevy/issues/5621
 
-    println!();
-    println!("extract text");
-    use bevy_math::vec2;
     let scale_factor = windows
         .get_single()
         .map(|window| window.resolution.scale_factor())
@@ -545,16 +537,15 @@ pub fn extract_text_uinodes(
     let inverse_scale_factor = (scale_factor as f32).recip();
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, global_transform, text, text_layout_info, view_visibility, clip)) =
+        if let Ok((uinode, text, text_layout_info, view_visibility, clip)) =
             uinode_query.get(*entity)
         {
             // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
             if !view_visibility.get() || uinode.size().x == 0. || uinode.size().y == 0. {
                 continue;
             }
-            // let transform = global_transform.compute_matrix()
-            //     * Mat4::from_translation(-0.5 * uinode.size().extend(0.));
-            let node_position = global_transform.translation().xy() - 0.5 * uinode.size();
+            
+            let node_position = uinode.position();
 
             let mut color = Color::WHITE;
             let mut current_section = usize::MAX;
@@ -578,12 +569,8 @@ pub fn extract_text_uinodes(
                 uv_rect.min /= atlas.size;
                 uv_rect.max /= atlas.size;
 
-                //let size = *size * inverse_scale_factor;
-
-
-                let position = node_position + *glyph_position * inverse_scale_factor - 0.5 * size * vec2(1., -1.);
+                let position = node_position + *glyph_position  * inverse_scale_factor;
                 
-                println!("gp: {glyph_position} gs: {glyph_size}, isf: {inverse_scale_factor} p: {position}, s: {size}");
 
                 
                 extracted_uinodes.uinodes.insert(
@@ -599,7 +586,6 @@ pub fn extract_text_uinodes(
                         },
                         uv_rect: Some(uv_rect),
                         image: atlas.texture.id(),
-                        //atlas_size: Some(atlas.size * inverse_scale_factor),
                         clip: clip.map(|clip| clip.clip),
                         flip_x: false,
                         flip_y: false,
@@ -619,7 +605,7 @@ struct UiInstance {
     pub i_size: [f32; 2],
     pub i_z: f32,
     pub i_uv_min: [f32; 2],
-    pub i_uv_max: [f32; 2],
+    pub i_uv_size: [f32; 2],
     pub i_color: [f32; 4],
     pub i_mode: u32,
 }
@@ -627,13 +613,12 @@ struct UiInstance {
 impl UiInstance {
     #[inline]
     fn from(location: Vec2, size: Vec2, z: f32, uv_rect: Rect, color: &Color, mode: u32) -> Self {
-        println!("instance: l: {location}, s: {size}, c: {color:?}");
         Self {
             i_location: location.into(),
             i_size: size.into(),
             i_z: z,
             i_uv_min: uv_rect.min.into(),
-            i_uv_max: uv_rect.max.into(),
+            i_uv_size: uv_rect.size().into(),
             i_color: color.as_linear_rgba_f32(),
             i_mode: mode,
         }
@@ -724,8 +709,6 @@ pub fn prepare_uinodes(
     events: Res<SpriteAssetEvents>,
     mut previous_len: Local<usize>,
 ) {
-    println!();
-    println!("preparing!");
     // If an image has changed, the GpuImage has (probably) changed
     for event in &events.images {
         match event {
@@ -857,11 +840,11 @@ pub fn prepare_uinodes(
 
         *previous_len = batches.len();
 
-        for mut ui_phase in &mut phases {
-            println!("PHASE ITEM COUNT: {}", ui_phase.items.len());
-        }
-        println!("EXTRACTED COUNT: {}", extracted_uinodes.uinodes.len());
-        println!("BATCH COUNT: {}", batches.len());
+        // for mut ui_phase in &mut phases {
+        //     println!("PHASE ITEM COUNT: {}", ui_phase.items.len());
+        // }
+        // println!("EXTRACTED COUNT: {}", extracted_uinodes.uinodes.len());
+        // println!("BATCH COUNT: {}", batches.len());
         commands.insert_or_spawn_batch(batches);
     }
     extracted_uinodes.uinodes.clear();

@@ -16,43 +16,50 @@ use thiserror::Error;
 /// Describes the size of a UI node
 #[derive(Component, Debug, Copy, Clone, Reflect)]
 #[reflect(Component, Default)]
-pub struct Node {
+pub struct ComputedLayout {
+    pub(crate) position: Vec2,
     /// The size of the node as width and height in logical pixels
     /// automatically calculated by [`super::layout::ui_layout_system`]
-    pub(crate) calculated_size: Vec2,
+    pub(crate) size: Vec2,
 }
 
-impl Node {
+impl ComputedLayout {
     /// The calculated node size as width and height in logical pixels
     /// automatically calculated by [`super::layout::ui_layout_system`]
     pub const fn size(&self) -> Vec2 {
-        self.calculated_size
+        self.size
     }
+
+     /// The calculated node size as width and height in logical pixels
+    /// automatically calculated by [`super::layout::ui_layout_system`]
+    pub const fn position(&self) -> Vec2 {
+        self.position
+    }
+
 
     /// Returns the size of the node in physical pixels based on the given scale factor and `UiScale`.
     #[inline]
     pub fn physical_size(&self, scale_factor: f64, ui_scale: f64) -> Vec2 {
         Vec2::new(
-            (self.calculated_size.x as f64 * scale_factor * ui_scale) as f32,
-            (self.calculated_size.y as f64 * scale_factor * ui_scale) as f32,
+            (self.size.x as f64 * scale_factor * ui_scale) as f32,
+            (self.size.y as f64 * scale_factor * ui_scale) as f32,
         )
     }
 
     /// Returns the logical pixel coordinates of the UI node, based on its [`GlobalTransform`].
     #[inline]
-    pub fn logical_rect(&self, transform: &GlobalTransform) -> Rect {
-        Rect::from_center_size(transform.translation().truncate(), self.size())
+    pub fn logical_rect(&self) -> Rect {
+        Rect { min: self.position, max: self.position + self.size }
     }
 
     /// Returns the physical pixel coordinates of the UI node, based on its [`GlobalTransform`] and the scale factor.
     #[inline]
     pub fn physical_rect(
         &self,
-        transform: &GlobalTransform,
         scale_factor: f64,
         ui_scale: f64,
     ) -> Rect {
-        let rect = self.logical_rect(transform);
+        let rect = self.logical_rect();
         Rect {
             min: Vec2::new(
                 (rect.min.x as f64 * scale_factor * ui_scale) as f32,
@@ -66,13 +73,14 @@ impl Node {
     }
 }
 
-impl Node {
+impl ComputedLayout {
     pub const DEFAULT: Self = Self {
-        calculated_size: Vec2::ZERO,
+        position: Vec2::ZERO,
+        size: Vec2::ZERO,
     };
 }
 
-impl Default for Node {
+impl Default for ComputedLayout {
     fn default() -> Self {
         Self::DEFAULT
     }

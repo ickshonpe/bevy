@@ -14,7 +14,7 @@ struct VertexInput {
     @location(1) i_size: vec2<f32>,
     @location(2) i_z: f32,
     @location(3) i_uv_min: vec2<f32>,
-    @location(4) i_uv_max: vec2<f32>,
+    @location(4) i_uv_size: vec2<f32>,
     @location(5) i_color: vec4<f32>,
     @location(6) i_mode: u32,
 }
@@ -34,7 +34,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     let norm_location = vec2(norm_x, norm_y);
     let relative_location = in.i_size * norm_location;
     out.clip_position = view.view_proj * vec4(in.i_location + relative_location, in.i_z, 1.0);
-    out.uv = in.i_uv_min + norm_location * in.i_uv_max;
+    out.uv = in.i_uv_min + in.i_uv_size * norm_location;
     out.color = in.i_color;
     out.mode = in.i_mode;
     return out;

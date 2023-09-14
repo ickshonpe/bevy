@@ -96,7 +96,7 @@ impl SpecializedRenderPipeline for UiPipeline {
                     offset: 20,
                     shader_location: 3,
                 },
-                // @location(4) i_uv_max: vec2<f32>,
+                // @location(4) i_uv_size: vec2<f32>,
                 VertexAttribute {
                     format: VertexFormat::Float32x2,
                     offset: 28,

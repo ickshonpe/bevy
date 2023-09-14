@@ -2,7 +2,7 @@
 
 use crate::{CalculatedClip, OverflowAxis, Style};
 
-use super::Node;
+use super::ComputedLayout;
 use bevy_ecs::{
     entity::Entity,
     query::{With, Without},
@@ -15,8 +15,8 @@ use bevy_transform::components::GlobalTransform;
 /// Updates clipping for all nodes
 pub fn update_clipping_system(
     mut commands: Commands,
-    root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
-    mut node_query: Query<(&Node, &GlobalTransform, &Style, Option<&mut CalculatedClip>)>,
+    root_node_query: Query<Entity, (With<ComputedLayout>, Without<Parent>)>,
+    mut node_query: Query<(&ComputedLayout, &GlobalTransform, &Style, Option<&mut CalculatedClip>)>,
     children_query: Query<&Children>,
 ) {
     for root_node in &root_node_query {
@@ -33,7 +33,7 @@ pub fn update_clipping_system(
 fn update_clipping(
     commands: &mut Commands,
     children_query: &Query<&Children>,
-    node_query: &mut Query<(&Node, &GlobalTransform, &Style, Option<&mut CalculatedClip>)>,
+    node_query: &mut Query<(&ComputedLayout, &GlobalTransform, &Style, Option<&mut CalculatedClip>)>,
     entity: Entity,
     maybe_inherited_clip: Option<Rect>,
 ) {
@@ -74,7 +74,7 @@ fn update_clipping(
         // current node's clip and the inherited clip. This handles the case
         // of nested `Overflow::Hidden` nodes. If parent `clip` is not
         // defined, use the current node's clip.
-        let mut node_rect = node.logical_rect(global_transform);
+        let mut node_rect = node.logical_rect();
         if style.overflow.x == OverflowAxis::Visible {
             node_rect.min.x = -f32::INFINITY;
             node_rect.max.x = f32::INFINITY;
