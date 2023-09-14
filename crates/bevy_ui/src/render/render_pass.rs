@@ -7,7 +7,7 @@ use bevy_ecs::{
 use bevy_render::{
     render_graph::*,
     render_phase::*,
-    render_resource::{CachedRenderPipelineId, LoadOp, Operations, RenderPassDescriptor},
+    render_resource::{CachedRenderPipelineId, LoadOp, Operations, RenderPassDescriptor, IndexFormat},
     renderer::*,
     view::*,
 };
@@ -190,8 +190,10 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
         ui_meta: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
-        pass.set_vertex_buffer(0, ui_meta.into_inner().vertices.buffer().unwrap().slice(..));
-        pass.draw(batch.range.clone(), 0..1);
+        let ui_meta = ui_meta.into_inner();
+        pass.set_index_buffer(ui_meta.index_buffer.buffer().unwrap().slice(..), 0, IndexFormat::Uint32);
+        pass.set_vertex_buffer(0, ui_meta.instance_buffer.buffer().unwrap().slice(..));
+        pass.draw_indexed(0..6, 0, batch.range.clone());
         RenderCommandResult::Success
     }
 }

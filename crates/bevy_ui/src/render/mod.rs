@@ -18,7 +18,7 @@ use crate::{
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, AssetId, Assets, Handle};
 use bevy_ecs::prelude::*;
-use bevy_math::{Mat4, Rect, URect, UVec4, Vec2, Vec3, Vec4Swizzles};
+use bevy_math::{Mat4, Rect, URect, UVec4, Vec2, Vec3, Vec4Swizzles, Quat, Vec3Swizzles};
 use bevy_render::{
     camera::Camera,
     color::Color,
@@ -38,6 +38,7 @@ use bevy_transform::components::GlobalTransform;
 use bevy_utils::{FloatOrd, HashMap};
 use bytemuck::{Pod, Zeroable};
 use std::ops::Range;
+use bevy_math::{Vec4, Affine3A};
 
 pub mod node {
     pub const UI_PASS_DRIVER: &str = "ui_pass_driver";
@@ -600,28 +601,48 @@ pub fn extract_text_uinodes(
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
-struct UiVertex {
-    pub position: [f32; 3],
-    pub uv: [f32; 2],
-    pub color: [f32; 4],
-    pub mode: u32,
+struct UiInstance {
+    // Affine 4x3 transposed to 3x4
+    pub i_model_transpose: [Vec4; 3],
+    pub i_color: [f32; 4],
+    pub i_uv_offset_scale: [f32; 4],
+    //pub i_mode: u32,
 }
+
+impl UiInstance {
+    #[inline]
+    fn from(transform: &Mat4, color: &Color, uv_offset_scale: &Vec4, mode: u32) -> Self {
+        //let transpose_model_3x3 = transform.matrix3.transpose();
+        Self {
+            i_model_transpose: [
+                transform.x_axis,
+                transform.y_axis,
+                transform.z_axis,
+            ],
+            i_color: color.as_linear_rgba_f32(),
+            i_uv_offset_scale: uv_offset_scale.to_array(),
+            //i_mode: mode
+        }
+    }
+}
+
 
 #[derive(Resource)]
 pub struct UiMeta {
-    vertices: BufferVec<UiVertex>,
     view_bind_group: Option<BindGroup>,
+    index_buffer: BufferVec<u32>,
+    instance_buffer: BufferVec<UiInstance>,
 }
 
 impl Default for UiMeta {
     fn default() -> Self {
         Self {
-            vertices: BufferVec::new(BufferUsages::VERTEX),
             view_bind_group: None,
+            index_buffer: BufferVec::<u32>::new(BufferUsages::INDEX),
+            instance_buffer: BufferVec::<UiInstance>::new(BufferUsages::VERTEX),
         }
     }
 }
-
 const QUAD_VERTEX_POSITIONS: [Vec3; 4] = [
     Vec3::new(-0.5, -0.5, 0.0),
     Vec3::new(0.5, -0.5, 0.0),
@@ -712,7 +733,7 @@ pub fn prepare_uinodes(
     if let Some(view_binding) = view_uniforms.uniforms.binding() {
         let mut batches: Vec<(Entity, UiBatch)> = Vec::with_capacity(*previous_len);
 
-        ui_meta.vertices.clear();
+        ui_meta.instance_buffer.clear();
         ui_meta.view_bind_group = Some(render_device.create_bind_group(&BindGroupDescriptor {
             entries: &[BindGroupEntry {
                 binding: 0,
@@ -727,26 +748,22 @@ pub fn prepare_uinodes(
 
         for mut ui_phase in &mut phases {
             let mut batch_item_index = 0;
+            let mut batch_image_size = Vec2::ZERO;
             let mut batch_image_handle = AssetId::invalid();
+            
 
             for item_index in 0..ui_phase.items.len() {
                 let item = &mut ui_phase.items[item_index];
                 if let Some(extracted_uinode) = extracted_uinodes.uinodes.get(item.entity) {
-                    let mut existing_batch = batches
+                    let existing_batch = batches
                         .last_mut()
                         .filter(|_| batch_image_handle == extracted_uinode.image);
-
+                    let batch_image_changed = batch_image_handle != extracted_uinode.image;
                     if existing_batch.is_none() {
                         if let Some(gpu_image) = gpu_images.get(extracted_uinode.image) {
                             batch_item_index = item_index;
+                            batch_image_size = Vec2::new(gpu_image.size.x, gpu_image.size.y);
                             batch_image_handle = extracted_uinode.image;
-
-                            let new_batch = UiBatch {
-                                range: index..index,
-                                image: extracted_uinode.image,
-                            };
-
-                            batches.push((item.entity, new_batch));
 
                             image_bind_groups
                                 .values
@@ -772,7 +789,7 @@ pub fn prepare_uinodes(
                                     })
                                 });
 
-                            existing_batch = batches.last_mut();
+                            //existing_batch = batches.last_mut();
                         } else {
                             continue;
                         }
@@ -881,24 +898,70 @@ pub fn prepare_uinodes(
                         .map(|pos| pos / atlas_extent)
                     };
 
-                    let color = extracted_uinode.color.as_linear_rgba_f32();
-                    for i in QUAD_INDICES {
-                        ui_meta.vertices.push(UiVertex {
-                            position: positions_clipped[i].into(),
-                            uv: uvs[i].into(),
-                            color,
-                            mode,
-                        });
+                    
+
+                    let uv_offset_scale = Vec4::new(0.0, 1.0, 1.0, -1.0);
+                    let transform = extracted_uinode.transform
+                    * Mat4::from_scale_rotation_translation(
+                        rect_size,
+                        Quat::IDENTITY,
+                        (0.5 * rect_size.xy()).extend(0.0),
+                    );
+                    
+                    if batch_image_changed {
+                        batch_item_index = item_index;
+    
+                        batches.push((
+                            item.entity,
+                            UiBatch {
+                                image: batch_image_handle,
+                                range: index..index,
+                            },
+                        ));
                     }
-                    index += QUAD_INDICES.len() as u32;
-                    existing_batch.unwrap().1.range.end = index;
+
+                    ui_meta.instance_buffer
+                        .push(UiInstance::from(
+                            &transform,
+                            &extracted_uinode.color,
+                            &uv_offset_scale,
+                            mode
+                        ));
+                    
+                    batches.last_mut().unwrap().1.range.end += 1;
                     ui_phase.items[batch_item_index].batch_size += 1;
                 } else {
                     batch_image_handle = AssetId::invalid();
                 }
             }
         }
-        ui_meta.vertices.write_buffer(&render_device, &render_queue);
+        ui_meta.instance_buffer.write_buffer(&render_device, &render_queue);
+
+        if ui_meta.index_buffer.len() != 6 {
+            ui_meta.index_buffer.clear();
+
+            // NOTE: This code is creating 6 indices pointing to 4 vertices.
+            // The vertices form the corners of a quad based on their two least significant bits.
+            // 10   11
+            //
+            // 00   01
+            // The sprite shader can then use the two least significant bits as the vertex index.
+            // The rest of the properties to transform the vertex positions and UVs (which are
+            // implicit) are baked into the instance transform, and UV offset and scale.
+            // See bevy_sprite/src/render/sprite.wgsl for the details.
+            ui_meta.index_buffer.push(2);
+            ui_meta.index_buffer.push(0);
+            ui_meta.index_buffer.push(1);
+            ui_meta.index_buffer.push(1);
+            ui_meta.index_buffer.push(3);
+            ui_meta.index_buffer.push(2);
+
+            ui_meta
+                .index_buffer
+                .write_buffer(&render_device, &render_queue);
+        }
+
+
         *previous_len = batches.len();
         commands.insert_or_spawn_batch(batches);
     }
