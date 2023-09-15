@@ -19,6 +19,7 @@ struct VertexInput {
     @location(6) i_radius: vec4<f32>,
     @location(7) i_border: vec4<f32>,
     @location(8) i_flags: u32,
+    @location(9) i_border_color: vec4<f32>,
 }
 
 struct VertexOutput {
@@ -29,6 +30,7 @@ struct VertexOutput {
     @location(3) @interpolate(flat) radius: f32,
     @location(4) @interpolate(flat) border: vec2<f32>,
     @location(5) point: vec2<f32>,
+    @location(6) @interpolate(flat) border_color: vec4<f32>,
 };
 
 @vertex
@@ -71,6 +73,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.mode = in.i_flags;
     out.point = in.i_size * (norm_location - 0.5);
     out.border = half_size - out.border;
+    out.border_color = in.i_border_color;
     return out;
 }
 
@@ -90,5 +93,10 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     } else {
         color = in.color;
     }
+    
+    if in.border.x < point.x || in.border.y < point.y {
+        color = in.border_color;
+    }
+
     return color;
 }

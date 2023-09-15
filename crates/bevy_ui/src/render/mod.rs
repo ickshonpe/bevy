@@ -82,7 +82,7 @@ pub fn build_ui_render(app: &mut App) {
                 extract_atlas_uinodes
                     .in_set(RenderUiSystem::ExtractAtlasNode)
                     .after(RenderUiSystem::ExtractNode),
-               // extract_uinode_borders.after(RenderUiSystem::ExtractAtlasNode),
+                // extract_uinode_borders.after(RenderUiSystem::ExtractAtlasNode),
                 #[cfg(feature = "bevy_text")]
                 extract_text_uinodes.after(RenderUiSystem::ExtractAtlasNode),
             ),
@@ -161,6 +161,7 @@ pub struct ExtractedUiNode {
     pub flip_y: bool,
     pub border_width: [f32; 4],
     pub border_radius: [f32; 4],
+    pub border_color: Color,
 }
 
 #[derive(Resource, Default)]
@@ -244,6 +245,7 @@ pub fn extract_atlas_uinodes(
                     flip_y: atlas_image.flip_y,
                     border_width: [0.; 4],
                     border_radius: [0.; 4],
+                    border_color: Color::NONE,
                 },
             );
         }
@@ -263,13 +265,14 @@ pub fn extract_uinodes(
                 Option<&UiImage>,
                 &ViewVisibility,
                 Option<&CalculatedClip>,
+                Option<&BorderColor>,
             ),
             Without<UiTextureAtlasImage>,
         >,
     >,
 ) {
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((entity, uinode, color, maybe_image, view_visibility, clip)) =
+        if let Ok((entity, uinode, color, maybe_image, view_visibility, clip, maybe_border_color)) =
             uinode_query.get(*entity)
         {
             // Skip invisible and completely transparent nodes
@@ -301,6 +304,7 @@ pub fn extract_uinodes(
                     flip_y,
                     border_width: uinode.border_thickness,
                     border_radius: uinode.border_radius,
+                    border_color: maybe_border_color.map(|b| b.0).unwrap_or(Color::NONE),
                 },
             );
         };
@@ -455,6 +459,7 @@ pub fn extract_text_uinodes(
                         flip_y: false,
                         border_width: [0.; 4],
                         border_radius: [0.; 4],
+                        border_color: Color::NONE,
                     },
                 );
             }
@@ -475,6 +480,7 @@ struct UiInstance {
     pub i_radius: [f32; 4],
     pub i_border: [f32; 4],
     pub i_flags: u32,
+    pub i_border_color: [f32; 4],
 }
 
 impl UiInstance {
@@ -488,6 +494,7 @@ impl UiInstance {
         mode: u32,
         radius: [f32; 4],
         border: [f32; 4],
+        border_color: &Color,
     ) -> Self {
         Self {
             i_location: location.into(),
@@ -499,6 +506,7 @@ impl UiInstance {
             i_radius: radius,
             i_border: border,
             i_flags: mode,
+            i_border_color: border_color.as_linear_rgba_f32(),
         }
     }
 }
@@ -636,8 +644,6 @@ pub fn prepare_uinodes(
                                     layout: &ui_pipeline.image_layout,
                                 })
                             });
-
-                        //existing_batch = batches.last_mut();
                     } else {
                         continue;
                     }
@@ -648,9 +654,6 @@ pub fn prepare_uinodes(
                         UNTEXTURED_QUAD
                     };
 
-                    // if batch_image_changed {
-                    //     batch_item_index = item_index;
-
                     batches.push((
                         item.entity,
                         UiBatch {
@@ -658,7 +661,6 @@ pub fn prepare_uinodes(
                             range: item_index as u32..item_index as u32 + 1,
                         },
                     ));
-                    //}
 
                     ui_meta.instance_buffer.push(UiInstance::from(
                         extracted_uinode.position,
@@ -672,6 +674,7 @@ pub fn prepare_uinodes(
                         mode,
                         extracted_uinode.border_radius,
                         extracted_uinode.border_width,
+                        &extracted_uinode.border_color,
                     ));
                     ui_phase.items[item_index].batch_size = 1;
                 }

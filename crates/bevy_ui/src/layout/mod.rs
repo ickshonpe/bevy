@@ -337,7 +337,7 @@ pub fn ui_layout_system(
                 resolve_border_radius(&style.border_radius, rounded_size, viewport_size);
             computed_layout.border_thickness = [
                 resolve_border_thickness(style.border.left, viewport_size),
-                resolve_border_thickness(style.border.top,  viewport_size),
+                resolve_border_thickness(style.border.top, viewport_size),
                 resolve_border_thickness(style.border.right, viewport_size),
                 resolve_border_thickness(style.border.bottom, viewport_size),
             ];
