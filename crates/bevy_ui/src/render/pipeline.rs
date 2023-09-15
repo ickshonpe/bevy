@@ -125,7 +125,7 @@ impl SpecializedRenderPipeline for UiPipeline {
                     format: VertexFormat::Uint32,
                     offset: 84,
                     shader_location: 8,
-                }
+                },
             ],
         };
 

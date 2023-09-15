@@ -36,8 +36,7 @@ fn update_clipping(
     entity: Entity,
     maybe_inherited_clip: Option<Rect>,
 ) {
-    let Ok((node, style, maybe_calculated_clip)) = node_query.get_mut(entity)
-    else {
+    let Ok((node, style, maybe_calculated_clip)) = node_query.get_mut(entity) else {
         return;
     };
 

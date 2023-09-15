@@ -1,5 +1,6 @@
 use crate::{
-    measurement::AvailableSpace, ContentSize, Measure, ComputedLayout, UiImage, UiScale, UiTextureAtlasImage,
+    measurement::AvailableSpace, ComputedLayout, ContentSize, Measure, UiImage, UiScale,
+    UiTextureAtlasImage,
 };
 use bevy_asset::{Assets, Handle};
 

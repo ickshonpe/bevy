@@ -11,8 +11,8 @@ pub use pipeline::*;
 pub use render_pass::*;
 
 use crate::{
-    prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ContentSize, ComputedLayout,
-    Style, UiImage, UiScale, UiStack, UiTextureAtlasImage, Val,
+    prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ComputedLayout,
+    ContentSize, Style, UiImage, UiScale, UiStack, UiTextureAtlasImage, Val,
 };
 
 use bevy_app::prelude::*;
@@ -216,10 +216,7 @@ pub fn extract_atlas_uinodes(
                                 texture_atlas_handle.id(),
                             )
                         });
-                    (
-                        atlas_rect,
-                        texture_atlas.texture.clone(),
-                    )
+                    (atlas_rect, texture_atlas.texture.clone())
                 } else {
                     // Atlas not present in assets resource (should this warn the user?)
                     continue;
@@ -424,7 +421,7 @@ pub fn extract_uinodes(
             extracted_uinodes.uinodes.insert(
                 entity,
                 ExtractedUiNode {
-                    stack_index,                    
+                    stack_index,
                     position: uinode.position(),
                     size: uinode.size(),
                     color: color.0,
@@ -550,7 +547,7 @@ pub fn extract_text_uinodes(
             if !view_visibility.get() || uinode.size().x == 0. || uinode.size().y == 0. {
                 continue;
             }
-            
+
             let node_position = uinode.position();
 
             let mut color = Color::WHITE;
@@ -573,10 +570,8 @@ pub fn extract_text_uinodes(
                 uv_rect.min /= atlas.size;
                 uv_rect.max /= atlas.size;
 
-                let position = node_position + *glyph_position  * inverse_scale_factor - 0.5 * size;
-                
+                let position = node_position + *glyph_position * inverse_scale_factor - 0.5 * size;
 
-                
                 extracted_uinodes.uinodes.insert(
                     commands.spawn_empty().id(),
                     ExtractedUiNode {
@@ -615,7 +610,16 @@ struct UiInstance {
 
 impl UiInstance {
     #[inline]
-    fn from(location: Vec2, size: Vec2, z: f32, uv_rect: Rect, color: &Color, mode: u32, radius: [f32; 4], border: [f32; 4]) -> Self {
+    fn from(
+        location: Vec2,
+        size: Vec2,
+        z: f32,
+        uv_rect: Rect,
+        color: &Color,
+        mode: u32,
+        radius: [f32; 4],
+        border: [f32; 4],
+    ) -> Self {
         Self {
             i_location: location.into(),
             i_size: size.into(),
@@ -742,7 +746,6 @@ pub fn prepare_uinodes(
                 let item = &mut ui_phase.items[item_index];
                 if let Some(extracted_uinode) = extracted_uinodes.uinodes.get(item.entity) {
                     if let Some(gpu_image) = gpu_images.get(extracted_uinode.image) {
-
                         image_bind_groups
                             .values
                             .entry(extracted_uinode.image)
@@ -757,9 +760,7 @@ pub fn prepare_uinodes(
                                         },
                                         BindGroupEntry {
                                             binding: 1,
-                                            resource: BindingResource::Sampler(
-                                                &gpu_image.sampler,
-                                            ),
+                                            resource: BindingResource::Sampler(&gpu_image.sampler),
                                         },
                                     ],
                                     label: Some("ui_material_bind_group"),

@@ -68,16 +68,15 @@ impl ComputedLayout {
     /// Returns the logical pixel coordinates of the UI node, based on its [`GlobalTransform`].
     #[inline]
     pub fn logical_rect(&self) -> Rect {
-        Rect { min: self.position, max: self.position + self.size }
+        Rect {
+            min: self.position,
+            max: self.position + self.size,
+        }
     }
 
     /// Returns the physical pixel coordinates of the UI node, based on its [`GlobalTransform`] and the scale factor.
     #[inline]
-    pub fn physical_rect(
-        &self,
-        scale_factor: f64,
-        ui_scale: f64,
-    ) -> Rect {
+    pub fn physical_rect(&self, scale_factor: f64, ui_scale: f64) -> Rect {
         let rect = self.logical_rect();
         Rect {
             min: Vec2::new(

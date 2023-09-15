@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, ComputedLayout, Style, UiScale, Val, BorderRadius};
+use crate::{BorderRadius, ComputedLayout, ContentSize, Style, UiScale, Val};
 use bevy_ecs::{
     change_detection::{DetectChanges, DetectChangesMut},
     entity::Entity,
@@ -318,14 +318,15 @@ pub fn ui_layout_system(
     ) {
         if let Ok((style, mut computed_layout)) = computed_layout_query.get_mut(entity) {
             let layout = ui_surface.get_layout(entity).unwrap();
-            let layout_size = inverse_target_scale_factor * Vec2::new(layout.size.width, layout.size.height);
-            let layout_location = inverse_target_scale_factor * Vec2::new(layout.location.x, layout.location.y);
+            let layout_size =
+                inverse_target_scale_factor * Vec2::new(layout.size.width, layout.size.height);
+            let layout_location =
+                inverse_target_scale_factor * Vec2::new(layout.location.x, layout.location.y);
 
             absolute_location += layout_location;
             let rounded_location = round_layout_coords(absolute_location);
             let rounded_size = round_layout_coords(absolute_location + layout_size)
                 - round_layout_coords(absolute_location);
-                        
 
             // only trigger change detection when the new values are different
             if computed_layout.size != rounded_size {
@@ -333,7 +334,8 @@ pub fn ui_layout_system(
             }
 
             computed_layout.bypass_change_detection().position = rounded_location;
-            computed_layout.border_radius = resolve_border_radius(&style.border_radius, rounded_size, viewport_size);
+            computed_layout.border_radius =
+                resolve_border_radius(&style.border_radius, rounded_size, viewport_size);
             computed_layout.border_thickness = [
                 resolve_border_thickness(style.border.left, parent_width, viewport_size),
                 resolve_border_thickness(style.border.top, parent_width, viewport_size),
@@ -350,7 +352,7 @@ pub fn ui_layout_system(
                         inverse_target_scale_factor,
                         absolute_location,
                         rounded_size.x,
-                        viewport_size
+                        viewport_size,
                     );
                 }
             }
@@ -412,11 +414,7 @@ fn resolve_border_thickness(value: Val, parent_width: f32, viewport_size: Vec2) 
 }
 
 #[inline]
-fn resolve_border_radius(
-    &values: &BorderRadius,
-    node_size: Vec2,
-    viewport_size: Vec2,
-) -> [f32; 4] {
+fn resolve_border_radius(&values: &BorderRadius, node_size: Vec2, viewport_size: Vec2) -> [f32; 4] {
     let max_radius = 0.5 * node_size.min_element();
     <[Val; 4]>::from(values).map(|value| {
         match value {
@@ -433,12 +431,7 @@ fn resolve_border_radius(
 }
 
 #[inline]
-fn resolve_shadow_offset(
-    x: Val,
-    y: Val,
-    node_size: Vec2,
-    viewport_size: Vec2,
-) -> Vec2 {
+fn resolve_shadow_offset(x: Val, y: Val, node_size: Vec2, viewport_size: Vec2) -> Vec2 {
     [(x, node_size.x), (y, node_size.y)]
         .map(|(value, size)| match value {
             Val::Auto => 0.,

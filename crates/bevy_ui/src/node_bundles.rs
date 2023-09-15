@@ -4,8 +4,8 @@
 use crate::widget::TextFlags;
 use crate::{
     widget::{Button, UiImageSize},
-    BackgroundColor, BorderColor, ContentSize, FocusPolicy, Interaction, ComputedLayout, Style, UiImage,
-    UiTextureAtlasImage, ZIndex,
+    BackgroundColor, BorderColor, ComputedLayout, ContentSize, FocusPolicy, Interaction, Style,
+    UiImage, UiTextureAtlasImage, ZIndex,
 };
 use bevy_asset::Handle;
 use bevy_ecs::bundle::Bundle;

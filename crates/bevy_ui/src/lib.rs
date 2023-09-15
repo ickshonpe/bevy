@@ -168,8 +168,7 @@ impl Plugin for UiPlugin {
         app.add_systems(
             PostUpdate,
             (
-                ui_layout_system
-                    .in_set(UiSystem::Layout),
+                ui_layout_system.in_set(UiSystem::Layout),
                 ui_stack_system.in_set(UiSystem::Stack),
                 update_clipping_system.after(UiSystem::Layout),
             ),

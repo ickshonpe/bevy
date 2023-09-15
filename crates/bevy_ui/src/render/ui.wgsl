@@ -34,6 +34,33 @@ struct VertexOutput {
 @vertex
 fn vertex(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
+    switch in.index {
+        case 0u: {
+            // top left
+            out.radius = in.i_radius.x;
+            out.border.x = in.i_border.x;
+            out.border.y = in.i_border.y;
+        }
+        case 1u: {
+            // top right
+            out.radius = in.i_radius.y;
+            out.border.x = in.i_border.z;
+            out.border.y = in.i_border.y;
+        }
+        case 2u: {
+            // bottom left
+            out.radius = in.i_radius.z;
+            out.border.x = in.i_border.x;
+            out.border.y = in.i_border.w;
+        }
+        default: {
+            // bottom right
+            out.radius = in.i_radius.w;
+            out.border.x = in.i_border.z;
+            out.border.y = in.i_border.w;
+        }
+    }
+    let half_size = 0.5 * in.i_size;
     let norm_x = f32(in.index & 1u);
     let norm_y = f32((in.index & 2u) >> 1u);
     let norm_location = vec2(norm_x, norm_y);
@@ -42,6 +69,8 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.uv = in.i_uv_min + in.i_uv_size * norm_location;
     out.color = in.i_color;
     out.mode = in.i_flags;
+    out.point = in.i_size * (norm_location - 0.5);
+    out.border = half_size - out.border;
     return out;
 }
 
@@ -55,6 +84,7 @@ var sprite_sampler: sampler;
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // textureSample can only be called in unform control flow, not inside an if branch.
     var color = textureSample(sprite_texture, sprite_sampler, in.uv);
+    let point = abs(in.point);
     if in.mode == TEXTURED_QUAD {
         color = in.color * color;
     } else {

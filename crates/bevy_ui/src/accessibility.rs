@@ -36,7 +36,11 @@ fn calc_name(texts: &Query<&Text>, children: &Children) -> Option<Box<str>> {
 
 fn calc_bounds(
     camera: Query<(&Camera, &GlobalTransform)>,
-    mut nodes: Query<(&mut AccessibilityNode, Ref<ComputedLayout>, Ref<GlobalTransform>)>,
+    mut nodes: Query<(
+        &mut AccessibilityNode,
+        Ref<ComputedLayout>,
+        Ref<GlobalTransform>,
+    )>,
 ) {
     if let Ok((camera, camera_transform)) = camera.get_single() {
         for (mut accessible, node, transform) in &mut nodes {
