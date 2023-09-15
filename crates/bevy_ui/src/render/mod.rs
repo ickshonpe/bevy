@@ -82,7 +82,7 @@ pub fn build_ui_render(app: &mut App) {
                 extract_atlas_uinodes
                     .in_set(RenderUiSystem::ExtractAtlasNode)
                     .after(RenderUiSystem::ExtractNode),
-                extract_uinode_borders.after(RenderUiSystem::ExtractAtlasNode),
+               // extract_uinode_borders.after(RenderUiSystem::ExtractAtlasNode),
                 #[cfg(feature = "bevy_text")]
                 extract_text_uinodes.after(RenderUiSystem::ExtractAtlasNode),
             ),
@@ -159,8 +159,8 @@ pub struct ExtractedUiNode {
     pub clip: Option<Rect>,
     pub flip_x: bool,
     pub flip_y: bool,
-    pub border_thickness: [f32; 4],
-    pub corner_radius: [f32; 4],
+    pub border_width: [f32; 4],
+    pub border_radius: [f32; 4],
 }
 
 #[derive(Resource, Default)]
@@ -242,141 +242,10 @@ pub fn extract_atlas_uinodes(
                     image: image.id(),
                     flip_x: atlas_image.flip_x,
                     flip_y: atlas_image.flip_y,
-                    border_thickness: [0.; 4],
-                    corner_radius: [0.; 4],
+                    border_width: [0.; 4],
+                    border_radius: [0.; 4],
                 },
             );
-        }
-    }
-}
-
-fn resolve_border_thickness(value: Val, parent_width: f32, viewport_size: Vec2) -> f32 {
-    match value {
-        Val::Auto => 0.,
-        Val::Px(px) => px.max(0.),
-        Val::Percent(percent) => (parent_width * percent / 100.).max(0.),
-        Val::Vw(percent) => (viewport_size.x * percent / 100.).max(0.),
-        Val::Vh(percent) => (viewport_size.y * percent / 100.).max(0.),
-        Val::VMin(percent) => (viewport_size.min_element() * percent / 100.).max(0.),
-        Val::VMax(percent) => (viewport_size.max_element() * percent / 100.).max(0.),
-    }
-}
-
-pub fn extract_uinode_borders(
-    mut commands: Commands,
-    mut extracted_uinodes: ResMut<ExtractedUiNodes>,
-    windows: Extract<Query<&Window, With<PrimaryWindow>>>,
-    ui_scale: Extract<Res<UiScale>>,
-    ui_stack: Extract<Res<UiStack>>,
-    uinode_query: Extract<
-        Query<
-            (
-                &ComputedLayout,
-                &Style,
-                &BorderColor,
-                Option<&Parent>,
-                &ViewVisibility,
-                Option<&CalculatedClip>,
-            ),
-            Without<ContentSize>,
-        >,
-    >,
-    node_query: Extract<Query<&ComputedLayout>>,
-) {
-    let image = AssetId::<Image>::default();
-
-    let ui_logical_viewport_size = windows
-        .get_single()
-        .map(|window| Vec2::new(window.resolution.width(), window.resolution.height()))
-        .unwrap_or(Vec2::ZERO)
-        // The logical window resolution returned by `Window` only takes into account the window scale factor and not `UiScale`,
-        // so we have to divide by `UiScale` to get the size of the UI viewport.
-        / ui_scale.0 as f32;
-
-    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, style, border_color, parent, view_visibility, clip)) =
-            uinode_query.get(*entity)
-        {
-            // Skip invisible borders
-            if !view_visibility.get()
-                || border_color.0.a() == 0.0
-                || uinode.size().x <= 0.
-                || uinode.size().y <= 0.
-            {
-                continue;
-            }
-
-            // Both vertical and horizontal percentage border values are calculated based on the width of the parent node
-            // <https://developer.mozilla.org/en-US/docs/Web/CSS/border-width>
-            let parent_width = parent
-                .and_then(|parent| node_query.get(parent.get()).ok())
-                .map(|parent_node| parent_node.size().x)
-                .unwrap_or(ui_logical_viewport_size.x);
-            let left =
-                resolve_border_thickness(style.border.left, parent_width, ui_logical_viewport_size);
-            let right = resolve_border_thickness(
-                style.border.right,
-                parent_width,
-                ui_logical_viewport_size,
-            );
-            let top =
-                resolve_border_thickness(style.border.top, parent_width, ui_logical_viewport_size);
-            let bottom = resolve_border_thickness(
-                style.border.bottom,
-                parent_width,
-                ui_logical_viewport_size,
-            );
-
-            // Calculate the border rects, ensuring no overlap.
-            // The border occupies the space between the node's bounding rect and the node's bounding rect inset in each direction by the node's corresponding border value.
-            let min = uinode.position();
-            let max = min + uinode.size();
-            let inner_min = min + Vec2::new(left, top);
-            let inner_max = (max - Vec2::new(right, bottom)).max(inner_min);
-            let border_rects = [
-                // Left border
-                Rect {
-                    min,
-                    max: Vec2::new(inner_min.x, max.y),
-                },
-                // Right border
-                Rect {
-                    min: Vec2::new(inner_max.x, min.y),
-                    max,
-                },
-                // Top border
-                Rect {
-                    min: Vec2::new(inner_min.x, min.y),
-                    max: Vec2::new(inner_max.x, inner_min.y),
-                },
-                // Bottom border
-                Rect {
-                    min: Vec2::new(inner_min.x, inner_max.y),
-                    max: Vec2::new(inner_max.x, max.y),
-                },
-            ];
-
-            for edge in border_rects {
-                if edge.min.x < edge.max.x && edge.min.y < edge.max.y {
-                    extracted_uinodes.uinodes.insert(
-                        commands.spawn_empty().id(),
-                        ExtractedUiNode {
-                            stack_index,
-                            // This translates the uinode's transform to the center of the current border rectangle
-                            position: edge.min,
-                            size: edge.size(),
-                            color: border_color.0,
-                            uv_rect: None,
-                            image,
-                            clip: clip.map(|clip| clip.clip),
-                            flip_x: false,
-                            flip_y: false,
-                            border_thickness: [0.; 4],
-                            corner_radius: [0.; 4],
-                        },
-                    );
-                }
-            }
         }
     }
 }
@@ -430,8 +299,8 @@ pub fn extract_uinodes(
                     image,
                     flip_x,
                     flip_y,
-                    border_thickness: [0.; 4],
-                    corner_radius: [0.; 4],
+                    border_width: uinode.border_thickness,
+                    border_radius: uinode.border_radius,
                 },
             );
         };
@@ -584,8 +453,8 @@ pub fn extract_text_uinodes(
                         clip: clip.map(|clip| clip.clip),
                         flip_x: false,
                         flip_y: false,
-                        border_thickness: [0.; 4],
-                        corner_radius: [0.; 4],
+                        border_width: [0.; 4],
+                        border_radius: [0.; 4],
                     },
                 );
             }
@@ -801,8 +670,8 @@ pub fn prepare_uinodes(
                         }),
                         &extracted_uinode.color,
                         mode,
-                        extracted_uinode.corner_radius,
-                        extracted_uinode.border_thickness,
+                        extracted_uinode.border_radius,
+                        extracted_uinode.border_width,
                     ));
                     ui_phase.items[item_index].batch_size = 1;
                 }

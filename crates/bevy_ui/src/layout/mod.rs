@@ -313,7 +313,6 @@ pub fn ui_layout_system(
         children_query: &Query<&Children>,
         inverse_target_scale_factor: f32,
         mut absolute_location: Vec2,
-        parent_width: f32,
         viewport_size: Vec2,
     ) {
         if let Ok((style, mut computed_layout)) = computed_layout_query.get_mut(entity) {
@@ -337,10 +336,10 @@ pub fn ui_layout_system(
             computed_layout.border_radius =
                 resolve_border_radius(&style.border_radius, rounded_size, viewport_size);
             computed_layout.border_thickness = [
-                resolve_border_thickness(style.border.left, parent_width, viewport_size),
-                resolve_border_thickness(style.border.top, parent_width, viewport_size),
-                resolve_border_thickness(style.border.right, parent_width, viewport_size),
-                resolve_border_thickness(style.border.bottom, parent_width, viewport_size),
+                resolve_border_thickness(style.border.left, viewport_size),
+                resolve_border_thickness(style.border.top,  viewport_size),
+                resolve_border_thickness(style.border.right, viewport_size),
+                resolve_border_thickness(style.border.bottom, viewport_size),
             ];
             if let Ok(children) = children_query.get(entity) {
                 for &child_uinode in children {
@@ -351,7 +350,6 @@ pub fn ui_layout_system(
                         children_query,
                         inverse_target_scale_factor,
                         absolute_location,
-                        rounded_size.x,
                         viewport_size,
                     );
                 }
@@ -367,7 +365,6 @@ pub fn ui_layout_system(
             &just_children_query,
             inverse_target_scale_factor as f32,
             Vec2::ZERO,
-            viewport_size.x,
             viewport_size,
         );
     }
@@ -401,11 +398,11 @@ fn round_layout_coords(value: Vec2) -> Vec2 {
     }
 }
 
-fn resolve_border_thickness(value: Val, parent_width: f32, viewport_size: Vec2) -> f32 {
+fn resolve_border_thickness(value: Val, viewport_size: Vec2) -> f32 {
     match value {
         Val::Auto => 0.,
         Val::Px(px) => px.max(0.),
-        Val::Percent(percent) => (parent_width * percent / 100.).max(0.),
+        Val::Percent(_) => 0.,
         Val::Vw(percent) => (viewport_size.x * percent / 100.).max(0.),
         Val::Vh(percent) => (viewport_size.y * percent / 100.).max(0.),
         Val::VMin(percent) => (viewport_size.min_element() * percent / 100.).max(0.),
@@ -420,7 +417,7 @@ fn resolve_border_radius(&values: &BorderRadius, node_size: Vec2, viewport_size:
         match value {
             Val::Auto => 0.,
             Val::Px(px) => px,
-            Val::Percent(percent) => node_size.min_element() * percent / 100.,
+            Val::Percent(percent) => node_size.x,
             Val::Vw(percent) => viewport_size.x * percent / 100.,
             Val::Vh(percent) => viewport_size.y * percent / 100.,
             Val::VMin(percent) => viewport_size.min_element() * percent / 100.,
