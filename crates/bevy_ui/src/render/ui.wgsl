@@ -26,6 +26,9 @@ struct VertexOutput {
     @location(0) uv: vec2<f32>,
     @location(1) @interpolate(flat) color: vec4<f32>,
     @location(2) @interpolate(flat) mode: u32,
+    @location(3) @interpolate(flat) radius: f32,
+    @location(4) @interpolate(flat) border: vec2<f32>,
+    @location(5) point: vec2<f32>,
 };
 
 @vertex
