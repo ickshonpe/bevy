@@ -83,6 +83,11 @@ var sprite_texture: texture_2d<f32>;
 @group(1) @binding(1)
 var sprite_sampler: sampler;
 
+fn sd_box(p: vec2<f32>, b: vec2<f32>) -> f32 {
+    let d = abs(p) - b;
+    return length(max(d, vec2(0.0))) + min(max(d.x, d.y) , 0.0);
+}
+
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // textureSample can only be called in unform control flow, not inside an if branch.
@@ -94,7 +99,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         color = in.color;
     }
     
-    if in.border.x < point.x || in.border.y < point.y {
+    if 0. < sd_box(point, in.border) {
         color = in.border_color;
     }
 
