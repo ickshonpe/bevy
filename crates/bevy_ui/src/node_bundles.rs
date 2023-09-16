@@ -4,7 +4,7 @@
 use crate::widget::TextFlags;
 use crate::{
     widget::{Button, UiImageSize},
-    BackgroundColor, BorderColor, ComputedLayout, ContentSize, FocusPolicy, Interaction, LayoutRounding, Node,
+    BackgroundColor, BorderColor, ComputedLayout, ContentSize, FocusPolicy, Interaction, LayoutRounding,
     Style, UiImage, UiTextureAtlasImage, ZIndex,
 };
 use bevy_asset::Handle;
@@ -16,7 +16,6 @@ use bevy_render::{
 use bevy_sprite::TextureAtlas;
 #[cfg(feature = "bevy_text")]
 use bevy_text::{BreakLineOn, Text, TextAlignment, TextLayoutInfo, TextSection, TextStyle};
-use bevy_transform::prelude::{GlobalTransform, Transform};
 
 /// The basic UI node
 ///
