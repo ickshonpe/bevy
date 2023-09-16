@@ -4,8 +4,8 @@
 use crate::widget::TextFlags;
 use crate::{
     widget::{Button, UiImageSize},
-    BackgroundColor, BorderColor, ComputedLayout, ContentSize, FocusPolicy, Interaction, Style,
-    UiImage, UiTextureAtlasImage, ZIndex,
+    BackgroundColor, BorderColor, ComputedLayout, ContentSize, FocusPolicy, Interaction, LayoutRounding, Node,
+    Style, UiImage, UiTextureAtlasImage, ZIndex,
 };
 use bevy_asset::Handle;
 use bevy_ecs::bundle::Bundle;
@@ -42,6 +42,8 @@ pub struct NodeBundle {
     pub view_visibility: ViewVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
+    /// Indicates whether rounding should be applied to a UI node's size and position after layout computation
+    pub layout_rounding: LayoutRounding,
 }
 
 impl Default for NodeBundle {
@@ -57,6 +59,7 @@ impl Default for NodeBundle {
             inherited_visibility: Default::default(),
             view_visibility: Default::default(),
             z_index: Default::default(),
+            layout_rounding: LayoutRounding::Enabled,
         }
     }
 }
@@ -91,6 +94,8 @@ pub struct ImageBundle {
     pub view_visibility: ViewVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
+    /// Indicates whether rounding should be applied to a UI node's size and position after layout computation
+    pub layout_rounding: LayoutRounding,
 }
 
 /// A UI node that is a texture atlas sprite
@@ -125,6 +130,8 @@ pub struct AtlasImageBundle {
     pub view_visibility: ViewVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
+    /// Indicates whether rounding should be applied to a UI node's size and position after layout computation
+    pub layout_rounding: LayoutRounding,
 }
 
 #[cfg(feature = "bevy_text")]
@@ -154,6 +161,8 @@ pub struct TextBundle {
     pub view_visibility: ViewVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
+    /// Indicates whether rounding should be applied to a UI node's size and position after layout computation
+    pub layout_rounding: LayoutRounding,
     /// The background color that will fill the containing node
     pub background_color: BackgroundColor,
 }
@@ -175,6 +184,7 @@ impl Default for TextBundle {
             z_index: Default::default(),
             // Transparent background
             background_color: BackgroundColor(Color::NONE),
+            layout_rounding: LayoutRounding::Disabled,
         }
     }
 }
@@ -227,6 +237,7 @@ impl TextBundle {
     }
 }
 
+#[cfg(feature = "bevy_text")]
 impl<I> From<I> for TextBundle
 where
     I: Into<TextSection>,
@@ -266,6 +277,8 @@ pub struct ButtonBundle {
     pub view_visibility: ViewVisibility,
     /// Indicates the depth at which the node should appear in the UI
     pub z_index: ZIndex,
+    /// Indicates whether rounding should be applied to a UI node's size and position after layout computation
+    pub layout_rounding: LayoutRounding,
 }
 
 impl Default for ButtonBundle {
@@ -283,6 +296,7 @@ impl Default for ButtonBundle {
             inherited_visibility: Default::default(),
             view_visibility: Default::default(),
             z_index: Default::default(),
+            layout_rounding: LayoutRounding::Disabled,
         }
     }
 }

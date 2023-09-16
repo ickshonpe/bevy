@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{BorderRadius, ComputedLayout, ContentSize, Style, UiScale, Val};
+use crate::{BorderRadius, ComputedLayout, LayoutRounding, ContentSize, Style, UiScale, Val};
 use bevy_ecs::{
     change_detection::{DetectChanges, DetectChangesMut},
     entity::Entity,
@@ -227,7 +227,7 @@ pub fn ui_layout_system(
     just_children_query: Query<&Children>,
     mut removed_children: RemovedComponents<Children>,
     mut removed_content_sizes: RemovedComponents<ContentSize>,
-    mut node_transform_query: Query<(&Style, &mut ComputedLayout)>,
+    mut node_transform_query: Query<(&Style, &mut ComputedLayout, &LayoutRounding)>,
     mut removed_nodes: RemovedComponents<ComputedLayout>,
 ) {
     // assume one window for time being...
@@ -280,10 +280,10 @@ pub fn ui_layout_system(
     }
 
     // clean up removed nodes
-    ui_surface.remove_entities(removed_nodes.iter());
+    ui_surface.remove_entities(removed_nodes.read());
 
     // When a `ContentSize` component is removed from an entity, we need to remove the measure from the corresponding taffy node.
-    for entity in removed_content_sizes.iter() {
+    for entity in removed_content_sizes.read() {
         ui_surface.try_remove_measure(entity);
     }
 
@@ -291,7 +291,7 @@ pub fn ui_layout_system(
     ui_surface.set_window_children(primary_window_entity, root_node_query.iter());
 
     // update and remove children
-    for entity in removed_children.iter() {
+    for entity in removed_children.read() {
         ui_surface.try_remove_children(entity);
     }
     for (entity, children) in &children_query {
@@ -308,13 +308,13 @@ pub fn ui_layout_system(
     fn update_uinode_geometry_recursive(
         entity: Entity,
         ui_surface: &UiSurface,
-        computed_layout_query: &mut Query<(&Style, &mut ComputedLayout)>,
+        computed_layout_query: &mut Query<(&Style, &mut ComputedLayout, &LayoutRounding)>,
         children_query: &Query<&Children>,
         inverse_target_scale_factor: f32,
         mut absolute_location: Vec2,
         viewport_size: Vec2,
     ) {
-        if let Ok((style, mut computed_layout)) = computed_layout_query.get_mut(entity) {
+        if let Ok((style, mut computed_layout, layout_rounding)) = computed_layout_query.get_mut(entity) {
             let layout = ui_surface.get_layout(entity).unwrap();
             let layout_size =
                 inverse_target_scale_factor * Vec2::new(layout.size.width, layout.size.height);
@@ -322,18 +322,25 @@ pub fn ui_layout_system(
                 inverse_target_scale_factor * Vec2::new(layout.location.x, layout.location.y);
 
             absolute_location += layout_location;
-            let rounded_location = round_layout_coords(absolute_location);
-            let rounded_size = round_layout_coords(absolute_location + layout_size)
-                - round_layout_coords(absolute_location);
+            let (size, location) = match layout_rounding {
+                LayoutRounding::Enabled => (
+                    round_layout_coords(absolute_location + layout_size) - round_layout_coords(absolute_location),
+                    round_layout_coords(absolute_location),
+                ),
+                LayoutRounding::Disabled => (
+                    layout_size,
+                    layout_location,
+                ),
+            };
 
             // only trigger change detection when the new values are different
-            if computed_layout.size != rounded_size {
-                computed_layout.size = rounded_size;
+            if computed_layout.size != size {
+                computed_layout.size = size;
             }
 
-            computed_layout.bypass_change_detection().position = rounded_location;
+            computed_layout.bypass_change_detection().position = location;
             computed_layout.border_radius =
-                resolve_border_radius(&style.border_radius, rounded_size, viewport_size);
+                resolve_border_radius(&style.border_radius, size, viewport_size);
             computed_layout.border_thickness = [
                 resolve_border_thickness(style.border.left, viewport_size),
                 resolve_border_thickness(style.border.top, viewport_size),
