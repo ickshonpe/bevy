@@ -102,6 +102,7 @@ impl Plugin for UiPlugin {
             .register_type::<JustifyContent>()
             .register_type::<JustifyItems>()
             .register_type::<JustifySelf>()
+            .register_type::<LayoutRounding>()
             .register_type::<Node>()
             // NOTE: used by Style::aspect_ratio
             .register_type::<Option<f32>>()

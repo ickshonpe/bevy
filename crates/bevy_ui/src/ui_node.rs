@@ -1526,6 +1526,17 @@ impl Default for ZIndex {
     }
 }
 
+/// Indicates whether rounding should be applied to a UI node's size and position after layout computation
+#[derive(Component, Copy, Clone, Default, Debug, Reflect)]
+#[reflect(Component)]
+pub enum LayoutRounding {
+    /// Perform rounding on this UI node's size and position
+    #[default]
+    Enabled,
+    /// Don't perform rounding on this UI node's size and position
+    Disabled,
+}
+
 #[cfg(test)]
 mod tests {
     use crate::GridPlacement;

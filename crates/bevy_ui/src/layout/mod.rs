@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Node, Style, UiScale};
+use crate::{ContentSize, LayoutRounding, Node, Style, UiScale};
 use bevy_ecs::{
     change_detection::DetectChanges,
     entity::Entity,
@@ -228,7 +228,7 @@ pub fn ui_layout_system(
     just_children_query: Query<&Children>,
     mut removed_children: RemovedComponents<Children>,
     mut removed_content_sizes: RemovedComponents<ContentSize>,
-    mut node_transform_query: Query<(&mut Node, &mut Transform)>,
+    mut node_transform_query: Query<(&mut Node, &mut Transform, &LayoutRounding)>,
     mut removed_nodes: RemovedComponents<Node>,
 ) {
     // assume one window for time being...
@@ -309,25 +309,29 @@ pub fn ui_layout_system(
     fn update_uinode_geometry_recursive(
         entity: Entity,
         ui_surface: &UiSurface,
-        node_transform_query: &mut Query<(&mut Node, &mut Transform)>,
+        node_transform_query: &mut Query<(&mut Node, &mut Transform, &LayoutRounding)>,
         children_query: &Query<&Children>,
         inverse_target_scale_factor: f32,
         parent_size: Vec2,
         mut absolute_location: Vec2,
     ) {
-        if let Ok((mut node, mut transform)) = node_transform_query.get_mut(entity) {
+        if let Ok((mut node, mut transform, layout_rounding)) = node_transform_query.get_mut(entity)
+        {
             let layout = ui_surface.get_layout(entity).unwrap();
             let layout_size = Vec2::new(layout.size.width, layout.size.height);
             let layout_location = Vec2::new(layout.location.x, layout.location.y);
-
             absolute_location += layout_location;
-            let rounded_location = round_layout_coords(layout_location);
-            let rounded_size = round_layout_coords(absolute_location + layout_size)
-                - round_layout_coords(absolute_location);
-
-            let new_size = inverse_target_scale_factor * rounded_size;
+            let (size, location) = match layout_rounding {
+                LayoutRounding::Enabled => (
+                    round_layout_coords(absolute_location + layout_size)
+                        - round_layout_coords(absolute_location),
+                    round_layout_coords(layout_location),
+                ),
+                LayoutRounding::Disabled => (layout_size, layout_location),
+            };
+            let new_size = inverse_target_scale_factor * size;
             let new_position =
-                inverse_target_scale_factor * rounded_location + 0.5 * (new_size - parent_size);
+                inverse_target_scale_factor * location + 0.5 * (new_size - parent_size);
 
             // only trigger change detection when the new values are different
             if node.calculated_size != new_size {
