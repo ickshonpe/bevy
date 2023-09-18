@@ -449,21 +449,6 @@ fn resolve_border_radius(&values: &BorderRadius, node_size: Vec2, viewport_size:
 }
 
 #[inline]
-fn resolve_shadow_offset(x: Val, y: Val, node_size: Vec2, viewport_size: Vec2) -> Vec2 {
-    [(x, node_size.x), (y, node_size.y)]
-        .map(|(value, size)| match value {
-            Val::Auto => 0.,
-            Val::Px(px) => px,
-            Val::Percent(percent) => percent / 100. * size,
-            Val::Vw(percent) => viewport_size.x * percent / 100.,
-            Val::Vh(percent) => viewport_size.y * percent / 100.,
-            Val::VMin(percent) => viewport_size.min_element() * percent / 100.,
-            Val::VMax(percent) => viewport_size.max_element() * percent / 100.,
-        })
-        .into()
-}
-
-#[inline]
 fn clamp_corner(r: f32, size: Vec2, offset: Vec2) -> f32 {
     let s = 0.5 * size + offset;
     let sm = s.x.min(s.y);

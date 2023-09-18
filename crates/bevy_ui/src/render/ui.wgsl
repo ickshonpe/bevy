@@ -50,7 +50,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.border = in.i_border;
     out.radius = in.i_radius;
     out.size = in.i_size;
-    out.point = in.i_size * (norm_location - 0.5);
+    out.point = in.i_size * (norm_location - 0.4999);
     out.border_color = in.i_border_color;
     return out;
 }
@@ -60,6 +60,18 @@ fn vertex(in: VertexInput) -> VertexOutput {
 var sprite_texture: texture_2d<f32>;
 @group(1) @binding(1)
 var sprite_sampler: sampler;
+
+
+fn sd_box(p: vec2<f32>, b: vec2<f32>) -> f32 {
+    let d = abs(p) - b;
+    return length(max(d, vec2(0.0))) + min(max(d.x, d.y) , 0.0);
+}
+
+fn sd_inset_box_old(point: vec2<f32>, half_size: vec2<f32>, inset: vec4<f32>) -> f32 {
+    let d = abs(point) - (half_size - vec2<f32>(inset.x, inset.z));
+    return min(max(d.x, d.y), 0.0) + length(max(d - vec2<f32>(inset.y, inset.w), vec2<f32>(0.0)));
+}
+
 
 // The returned value is the shortest distance from the given point to the boundary of the rounded box.
 // Negative values indicate that the point is inside the rounded box, positive values that the point is outside, and zero is exactly on the boundary.
@@ -84,8 +96,43 @@ fn sd_rounded_box(point: vec2<f32>, size: vec2<f32>, corner_radii: vec4<f32>) ->
     return l + m - radius;
 }
 
-fn sd_inset_rounded_box(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, inset: vec4<f32>) -> f32 {
+fn sd_rounded_box_2(point: vec2<f32>, size: vec2<f32>, radius: f32) -> f32 {
+    // if 0.0 < y then select bottom left (w) and bottom right corner radius (z)
+    // else select top left (x) and top right corner radius (y)
+    // w and z are swapped so that both pairs are in left to right order, otherwise this second select statement would return the incorrect value for the bottom pair.
+    // Vector from the corner closest to the point, to the point
+    let corner_to_point = abs(point) - 0.5 * size;
+    // Vector from the center of the radius circle to the point 
+    let q = corner_to_point + radius;
+    // length from center of the radius circle to the point, 0s a component if the point is not within the quadrant of the radius circle that is part of the curved corner.
+    let l = length(max(q, vec2(0.0)));
+    let m = min(max(q.x, q.y), 0.0);
+    return l + m - radius;
+}
+
+fn sd_inset_rounded_box(point: vec2<f32>, size: vec2<f32>, radii: vec4<f32>, inset: vec4<f32>) -> f32 {
+    let ix = select(inset.x, inset.z, point.x < 0.);
+    let iy = select(inset.y, inset.w, point.y < 0.);
+    let inner_size = size - vec2(ix, iy);
+    let rs = select(radii.xy, radii.wz, 0.0 < point.y);
+    let radius = select(rs.x, rs.y, 0.0 < point.x);
+
+    return sd_rounded_box_2(point, inner_size, radius);
+}
+
+fn sd_inset_rounded_box_2(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, inset: vec4<f32>) -> f32 {
     let inner_size = size - inset.xy - inset.zw;
+    
+    let inner_center = inset.xy + 0.5 * inner_size - 0.5 *size;
+    let inner_point = point - inner_center;
+        return sd_rounded_box(inner_point, inner_size, radius);
+}
+
+fn sd_inset_rounded_box_max(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, inset: vec4<f32>) -> f32 {
+    let inner_size_s = size - inset.xy - inset.zw;
+    let s = max(inner_size_s.x, inner_size_s.y);
+    let inner_size = vec2<f32>(s, s);
+    
     let inner_center = inset.xy + 0.5 * inner_size - 0.5 *size;
     let inner_point = point - inner_center;
 
@@ -110,6 +157,7 @@ fn sd_inset_rounded_box(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, in
 
     return sd_rounded_box(inner_point, inner_size, r);
 }
+
 
 fn sd_inset_rounded_box_clamped_inner_radius(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, inset: vec4<f32>) -> f32 {
     let inner_size = size - inset.xy - inset.zw;
@@ -165,6 +213,20 @@ fn enabled(flags: u32, mask: u32) -> bool {
     return (flags & mask) != 0u;
 }
 
+fn sd_inset_box(point: vec2<f32>, size: vec2<f32>, border: vec4<f32>) -> f32 {
+    let half_size = 0.5 * size;
+    let tl = -half_size + vec2<f32>(border.x, border.y);
+    let br = half_size - vec2<f32>(border.z, border.w);
+    
+    let d = vec2<f32>(
+        max(tl.x - point.x, point.x - br.x),
+        max(tl.y - point.y, point.y - br.y)
+    );
+    
+    return min(max(d.x, d.y), 0.0) + length(max(d, vec2<f32>(0.0)));
+}
+
+
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // textureSample can only be called in unform control flow, not inside an if branch.
@@ -178,7 +240,13 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // Signed distance from the border's internal edge (the signed distance is negative if the point is inside the rect but not on the border).
     // If the border size is set to zero, this is the same as as the external distance.
     //let internal_distance = sd_inset_rounded_box(in.point, in.size, in.radius, in.border);
-    let internal_distance = sd_inset_rounded_box_clamped_inner_radius(in.point, in.size, in.radius, in.border);
+    //let internal_distance = max(sd_inset_rounded_box_2(in.point, in.size, in.radius, in.border), sd_inset_box(in.point, in.size, in.border));
+    let internal_distance = sd_inset_box(in.point, in.size, in.border);
+
+
+    //let internal_distance = sd_inset_box(in.point, 0.5 * in.size, in.border);
+
+    //let internal_distance = sd_inset_rounded_box_clamped_inner_radius(in.point, in.size, in.radius, in.border);
 
     // Signed distance from the border (the intersection of the rect with its border)
     // Points inside the border have negative signed distance. Any point outside the border, whether outside the outside edge, or inside the inner edge have positive signed distance.
@@ -194,3 +262,25 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 
     return vec4<f32>(0.);
 }
+
+fn basic_border(in: VertexOutput) -> vec4<f32> { 
+    let half_size = 0.5 * in.size;
+    let tl = -half_size + in.border.xy;
+    let br = half_size - in.border.zw;
+    if (tl.x < in.point.x) && (tl.y < in.point.y) && (in.point.x < br.x) && (in.point.y < br.y) {
+        return in.color;
+    }
+
+    return in.border_color;
+}
+
+
+// @fragment
+// fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+//     let d = sd_inset_box(in);
+//     if d < 0.0 {
+//         return in.color;
+//     }
+
+//     return in.border_color;
+// }
