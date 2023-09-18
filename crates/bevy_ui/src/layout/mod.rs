@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{BorderRadius, ComputedLayout, LayoutRounding, ContentSize, Style, UiScale, Val};
+use crate::{BorderRadius, ComputedLayout, LayoutRounding, ContentSize, Style, UiScale, Val, UiRect};
 use bevy_ecs::{
     change_detection::{DetectChanges, DetectChangesMut},
     entity::Entity,
@@ -14,6 +14,7 @@ use bevy_ecs::{
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
 use bevy_math::{Vec2, Vec4, Vec4Swizzles};
+use bevy_render::view;
 use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowResolution, WindowScaleFactorChanged};
 use std::fmt;
@@ -376,6 +377,20 @@ pub fn ui_layout_system(
     }
 }
 
+
+pub fn compute_border(border: UiRect, border_radius: BorderRadius, node_size: Vec2, viewport_size: Vec2) -> ([f32; 4], [f32;4]) {
+    let computed_border = [
+        resolve_border_thickness(border.left, viewport_size),
+        resolve_border_thickness(border.top, viewport_size),
+        resolve_border_thickness(border.right, viewport_size),
+        resolve_border_thickness(border.bottom, viewport_size),
+    ];
+    let computed_border_radius = resolve_border_radius(&border_radius, node_size, viewport_size);
+    let clamped_computed_border_radius = clamp_radius(computed_border_radius, node_size, computed_border.into());
+    (computed_border, clamped_computed_border_radius)
+
+}
+
 #[inline]
 /// Round `value` to the nearest whole integer, with ties (values with a fractional part equal to 0.5) rounded towards positive infinity.
 fn round_ties_up(value: f32) -> f32 {
@@ -423,7 +438,7 @@ fn resolve_border_radius(&values: &BorderRadius, node_size: Vec2, viewport_size:
         match value {
             Val::Auto => 0.,
             Val::Px(px) => px,
-            Val::Percent(percent) => node_size.x,
+            Val::Percent(percent) => node_size.x * percent / 100.,
             Val::Vw(percent) => viewport_size.x * percent / 100.,
             Val::Vh(percent) => viewport_size.y * percent / 100.,
             Val::VMin(percent) => viewport_size.min_element() * percent / 100.,
