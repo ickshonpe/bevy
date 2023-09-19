@@ -32,10 +32,19 @@ struct StackingContextEntry {
 /// Then flatten that tree into back-to-front ordered `UiStack`.
 pub fn ui_stack_system(
     mut ui_stack: ResMut<UiStack>,
+    removed_nodes: RemovedComponents<Node>,
+    removed_parent: RemovedComponents<Parent>,
+    removed_child: RemovedComponents<Parent>,
+    added_query: Query<&Node, Added<Node>>,
+    changed_query: Query<&Node, Or<(Changed<Parent>, Changed<Children>, Changed<ZIndex>)>>,
     root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
     zindex_query: Query<&ZIndex, With<Node>>,
     children_query: Query<&Children>,
 ) {
+    if removed_parent.is_empty() && removed_child.is_empty() && removed_nodes.is_empty() && added_query.is_empty() && changed_query.is_empty() {
+        return;
+    }
+
     // Generate `StackingContext` tree
     let mut global_context = StackingContext::default();
     let mut total_entry_count: usize = 0;
