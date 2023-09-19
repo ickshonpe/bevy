@@ -179,15 +179,13 @@ fn sd_inset_rounded_box_clamped_inner_radius(point: vec2<f32>, size: vec2<f32>, 
     return sd_rounded_box(Box(inner_point, 0.5 * inner_size), r);
 }
 
-
-
-
 const TEXTURED = 1u;
 const BOX_SHADOW = 2u;
 const DISABLE_AA = 4u;
 const RIGHT_VERTEX = 8u;
 const BOTTOM_VERTEX = 16u;
 const BORDER: u32 = 32u;
+
 fn enabled(flags: u32, mask: u32) -> bool {
     return (flags & mask) != 0u;
 }
@@ -297,6 +295,21 @@ fn draw_node_normalized(distance: Distance, in: VertexOutput) -> vec4<f32> {
     return vec4<f32>(0.);
 }
 
+fn draw_node(distance: Distance, in: VertexOutput) -> vec4<f32> {
+    let color = in.color * textureSample(sprite_texture, sprite_sampler, in.uv);
+
+    if distance.border <= 0. {        
+        return in.border_color;
+    }
+
+    if distance.edge <= 0. {
+        return in.color;
+    }
+
+    return vec4<f32>(0.);
+}
+
+
 fn basic_border(in: VertexOutput) -> vec4<f32> { 
     let half_size = 0.5 * in.size;
     let tl = -half_size + in.border.xy;
@@ -322,7 +335,7 @@ fn smooth_normalize(distance: f32, min_val: f32, max_val: f32) -> f32 {
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    let d = compute_rounded_2(in);
+    let d = compute_rounded_clamped_2(in);
 
-    return draw_node_normalized(d, in);
+    return draw_node(d, in);
 }

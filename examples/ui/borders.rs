@@ -104,6 +104,7 @@ fn setup(mut commands: Commands) {
                     margin: UiRect::all(Val::Px(2.)),
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,
+                    border_radius: BorderRadius::all(Val::Px(15.)),
                     ..Default::default()
                 },
                 background_color: Color::BLUE.into(),
