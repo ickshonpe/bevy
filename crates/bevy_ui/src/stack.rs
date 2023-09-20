@@ -22,8 +22,8 @@ pub struct UiStack {
 pub fn ui_stack_system(
     mut ui_stack: ResMut<UiStack>,
     root_node_query: Query<Entity, (With<Node>, Without<Parent>)>,
-    mut node_query: Query<(&mut Node, Option<&Children>)>,   
-    zindex_query: Query<&ZIndex> 
+    mut node_query: Query<(&mut Node, Option<&Children>)>,
+    zindex_query: Query<&ZIndex>,
 ) {
     ui_stack.uinodes.clear();
     let uinodes = &mut ui_stack.uinodes;
@@ -32,39 +32,36 @@ pub fn ui_stack_system(
         entity: Entity,
         uinodes: &mut Vec<Entity>,
         node_query: &mut Query<(&mut Node, Option<&Children>)>,
-        zindex_query: &Query<&ZIndex>
+        zindex_query: &Query<&ZIndex>,
     ) {
-        let Ok((
-            mut node, 
-            children
-        )) = node_query.get_mut(entity) else { return; };
+        let Ok((mut node, children)) = node_query.get_mut(entity) else {
+            return;
+        };
 
         node.stack_index = uinodes.len() as u32;
         uinodes.push(entity);
 
         if let Some(children) = children {
-            let mut kids: Vec<(Entity, i32)> = 
-            children
-            .iter()
-            .map(|&child_id| (child_id, match zindex_query.get(child_id) {
-                Ok(ZIndex(z)) => *z,
-                _ => 0,
-            }))
-            .collect();
-            kids.sort_by_key(|k| k.1);
-            for (child_id, _) in kids {
+            let mut z_children: Vec<(Entity, i32)> = children
+                .iter()
+                .map(|&child_id| {
+                    (
+                        child_id,
+                        match zindex_query.get(child_id) {
+                            Ok(ZIndex(z)) => *z,
+                            _ => 0,
+                        },
+                    )
+                })
+                .collect();
+            z_children.sort_by_key(|k| k.1);
+            for (child_id, _) in z_children {
                 update_uistack_recursively(child_id, uinodes, node_query, zindex_query)
             }
         }
-
     }
 
     for entity in &root_node_query {
-        update_uistack_recursively(
-            entity, 
-            uinodes, 
-            &mut node_query,
-            &zindex_query
-        )
+        update_uistack_recursively(entity, uinodes, &mut node_query, &zindex_query)
     }
 }
