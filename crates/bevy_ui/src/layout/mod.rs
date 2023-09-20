@@ -20,6 +20,17 @@ use bevy_window::{PrimaryWindow, Window, WindowResolution, WindowScaleFactorChan
 use std::fmt;
 use taffy::{prelude::Size, style_helpers::TaffyMaxContent, Taffy};
 
+/// The current UI stack, which contains all UI nodes ordered by their depth (back-to-front).
+///
+/// The first entry is the furthest node from the camera and is the first one to get rendered
+/// while the last entry is the first node to receive interactions.
+#[derive(Debug, Resource, Default)]
+pub struct UiStack {
+    /// List of UI nodes ordered from back-to-front
+    pub uinodes: Vec<Entity>,
+}
+
+
 pub struct LayoutContext {
     pub scale_factor: f64,
     pub physical_size: Vec2,
@@ -230,6 +241,7 @@ pub fn ui_layout_system(
     mut removed_content_sizes: RemovedComponents<ContentSize>,
     mut node_transform_query: Query<(&mut Node, &mut Transform)>,
     mut removed_nodes: RemovedComponents<Node>,
+    mut ui_stack: ResMut<UiStack>,
 ) {
     // assume one window for time being...
     // TODO: Support window-independent scaling: https://github.com/bevyengine/bevy/issues/5621
@@ -306,6 +318,9 @@ pub fn ui_layout_system(
 
     let inverse_target_scale_factor = 1. / scale_factor;
 
+    let stack = &mut ui_stack.uinodes;
+    stack.clear();
+    
     fn update_uinode_geometry_recursive(
         entity: Entity,
         ui_surface: &UiSurface,
@@ -314,8 +329,12 @@ pub fn ui_layout_system(
         inverse_target_scale_factor: f32,
         parent_size: Vec2,
         mut absolute_location: Vec2,
+        stack: &mut Vec<Entity>,
     ) {
         if let Ok((mut node, mut transform)) = node_transform_query.get_mut(entity) {
+            node.stack_index = stack.len() as u32;
+            stack.push(entity);
+
             let layout = ui_surface.get_layout(entity).unwrap();
             let layout_size =
                 inverse_target_scale_factor * Vec2::new(layout.size.width, layout.size.height);
@@ -345,6 +364,7 @@ pub fn ui_layout_system(
                         inverse_target_scale_factor,
                         rounded_size,
                         absolute_location,
+                        stack
                     );
                 }
             }
@@ -360,6 +380,7 @@ pub fn ui_layout_system(
             inverse_target_scale_factor as f32,
             Vec2::ZERO,
             Vec2::ZERO,
+            stack
         );
     }
 }

@@ -19,7 +19,6 @@ mod focus;
 mod geometry;
 mod layout;
 mod render;
-mod stack;
 mod ui_node;
 
 pub use focus::*;
@@ -46,8 +45,7 @@ use bevy_ecs::prelude::*;
 use bevy_input::InputSystem;
 use bevy_render::{extract_component::ExtractComponentPlugin, texture::Image, RenderApp};
 use bevy_transform::TransformSystem;
-use stack::ui_stack_system;
-pub use stack::UiStack;
+pub use layout::UiStack;
 use update::update_clipping_system;
 
 /// The basic plugin for Bevy UI
@@ -61,8 +59,6 @@ pub enum UiSystem {
     Layout,
     /// After this label, input interactions with UI entities have been updated for this frame
     Focus,
-    /// After this label, the [`UiStack`] resource has been updated
-    Stack,
 }
 
 /// The current scale of the UI.
@@ -172,7 +168,6 @@ impl Plugin for UiPlugin {
                 ui_layout_system
                     .in_set(UiSystem::Layout)
                     .before(TransformSystem::TransformPropagate),
-                ui_stack_system.in_set(UiSystem::Stack),
                 update_clipping_system.after(TransformSystem::TransformPropagate),
             ),
         );
