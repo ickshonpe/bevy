@@ -321,13 +321,6 @@ fn smooth_normalize(distance: f32, min_val: f32, max_val: f32) -> f32 {
     return t * t * (3.0 - 2.0 * t);
 }
 
-
-
-
-
-
-
-
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let d = compute_rounded_clamped_2(in);

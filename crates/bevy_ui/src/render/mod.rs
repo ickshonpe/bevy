@@ -3,7 +3,6 @@ mod render_pass;
 
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
 use bevy_ecs::storage::SparseSet;
-use bevy_hierarchy::Parent;
 use bevy_render::view::ViewVisibility;
 use bevy_render::{ExtractSchedule, Render};
 use bevy_window::{PrimaryWindow, Window};
@@ -12,7 +11,7 @@ pub use render_pass::*;
 
 use crate::{
     prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ComputedLayout,
-    ContentSize, Style, UiImage, UiScale, UiStack, UiTextureAtlasImage, Val,
+    UiImage, UiScale, UiStack, UiTextureAtlasImage, 
 };
 
 use bevy_app::prelude::*;
@@ -302,7 +301,7 @@ pub fn extract_uinodes(
                     image,
                     flip_x,
                     flip_y,
-                    border_width: uinode.border_thickness,
+                    border_width: uinode.border_width,
                     border_radius: uinode.border_radius,
                     border_color: maybe_border_color.map(|b| b.0).unwrap_or(Color::NONE),
                 },

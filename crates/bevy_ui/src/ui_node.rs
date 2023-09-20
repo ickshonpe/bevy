@@ -13,6 +13,7 @@ use thiserror::Error;
 #[derive(Component, Debug, Copy, Clone, Reflect)]
 #[reflect(Component, Default)]
 pub struct ComputedLayout {
+    pub(crate) stack_index: u32,
     /// The position of the node in logical pixels
     /// automatically calculated by [`super::layout::ui_layout_system`]
     pub(crate) position: Vec2,
@@ -26,10 +27,14 @@ pub struct ComputedLayout {
     /// The border thickness of the node in logical pixels
     /// [left edge, top edge, right edge, bottom edge],
     /// automatically calculated by [`super::layout::ui_layout_system`]
-    pub(crate) border_thickness: [f32; 4],
+    pub(crate) border_width: [f32; 4],
+    pub(crate) outline_width: f32,
 }
 
 impl ComputedLayout {
+    pub const fn stack_index(&self) -> u32 {
+        self.stack_index
+    }
     /// The calculated node size as width and height in logical pixels
     /// automatically calculated by [`super::layout::ui_layout_system`]
     pub const fn size(&self) -> Vec2 {
@@ -49,8 +54,13 @@ impl ComputedLayout {
     }
 
     /// The calculated border thickness in logical pixels
-    pub const fn border_thickness(&self) -> [f32; 4] {
-        self.border_thickness
+    pub const fn border_width(&self) -> [f32; 4] {
+        self.border_width
+    }
+
+    /// The calculated border thickness in logical pixels
+    pub const fn outline_width(&self) -> f32 {
+        self.outline_width
     }
 
     /// Returns the size of the node in physical pixels based on the given scale factor and `UiScale`.
@@ -90,10 +100,12 @@ impl ComputedLayout {
 
 impl ComputedLayout {
     pub const DEFAULT: Self = Self {
+        stack_index: 0,
         position: Vec2::ZERO,
         size: Vec2::ZERO,
-        border_thickness: [0.; 4],
+        border_width: [0.; 4],
         border_radius: [0.; 4],
+        outline_width: 0.,
     };
 }
 
@@ -1566,26 +1578,10 @@ pub struct CalculatedClip {
 /// appear in the UI hierarchy. In such a case, the last node to be added to its parent
 /// will appear in front of this parent's other children.
 ///
-/// Internally, nodes with a global z-index share the stacking context of root UI nodes
-/// (nodes that have no parent). Because of this, there is no difference between using
-/// [`ZIndex::Local(n)`] and [`ZIndex::Global(n)`] for root nodes.
-///
-/// Nodes without this component will be treated as if they had a value of [`ZIndex::Local(0)`].
-#[derive(Component, Copy, Clone, Debug, Reflect)]
+/// Nodes without this component will be treated as if they had a value of [`ZIndex(0)`].
+#[derive(Component, Copy, Clone, Debug, Default, Reflect)]
 #[reflect(Component)]
-pub enum ZIndex {
-    /// Indicates the order in which this node should be rendered relative to its siblings.
-    Local(i32),
-    /// Indicates the order in which this node should be rendered relative to root nodes and
-    /// all other nodes that have a global z-index.
-    Global(i32),
-}
-
-impl Default for ZIndex {
-    fn default() -> Self {
-        Self::Local(0)
-    }
-}
+pub struct ZIndex(pub i32);
 
 /// Radii for rounded corner edges.
 /// * A corner set to a 0 value will be right angled.

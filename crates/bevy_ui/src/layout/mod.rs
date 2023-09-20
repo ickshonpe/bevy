@@ -361,7 +361,7 @@ pub fn ui_layout_system(
             computed_layout.bypass_change_detection().position = location;
             computed_layout.border_radius =
                 resolve_border_radius(&style.border_radius, size, viewport_size);
-            computed_layout.border_thickness = [
+            computed_layout.border_width = [
                 resolve_border_thickness(style.border.left, viewport_size),
                 resolve_border_thickness(style.border.top, viewport_size),
                 resolve_border_thickness(style.border.right, viewport_size),

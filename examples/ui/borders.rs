@@ -90,6 +90,7 @@ fn setup(mut commands: Commands) {
                 style: Style {
                     width: Val::Px(10.),
                     height: Val::Px(10.),
+                    border_radius: BorderRadius::all(Val::Px(100.)),
                     ..Default::default()
                 },
                 background_color: Color::YELLOW.into(),
@@ -108,8 +109,8 @@ fn setup(mut commands: Commands) {
                     border_radius: BorderRadius::all(Val::Px(15.)),
                     ..Default::default()
                 },
-                background_color: Color::BLUE.into(),
-                border_color: Color::WHITE.with_a(0.5).into(),
+                background_color: Color::MAROON.into(),
+                border_color: Color::RED.into(),
                 ..Default::default()
             })
             .add_child(inner_spot)
