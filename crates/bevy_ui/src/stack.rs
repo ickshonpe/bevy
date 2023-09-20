@@ -28,7 +28,7 @@ pub fn ui_stack_system(
     ui_stack.uinodes.clear();
     let uinodes = &mut ui_stack.uinodes;
 
-    fn update_recursively(
+    fn update_uistack_recursively(
         entity: Entity,
         uinodes: &mut Vec<Entity>,
         node_query: &mut Query<(&mut Node, Option<&Children>)>,
@@ -47,20 +47,20 @@ pub fn ui_stack_system(
             children
             .iter()
             .map(|&child_id| (child_id, match zindex_query.get(child_id) {
-                Ok(ZIndex::Local(z)) => *z,
+                Ok(ZIndex(z)) => *z,
                 _ => 0,
             }))
             .collect();
             kids.sort_by_key(|k| k.1);
             for (child_id, _) in kids {
-                update_recursively(child_id, uinodes, node_query, zindex_query)
+                update_uistack_recursively(child_id, uinodes, node_query, zindex_query)
             }
         }
 
     }
 
     for entity in &root_node_query {
-        update_recursively(
+        update_uistack_recursively(
             entity, 
             uinodes, 
             &mut node_query,
