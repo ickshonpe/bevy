@@ -31,6 +31,10 @@ struct Args {
     #[argh(option, default = "110")]
     buttons: usize,
 
+    /// how many buttons should be grouped together in a node
+    #[argh(option, default = "5")]
+    group: usize,
+
     /// give every nth button an image
     #[argh(option, default = "4")]
     image_freq: usize,
@@ -110,7 +114,6 @@ fn setup_flex(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<
     } else {
         UiRect::all(Val::VMin(0.05 * 90. / buttons_f))
     };
-
     let as_rainbow = |i: usize| Color::hsl((i as f32 / buttons_f) * 360.0, 0.9, 0.8);
     commands.spawn(Camera2dBundle::default());
     commands
@@ -130,23 +133,30 @@ fn setup_flex(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<
                 commands
                     .spawn(NodeBundle::default())
                     .with_children(|commands| {
-                        for row in 0..args.buttons {
-                            let color = as_rainbow(row % column.max(1)).into();
-                            let border_color = Color::WHITE.with_a(0.5).into();
-                            spawn_button(
-                                commands,
-                                color,
-                                buttons_f,
-                                column,
-                                row,
-                                !args.no_text,
-                                border,
-                                border_color,
-                                image
-                                    .as_ref()
-                                    .filter(|_| (column + row) % args.image_freq == 0)
-                                    .cloned(),
-                            );
+                        for start in (0..args.buttons).step_by(args.group) {
+                            let end = start + args.group.min(args.buttons);
+                            commands
+                                .spawn(NodeBundle::default())
+                                .with_children(|commands| {
+                                    for row in start..end {
+                                        let color = as_rainbow(row % column.max(1)).into();
+                                        let border_color = Color::WHITE.with_a(0.5).into();
+                                        spawn_button(
+                                            commands,
+                                            color,
+                                            buttons_f,
+                                            column,
+                                            row,
+                                            !args.no_text,
+                                            border,
+                                            border_color,
+                                            image
+                                                .as_ref()
+                                                .filter(|_| (column + row) % args.image_freq == 0)
+                                                .cloned(),
+                                        );
+                                    }
+                                });
                         }
                     });
             }
