@@ -15,7 +15,6 @@ pub struct UiStack {
     pub uinodes: Vec<Entity>,
 }
 
-
 /// Generates the render stack for UI nodes.
 pub fn ui_stack_system(
     mut ui_stack: ResMut<UiStack>,

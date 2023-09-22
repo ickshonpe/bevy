@@ -533,8 +533,8 @@ pub struct UiBatch {
     pub image: AssetId<Image>,
 }
 
-const TEXTURED_QUAD: u32 = 0;
-const UNTEXTURED_QUAD: u32 = 1;
+const TEXTURED_QUAD: u32 = 1;
+const UNTEXTURED_QUAD: u32 = 0;
 
 #[allow(clippy::too_many_arguments)]
 pub fn queue_uinodes(
@@ -652,7 +652,7 @@ pub fn prepare_uinodes(
                     } else {
                         UNTEXTURED_QUAD
                     };
-
+                    
                     batches.push((
                         item.entity,
                         UiBatch {
