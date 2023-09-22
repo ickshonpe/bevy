@@ -230,7 +230,7 @@ fn spawn_button(
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
                 border,
-                border_radius: BorderRadius::percent(10., 0., 0. ,0.),
+                border_radius: BorderRadius::percent(10., 0., 0., 0.),
                 ..default()
             },
             background_color,

@@ -10,8 +10,8 @@ pub use pipeline::*;
 pub use render_pass::*;
 
 use crate::{
-    prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ComputedLayout,
-    UiImage, UiScale, UiStack, UiTextureAtlasImage, 
+    prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ComputedLayout, UiImage,
+    UiScale, UiStack, UiTextureAtlasImage,
 };
 
 use bevy_app::prelude::*;
@@ -652,7 +652,7 @@ pub fn prepare_uinodes(
                     } else {
                         UNTEXTURED_QUAD
                     };
-                    
+
                     batches.push((
                         item.entity,
                         UiBatch {

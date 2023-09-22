@@ -1,7 +1,9 @@
 mod convert;
 pub mod debug;
 
-use crate::{BorderRadius, ComputedLayout, LayoutRounding, ContentSize, Style, UiScale, Val, UiRect};
+use crate::{
+    BorderRadius, ComputedLayout, ContentSize, LayoutRounding, Style, UiRect, UiScale, Val,
+};
 use bevy_ecs::{
     change_detection::{DetectChanges, DetectChangesMut},
     entity::Entity,
@@ -14,8 +16,8 @@ use bevy_ecs::{
 use bevy_hierarchy::{Children, Parent};
 use bevy_log::warn;
 use bevy_math::{Vec2, Vec4, Vec4Swizzles};
-use bevy_utils::HashMap;
 use bevy_utils::default;
+use bevy_utils::HashMap;
 use bevy_window::{PrimaryWindow, Window, WindowResolution, WindowScaleFactorChanged};
 use std::fmt;
 use taffy::Taffy;
@@ -334,7 +336,9 @@ pub fn ui_layout_system(
         mut absolute_location: Vec2,
         viewport_size: Vec2,
     ) {
-        if let Ok((style, mut computed_layout, layout_rounding)) = computed_layout_query.get_mut(entity) {
+        if let Ok((style, mut computed_layout, layout_rounding)) =
+            computed_layout_query.get_mut(entity)
+        {
             let layout = ui_surface.get_layout(entity).unwrap();
             let layout_size =
                 inverse_target_scale_factor * Vec2::new(layout.size.width, layout.size.height);
@@ -344,13 +348,11 @@ pub fn ui_layout_system(
             absolute_location += layout_location;
             let (size, location) = match layout_rounding {
                 LayoutRounding::Enabled => (
-                    round_layout_coords(absolute_location + layout_size) - round_layout_coords(absolute_location),
+                    round_layout_coords(absolute_location + layout_size)
+                        - round_layout_coords(absolute_location),
                     round_layout_coords(absolute_location),
                 ),
-                LayoutRounding::Disabled => (
-                    layout_size,
-                    absolute_location,
-                ),
+                LayoutRounding::Disabled => (layout_size, absolute_location),
             };
 
             // only trigger change detection when the new values are different
@@ -396,8 +398,12 @@ pub fn ui_layout_system(
     }
 }
 
-
-pub fn compute_border(border: UiRect, border_radius: BorderRadius, node_size: Vec2, viewport_size: Vec2) -> ([f32; 4], [f32;4]) {
+pub fn compute_border(
+    border: UiRect,
+    border_radius: BorderRadius,
+    node_size: Vec2,
+    viewport_size: Vec2,
+) -> ([f32; 4], [f32; 4]) {
     let computed_border = [
         resolve_border_thickness(border.left, viewport_size),
         resolve_border_thickness(border.top, viewport_size),
@@ -405,9 +411,9 @@ pub fn compute_border(border: UiRect, border_radius: BorderRadius, node_size: Ve
         resolve_border_thickness(border.bottom, viewport_size),
     ];
     let computed_border_radius = resolve_border_radius(&border_radius, node_size, viewport_size);
-    let clamped_computed_border_radius = clamp_radius(computed_border_radius, node_size, computed_border.into());
+    let clamped_computed_border_radius =
+        clamp_radius(computed_border_radius, node_size, computed_border.into());
     (computed_border, clamped_computed_border_radius)
-
 }
 
 #[inline]
