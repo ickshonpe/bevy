@@ -293,8 +293,10 @@ fn draw_node_normalized(distance: Distance, in: VertexOutput) -> vec4<f32> {
 fn draw_node(distance: Distance, in: VertexOutput) -> vec4<f32> {
     let color = in.color * select(vec4<f32>(1.), textureSample(sprite_texture, sprite_sampler, in.uv), enabled(in.flags, TEXTURED));
 
-    if distance.border <= 0. {        
-        return in.border_color;
+    if distance.border <= 0. {    
+        let rgb = mix(in.border_color.rgb, color.rgb, in.border.a);
+        let a = color.a + in.border_color.a * (1.0 - color.a)
+        return vec4<f32>(rgb, a);
     }
 
     if distance.edge <= 0. {
