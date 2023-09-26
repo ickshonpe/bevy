@@ -62,6 +62,8 @@ pub enum UiSystem {
     Focus,
     /// After this label, the [`UiStack`] resource has been updated
     Stack,
+    /// After this label, node outline widths have been updated
+    Outlines,
 }
 
 /// The current scale of the UI.
@@ -122,6 +124,7 @@ impl Plugin for UiPlugin {
             .register_type::<widget::Button>()
             .register_type::<widget::Label>()
             .register_type::<ZIndex>()
+            .register_type::<Outline>()
             .add_systems(
                 PreUpdate,
                 ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),
@@ -170,6 +173,9 @@ impl Plugin for UiPlugin {
             PostUpdate,
             (
                 ui_layout_system.in_set(UiSystem::Layout),
+                resolve_outlines_system
+                    .in_set(UiSystem::Outlines)
+                    .after(UiSystem::Layout),
                 ui_stack_system.in_set(UiSystem::Stack),
                 update_clipping_system.after(UiSystem::Layout),
             ),

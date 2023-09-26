@@ -58,7 +58,8 @@ impl ComputedLayout {
         self.border_width
     }
 
-    /// The calculated border thickness in logical pixels
+    /// Returns the thickness of the UI node's outline.
+    /// If this value is negative or `0.` then no outline will be rendered.
     pub const fn outline_width(&self) -> f32 {
         self.outline_width
     }
@@ -1518,6 +1519,34 @@ impl BorderColor {
 impl Default for BorderColor {
     fn default() -> Self {
         Self::DEFAULT
+    }
+}
+
+#[derive(Component, Copy, Clone, Default, Debug, Reflect)]
+#[reflect(Component, Default)]
+/// The `Outline` component adds an outline outside the border of a UI node.
+/// Outlines do not take up space in the layout
+pub struct Outline {
+    /// The width of the outline
+    ///
+    /// Percentage `Val` values are resolved based on the width of the outlined [`Node`]
+    pub width: Val,
+    /// Color of the outline
+    pub color: Color,
+}
+
+impl Outline {
+    /// Create a new outline
+    pub fn new(width: Val, color: Color) -> Self {
+        Self { width, color }
+    }
+
+    /// Create a new outline with width in logical pixels
+    pub fn px(width: f32, color: Color) -> Self {
+        Self {
+            width: Val::Px(width),
+            color,
+        }
     }
 }
 

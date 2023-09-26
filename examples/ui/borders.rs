@@ -113,6 +113,26 @@ fn setup(mut commands: Commands) {
                 border_color: Color::RED.into(),
                 ..Default::default()
             })
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        width: Val::Px(50.),
+                        height: Val::Px(50.),
+                        border: borders[i % borders.len()],
+                        margin: UiRect::all(Val::Px(2.)),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        ..Default::default()
+                    },
+                    background_color: Color::BLUE.into(),
+                    border_color: Color::WHITE.with_a(0.5).into(),
+                    ..Default::default()
+                },
+                Outline {
+                    width: Val::Px(2.),
+                    color: Color::FUCHSIA,
+                },
+            ))
             .add_child(inner_spot)
             .id();
         commands.entity(root).add_child(bordered_node);

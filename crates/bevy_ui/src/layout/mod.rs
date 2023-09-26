@@ -2,7 +2,7 @@ mod convert;
 pub mod debug;
 
 use crate::{
-    BorderRadius, ComputedLayout, ContentSize, LayoutRounding, Style, UiRect, UiScale, Val,
+    BorderRadius, ComputedLayout, ContentSize, LayoutRounding, Outline, Style, UiRect, UiScale, Val,
 };
 use bevy_ecs::{
     change_detection::{DetectChanges, DetectChangesMut},
@@ -414,6 +414,27 @@ pub fn compute_border(
     let clamped_computed_border_radius =
         clamp_radius(computed_border_radius, node_size, computed_border.into());
     (computed_border, clamped_computed_border_radius)
+}
+
+/// Resolve and update the widths of Node outlines
+pub fn resolve_outlines_system(
+    primary_window: Query<&Window, With<PrimaryWindow>>,
+    ui_scale: Res<UiScale>,
+    mut outlines_query: Query<(&Outline, &mut ComputedLayout)>,
+) {
+    let viewport_size = primary_window
+        .get_single()
+        .map(|window| Vec2::new(window.resolution.width(), window.resolution.height()))
+        .unwrap_or(Vec2::ZERO)
+        / ui_scale.0 as f32;
+
+    for (outline, mut node) in outlines_query.iter_mut() {
+        node.bypass_change_detection().outline_width = outline
+            .width
+            .resolve(node.size().x, viewport_size)
+            .unwrap_or(0.)
+            .max(0.);
+    }
 }
 
 #[inline]
