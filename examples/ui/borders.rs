@@ -98,23 +98,7 @@ fn setup(mut commands: Commands) {
             })
             .id();
         let bordered_node = commands
-            .spawn(NodeBundle {
-                style: Style {
-                    width: Val::Px(50.),
-                    height: Val::Px(50.),
-                    border: borders[i % borders.len()],
-                    margin: UiRect::all(Val::Px(2.)),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    border_radius: BorderRadius::all(Val::Px(15.)),
-                    ..Default::default()
-                },
-                background_color: Color::MAROON.into(),
-                border_color: Color::RED.into(),
-                ..Default::default()
-            })
-            .spawn((
-                NodeBundle {
+            .spawn((NodeBundle {
                     style: Style {
                         width: Val::Px(50.),
                         height: Val::Px(50.),
@@ -122,15 +106,16 @@ fn setup(mut commands: Commands) {
                         margin: UiRect::all(Val::Px(2.)),
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,
+                        border_radius: BorderRadius::all(Val::Px(15.)),
                         ..Default::default()
                     },
-                    background_color: Color::BLUE.into(),
-                    border_color: Color::WHITE.with_a(0.5).into(),
+                    background_color: Color::MAROON.into(),
+                    border_color: Color::RED.into(),
                     ..Default::default()
                 },
                 Outline {
                     width: Val::Px(2.),
-                    color: Color::FUCHSIA,
+                    color: Color::WHITE,
                 },
             ))
             .add_child(inner_spot)
