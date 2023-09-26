@@ -10,14 +10,13 @@ struct VertexInput {
     // NOTE: Instance-rate vertex buffer members prefixed with i_
     @location(0) i_location: vec2<f32>,
     @location(1) i_size: vec2<f32>,
-    @location(2) i_z: f32,
-    @location(3) i_uv_min: vec2<f32>,
-    @location(4) i_uv_size: vec2<f32>,
-    @location(5) i_color: vec4<f32>,
-    @location(6) i_radius: vec4<f32>,
-    @location(7) i_border: vec4<f32>,
-    @location(8) i_flags: u32,
-    @location(9) i_border_color: vec4<f32>,
+    @location(2) i_uv_min: vec2<f32>,
+    @location(3) i_uv_size: vec2<f32>,
+    @location(4) i_color: vec4<f32>,
+    @location(5) i_radius: vec4<f32>,
+    @location(6) i_border: vec4<f32>,
+    @location(7) i_flags: u32,
+    @location(8) i_border_color: vec4<f32>,
 }
 
 struct VertexOutput {
@@ -41,7 +40,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     let norm_y = f32((in.index & 2u) >> 1u);
     let norm_location = vec2(norm_x, norm_y);
     let relative_location = in.i_size * norm_location;
-    out.clip_position = view.view_proj * vec4(in.i_location + relative_location, in.i_z, 1.0);
+    out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
     out.uv = in.i_uv_min + in.i_uv_size * norm_location;
     out.color = in.i_color;
     out.flags = in.i_flags;
@@ -295,7 +294,7 @@ fn draw_node(distance: Distance, in: VertexOutput) -> vec4<f32> {
 
     if distance.border <= 0. {    
         let rgb = mix(in.border_color.rgb, color.rgb, in.border.a);
-        let a = color.a + in.border_color.a * (1.0 - color.a)
+        let a = color.a + in.border_color.a * (1.0 - color.a);
         return vec4<f32>(rgb, a);
     }
 

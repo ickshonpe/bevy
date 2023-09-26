@@ -469,10 +469,8 @@ pub fn extract_text_uinodes(
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 struct UiInstance {
-    // Affine 4x3 transposed to 3x4
     pub i_location: [f32; 2],
     pub i_size: [f32; 2],
-    pub i_z: f32,
     pub i_uv_min: [f32; 2],
     pub i_uv_size: [f32; 2],
     pub i_color: [f32; 4],
@@ -487,7 +485,6 @@ impl UiInstance {
     fn from(
         location: Vec2,
         size: Vec2,
-        z: f32,
         uv_rect: Rect,
         color: &Color,
         mode: u32,
@@ -498,7 +495,6 @@ impl UiInstance {
         Self {
             i_location: location.into(),
             i_size: size.into(),
-            i_z: z,
             i_uv_min: uv_rect.min.into(),
             i_uv_size: uv_rect.size().into(),
             i_color: color.as_linear_rgba_f32(),
@@ -560,7 +556,7 @@ pub fn queue_uinodes(
                 draw_function,
                 pipeline,
                 entity: *entity,
-                sort_key: FloatOrd(extracted_uinode.stack_index as f32),
+                sort_key: extracted_uinode.stack_index as u32,
                 // batch_size will be calculated in prepare_uinodes
                 batch_size: 0,
             });
@@ -664,7 +660,6 @@ pub fn prepare_uinodes(
                     ui_meta.instance_buffer.push(UiInstance::from(
                         extracted_uinode.position,
                         extracted_uinode.size,
-                        extracted_uinode.stack_index as f32 * 0.001,
                         extracted_uinode.uv_rect.unwrap_or(Rect {
                             min: Vec2::ZERO,
                             max: Vec2::ONE,
