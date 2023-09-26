@@ -271,7 +271,6 @@ pub fn extract_uinode_outlines(
             .border_radius
             .map(|radius| if 0. < radius { radius + uinode.outline_width } else { 0. });
 
-        println!("{:?}", outline.color);
         extracted_uinodes.uinodes.insert(
             commands.spawn_empty().id(),
             ExtractedUiNode {
@@ -327,7 +326,6 @@ pub fn extract_uinodes(
         } else {
             (AssetId::default(), false, false)
         };
-
         extracted_uinodes.uinodes.insert(
             entity,
             ExtractedUiNode {
