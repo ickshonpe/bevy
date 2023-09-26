@@ -13,7 +13,6 @@ use bevy_render::{
     renderer::*,
     view::*,
 };
-use bevy_utils::FloatOrd;
 
 pub struct UiPassNode {
     ui_view_query: QueryState<

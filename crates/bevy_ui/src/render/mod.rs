@@ -82,7 +82,6 @@ pub fn build_ui_render(app: &mut App) {
                 extract_atlas_uinodes
                     .in_set(RenderUiSystem::ExtractAtlasNode)
                     .after(RenderUiSystem::ExtractNode),
-                // extract_uinode_borders.after(RenderUiSystem::ExtractAtlasNode),
                 #[cfg(feature = "bevy_text")]
                 extract_text_uinodes.after(RenderUiSystem::ExtractAtlasNode),
                 extract_uinode_outlines.after(RenderUiSystem::ExtractAtlasNode),
@@ -270,8 +269,9 @@ pub fn extract_uinode_outlines(
         // Calculate border radius for outline
         let border_radius = uinode
             .border_radius
-            .map(|radius| radius + uinode.outline_width);
+            .map(|radius| if 0. < radius { radius + uinode.outline_width } else { 0. });
 
+        println!("{:?}", outline.color);
         extracted_uinodes.uinodes.insert(
             commands.spawn_empty().id(),
             ExtractedUiNode {

@@ -14,7 +14,9 @@ fn setup(mut commands: Commands) {
     let root = commands
         .spawn(NodeBundle {
             style: Style {
-                margin: UiRect::all(Val::Px(25.0)),
+                border: UiRect::all(Val::Px(20.0)),
+                border_radius: BorderRadius::all(Val::Px(40.)),
+                padding: UiRect::all(Val::Px(3.)),
                 align_self: AlignSelf::Stretch,
                 justify_self: JustifySelf::Stretch,
                 flex_wrap: FlexWrap::Wrap,
@@ -23,7 +25,8 @@ fn setup(mut commands: Commands) {
                 align_content: AlignContent::FlexStart,
                 ..Default::default()
             },
-            background_color: BackgroundColor(Color::BLACK),
+            border_color: BorderColor(Color::GRAY),
+            background_color: BackgroundColor(Color::DARK_GRAY),
             ..Default::default()
         })
         .id();
@@ -103,7 +106,7 @@ fn setup(mut commands: Commands) {
                         width: Val::Px(50.),
                         height: Val::Px(50.),
                         border: borders[i % borders.len()],
-                        margin: UiRect::all(Val::Px(2.)),
+                        margin: UiRect::all(Val::Px(6.)),
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,
                         border_radius: BorderRadius::all(Val::Px(15.)),
@@ -114,8 +117,8 @@ fn setup(mut commands: Commands) {
                     ..Default::default()
                 },
                 Outline {
-                    width: Val::Px(2.),
-                    color: Color::WHITE,
+                    width: Val::Px(4.),
+                    color: Color::ORANGE_RED,
                 },
             ))
             .add_child(inner_spot)
