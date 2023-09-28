@@ -319,8 +319,6 @@ fn draw_node(distance: Distance, in: VertexOutput) -> vec4<f32> {
     return vec4<f32>(0.);
 }
 
-
-
 fn basic_border(in: VertexOutput) -> vec4<f32> { 
     let half_size = 0.5 * in.size;
     let tl = -half_size + in.border.xy;
