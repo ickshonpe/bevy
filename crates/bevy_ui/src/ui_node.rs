@@ -29,6 +29,8 @@ pub struct Node {
     /// The unrounded size of the node as width and height in logical pixels
     /// automatically calculated by [`super::layout::ui_layout_system`]
     pub(crate) unrounded_size: Vec2,
+    pub(crate) border: [f32; 4],
+    pub(crate) border_radius: [f32; 4],
 }
 
 impl Node {
@@ -94,6 +96,9 @@ impl Node {
         outline_width: 0.,
         outline_offset: 0.,
         unrounded_size: Vec2::ZERO,
+        border: [0.; 4],
+        border_radius: [0.; 4],
+        
     };
 }
 
