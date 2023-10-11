@@ -68,19 +68,67 @@ impl SpecializedRenderPipeline for UiPipeline {
     type Key = UiPipelineKey;
 
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
-        let vertex_layout = VertexBufferLayout::from_vertex_formats(
-            VertexStepMode::Vertex,
-            vec![
-                // position
-                VertexFormat::Float32x3,
-                // uv
-                VertexFormat::Float32x2,
-                // color
-                VertexFormat::Float32x4,
-                // mode
-                VertexFormat::Uint32,
+        let instance_rate_vertex_buffer_layout = VertexBufferLayout {
+            array_stride: 100,
+            step_mode: VertexStepMode::Instance,
+            attributes: vec![
+                // @location(0) i_location: vec2<f32>,
+                VertexAttribute {
+                    format: VertexFormat::Float32x2,
+                    offset: 0,
+                    shader_location: 0,
+                },
+                // @location(1) i_size: vec2<f32>,
+                VertexAttribute {
+                    format: VertexFormat::Float32x2,
+                    offset: 8,
+                    shader_location: 1,
+                },
+                // @location(2) i_uv_min: vec2<f32>,
+                VertexAttribute {
+                    format: VertexFormat::Float32x2,
+                    offset: 16,
+                    shader_location: 2,
+                },
+                // @location(3) i_uv_size: vec2<f32>,
+                VertexAttribute {
+                    format: VertexFormat::Float32x2,
+                    offset: 24,
+                    shader_location: 3,
+                },
+                // @location(4) i_color: vec4<f32>,
+                VertexAttribute {
+                    format: VertexFormat::Float32x4,
+                    offset: 32,
+                    shader_location: 4,
+                },
+                // @location(5) i_radius: vec4<f32>,
+                VertexAttribute {
+                    format: VertexFormat::Float32x4,
+                    offset: 48,
+                    shader_location: 5,
+                },
+                // @location(6) i_border: vec4<f32>,
+                VertexAttribute {
+                    format: VertexFormat::Float32x4,
+                    offset: 64,
+                    shader_location: 6,
+                },
+                // @location(7) i_flags: u32,
+                VertexAttribute {
+                    format: VertexFormat::Uint32,
+                    offset: 80,
+                    shader_location: 7,
+                },
+                // @location(8) i_border_color: vec4<f32>,
+                VertexAttribute {
+                    format: VertexFormat::Float32x4,
+                    offset: 84,
+                    shader_location: 8,
+                },
             ],
-        );
+        };
+
         let shader_defs = Vec::new();
 
         RenderPipelineDescriptor {
@@ -88,7 +136,7 @@ impl SpecializedRenderPipeline for UiPipeline {
                 shader: super::UI_SHADER_HANDLE.typed::<Shader>(),
                 entry_point: "vertex".into(),
                 shader_defs: shader_defs.clone(),
-                buffers: vec![vertex_layout],
+                buffers: vec![instance_rate_vertex_buffer_layout],
             },
             fragment: Some(FragmentState {
                 shader: super::UI_SHADER_HANDLE.typed::<Shader>(),
