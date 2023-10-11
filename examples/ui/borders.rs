@@ -100,6 +100,7 @@ fn setup(mut commands: Commands) {
                 style: Style {
                     width: Val::Px(50.),
                     height: Val::Px(50.),
+                    border_radius: BorderRadius::all(Val::Px(10.)),
                     border: borders[i % borders.len()],
                     margin: UiRect::all(Val::Px(2.)),
                     align_items: AlignItems::Center,
