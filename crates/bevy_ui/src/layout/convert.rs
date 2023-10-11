@@ -278,8 +278,8 @@ impl From<GridAutoFlow> for taffy::style::GridAutoFlow {
 
 impl From<GridPlacement> for taffy::geometry::Line<taffy::style::GridPlacement> {
     fn from(value: GridPlacement) -> Self {
-        let span = value.span.unwrap_or(1).max(1);
-        match (value.start, value.end) {
+        let span = value.get_span().unwrap_or(1);
+        match (value.get_start(), value.get_end()) {
             (Some(start), Some(end)) => taffy::geometry::Line {
                 start: style_helpers::line(start),
                 end: style_helpers::line(end),
@@ -465,6 +465,7 @@ mod tests {
             ],
             grid_column: GridPlacement::start(4),
             grid_row: GridPlacement::span(3),
+            ..Default::default()
         };
         let viewport_values = LayoutContext::new(1.0, bevy_math::Vec2::new(800., 600.));
         let taffy_style = from_style(&viewport_values, &bevy_style);

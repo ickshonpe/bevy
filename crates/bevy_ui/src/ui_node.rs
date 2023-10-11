@@ -5,12 +5,12 @@ use bevy_math::{Rect, Vec2};
 use bevy_reflect::prelude::*;
 use bevy_render::{
     color::Color,
-    texture::{Image, DEFAULT_IMAGE_HANDLE},
+    texture::Image,
 };
 use bevy_transform::prelude::GlobalTransform;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use std::ops::{Div, DivAssign, Mul, MulAssign};
+use std::{ops::{Div, DivAssign, Mul, MulAssign}, num::{NonZeroU16, NonZeroI16}};
 use thiserror::Error;
 
 /// Describes the size of a UI node
@@ -20,6 +20,15 @@ pub struct Node {
     /// The size of the node as width and height in logical pixels
     /// automatically calculated by [`super::layout::ui_layout_system`]
     pub(crate) calculated_size: Vec2,
+/// The width of this node's outline
+    /// If this value is `Auto`, negative or `0.` then no outline will be rendered
+    /// automatically calculated by [`super::layout::resolve_outlines_system`]
+    pub(crate) outline_width: f32,
+    // The amount of space between the outline and the edge of the node
+    pub(crate) outline_offset: f32,
+    /// The unrounded size of the node as width and height in logical pixels
+    /// automatically calculated by [`super::layout::ui_layout_system`]
+    pub(crate) unrounded_size: Vec2,
 }
 
 impl Node {
@@ -27,6 +36,12 @@ impl Node {
     /// automatically calculated by [`super::layout::ui_layout_system`]
     pub const fn size(&self) -> Vec2 {
         self.calculated_size
+    }
+
+    /// The calculated node size as width and height in logical pixels before rounding
+    /// automatically calculated by [`super::layout::ui_layout_system`]
+    pub const fn unrounded_size(&self) -> Vec2 {
+        self.unrounded_size
     }
 
     /// Returns the size of the node in physical pixels based on the given scale factor and `UiScale`.
@@ -64,11 +79,21 @@ impl Node {
             ),
         }
     }
+
+    #[inline]
+    /// Returns the thickness of the UI node's outline.
+    /// If this value is negative or `0.` then no outline will be rendered.
+    pub fn outline_width(&self) -> f32 {
+        self.outline_width
+    }
 }
 
 impl Node {
     pub const DEFAULT: Self = Self {
         calculated_size: Vec2::ZERO,
+        outline_width: 0.,
+        outline_offset: 0.,
+        unrounded_size: Vec2::ZERO,
     };
 }
 
@@ -580,6 +605,38 @@ pub struct Style {
     ///
     /// <https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column>
     pub grid_column: GridPlacement,
+    
+    /// Used to add rounded corners to a UI node. You can set a UI node to have uniformly rounded corners
+    /// or specify different radii for each corner. If a given radius exceeds half the length of the smallest dimension between the node's height or width,
+    /// the radius will calculated as half the smallest dimension.
+    ///
+    /// Elliptical nodes are not supported yet. Percentage values are based on the node's smallest dimension, either width or height.
+    ///
+    /// # Example
+    /// ```
+    /// # use bevy_ui::{Style, UiRect, UiBorderRadius, Val};
+    /// let style = Style {
+    ///     // Set a uniform border radius of 10 logical pixels
+    ///     border_radius: UiBorderRadius::all(Val::Px(10.)),
+    ///     ..Default::default()
+    /// };
+    /// let style = Style {
+    ///     border_radius: UiBorderRadius {
+    ///         // The top left corner will be rounded with a radius of 10 logical pixels.
+    ///         top_left: Val::Px(10.),
+    ///         // Percentage values are based on the node's smallest dimension, either width or height.
+    ///         top_right: Val::Percent(20.),
+    ///         // Viewport coordinates can also be used.
+    ///         bottom_left: Val::Vw(10.),
+    ///         // The bottom right corner will be unrounded.
+    ///         ..Default::default()
+    ///     },
+    ///     ..Default::default()
+    /// };
+    /// ```
+    ///
+    /// <https://developer.mozilla.org/en-US/docs/Web/CSS/border-radius>
+    pub border_radius: BorderRadius,
 }
 
 impl Style {
@@ -622,6 +679,7 @@ impl Style {
         grid_auto_columns: Vec::new(),
         grid_column: GridPlacement::DEFAULT,
         grid_row: GridPlacement::DEFAULT,
+        border_radius: BorderRadius::DEFAULT,
     };
 }
 
@@ -728,12 +786,12 @@ impl Default for AlignSelf {
     }
 }
 
-/// How this item is aligned according to the cross axis.
-/// Overrides [`AlignItems`].
+/// How this item is aligned according to the main axis.
+/// Overrides [`JustifyItems`].
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Reflect)]
 #[reflect(PartialEq, Serialize, Deserialize)]
 pub enum JustifySelf {
-    /// Use the parent node's [`AlignItems`] value to determine how this item should be aligned.
+    /// Use the parent node's [`JustifyItems`] value to determine how this item should be aligned.
     Auto,
     /// This item will be aligned with the start of the axis.
     Start,
@@ -743,7 +801,7 @@ pub enum JustifySelf {
     Center,
     /// This item will be aligned at the baseline.
     Baseline,
-    /// This item will be stretched across the whole cross axis.
+    /// This item will be stretched across the whole main axis.
     Stretch,
 }
 
@@ -1435,105 +1493,150 @@ impl From<RepeatedGridTrack> for Vec<RepeatedGridTrack> {
 ///
 /// The default `span` is 1. If neither `start` or `end` is set then the item will be placed automatically.
 ///
-/// Generally, at most two fields should be set. If all three fields are specifed then `span` will be ignored. If `end` specifies an earlier
+/// Generally, at most two fields should be set. If all three fields are specified then `span` will be ignored. If `end` specifies an earlier
 /// grid line than `start` then `end` will be ignored and the item will have a span of 1.
 ///
 /// <https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Grid_Layout/Line-based_Placement_with_CSS_Grid>
 pub struct GridPlacement {
     /// The grid line at which the item should start. Lines are 1-indexed. Negative indexes count backwards from the end of the grid. Zero is not a valid index.
-    pub(crate) start: Option<i16>,
+    pub(crate) start: Option<NonZeroI16>,
     /// How many grid tracks the item should span. Defaults to 1.
-    pub(crate) span: Option<u16>,
-    /// The grid line at which the node should end. Lines are 1-indexed. Negative indexes count backwards from the end of the grid. Zero is not a valid index.
-    pub(crate) end: Option<i16>,
+    pub(crate) span: Option<NonZeroU16>,
+    /// The grid line at which the item should end. Lines are 1-indexed. Negative indexes count backwards from the end of the grid. Zero is not a valid index.
+    pub(crate) end: Option<NonZeroI16>,
 }
 
 impl GridPlacement {
-    const DEFAULT: Self = Self {
+    pub const DEFAULT: Self = Self {
         start: None,
-        span: Some(1),
+        span: Some(unsafe { NonZeroU16::new_unchecked(1) }),
         end: None,
     };
 
     /// Place the grid item automatically (letting the `span` default to `1`).
     pub fn auto() -> Self {
-        Self {
-            start: None,
-            end: None,
-            span: Some(1),
-        }
+        Self::DEFAULT
     }
 
     /// Place the grid item automatically, specifying how many tracks it should `span`.
+///
+    /// # Panics
+    ///
+    /// Panics if `span` is `0`
     pub fn span(span: u16) -> Self {
         Self {
             start: None,
             end: None,
-            span: Some(span),
+            span: try_into_grid_span(span).expect("Invalid span value of 0."),
         }
     }
 
     /// Place the grid item specifying the `start` grid line (letting the `span` default to `1`).
+///
+    /// # Panics
+    ///
+    /// Panics if `start` is `0`
     pub fn start(start: i16) -> Self {
         Self {
-            start: Some(start),
-            end: None,
-            span: Some(1),
+            start: try_into_grid_index(start).expect("Invalid start value of 0."),
+..Self::DEFAULT
         }
     }
 
     /// Place the grid item specifying the `end` grid line (letting the `span` default to `1`).
+///
+    /// # Panics
+    ///
+    /// Panics if `end` is `0`
     pub fn end(end: i16) -> Self {
         Self {
-            start: None,
-            end: Some(end),
-            span: Some(1),
+            end: try_into_grid_index(end).expect("Invalid end value of 0."),
+..Self::DEFAULT
         }
     }
 
     /// Place the grid item specifying the `start` grid line and how many tracks it should `span`.
+///
+    /// # Panics
+    ///
+    /// Panics if `start` or `span` is `0`
     pub fn start_span(start: i16, span: u16) -> Self {
         Self {
-            start: Some(start),
+            start: try_into_grid_index(start).expect("Invalid start value of 0."),
             end: None,
-            span: Some(span),
+            span: try_into_grid_span(span).expect("Invalid span value of 0."),
         }
     }
 
     /// Place the grid item specifying `start` and `end` grid lines (`span` will be inferred)
+///
+    /// # Panics
+    ///
+    /// Panics if `start` or `end` is `0`
     pub fn start_end(start: i16, end: i16) -> Self {
         Self {
-            start: Some(start),
-            end: Some(end),
+            start: try_into_grid_index(start).expect("Invalid start value of 0."),
+            end: try_into_grid_index(end).expect("Invalid end value of 0."),
             span: None,
         }
     }
 
     /// Place the grid item specifying the `end` grid line and how many tracks it should `span`.
+///
+    /// # Panics
+    ///
+    /// Panics if `end` or `span` is `0`
     pub fn end_span(end: i16, span: u16) -> Self {
         Self {
             start: None,
-            end: Some(end),
-            span: Some(span),
+            end: try_into_grid_index(end).expect("Invalid end value of 0."),
+            span: try_into_grid_span(span).expect("Invalid span value of 0."),
         }
     }
 
     /// Mutate the item, setting the `start` grid line
+///
+    /// # Panics
+    ///
+    /// Panics if `start` is `0`
     pub fn set_start(mut self, start: i16) -> Self {
-        self.start = Some(start);
+        self.start = try_into_grid_index(start).expect("Invalid start value of 0.");
         self
     }
 
     /// Mutate the item, setting the `end` grid line
+///
+    /// # Panics
+    ///
+    /// Panics if `end` is `0`
     pub fn set_end(mut self, end: i16) -> Self {
-        self.end = Some(end);
+        self.end = try_into_grid_index(end).expect("Invalid end value of 0.");
         self
     }
 
     /// Mutate the item, setting the number of tracks the item should `span`
+///
+    /// # Panics
+    ///
+    /// Panics if `span` is `0`
     pub fn set_span(mut self, span: u16) -> Self {
-        self.span = Some(span);
+        self.span = try_into_grid_span(span).expect("Invalid span value of 0.");
         self
+    }
+
+    /// Returns the grid line at which the item should start, or `None` if not set.
+    pub fn get_start(self) -> Option<i16> {
+        self.start.map(NonZeroI16::get)
+    }
+
+    /// Returns the grid line at which the item should end, or `None` if not set.
+    pub fn get_end(self) -> Option<i16> {
+        self.end.map(NonZeroI16::get)
+    }
+
+    /// Returns span for this grid item, or `None` if not set.
+    pub fn get_span(self) -> Option<u16> {
+        self.span.map(NonZeroU16::get)
     }
 }
 
@@ -1541,6 +1644,29 @@ impl Default for GridPlacement {
     fn default() -> Self {
         Self::DEFAULT
     }
+}
+
+/// Convert an `i16` to `NonZeroI16`, fails on `0` and returns the `InvalidZeroIndex` error.
+fn try_into_grid_index(index: i16) -> Result<Option<NonZeroI16>, GridPlacementError> {
+    Ok(Some(
+        NonZeroI16::new(index).ok_or(GridPlacementError::InvalidZeroIndex)?,
+    ))
+}
+
+/// Convert a `u16` to `NonZeroU16`, fails on `0` and returns the `InvalidZeroSpan` error.
+fn try_into_grid_span(span: u16) -> Result<Option<NonZeroU16>, GridPlacementError> {
+    Ok(Some(
+        NonZeroU16::new(span).ok_or(GridPlacementError::InvalidZeroSpan)?,
+    ))
+}
+
+/// Errors that occur when setting contraints for a `GridPlacement`
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Error)]
+pub enum GridPlacementError {
+    #[error("Zero is not a valid grid position")]
+    InvalidZeroIndex,
+    #[error("Spans cannot be zero length")]
+    InvalidZeroSpan,
 }
 
 /// The background color of the node
@@ -1600,8 +1726,87 @@ impl Default for BorderColor {
     }
 }
 
+#[derive(Component, Copy, Clone, Default, Debug, Reflect)]
+#[reflect(Component, Default)]
+/// The [`Outline`] component adds an outline outside the edge of a UI node.
+/// Outlines do not take up space in the layout
+///
+/// To add an [`Outline`] to a ui node you can spawn a `(NodeBundle, Outline)` tuple bundle:
+/// ```
+/// # use bevy_ecs::prelude::*;
+/// # use bevy_ui::prelude::*;
+/// # use bevy_render::prelude::Color;
+/// fn setup_ui(mut commands: Commands) {
+///     commands.spawn((
+///         NodeBundle {
+///             style: Style {
+///                 width: Val::Px(100.),
+///                 height: Val::Px(100.),
+///                 ..Default::default()
+///             },
+///             background_color: Color::BLUE.into(),
+///             ..Default::default()
+///         },
+///         Outline::new(Val::Px(10.), Val::ZERO, Color::RED)
+///     ));
+/// }
+/// ```
+///
+/// [`Outline`] components can also be added later to existing UI nodes:
+/// ```
+/// # use bevy_ecs::prelude::*;
+/// # use bevy_ui::prelude::*;
+/// # use bevy_render::prelude::Color;
+/// fn outline_hovered_button_system(
+///     mut commands: Commands,
+///     mut node_query: Query<(Entity, &Interaction, Option<&mut Outline>), Changed<Interaction>>,
+/// ) {
+///     for (entity, interaction, mut maybe_outline) in node_query.iter_mut() {
+///         let outline_color =
+///             if matches!(*interaction, Interaction::Hovered) {
+///                 Color::WHITE    
+///             } else {
+///                 Color::NONE
+///             };
+///         if let Some(mut outline) = maybe_outline {
+///             outline.color = outline_color;
+///         } else {
+///             commands.entity(entity).insert(Outline::new(Val::Px(10.), Val::ZERO, outline_color));
+///         }
+///     }
+/// }
+/// ```
+/// Inserting and removing an [`Outline`] component repeatedly will result in table moves, so it is generally preferable to
+/// set `Outline::color` to `Color::NONE` to hide an outline.
+pub struct Outline {
+    /// The width of the outline.
+    ///
+    /// Percentage `Val` values are resolved based on the width of the outlined [`Node`]
+    pub width: Val,
+    /// The amount of space between a node's outline the edge of the node
+    ///
+    /// Percentage `Val` values are resolved based on the width of the outlined [`Node`]
+    pub offset: Val,
+    /// Color of the outline
+    ///
+    /// If you are frequently toggling outlines for a UI node on and off it is recommended to set `Color::None` to hide the outline.
+    /// This avoids the table moves that would occcur from the repeated insertion and removal of the `Outline` component.
+    pub color: Color,
+}
+
+impl Outline {
+    /// Create a new outline
+    pub const fn new(width: Val, offset: Val, color: Color) -> Self {
+        Self {
+            width,
+            offset,
+            color,
+        }
+    }
+}
+
 /// The 2D texture displayed for this UI node
-#[derive(Component, Clone, Debug, Reflect)]
+#[derive(Component, Clone, Debug, Reflect, Default)]
 #[reflect(Component, Default)]
 pub struct UiImage {
     /// Handle to the texture
@@ -1610,16 +1815,6 @@ pub struct UiImage {
     pub flip_x: bool,
     /// Whether the image should be flipped along its y-axis
     pub flip_y: bool,
-}
-
-impl Default for UiImage {
-    fn default() -> UiImage {
-        UiImage {
-            texture: DEFAULT_IMAGE_HANDLE.typed(),
-            flip_x: false,
-            flip_y: false,
-        }
-    }
 }
 
 impl UiImage {
@@ -1667,11 +1862,7 @@ pub struct CalculatedClip {
 /// appear in the UI hierarchy. In such a case, the last node to be added to its parent
 /// will appear in front of this parent's other children.
 ///
-/// Internally, nodes with a global z-index share the stacking context of root UI nodes
-/// (nodes that have no parent). Because of this, there is no difference between using
-/// [`ZIndex::Local(n)`] and [`ZIndex::Global(n)`] for root nodes.
-///
-/// Nodes without this component will be treated as if they had a value of [`ZIndex::Local(0)`].
+/// Nodes without this component will be treated as if they had a value of [`ZIndex(0)`].
 #[derive(Component, Copy, Clone, Debug, Reflect)]
 #[reflect(Component)]
 pub enum ZIndex {
@@ -1685,6 +1876,184 @@ pub enum ZIndex {
 impl Default for ZIndex {
     fn default() -> Self {
         Self::Local(0)
+    }
+}
+
+
+/// Radii for rounded corner edges.
+/// * A corner set to a 0 value will be right angled.
+/// * The value is clamped to between 0 and half the length of the shortest side of the node before being used.
+/// * `Val::AUTO` is resolved to `Val::Px(0.)`.
+#[derive(Copy, Clone, Debug, PartialEq, Reflect)]
+#[reflect(PartialEq)]
+pub struct BorderRadius {
+    pub top_left: Val,
+    pub top_right: Val,
+    pub bottom_left: Val,
+    pub bottom_right: Val,
+}
+
+impl Default for BorderRadius {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+impl BorderRadius {
+    pub const DEFAULT: Self = Self::ZERO;
+
+    /// Zero curvature. All the corners will be right angled.
+    pub const ZERO: Self = Self {
+        top_left: Val::Px(0.),
+        top_right: Val::Px(0.),
+        bottom_right: Val::Px(0.),
+        bottom_left: Val::Px(0.),
+    };
+
+    /// Maximum curvature. The Ui Node will take a capsule shape or circular if width and height are equal.
+    pub const MAX: Self = Self {
+        top_left: Val::Px(f32::MAX),
+        top_right: Val::Px(f32::MAX),
+        bottom_right: Val::Px(f32::MAX),
+        bottom_left: Val::Px(f32::MAX),
+    };
+
+    #[inline]
+    /// Set all four corners to the same curvature.
+    pub const fn all(radius: Val) -> Self {
+        Self {
+            top_left: radius,
+            top_right: radius,
+            bottom_left: radius,
+            bottom_right: radius,
+        }
+    }
+
+    #[inline]
+    pub fn new(top_left: Val, top_right: Val, bottom_right: Val, bottom_left: Val) -> Self {
+        Self {
+            top_left,
+            top_right,
+            bottom_right,
+            bottom_left,
+        }
+    }
+
+    #[inline]
+    /// Sets the radii to logical pixel values.
+    pub fn px(top_left: f32, top_right: f32, bottom_right: f32, bottom_left: f32) -> Self {
+        Self {
+            top_left: Val::Px(top_left),
+            top_right: Val::Px(top_right),
+            bottom_right: Val::Px(bottom_right),
+            bottom_left: Val::Px(bottom_left),
+        }
+    }
+
+    #[inline]
+    /// Sets the radii to percentage values.
+    pub fn percent(top_left: f32, top_right: f32, bottom_right: f32, bottom_left: f32) -> Self {
+        Self {
+            top_left: Val::Px(top_left),
+            top_right: Val::Px(top_right),
+            bottom_right: Val::Px(bottom_right),
+            bottom_left: Val::Px(bottom_left),
+        }
+    }
+
+    #[inline]
+    /// Sets the radius for the top left corner.
+    /// Remaining corners will be right-angled.
+    pub fn top_left(radius: Val) -> Self {
+        Self {
+            top_left: radius,
+            ..Default::default()
+        }
+    }
+
+    #[inline]
+    /// Sets the radius for the top right corner.
+    /// Remaining corners will be right-angled.
+    pub fn top_right(radius: Val) -> Self {
+        Self {
+            top_right: radius,
+            ..Default::default()
+        }
+    }
+
+    #[inline]
+    /// Sets the radius for the bottom right corner.
+    /// Remaining corners will be right-angled.
+    pub fn bottom_right(radius: Val) -> Self {
+        Self {
+            bottom_right: radius,
+            ..Default::default()
+        }
+    }
+
+    #[inline]
+    /// Sets the radius for the bottom left corner.
+    /// Remaining corners will be right-angled.
+    pub fn bottom_left(radius: Val) -> Self {
+        Self {
+            bottom_left: radius,
+            ..Default::default()
+        }
+    }
+
+    #[inline]
+    /// Sets the radii for the top left and bottom left corners.
+    /// Remaining corners will be right-angled.
+    pub fn left(radius: Val) -> Self {
+        Self {
+            top_left: radius,
+            bottom_left: radius,
+            ..Default::default()
+        }
+    }
+
+    #[inline]
+    /// Sets the radii for the top right and bottom right corners.
+    /// Remaining corners will be right-angled.
+    pub fn right(radius: Val) -> Self {
+        Self {
+            top_right: radius,
+            bottom_right: radius,
+            ..Default::default()
+        }
+    }
+
+    #[inline]
+    /// Sets the radii for the top left and top right corners.
+    /// Remaining corners will be right-angled.
+    pub fn top(radius: Val) -> Self {
+        Self {
+            top_left: radius,
+            top_right: radius,
+            ..Default::default()
+        }
+    }
+
+    #[inline]
+    /// Sets the radii for the bottom left and bottom right corners.
+    /// Remaining corners will be right-angled.
+    pub fn bottom(radius: Val) -> Self {
+        Self {
+            bottom_left: radius,
+            bottom_right: radius,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<BorderRadius> for [Val; 4] {
+    fn from(value: BorderRadius) -> Self {
+        [
+            value.top_left,
+            value.top_right,
+            value.bottom_right,
+            value.bottom_left,
+        ]
     }
 }
 
