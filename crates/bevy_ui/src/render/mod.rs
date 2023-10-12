@@ -2,7 +2,6 @@ mod pipeline;
 mod render_pass;
 
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
-use bevy_hierarchy::Parent;
 use bevy_render::{ExtractSchedule, Render};
 use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
@@ -537,8 +536,8 @@ pub struct UiBatch {
     pub z: f32,
 }
 
-const TEXTURED_QUAD: u32 = 0;
-const UNTEXTURED_QUAD: u32 = 1;
+const UNTEXTURED_QUAD: u32 = 0;
+const TEXTURED_QUAD: u32 = 1;
 
 pub fn prepare_uinodes(
     mut commands: Commands,
@@ -579,100 +578,9 @@ pub fn prepare_uinodes(
             }
             TEXTURED_QUAD
         } else {
-            // Untextured `UiBatch`es are never spawned within the loop.
-            // If all the `extracted_uinodes` are untextured a single untextured UiBatch will be spawned after the loop terminates.
             UNTEXTURED_QUAD
         };
-
-        let mut uinode_rect = extracted_uinode.target;
-
-        //let rect_size = uinode_rect.size().extend(1.0);
-
-        // Specify the corners of the node
-        // let positions = QUAD_VERTEX_POSITIONS
-        //     .map(|pos| (extracted_uinode.transform * (pos * rect_size).extend(1.)).xyz());
-
-        // Calculate the effect of clipping
-        // Note: this won't work with rotation/scaling, but that's much more complex (may need more that 2 quads)
-        // let mut positions_diff = if let Some(clip) = extracted_uinode.clip {
-        //     [
-        //         Vec2::new(
-        //             f32::max(clip.min.x - positions[0].x, 0.),
-        //             f32::max(clip.min.y - positions[0].y, 0.),
-        //         ),
-        //         Vec2::new(
-        //             f32::min(clip.max.x - positions[1].x, 0.),
-        //             f32::max(clip.min.y - positions[1].y, 0.),
-        //         ),
-        //         Vec2::new(
-        //             f32::min(clip.max.x - positions[2].x, 0.),
-        //             f32::min(clip.max.y - positions[2].y, 0.),
-        //         ),
-        //         Vec2::new(
-        //             f32::max(clip.min.x - positions[3].x, 0.),
-        //             f32::min(clip.max.y - positions[3].y, 0.),
-        //         ),
-        //     ]
-        // } else {
-        //     [Vec2::ZERO; 4]
-        // };
-
-        //let transformed_rect_size = extracted_uinode.transform.transform_vector3(rect_size);
-
-        // Don't try to cull nodes that have a rotation
-        // In a rotation around the Z-axis, this value is 0.0 for an angle of 0.0 or π
-        // In those two cases, the culling check can proceed normally as corners will be on
-        // horizontal / vertical lines
-        // For all other angles, bypass the culling check
-        // This does not properly handles all rotations on all axis
-        // if extracted_uinode.transform.x_axis[1] == 0.0 {
-        //     // Cull nodes that are completely clipped
-        //     if positions_diff[0].x - positions_diff[1].x >= transformed_rect_size.x
-        //         || positions_diff[1].y - positions_diff[2].y >= transformed_rect_size.y
-        //     {
-        //         continue;
-        //     }
-        // }
-        // let uvs = if mode == UNTEXTURED_QUAD {
-        //     [Vec2::ZERO, Vec2::X, Vec2::ONE, Vec2::Y]
-        // } else {
-        //     let atlas_extent = extracted_uinode.atlas_size.unwrap_or(uinode_rect.max);
-        //     if extracted_uinode.flip_x {
-        //         std::mem::swap(&mut uinode_rect.max.x, &mut uinode_rect.min.x);
-        //         positions_diff[0].x *= -1.;
-        //         positions_diff[1].x *= -1.;
-        //         positions_diff[2].x *= -1.;
-        //         positions_diff[3].x *= -1.;
-        //     }
-        //     if extracted_uinode.flip_y {
-        //         std::mem::swap(&mut uinode_rect.max.y, &mut uinode_rect.min.y);
-        //         positions_diff[0].y *= -1.;
-        //         positions_diff[1].y *= -1.;
-        //         positions_diff[2].y *= -1.;
-        //         positions_diff[3].y *= -1.;
-        //     }
-        //     [
-        //         Vec2::new(
-        //             uinode_rect.min.x + positions_diff[0].x,
-        //             uinode_rect.min.y + positions_diff[0].y,
-        //         ),
-        //         Vec2::new(
-        //             uinode_rect.max.x + positions_diff[1].x,
-        //             uinode_rect.min.y + positions_diff[1].y,
-        //         ),
-        //         Vec2::new(
-        //             uinode_rect.max.x + positions_diff[2].x,
-        //             uinode_rect.max.y + positions_diff[2].y,
-        //         ),
-        //         Vec2::new(
-        //             uinode_rect.min.x + positions_diff[3].x,
-        //             uinode_rect.max.y + positions_diff[3].y,
-        //         ),
-        //     ]
-        //     .map(|pos| pos / atlas_extent)
-        // };
-
-        let color = extracted_uinode.color.as_linear_rgba_f32();
+        
         ui_meta.instance_buffer.push(UiInstance::from(
             extracted_uinode.target.min,
             extracted_uinode.target.size(),
