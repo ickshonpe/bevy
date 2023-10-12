@@ -168,7 +168,7 @@ impl Plugin for UiPlugin {
                 ui_layout_system
                     .in_set(UiSystem::Layout)
                     .before(TransformSystem::TransformPropagate),
-                resolve_outlines_system.after(UiSystem::Layout),
+                resolve_border_and_outlines_system.after(UiSystem::Layout),
                 ui_stack_system.in_set(UiSystem::Stack),
                 update_clipping_system.after(TransformSystem::TransformPropagate),
             ),

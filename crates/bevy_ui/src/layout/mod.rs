@@ -330,12 +330,14 @@ pub fn ui_layout_system(
             if node.calculated_size != rounded_size || node.unrounded_size != layout_size {
                 node.calculated_size = rounded_size;
                 node.unrounded_size = layout_size;
+                println!("entity: {entity:?} => node size: {}", node.calculated_size);
             }
             if transform.translation.truncate() != rounded_location
                 || node.position() != rounded_absolute_location
             {
                 transform.translation = rounded_location.extend(0.);
                 node.bypass_change_detection().position = rounded_absolute_location;
+                println!("entity: {entity:?} => node postion: {}", node.position);
             }
             if let Ok(children) = children_query.get(entity) {
                 for &child_uinode in children {
@@ -413,7 +415,7 @@ pub fn compute_border(
 }
 
 /// Resolve and update the widths of Node outlines
-pub fn resolve_outlines_system(
+pub fn resolve_border_and_outlines_system(
     primary_window: Query<&Window, With<PrimaryWindow>>,
     ui_scale: Res<UiScale>,
     mut outlines_query: Query<(Option<&Outline>, &Style, &mut Node)>,
@@ -425,13 +427,18 @@ pub fn resolve_outlines_system(
         / ui_scale.scale as f32;
 
     for (outline, style, mut node) in outlines_query.iter_mut() {
-        let mut node = node.bypass_change_detection();
-        node.outline_width = outline
-            .and_then(|outline| outline.width.resolve(node.size().x, viewport_size).ok())
-            .unwrap_or(0.)
-            .max(0.);
-
-        node.border_radius =
+        let node = node.bypass_change_detection();
+        let (outline_width,outline_offset): (f32, f32) = outline
+            .and_then(|outline| 
+                outline.width.resolve(node.size().x, viewport_size).ok()
+                .map(|width| { 
+                    let vs = (width, outline.offset.resolve(node.size().x, viewport_size).ok().unwrap_or(0.));
+                    vs
+                }))
+            .unwrap_or((0., 0.));
+        node.outline_width = outline_width.max(0.);
+        node.outline_offset = outline_offset.max(0.);
+        node.border_radius = 
             resolve_border_radius(&style.border_radius, node.calculated_size, viewport_size);
         node.border = [
             resolve_border_thickness(style.border.left, viewport_size),

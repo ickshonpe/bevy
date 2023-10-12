@@ -257,9 +257,8 @@ pub fn extract_uinodes(
         Query<
             (
                 &Node,
-                &GlobalTransform,
                 &BackgroundColor,
-                &BorderColor,
+                Option<&BorderColor>,
                 Option<&Outline>,
                 Option<&UiImage>,
                 &ComputedVisibility,
@@ -274,10 +273,9 @@ pub fn extract_uinodes(
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((
             uinode,
-            transform,
             color,
-            border_color,
-            outline,
+            maybe_border_color,
+            maybe_outline,
             maybe_image,
             visibility,
             clip,
@@ -298,6 +296,8 @@ pub fn extract_uinodes(
                 (DEFAULT_IMAGE_HANDLE.typed(), false, false)
             };
 
+            let border_color = maybe_border_color.map(|border_color| border_color.0).unwrap_or(Color::NONE);
+
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
                 color: color.0,
@@ -310,15 +310,14 @@ pub fn extract_uinodes(
                 flip_y,
                 border: uinode.border,
                 radius: uinode.border_radius,
-                border_color: border_color.0,
+                border_color,
             });
 
-            if let Some(outline) = outline {
+            if let Some(outline) = maybe_outline {
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
-
                     color: Color::NONE,
-                    position: uinode.position(),
+                    position: uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
                     size: uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
                     uv_rect: Rect::new(0., 0., 1., 1.),
                     clip: clip.map(|clip| clip.clip),
