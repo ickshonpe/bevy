@@ -404,7 +404,6 @@ pub fn extract_text_uinodes(
     uinode_query: Extract<
         Query<(
             &Node,
-            &GlobalTransform,
             &Text,
             &TextLayoutInfo,
             &ComputedVisibility,
@@ -419,10 +418,8 @@ pub fn extract_text_uinodes(
         .unwrap_or(1.0)
         * ui_scale.scale;
 
-    let inverse_scale_factor = (scale_factor as f32).recip();
-
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, global_transform, text, text_layout_info, visibility, clip)) =
+        if let Ok((uinode, text, text_layout_info, visibility, clip)) =
             uinode_query.get(*entity)
         {
             // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
@@ -438,7 +435,6 @@ pub fn extract_text_uinodes(
                 position: glyph_position,
                 atlas_info,
                 section_index,
-                size: glyph_size,
                 ..
             } in &text_layout_info.glyphs
             {
@@ -449,16 +445,17 @@ pub fn extract_text_uinodes(
                 let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
     
                 let mut uv_rect = atlas.textures[atlas_info.glyph_index];
-                let size = uv_rect.size() * inverse_scale_factor;
+                let scaled_glyph_size = uv_rect.size() * inverse_scale_factor;
+                let scaled_glyph_position = *glyph_position * inverse_scale_factor;
                 uv_rect.min /= atlas.size;
                 uv_rect.max /= atlas.size;
     
-                let position = node_position + *glyph_position * inverse_scale_factor - 0.5 * size;
+                let position = node_position + scaled_glyph_position - 0.5 * scaled_glyph_size;
 
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
                     position,
-                    size: *glyph_size,
+                    size: scaled_glyph_size,
                     color,
                     image: atlas.texture.clone_weak(),
                     uv_rect,
