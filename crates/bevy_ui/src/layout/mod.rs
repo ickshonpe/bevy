@@ -331,7 +331,7 @@ pub fn ui_layout_system(
                 node.calculated_size = rounded_size;
                 node.unrounded_size = layout_size;
             }
-            if transform.translation.truncate() != rounded_location {
+            if transform.translation.truncate() != rounded_location || node.position() !=  rounded_absolute_location {
                 transform.translation = rounded_location.extend(0.);
                 node.bypass_change_detection().position = rounded_absolute_location;
             }
