@@ -312,29 +312,29 @@ pub fn ui_layout_system(
     ) {
         if let Ok((mut node, mut transform)) = node_transform_query.get_mut(entity) {
             let layout = ui_surface.get_layout(entity).unwrap();
-            let layout_size = Vec2::new(layout.size.width, layout.size.height);
-            let layout_location = Vec2::new(layout.location.x, layout.location.y);
+            let layout_size =
+                inverse_target_scale_factor * Vec2::new(layout.size.width, layout.size.height);
+            let layout_location =
+                inverse_target_scale_factor * Vec2::new(layout.location.x, layout.location.y);
 
             absolute_location += layout_location;
-            let rounded_location = round_layout_coords(layout_location);
+            
             let rounded_size = round_layout_coords(absolute_location + layout_size)
                 - round_layout_coords(absolute_location);
 
-            let new_size = inverse_target_scale_factor * rounded_size;
-            let new_location = inverse_target_scale_factor * rounded_location;
-            let new_position =
-                new_location + 0.5 * (new_size - parent_size);
+            let rounded_location =
+                round_layout_coords(layout_location) + 0.5 * (rounded_size - parent_size);
+            let rounded_absolute_location = round_layout_coords(absolute_location);
 
             // only trigger change detection when the new values are different
-            if node.calculated_size != new_size {
-                node.calculated_size = new_size;
+            if node.calculated_size != rounded_size || node.unrounded_size != layout_size {
+                node.calculated_size = rounded_size;
+                node.unrounded_size = layout_size;
             }
-
-            if transform.translation.truncate() != new_position {
-                transform.translation = new_position.extend(0.);
-                node.bypass_change_detection().position = new_location;
+            if transform.translation.truncate() != rounded_location {
+                transform.translation = rounded_location.extend(0.);
+                node.bypass_change_detection().position = rounded_absolute_location;
             }
-
             if let Ok(children) = children_query.get(entity) {
                 for &child_uinode in children {
                     update_uinode_geometry_recursive(
@@ -343,7 +343,7 @@ pub fn ui_layout_system(
                         node_transform_query,
                         children_query,
                         inverse_target_scale_factor,
-                        new_size,
+                        rounded_size,
                         absolute_location,
                     );
                 }
@@ -365,9 +365,9 @@ pub fn ui_layout_system(
 }
 
 #[inline]
-/// Round `value` to the closest whole integer, with ties (values with a fractional part equal to 0.5) rounded towards positive infinity.
+/// Round `value` to the nearest whole integer, with ties (values with a fractional part equal to 0.5) rounded towards positive infinity.
 fn round_ties_up(value: f32) -> f32 {
-    if 0. <= value || value.fract() != 0.5 {
+    if value.fract() != -0.5 {
         // The `round` function rounds ties away from zero. For positive numbers "away from zero" is towards positive infinity.
         // So for all positive values, and negative values with a fractional part not equal to 0.5, `round` returns the correct result.
         value.round()
@@ -377,11 +377,15 @@ fn round_ties_up(value: f32) -> f32 {
     }
 }
 
+
 #[inline]
-/// Rust `f32` only has support for rounding ties away from zero.
-/// When rounding the layout coordinates we need to round ties up, otherwise we can gain a pixel.
-/// For example consider a node with left and right bounds of -50.5 and 49.5 (width: 49.5 - (-50.5) == 100).
-/// After rounding left and right away from zero we get -51 and 50 (width: 50 - (-51) == 101), gaining a pixel.
+/// Rounds layout coordinates by rounding ties upwards.
+///
+/// Rounding ties up avoids gaining a pixel when rounding bounds that span from negative to positive.
+///
+/// Example: The width between bounds of -50.5 and 49.5 before rounding is 100, using:
+/// - `f32::round`: width becomes 101 (rounds to -51 and 50).
+/// - `round_ties_up`: width is 100 (rounds to -50 and 50).
 fn round_layout_coords(value: Vec2) -> Vec2 {
     Vec2 {
         x: round_ties_up(value.x),
