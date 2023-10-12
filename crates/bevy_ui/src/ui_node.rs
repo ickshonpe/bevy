@@ -31,6 +31,7 @@ pub struct Node {
     pub(crate) unrounded_size: Vec2,
     pub(crate) border: [f32; 4],
     pub(crate) border_radius: [f32; 4],
+    pub(crate) position: Vec2,
 }
 
 impl Node {
@@ -88,6 +89,11 @@ impl Node {
     pub fn outline_width(&self) -> f32 {
         self.outline_width
     }
+
+    #[inline]
+    pub fn position(&self) -> Vec2 {
+        self.position
+    }
 }
 
 impl Node {
@@ -98,7 +104,7 @@ impl Node {
         unrounded_size: Vec2::ZERO,
         border: [0.; 4],
         border_radius: [0.; 4],
-        
+        position: Vec2::ZERO,
     };
 }
 

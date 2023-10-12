@@ -321,16 +321,20 @@ pub fn ui_layout_system(
                 - round_layout_coords(absolute_location);
 
             let new_size = inverse_target_scale_factor * rounded_size;
+            let new_location = inverse_target_scale_factor * rounded_location;
             let new_position =
-                inverse_target_scale_factor * rounded_location + 0.5 * (new_size - parent_size);
+                new_location + 0.5 * (new_size - parent_size);
 
             // only trigger change detection when the new values are different
             if node.calculated_size != new_size {
                 node.calculated_size = new_size;
             }
+
             if transform.translation.truncate() != new_position {
                 transform.translation = new_position.extend(0.);
+                node.bypass_change_detection().position = new_location;
             }
+
             if let Ok(children) = children_query.get(entity) {
                 for &child_uinode in children {
                     update_uinode_geometry_recursive(

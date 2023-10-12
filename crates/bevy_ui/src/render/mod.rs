@@ -154,7 +154,8 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
 pub struct ExtractedUiNode {
     pub stack_index: usize,
     pub color: Color,
-    pub target: Rect,
+    pub position: Vec2,
+    pub size: Vec2,
     pub uv_rect: Rect,
     pub image: Handle<Image>,
     pub clip: Option<Rect>,
@@ -234,7 +235,8 @@ pub fn extract_atlas_uinodes(
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
                 color: color.0,
-                target: atlas_rect,
+                position: uinode.position(),
+                size: uinode.size(),
                 clip: clip.map(|clip| clip.clip),
                 image,
                 uv_rect: atlas_rect,
@@ -293,10 +295,8 @@ pub fn extract_uinodes(
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
                 color: color.0,
-                target: Rect::from_center_size(
-                    transform.translation().xy(),
-                    uinode.calculated_size,
-                ),
+                position: uinode.position(),
+                size: uinode.size(),
                 uv_rect: Rect::new(0., 0., 1., 1.),
                 clip: clip.map(|clip| clip.clip),
                 image: image.clone(),
@@ -312,12 +312,8 @@ pub fn extract_uinodes(
                     stack_index,
                     
                     color: Color::NONE,
-                    target: Rect::from_center_size(
-                        transform.translation().xy(),
-
-                        
-                        uinode.calculated_size + 2. * (uinode.outline_width + uinode.outline_offset),
-                    ),
+                    position: uinode.position(),
+                    size: uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
                     uv_rect: Rect::new(0., 0., 1., 1.),
                     clip: clip.map(|clip| clip.clip),
                     image: DEFAULT_IMAGE_HANDLE.typed().clone(),
@@ -434,14 +430,15 @@ pub fn extract_text_uinodes(
                 continue;
             }
             
-            let t = global_transform.translation().xy() -0.5 * uinode.size();
+            let node_position = uinode.position();
+
             let mut color = Color::WHITE;
             let mut current_section = usize::MAX;
             for PositionedGlyph {
-                position,
+                position: glyph_position,
                 atlas_info,
                 section_index,
-                size,
+                size: glyph_size,
                 ..
             } in &text_layout_info.glyphs
             {
@@ -450,16 +447,21 @@ pub fn extract_text_uinodes(
                     current_section = *section_index;
                 }
                 let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+    
+                let mut uv_rect = atlas.textures[atlas_info.glyph_index];
+                let size = uv_rect.size() * inverse_scale_factor;
+                uv_rect.min /= atlas.size;
+                uv_rect.max /= atlas.size;
+    
+                let position = node_position + *glyph_position * inverse_scale_factor - 0.5 * size;
 
-                let mut rect = atlas.textures[atlas_info.glyph_index];
-                rect.min /= atlas.size;
-                rect.max /= atlas.size;                
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
-                    target: Rect::from_center_size(t * inverse_scale_factor, *size),
+                    position,
+                    size: *glyph_size,
                     color,
                     image: atlas.texture.clone_weak(),
-                    uv_rect: rect,
+                    uv_rect,
                     clip: clip.map(|clip| clip.clip),
                     flip_x: false,
                     flip_y: false,
@@ -582,8 +584,8 @@ pub fn prepare_uinodes(
         };
         
         ui_meta.instance_buffer.push(UiInstance::from(
-            extracted_uinode.target.min,
-            extracted_uinode.target.size(),
+            extracted_uinode.position,
+            extracted_uinode.size,
             extracted_uinode.uv_rect,
             extracted_uinode.color,
             mode,
