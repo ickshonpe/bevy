@@ -3,14 +3,14 @@ use bevy_asset::Handle;
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
 use bevy_math::{Rect, Vec2};
 use bevy_reflect::prelude::*;
-use bevy_render::{
-    color::Color,
-    texture::Image,
-};
+use bevy_render::{color::Color, texture::Image};
 use bevy_transform::prelude::GlobalTransform;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use std::{ops::{Div, DivAssign, Mul, MulAssign}, num::{NonZeroU16, NonZeroI16}};
+use std::{
+    num::{NonZeroI16, NonZeroU16},
+    ops::{Div, DivAssign, Mul, MulAssign},
+};
 use thiserror::Error;
 
 /// Describes the size of a UI node
@@ -20,7 +20,7 @@ pub struct Node {
     /// The size of the node as width and height in logical pixels
     /// automatically calculated by [`super::layout::ui_layout_system`]
     pub(crate) calculated_size: Vec2,
-/// The width of this node's outline
+    /// The width of this node's outline
     /// If this value is `Auto`, negative or `0.` then no outline will be rendered
     /// automatically calculated by [`super::layout::resolve_outlines_system`]
     pub(crate) outline_width: f32,
@@ -413,7 +413,7 @@ pub struct Style {
     ///
     /// <https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column>
     pub grid_column: GridPlacement,
-    
+
     /// Used to add rounded corners to a UI node. You can set a UI node to have uniformly rounded corners
     /// or specify different radii for each corner. If a given radius exceeds half the length of the smallest dimension between the node's height or width,
     /// the radius will calculated as half the smallest dimension.
@@ -1327,7 +1327,7 @@ impl GridPlacement {
     }
 
     /// Place the grid item automatically, specifying how many tracks it should `span`.
-///
+    ///
     /// # Panics
     ///
     /// Panics if `span` is `0`
@@ -1340,31 +1340,31 @@ impl GridPlacement {
     }
 
     /// Place the grid item specifying the `start` grid line (letting the `span` default to `1`).
-///
+    ///
     /// # Panics
     ///
     /// Panics if `start` is `0`
     pub fn start(start: i16) -> Self {
         Self {
             start: try_into_grid_index(start).expect("Invalid start value of 0."),
-..Self::DEFAULT
+            ..Self::DEFAULT
         }
     }
 
     /// Place the grid item specifying the `end` grid line (letting the `span` default to `1`).
-///
+    ///
     /// # Panics
     ///
     /// Panics if `end` is `0`
     pub fn end(end: i16) -> Self {
         Self {
             end: try_into_grid_index(end).expect("Invalid end value of 0."),
-..Self::DEFAULT
+            ..Self::DEFAULT
         }
     }
 
     /// Place the grid item specifying the `start` grid line and how many tracks it should `span`.
-///
+    ///
     /// # Panics
     ///
     /// Panics if `start` or `span` is `0`
@@ -1377,7 +1377,7 @@ impl GridPlacement {
     }
 
     /// Place the grid item specifying `start` and `end` grid lines (`span` will be inferred)
-///
+    ///
     /// # Panics
     ///
     /// Panics if `start` or `end` is `0`
@@ -1390,7 +1390,7 @@ impl GridPlacement {
     }
 
     /// Place the grid item specifying the `end` grid line and how many tracks it should `span`.
-///
+    ///
     /// # Panics
     ///
     /// Panics if `end` or `span` is `0`
@@ -1403,7 +1403,7 @@ impl GridPlacement {
     }
 
     /// Mutate the item, setting the `start` grid line
-///
+    ///
     /// # Panics
     ///
     /// Panics if `start` is `0`
@@ -1413,7 +1413,7 @@ impl GridPlacement {
     }
 
     /// Mutate the item, setting the `end` grid line
-///
+    ///
     /// # Panics
     ///
     /// Panics if `end` is `0`
@@ -1423,7 +1423,7 @@ impl GridPlacement {
     }
 
     /// Mutate the item, setting the number of tracks the item should `span`
-///
+    ///
     /// # Panics
     ///
     /// Panics if `span` is `0`
@@ -1686,7 +1686,6 @@ impl Default for ZIndex {
         Self::Local(0)
     }
 }
-
 
 /// Radii for rounded corner edges.
 /// * A corner set to a 0 value will be right angled.

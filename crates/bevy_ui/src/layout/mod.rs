@@ -1,7 +1,7 @@
 mod convert;
 pub mod debug;
 
-use crate::{ContentSize, Node, Style, UiScale, Outline, Val, BorderRadius, UiRect};
+use crate::{BorderRadius, ContentSize, Node, Outline, Style, UiRect, UiScale, Val};
 use bevy_ecs::{
     change_detection::{DetectChanges, DetectChangesMut},
     entity::Entity,
@@ -318,7 +318,7 @@ pub fn ui_layout_system(
                 inverse_target_scale_factor * Vec2::new(layout.location.x, layout.location.y);
 
             absolute_location += layout_location;
-            
+
             let rounded_size = round_layout_coords(absolute_location + layout_size)
                 - round_layout_coords(absolute_location);
 
@@ -331,7 +331,9 @@ pub fn ui_layout_system(
                 node.calculated_size = rounded_size;
                 node.unrounded_size = layout_size;
             }
-            if transform.translation.truncate() != rounded_location || node.position() !=  rounded_absolute_location {
+            if transform.translation.truncate() != rounded_location
+                || node.position() != rounded_absolute_location
+            {
                 transform.translation = rounded_location.extend(0.);
                 node.bypass_change_detection().position = rounded_absolute_location;
             }
@@ -377,7 +379,6 @@ fn round_ties_up(value: f32) -> f32 {
     }
 }
 
-
 #[inline]
 /// Rounds layout coordinates by rounding ties upwards.
 ///
@@ -392,7 +393,6 @@ fn round_layout_coords(value: Vec2) -> Vec2 {
         y: round_ties_up(value.y),
     }
 }
-
 
 pub fn compute_border(
     border: UiRect,
@@ -424,22 +424,14 @@ pub fn resolve_outlines_system(
         .unwrap_or(Vec2::ZERO)
         / ui_scale.scale as f32;
 
-        
-       
-
     for (outline, style, mut node) in outlines_query.iter_mut() {
         let mut node = node.bypass_change_detection();
         node.outline_width = outline
-            .and_then(|outline| {
-            outline
-            .width 
-            .resolve(node.size().x, viewport_size)
-            .ok()
-            })
+            .and_then(|outline| outline.width.resolve(node.size().x, viewport_size).ok())
             .unwrap_or(0.)
             .max(0.);
 
-            node.border_radius =
+        node.border_radius =
             resolve_border_radius(&style.border_radius, node.calculated_size, viewport_size);
         node.border = [
             resolve_border_thickness(style.border.left, viewport_size),

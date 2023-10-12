@@ -227,7 +227,6 @@ pub fn extract_atlas_uinodes(
                 continue;
             }
 
-
             atlas_rect.min /= atlas_size;
             atlas_rect.max /= atlas_size;
 
@@ -245,7 +244,6 @@ pub fn extract_atlas_uinodes(
                 border: [0.; 4],
                 radius: [0.; 4],
                 border_color: Color::NONE,
-                
             });
         }
     }
@@ -274,8 +272,16 @@ pub fn extract_uinodes(
     extracted_uinodes.uinodes.clear();
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, transform, color, border_color, outline, maybe_image , visibility, clip)) =
-            uinode_query.get(*entity)
+        if let Ok((
+            uinode,
+            transform,
+            color,
+            border_color,
+            outline,
+            maybe_image,
+            visibility,
+            clip,
+        )) = uinode_query.get(*entity)
         {
             // Skip invisible and completely transparent nodes
             if !visibility.is_visible() || color.0.a() == 0.0 {
@@ -310,7 +316,7 @@ pub fn extract_uinodes(
             if let Some(outline) = outline {
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
-                    
+
                     color: Color::NONE,
                     position: uinode.position(),
                     size: uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
@@ -421,14 +427,12 @@ pub fn extract_text_uinodes(
     let inverse_scale_factor = (scale_factor as f32).recip();
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, text, text_layout_info, visibility, clip)) =
-            uinode_query.get(*entity)
-        {
+        if let Ok((uinode, text, text_layout_info, visibility, clip)) = uinode_query.get(*entity) {
             // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
             if !visibility.is_visible() || uinode.size().x == 0. || uinode.size().y == 0. {
                 continue;
             }
-            
+
             let node_position = uinode.position();
 
             let mut color = Color::WHITE;
@@ -445,13 +449,13 @@ pub fn extract_text_uinodes(
                     current_section = *section_index;
                 }
                 let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
-    
+
                 let mut uv_rect = atlas.textures[atlas_info.glyph_index];
                 let scaled_glyph_size = uv_rect.size() * inverse_scale_factor;
                 let scaled_glyph_position = *glyph_position * inverse_scale_factor;
                 uv_rect.min /= atlas.size;
                 uv_rect.max /= atlas.size;
-    
+
                 let position = node_position + scaled_glyph_position - 0.5 * scaled_glyph_size;
 
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
@@ -514,7 +518,7 @@ impl UiInstance {
 }
 
 #[derive(Resource)]
-pub struct UiMeta {    
+pub struct UiMeta {
     view_bind_group: Option<BindGroup>,
     index_buffer: BufferVec<u32>,
     instance_buffer: BufferVec<UiInstance>,
@@ -523,8 +527,8 @@ pub struct UiMeta {
 impl Default for UiMeta {
     fn default() -> Self {
         Self {
-                        view_bind_group: None,
-        index_buffer: BufferVec::<u32>::new(BufferUsages::INDEX),
+            view_bind_group: None,
+            index_buffer: BufferVec::<u32>::new(BufferUsages::INDEX),
             instance_buffer: BufferVec::<UiInstance>::new(BufferUsages::VERTEX),
         }
     }
@@ -581,7 +585,7 @@ pub fn prepare_uinodes(
         } else {
             UNTEXTURED_QUAD
         };
-        
+
         ui_meta.instance_buffer.push(UiInstance::from(
             extracted_uinode.position,
             extracted_uinode.size,
@@ -606,32 +610,32 @@ pub fn prepare_uinodes(
         });
     }
     ui_meta
-            .instance_buffer
+        .instance_buffer
+        .write_buffer(&render_device, &render_queue);
+
+    if ui_meta.index_buffer.len() != 6 {
+        ui_meta.index_buffer.clear();
+
+        // NOTE: This code is creating 6 indices pointing to 4 vertices.
+        // The vertices form the corners of a quad based on their two least significant bits.
+        // 10   11
+        //
+        // 00   01
+        // The sprite shader can then use the two least significant bits as the vertex index.
+        // The rest of the properties to transform the vertex positions and UVs (which are
+        // implicit) are baked into the instance transform, and UV offset and scale.
+        // See bevy_sprite/src/render/sprite.wgsl for the details.
+        ui_meta.index_buffer.push(2);
+        ui_meta.index_buffer.push(0);
+        ui_meta.index_buffer.push(1);
+        ui_meta.index_buffer.push(1);
+        ui_meta.index_buffer.push(3);
+        ui_meta.index_buffer.push(2);
+
+        ui_meta
+            .index_buffer
             .write_buffer(&render_device, &render_queue);
-
-        if ui_meta.index_buffer.len() != 6 {
-            ui_meta.index_buffer.clear();
-
-            // NOTE: This code is creating 6 indices pointing to 4 vertices.
-            // The vertices form the corners of a quad based on their two least significant bits.
-            // 10   11
-            //
-            // 00   01
-            // The sprite shader can then use the two least significant bits as the vertex index.
-            // The rest of the properties to transform the vertex positions and UVs (which are
-            // implicit) are baked into the instance transform, and UV offset and scale.
-            // See bevy_sprite/src/render/sprite.wgsl for the details.
-            ui_meta.index_buffer.push(2);
-            ui_meta.index_buffer.push(0);
-            ui_meta.index_buffer.push(1);
-            ui_meta.index_buffer.push(1);
-            ui_meta.index_buffer.push(3);
-            ui_meta.index_buffer.push(2);
-
-            ui_meta
-                .index_buffer
-                .write_buffer(&render_device, &render_queue);
-        }
+    }
 }
 
 #[derive(Resource, Default)]

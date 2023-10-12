@@ -7,7 +7,9 @@ use bevy_ecs::{
 use bevy_render::{
     render_graph::*,
     render_phase::*,
-    render_resource::{CachedRenderPipelineId, LoadOp, Operations, RenderPassDescriptor, IndexFormat},
+    render_resource::{
+        CachedRenderPipelineId, IndexFormat, LoadOp, Operations, RenderPassDescriptor,
+    },
     renderer::*,
     view::*,
 };
@@ -49,10 +51,10 @@ impl Node for UiPassNode {
         let input_view_entity = graph.view_entity();
 
         let Ok((transparent_phase, target, camera_ui)) =
-                self.ui_view_query.get_manual(world, input_view_entity)
-             else {
-                return Ok(());
-            };
+            self.ui_view_query.get_manual(world, input_view_entity)
+        else {
+            return Ok(());
+        };
         if transparent_phase.items.is_empty() {
             return Ok(());
         }
