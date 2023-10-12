@@ -418,8 +418,6 @@ pub fn extract_text_uinodes(
         .unwrap_or(1.0)
         * ui_scale.scale;
 
-    let inverse_scale_factor = (scale_factor as f32).recip();
-
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, text, text_layout_info, visibility, clip)) =
             uinode_query.get(*entity)
