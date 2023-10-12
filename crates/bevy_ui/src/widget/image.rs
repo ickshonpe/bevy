@@ -101,7 +101,6 @@ pub fn update_image_content_size_system(
                 || combined_scale_factor != *previous_combined_scale_factor
                 || content_size.is_added()
             {
-                println!("image_size: {size}");
                 image_size.size = size;
                 content_size.set(ImageMeasure {
                     // multiply the image size by the scale factor to get the physical size

@@ -330,14 +330,12 @@ pub fn ui_layout_system(
             if node.calculated_size != rounded_size || node.unrounded_size != layout_size {
                 node.calculated_size = rounded_size;
                 node.unrounded_size = layout_size;
-                println!("entity: {entity:?} => node size: {}", node.calculated_size);
             }
             if transform.translation.truncate() != rounded_location
                 || node.position() != rounded_absolute_location
             {
                 transform.translation = rounded_location.extend(0.);
                 node.bypass_change_detection().position = rounded_absolute_location;
-                println!("entity: {entity:?} => node postion: {}", node.position);
             }
             if let Ok(children) = children_query.get(entity) {
                 for &child_uinode in children {

@@ -281,37 +281,35 @@ pub fn extract_uinodes(
             clip,
         )) = uinode_query.get(*entity)
         {
-            // Skip invisible and completely transparent nodes
-            if !visibility.is_visible() || color.0.a() == 0.0 {
-                continue;
-            }
-
-            let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
-                // Skip loading images
-                if !images.contains(&image.texture) {
-                    continue;
-                }
-                (image.texture.clone_weak(), image.flip_x, image.flip_y)
-            } else {
-                (DEFAULT_IMAGE_HANDLE.typed(), false, false)
-            };
-
             let border_color = maybe_border_color.map(|border_color| border_color.0).unwrap_or(Color::NONE);
 
-            extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index,
-                color: color.0,
-                position: uinode.position(),
-                size: uinode.size(),
-                uv_rect: Rect::new(0., 0., 1., 1.),
-                clip: clip.map(|clip| clip.clip),
-                image: image.clone(),
-                flip_x,
-                flip_y,
-                border: uinode.border,
-                radius: uinode.border_radius,
-                border_color,
-            });
+            // Skip invisible and completely transparent nodes
+            if visibility.is_visible() || !(color.0.a() == 0.0 && border_color.a() == 0.0) {
+                let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
+                    // Skip loading images
+                    if !images.contains(&image.texture) {
+                        continue;
+                    }
+                    (image.texture.clone_weak(), image.flip_x, image.flip_y)
+                } else {
+                    (DEFAULT_IMAGE_HANDLE.typed(), false, false)
+                };
+
+                extracted_uinodes.uinodes.push(ExtractedUiNode {
+                    stack_index,
+                    color: color.0,
+                    position: uinode.position(),
+                    size: uinode.size(),
+                    uv_rect: Rect::new(0., 0., 1., 1.),
+                    clip: clip.map(|clip| clip.clip),
+                    image: image.clone(),
+                    flip_x,
+                    flip_y,
+                    border: uinode.border,
+                    radius: uinode.border_radius,
+                    border_color,
+                });
+            }
 
             if let Some(outline) = maybe_outline {
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
