@@ -16,6 +16,7 @@ struct VertexInput {
     @location(6) i_border: vec4<f32>,
     @location(7) i_flags: u32,
     @location(8) i_border_color: vec4<f32>,
+    @location(9) i_clip: vec4<f32>,
 }
 
 struct VertexOutput {
@@ -28,6 +29,8 @@ struct VertexOutput {
     @location(5) point: vec2<f32>,
     @location(6) @interpolate(flat) border_color: vec4<f32>,
     @location(7) @interpolate(flat) size: vec2<f32>,
+    @location(8) @interpolate(flat) clip: vec4<f32>,
+    @location(9) position: vec2<f32>,
 };
 
 @vertex
@@ -39,6 +42,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     let norm_y = f32((in.index & 2u) >> 1u);
     let norm_location = vec2(norm_x, norm_y);
     let relative_location = in.i_size * norm_location;
+    out.position = in.i_location + relative_location;
     out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
     out.uv = in.i_uv_min + in.i_uv_size * norm_location;
     out.color = in.i_color;
@@ -48,6 +52,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.size = in.i_size;
     out.point = in.i_size * (norm_location - 0.4999);
     out.border_color = in.i_border_color;
+    out.clip = in.i_clip;
     return out;
 }
 
@@ -307,6 +312,10 @@ fn draw_node_mixed_border(distance: Distance, in: VertexOutput) -> vec4<f32> {
 fn draw_node(distance: Distance, in: VertexOutput) -> vec4<f32> {
     let color = in.color * select(vec4<f32>(1.), textureSample(sprite_texture, sprite_sampler, in.uv), enabled(in.flags, TEXTURED));
 
+    if in.position.x < in.clip.x || in.clip.z < in.position.x || in.position.y < in.clip.y || in.clip.w < in.position.y {
+        return vec4<f32>(0.);
+    }
+
     if distance.border <= 0. {    
         return in.border_color;
     }
@@ -337,6 +346,5 @@ fn smooth_normalize(distance: f32, min_val: f32, max_val: f32) -> f32 {
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let d = compute_rounded_clamped_2(in);
-
     return draw_node(d, in);
 }

@@ -16,7 +16,7 @@ use crate::{
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
-use bevy_math::{Mat4, Rect, UVec4, Vec2, Vec3, Vec3Swizzles};
+use bevy_math::{Mat4, Rect, UVec4, Vec2, Vec3, Vec3Swizzles, Vec4};
 use bevy_reflect::TypeUuid;
 use bevy_render::texture::DEFAULT_IMAGE_HANDLE;
 use bevy_render::{
@@ -486,6 +486,7 @@ struct UiInstance {
     pub i_border: [f32; 4],
     pub i_flags: u32,
     pub i_border_color: [f32; 4],
+    pub i_clip: [f32; 4]
 }
 
 impl UiInstance {
@@ -499,6 +500,7 @@ impl UiInstance {
         radius: [f32; 4],
         border: [f32; 4],
         border_color: Color,
+        clip: Vec4,
     ) -> Self {
         Self {
             i_location: location.into(),
@@ -510,6 +512,7 @@ impl UiInstance {
             i_border: border,
             i_flags: mode,
             i_border_color: border_color.as_linear_rgba_f32(),
+            i_clip: clip.into(),
         }
     }
 }
@@ -564,7 +567,7 @@ pub fn prepare_uinodes(
     fn is_textured(image: &Handle<Image>) -> bool {
         image.id() != DEFAULT_IMAGE_HANDLE.id()
     }
-
+    
     for extracted_uinode in &extracted_uinodes.uinodes {
         let mode = if is_textured(&extracted_uinode.image) {
             if current_batch_image.id() != extracted_uinode.image.id() {
@@ -582,6 +585,12 @@ pub fn prepare_uinodes(
         } else {
             UNTEXTURED_QUAD
         };
+        let clip =
+            if let Some(clip) = extracted_uinode.clip {
+                Vec4::from((clip.min, clip.max))
+            } else {
+                Vec4::new(-f32::MAX, -f32::MAX, f32::MAX, f32::MAX)
+            };
 
         ui_meta.instance_buffer.push(UiInstance::from(
             extracted_uinode.position,
@@ -592,6 +601,7 @@ pub fn prepare_uinodes(
             extracted_uinode.radius,
             extracted_uinode.border,
             extracted_uinode.border_color,
+            clip,
         ));
 
         last_z = extracted_uinode.stack_index as f32;
