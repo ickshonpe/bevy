@@ -26,16 +26,49 @@ fn setup(
         },
         ..Default::default()
     }).with_children(|commands| {
+    for i in 0..4 {
+        let angle = 0.5 * PI * i as f32;
+        commands.spawn(NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Column,
+                ..Default::default()
+            },
+            ..Default::default()
+        }).with_children(|commands| {
+            commands.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Px(100.),
+                    height: Val::Px(100.),
+                    ..Default::default()
+                },
+                background_color: BackgroundColor::LinearGradient(LinearGradient { start_color: Color::WHITE, end_color: Color::BLACK, angle }),
+                ..Default::default()
+            });
+
+            commands.spawn(TextBundle::from_section(angle.to_string(), TextStyle::default()));
+        });
+    }
+
     for i in 0..8 {
         let angle = 0.25 * PI * i as f32;
         commands.spawn(NodeBundle {
             style: Style {
-                width: Val::Px(100.),
-                height: Val::Px(100.),
+                flex_direction: FlexDirection::Column,
                 ..Default::default()
             },
-            background_color: BackgroundColor::LinearGradient(LinearGradient { start_color: Color::WHITE, end_color: Color::RED, angle }),
             ..Default::default()
+        }).with_children(|commands| {
+            commands.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Px(100.),
+                    height: Val::Px(100.),
+                    ..Default::default()
+                },
+                background_color: BackgroundColor::LinearGradient(LinearGradient { start_color: Color::WHITE, end_color: Color::RED, angle }),
+                ..Default::default()
+            });
+
+            commands.spawn(TextBundle::from_section(angle.to_string(), TextStyle::default()));
         });
     }
 });

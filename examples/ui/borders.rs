@@ -1,5 +1,7 @@
 //! Example demonstrating bordered UI nodes
 
+use std::f32::consts::PI;
+
 use bevy::prelude::*;
 
 fn main() {
@@ -22,7 +24,7 @@ fn setup(mut commands: Commands) {
                 align_content: AlignContent::FlexStart,
                 ..Default::default()
             },
-            background_color: BackgroundColor(Color::BLACK),
+            background_color: Color::BLACK.into(),
             ..Default::default()
         })
         .id();
@@ -107,8 +109,8 @@ fn setup(mut commands: Commands) {
                     justify_content: JustifyContent::Center,
                     ..Default::default()
                 },
-                background_color: Color::BLUE.into(),
-                border_color: Color::WHITE.with_a(0.5).into(),
+                background_color: LinearGradient::new(Color::BLUE, Color::CYAN, 0.).into(),
+                border_color: LinearGradient::new(Color::RED, Color::PURPLE, 0.25 * PI).into(),
                 ..Default::default()
             })
             .add_child(inner_spot)

@@ -65,9 +65,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.clip = in.i_clip;
     out.end_color = in.i_g_color;
     out.border_end_color = in.i_gb_color;
-    let a = in.i_g_angle % (2. * PI);
-    let n = a / (2. * PI);
-    let i = i32(floor(n));
+    let i = find_quadrant(in.i_g_angle);
     out.g_dir = gradient_dir(in.i_g_angle);
     switch (i) {
         case 0: {
@@ -85,7 +83,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
             out.g_f = vec2(1., 1.) * half_size;
         }           
     }
-    out.g_len = sdf_line(out.g_f, out.g_dir, vec2(0., 0.));
+    out.g_len = 2. * sdf_line(out.g_f, out.g_dir, vec2(0., 0.));
 
     return out;
 }
@@ -114,6 +112,11 @@ fn sd_box(box: Box) -> f32 {
 struct Distance {
     edge: f32,
     border: f32
+}
+
+fn find_quadrant(angle: f32) -> i32 {
+    let reduced = angle % (2. * PI);
+    return i32(reduced * 2.0 / PI);
 }
 
 // The returned value is the shortest distance from the given point to the boundary of the rounded box.
@@ -408,8 +411,8 @@ fn sdf_line(o: vec2<f32>, dir: vec2<f32>, p: vec2<f32>) -> f32 {
 }
 
 fn gradient_dir(angle: f32) -> vec2<f32> {
-    let x = sin(angle);
-    let y = cos(angle);
+    let x = cos(angle);
+    let y = sin(angle);
     return vec2<f32>(x, y);
 }
 
