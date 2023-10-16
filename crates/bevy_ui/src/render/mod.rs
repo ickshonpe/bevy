@@ -553,8 +553,8 @@ impl UiInstance {
             i_flags: mode,
             i_border_color: border_color.as_linear_rgba_f32(),
             i_clip: clip.into(),
-            i_end_border_color: end_border_color.into(),
-            i_end_color: end_color.into(),
+            i_end_border_color: end_border_color.as_linear_rgba_f32(),
+            i_end_color: end_color.as_linear_rgba_f32(),
             i_angle: angle,
         }
     }
