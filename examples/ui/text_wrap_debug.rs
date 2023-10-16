@@ -1,5 +1,7 @@
 //! This example demonstrates text wrapping and use of the `LineBreakOn` property.
 
+mod gradients;
+
 use bevy::prelude::*;
 use bevy::text::BreakLineOn;
 use bevy::winit::WinitSettings;

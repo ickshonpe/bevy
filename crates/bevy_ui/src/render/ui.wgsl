@@ -17,6 +17,9 @@ struct VertexInput {
     @location(7) i_flags: u32,
     @location(8) i_border_color: vec4<f32>,
     @location(9) i_clip: vec4<f32>,
+    @location(10) i_g_color: vec4<f32>,
+    @location(11) i_gb_color: vec4<f32>,
+    @location(12) i_g_angle: f32,
 }
 
 struct VertexOutput {
@@ -31,7 +34,14 @@ struct VertexOutput {
     @location(7) @interpolate(flat) size: vec2<f32>,
     @location(8) @interpolate(flat) clip: vec4<f32>,
     @location(9) position: vec2<f32>,
+    @location(10) end_color: vec4<f32>,
+    @location(11) border_end_color: vec4<f32>,
+    @location(12) @interpolate(flat) g_f: vec2<f32>,
+    @location(13) @interpolate(flat) g_dir: vec2<f32>,
+    @location(14) @interpolate(flat) g_len: f32,
 };
+
+const PI: f32 = 3.14159265358979323846;
 
 @vertex
 fn vertex(in: VertexInput) -> VertexOutput {
@@ -53,6 +63,30 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.point = in.i_size * (norm_location - 0.4999);
     out.border_color = in.i_border_color;
     out.clip = in.i_clip;
+    out.end_color = in.i_g_color;
+    out.border_end_color = in.i_gb_color;
+    let a = in.i_g_angle % (2. * PI);
+    let n = a / (2. * PI);
+    let i = i32(floor(n));
+    out.g_dir = gradient_dir(in.i_g_angle);
+    switch (i) {
+        case 0: {
+            out.g_f = vec2(-1., 1.) * half_size;
+            
+        }
+        case 1: {
+            out.g_f = vec2(-1., -1.) * half_size;
+        }
+        case 2: {
+            out.g_f = vec2(1., -1.) * half_size;
+        }
+            
+        default: {
+            out.g_f = vec2(1., 1.) * half_size;
+        }           
+    }
+    out.g_len = sdf_line(out.g_f, out.g_dir, vec2(0., 0.));
+
     return out;
 }
 
@@ -343,8 +377,46 @@ fn smooth_normalize(distance: f32, min_val: f32, max_val: f32) -> f32 {
     return t * t * (3.0 - 2.0 * t);
 }
 
+fn apply_gradient(tc: vec4<f32>, sc: vec4<f32>, ec: vec4<f32>, in: VertexOutput) -> vec4<f32> {
+    let d = sdf_line(in.g_f, in.g_dir, in.point);
+    let s = d / in.g_len;
+    let c = mix(sc, ec, s);
+    return  c * tc;
+}
+
+fn draw_node_with_gradient(distance: Distance, in: VertexOutput) -> vec4<f32> {
+    let tc = select(vec4<f32>(1.), textureSample(sprite_texture, sprite_sampler, in.uv), enabled(in.flags, TEXTURED));
+    if in.position.x < in.clip.x || in.clip.z < in.position.x || in.position.y < in.clip.y || in.clip.w < in.position.y {
+        return apply_gradient(vec4<f32>(0.), vec4<f32>(0.), vec4<f32>(0.), in);
+    }
+
+    if distance.border <= 0. {    
+        return apply_gradient(vec4<f32>(1.), in.border_color, in.border_end_color, in);
+        
+    }
+
+    if distance.edge <= 0. {
+        return apply_gradient(tc, in.color, in.end_color, in);
+    }
+
+    return vec4<f32>(0.);
+}
+
+// o point on line, dir normalised direction of the line, p distant point
+fn sdf_line(o: vec2<f32>, dir: vec2<f32>, p: vec2<f32>) -> f32 {
+    return distance(p, o + dir * dot(p-o, dir));
+}
+
+fn gradient_dir(angle: f32) -> vec2<f32> {
+    let x = sin(angle);
+    let y = cos(angle);
+    return vec2<f32>(x, y);
+}
+
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+    
     let d = compute_rounded_clamped_2(in);
-    return draw_node(d, in);
+    //return draw_node(d, in);
+    return draw_node_with_gradient(d, in);
 }

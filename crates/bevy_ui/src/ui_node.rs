@@ -7,10 +7,9 @@ use bevy_render::{color::Color, texture::Image};
 use bevy_transform::prelude::GlobalTransform;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use std::{
-    num::{NonZeroI16, NonZeroU16},
-    ops::{Div, DivAssign, Mul, MulAssign},
-};
+use std::
+    num::{NonZeroI16, NonZeroU16}
+;
 use thiserror::Error;
 
 /// Describes the size of a UI node
@@ -1483,10 +1482,22 @@ pub enum GridPlacementError {
 /// When combined with [`UiImage`], tints the provided texture.
 #[derive(Component, Copy, Clone, Debug, Reflect)]
 #[reflect(Component, Default)]
-pub struct BackgroundColor(pub Color);
+pub enum BackgroundColor {
+    Color(Color),
+    LinearGradient(LinearGradient),
+}
 
 impl BackgroundColor {
-    pub const DEFAULT: Self = Self(Color::WHITE);
+    pub fn is_transparent(&self) -> bool {
+    match self {
+            BackgroundColor::Color(color) => color.a() == 0.,
+            BackgroundColor::LinearGradient(gradient) => gradient.start_color.a() == 0. && gradient.end_color.a() == 0.,
+        }
+    }
+}
+
+impl BackgroundColor {
+    pub const DEFAULT: Self = Self::Color(Color::WHITE);
 }
 
 impl Default for BackgroundColor {
@@ -1497,7 +1508,13 @@ impl Default for BackgroundColor {
 
 impl From<Color> for BackgroundColor {
     fn from(color: Color) -> Self {
-        Self(color)
+        Self::Color(color)
+    }
+}
+
+impl From<LinearGradient> for BackgroundColor {
+    fn from(linear_gradient: LinearGradient) -> Self {
+        Self::LinearGradient(linear_gradient)
     }
 }
 
@@ -1516,21 +1533,40 @@ pub struct UiTextureAtlasImage {
 /// The border color of the UI node.
 #[derive(Component, Copy, Clone, Debug, Reflect)]
 #[reflect(Component, Default)]
-pub struct BorderColor(pub Color);
-
-impl From<Color> for BorderColor {
-    fn from(color: Color) -> Self {
-        Self(color)
-    }
+pub enum BorderColor {
+    Color(Color),
+    LinearGradient(LinearGradient),
 }
 
 impl BorderColor {
-    pub const DEFAULT: Self = BorderColor(Color::WHITE);
+    pub fn is_transparent(&self) -> bool {
+        match self {
+            Self::Color(color) => color.a() == 0.,
+            Self::LinearGradient(gradient) => gradient.start_color.a() == 0. && gradient.end_color.a() == 0.,
+        }
+    }
+}
+
+
+impl BorderColor {
+    pub const DEFAULT: Self = Self::Color(Color::WHITE);
 }
 
 impl Default for BorderColor {
     fn default() -> Self {
         Self::DEFAULT
+    }
+}
+
+impl From<Color> for BorderColor {
+    fn from(color: Color) -> Self {
+        Self::Color(color)
+    }
+}
+
+impl From<LinearGradient> for BorderColor {
+    fn from(linear_gradient: LinearGradient) -> Self {
+        Self::LinearGradient(linear_gradient)
     }
 }
 
@@ -1861,5 +1897,33 @@ impl From<BorderRadius> for [Val; 4] {
             value.bottom_right,
             value.bottom_left,
         ]
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect, Component, Default)]
+#[reflect(PartialEq, Serialize, Deserialize)]
+pub struct LinearGradient {
+    pub start_color: Color,
+    pub end_color: Color,
+    pub angle: f32,
+}
+
+impl LinearGradient {
+    pub fn new(start_color: Color, end_color: Color, angle: f32) -> Self {
+        Self {
+            start_color,
+            end_color,
+            angle
+        }
+    }
+
+    pub fn is_transparent(&self) -> bool {
+        self.start_color.a() == 0. && self.end_color.a() == 0.
+    }
+}
+
+impl From<Color> for LinearGradient {
+    fn from(color: Color) -> Self {
+        Self::new(color, color, 0.)
     }
 }

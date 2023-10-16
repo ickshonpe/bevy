@@ -7,7 +7,7 @@ use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
 pub use render_pass::*;
 
-use crate::Outline;
+use crate::{Outline, LinearGradient};
 use crate::{
     prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ContentSize, Node,
     Style, UiImage, UiScale, UiStack, UiTextureAtlasImage, Val,
@@ -151,6 +151,7 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
     ui_graph
 }
 
+#[derive(Default)]
 pub struct ExtractedUiNode {
     pub stack_index: usize,
     pub color: Color,
@@ -164,6 +165,9 @@ pub struct ExtractedUiNode {
     pub border: [f32; 4],
     pub radius: [f32; 4],
     pub border_color: Color,
+    pub end_color: Color,
+    pub end_border_color: Color,
+    pub gradient_angle: f32,
 }
 
 #[derive(Resource, Default)]
@@ -195,8 +199,9 @@ pub fn extract_atlas_uinodes(
         if let Ok((uinode, transform, color, visibility, clip, texture_atlas_handle, atlas_image)) =
             uinode_query.get(*entity)
         {
+            
             // Skip invisible and completely transparent nodes
-            if !visibility.is_visible() || color.0.a() == 0.0 {
+            if !visibility.is_visible() || color.is_transparent() {
                 continue;
             }
 
@@ -231,9 +236,14 @@ pub fn extract_atlas_uinodes(
             atlas_rect.max /= atlas_size;
 
             let target = Rect::from_center_size(transform.translation().xy(), uinode.size());
+            let gradient = match color {
+                BackgroundColor::Color(color) => (*color).into(),
+                BackgroundColor::LinearGradient(g) => *g,
+            };
+            
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
-                color: color.0,
+                color: gradient.start_color,
                 position: uinode.position(),
                 size: uinode.size(),
                 clip: clip.map(|clip| clip.clip),
@@ -244,7 +254,12 @@ pub fn extract_atlas_uinodes(
                 border: [0.; 4],
                 radius: [0.; 4],
                 border_color: Color::NONE,
+                end_color: gradient.end_color,
+                end_border_color: Color::NONE,
+                gradient_angle: gradient.angle,
+                
             });
+
         }
     }
 }
@@ -263,6 +278,7 @@ pub fn extract_uinodes(
                 Option<&UiImage>,
                 &ComputedVisibility,
                 Option<&CalculatedClip>,
+                Option<&LinearGradient>,
             ),
             Without<UiTextureAtlasImage>,
         >,
@@ -279,12 +295,23 @@ pub fn extract_uinodes(
             maybe_image,
             visibility,
             clip,
+            maybe_gradient,
         )) = uinode_query.get(*entity)
         {
-            let border_color = maybe_border_color.map(|border_color| border_color.0).unwrap_or(Color::NONE);
+            let gradient = match color {
+                BackgroundColor::Color(color) => (*color).into(),
+                BackgroundColor::LinearGradient(g) => *g,
+            };
+
+            let border_gradient = maybe_border_color.map(|border_color|
+                match border_color  {
+                    BorderColor::Color(c) => (*c).into(),
+                    BorderColor::LinearGradient(g) => *g,
+                }
+            ).unwrap_or(Color::NONE.into());
 
             // Skip invisible and completely transparent nodes
-            if visibility.is_visible() || !(color.0.a() == 0.0 && border_color.a() == 0.0) {
+            if visibility.is_visible() || gradient.is_transparent() && border_gradient.is_transparent() {
                 let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
                     // Skip loading images
                     if !images.contains(&image.texture) {
@@ -297,7 +324,7 @@ pub fn extract_uinodes(
 
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
-                    color: color.0,
+                    color: gradient.start_color,
                     position: uinode.position(),
                     size: uinode.size(),
                     uv_rect: Rect::new(0., 0., 1., 1.),
@@ -307,7 +334,10 @@ pub fn extract_uinodes(
                     flip_y,
                     border: uinode.border,
                     radius: uinode.border_radius,
-                    border_color,
+                    border_color: border_gradient.start_color,
+                    end_color: gradient.end_color,
+                    end_border_color: border_gradient.end_color,
+                    gradient_angle: gradient.angle,
                 });
             }
 
@@ -325,6 +355,7 @@ pub fn extract_uinodes(
                     border: [uinode.outline_width; 4],
                     radius: uinode.border_radius,
                     border_color: outline.color,
+                    ..Default::default()
                 });
             }
         };
@@ -468,6 +499,9 @@ pub fn extract_text_uinodes(
                     border: [0.; 4],
                     radius: [0.; 4],
                     border_color: Color::NONE,
+                    end_border_color: Color::NONE,
+                    end_color: color,
+                    ..Default::default()
                 });
             }
         }
@@ -486,7 +520,10 @@ struct UiInstance {
     pub i_border: [f32; 4],
     pub i_flags: u32,
     pub i_border_color: [f32; 4],
-    pub i_clip: [f32; 4]
+    pub i_clip: [f32; 4],
+    pub i_end_color: [f32; 4],
+    pub i_end_border_color: [f32; 4],
+    pub i_angle: f32,
 }
 
 impl UiInstance {
@@ -501,6 +538,9 @@ impl UiInstance {
         border: [f32; 4],
         border_color: Color,
         clip: Vec4,
+        end_color: Color,
+        end_border_color: Color,
+        angle: f32,
     ) -> Self {
         Self {
             i_location: location.into(),
@@ -513,6 +553,9 @@ impl UiInstance {
             i_flags: mode,
             i_border_color: border_color.as_linear_rgba_f32(),
             i_clip: clip.into(),
+            i_end_border_color: end_border_color.into(),
+            i_end_color: end_color.into(),
+            i_angle: angle,
         }
     }
 }
@@ -602,6 +645,10 @@ pub fn prepare_uinodes(
             extracted_uinode.border,
             extracted_uinode.border_color,
             clip,
+            extracted_uinode.end_color,
+            extracted_uinode.end_border_color,
+            extracted_uinode.gradient_angle
+            
         ));
 
         last_z = extracted_uinode.stack_index as f32;

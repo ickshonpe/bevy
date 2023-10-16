@@ -2123,6 +2123,18 @@ category = "UI (User Interface)"
 wasm = true
 
 [[example]]
+name = "gradients"
+path = "examples/ui/gradients.rs"
+doc-scrape-examples = true
+
+[package.metadata.example.gradients]
+name = "UI"
+description = "Gradients example"
+category = "UI (User Interface)"
+wasm = true
+
+
+[[example]]
 name = "ui"
 path = "examples/ui/ui.rs"
 doc-scrape-examples = true
