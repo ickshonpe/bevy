@@ -43,11 +43,11 @@ fn setup(mut commands: Commands) {
                                 height: Val::Px(100.),
                                 ..Default::default()
                             },
-                            background_color: BackgroundColor::LinearGradient(LinearGradient {
+                            background_color: LinearGradient {
                                 start_color: Color::WHITE,
                                 end_color: Color::BLACK,
                                 angle,
-                            }),
+                            }.into(),
                             ..Default::default()
                         });
 
@@ -75,11 +75,11 @@ fn setup(mut commands: Commands) {
                                 height: Val::Px(100.),
                                 ..Default::default()
                             },
-                            background_color: BackgroundColor::LinearGradient(LinearGradient {
+                            background_color: LinearGradient {
                                 start_color: Color::WHITE,
                                 end_color: Color::RED,
                                 angle,
-                            }),
+                            }.into(),
                             ..Default::default()
                         });
 
