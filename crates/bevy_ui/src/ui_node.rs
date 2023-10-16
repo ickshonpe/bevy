@@ -1,5 +1,6 @@
 use crate::{UiRect, Val};
 use bevy_asset::Handle;
+use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
 use bevy_math::{Rect, Vec2};
 use bevy_reflect::prelude::*;
@@ -7,9 +8,7 @@ use bevy_render::{color::Color, texture::Image};
 use bevy_transform::prelude::GlobalTransform;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use std::
-    num::{NonZeroI16, NonZeroU16}
-;
+use std::num::{NonZeroI16, NonZeroU16};
 use thiserror::Error;
 
 /// Describes the size of a UI node
@@ -1480,41 +1479,26 @@ pub enum GridPlacementError {
 ///
 /// This serves as the "fill" color.
 /// When combined with [`UiImage`], tints the provided texture.
-#[derive(Component, Copy, Clone, Debug, Reflect)]
+#[derive(Component, Copy, Clone, Debug, Reflect, Deref, DerefMut, Serialize, Deserialize)]
 #[reflect(Component, Default)]
-pub enum BackgroundColor {
-    Color(Color),
-    LinearGradient(LinearGradient),
-}
+pub struct BackgroundColor(pub UiColor);
 
-impl BackgroundColor {
-    pub fn is_transparent(&self) -> bool {
-    match self {
-            BackgroundColor::Color(color) => color.a() == 0.,
-            BackgroundColor::LinearGradient(gradient) => gradient.start_color.a() == 0. && gradient.end_color.a() == 0.,
-        }
+impl<T> From<T> for BackgroundColor
+where
+    T: Into<UiColor>,
+{
+    fn from(value: T) -> Self {
+        Self(value.into())
     }
 }
 
 impl BackgroundColor {
-    pub const DEFAULT: Self = Self::Color(Color::WHITE);
+    pub const DEFAULT: Self = Self(UiColor::Color(Color::WHITE));
 }
 
 impl Default for BackgroundColor {
     fn default() -> Self {
         Self::DEFAULT
-    }
-}
-
-impl From<Color> for BackgroundColor {
-    fn from(color: Color) -> Self {
-        Self::Color(color)
-    }
-}
-
-impl From<LinearGradient> for BackgroundColor {
-    fn from(linear_gradient: LinearGradient) -> Self {
-        Self::LinearGradient(linear_gradient)
     }
 }
 
@@ -1530,43 +1514,57 @@ pub struct UiTextureAtlasImage {
     pub flip_y: bool,
 }
 
-/// The border color of the UI node.
-#[derive(Component, Copy, Clone, Debug, Reflect)]
-#[reflect(Component, Default)]
-pub enum BorderColor {
+#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect)]
+#[reflect(PartialEq, Serialize, Deserialize)]
+pub enum UiColor {
     Color(Color),
     LinearGradient(LinearGradient),
 }
 
-impl BorderColor {
+impl From<Color> for UiColor {
+    fn from(value: Color) -> Self {
+        Self::Color(value)
+    }
+}
+
+impl From<LinearGradient> for UiColor {
+    fn from(value: LinearGradient) -> Self {
+        Self::LinearGradient(value)
+    }
+}
+
+impl UiColor {
     pub fn is_transparent(&self) -> bool {
         match self {
             Self::Color(color) => color.a() == 0.,
-            Self::LinearGradient(gradient) => gradient.start_color.a() == 0. && gradient.end_color.a() == 0.,
+            Self::LinearGradient(gradient) => {
+                gradient.start_color.a() == 0. && gradient.end_color.a() == 0.
+            }
         }
     }
 }
 
+/// The border color of the UI node.
+#[derive(Component, Copy, Clone, Debug, Reflect, Deref, DerefMut)]
+#[reflect(Component, Default)]
+pub struct BorderColor(pub UiColor);
+
+impl<T> From<T> for BorderColor
+where
+    T: Into<UiColor>,
+{
+    fn from(value: T) -> Self {
+        Self(value.into())
+    }
+}
 
 impl BorderColor {
-    pub const DEFAULT: Self = Self::Color(Color::WHITE);
+    pub const DEFAULT: Self = BorderColor(UiColor::Color(Color::WHITE));
 }
 
 impl Default for BorderColor {
     fn default() -> Self {
         Self::DEFAULT
-    }
-}
-
-impl From<Color> for BorderColor {
-    fn from(color: Color) -> Self {
-        Self::Color(color)
-    }
-}
-
-impl From<LinearGradient> for BorderColor {
-    fn from(linear_gradient: LinearGradient) -> Self {
-        Self::LinearGradient(linear_gradient)
     }
 }
 
@@ -1913,7 +1911,7 @@ impl LinearGradient {
         Self {
             start_color,
             end_color,
-            angle
+            angle,
         }
     }
 

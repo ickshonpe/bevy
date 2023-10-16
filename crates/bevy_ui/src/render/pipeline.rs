@@ -150,7 +150,6 @@ impl SpecializedRenderPipeline for UiPipeline {
                     offset: 148,
                     shader_location: 12,
                 },
-
             ],
         };
 

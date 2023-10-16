@@ -4,8 +4,8 @@
 use crate::widget::TextFlags;
 use crate::{
     widget::{Button, UiImageSize},
-    BackgroundColor, BorderColor, ContentSize, FocusPolicy, Interaction, Node, Style, UiImage,
-    UiTextureAtlasImage, ZIndex,
+    BackgroundColor, BorderColor, ContentSize, FocusPolicy, Interaction, Node, Style, UiColor,
+    UiImage, UiTextureAtlasImage, ZIndex,
 };
 use bevy_asset::Handle;
 use bevy_ecs::bundle::Bundle;
@@ -206,7 +206,7 @@ impl Default for TextBundle {
             text_flags: Default::default(),
             calculated_size: Default::default(),
             // Transparent background
-            background_color: BackgroundColor::Color(Color::NONE),
+            background_color: Color::NONE.into(),
             node: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
@@ -255,7 +255,7 @@ impl TextBundle {
 
     /// Returns this [`TextBundle`] with a new [`BackgroundColor`].
     pub const fn with_background_color(mut self, color: Color) -> Self {
-        self.background_color = BackgroundColor::Color(color);
+        self.background_color = BackgroundColor(UiColor::Color(color));
         self
     }
 
@@ -314,7 +314,7 @@ impl Default for ButtonBundle {
             node: Default::default(),
             button: Default::default(),
             style: Default::default(),
-            border_color: BorderColor::Color(Color::NONE),
+            border_color: Color::NONE.into(),
             interaction: Default::default(),
             background_color: Default::default(),
             image: Default::default(),

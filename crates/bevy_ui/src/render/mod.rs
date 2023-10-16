@@ -7,11 +7,11 @@ use bevy_window::{PrimaryWindow, Window};
 pub use pipeline::*;
 pub use render_pass::*;
 
-use crate::{Outline, LinearGradient};
 use crate::{
     prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ContentSize, Node,
     Style, UiImage, UiScale, UiStack, UiTextureAtlasImage, Val,
 };
+use crate::{LinearGradient, Outline, UiColor};
 
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
@@ -199,13 +199,12 @@ pub fn extract_atlas_uinodes(
         if let Ok((uinode, transform, color, visibility, clip, texture_atlas_handle, atlas_image)) =
             uinode_query.get(*entity)
         {
-            
             // Skip invisible and completely transparent nodes
             if !visibility.is_visible() || color.is_transparent() {
                 continue;
             }
 
-            let (mut atlas_rect, mut atlas_size, image) =
+            let (mut atlas_rect, atlas_size, image) =
                 if let Some(texture_atlas) = texture_atlases.get(texture_atlas_handle) {
                     let atlas_rect = *texture_atlas
                         .textures
@@ -235,12 +234,11 @@ pub fn extract_atlas_uinodes(
             atlas_rect.min /= atlas_size;
             atlas_rect.max /= atlas_size;
 
-            let target = Rect::from_center_size(transform.translation().xy(), uinode.size());
-            let gradient = match color {
-                BackgroundColor::Color(color) => (*color).into(),
-                BackgroundColor::LinearGradient(g) => *g,
+            let gradient = match **color {
+                UiColor::Color(color) => color.into(),
+                UiColor::LinearGradient(g) => g,
             };
-            
+
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
                 color: gradient.start_color,
@@ -257,9 +255,7 @@ pub fn extract_atlas_uinodes(
                 end_color: gradient.end_color,
                 end_border_color: Color::NONE,
                 gradient_angle: gradient.angle,
-                
             });
-
         }
     }
 }
@@ -278,7 +274,6 @@ pub fn extract_uinodes(
                 Option<&UiImage>,
                 &ComputedVisibility,
                 Option<&CalculatedClip>,
-                Option<&LinearGradient>,
             ),
             Without<UiTextureAtlasImage>,
         >,
@@ -295,23 +290,24 @@ pub fn extract_uinodes(
             maybe_image,
             visibility,
             clip,
-            maybe_gradient,
         )) = uinode_query.get(*entity)
         {
-            let gradient = match color {
-                BackgroundColor::Color(color) => (*color).into(),
-                BackgroundColor::LinearGradient(g) => *g,
+            let gradient = match **color {
+                UiColor::Color(color) => color.into(),
+                UiColor::LinearGradient(g) => g,
             };
 
-            let border_gradient = maybe_border_color.map(|border_color|
-                match border_color  {
-                    BorderColor::Color(c) => (*c).into(),
-                    BorderColor::LinearGradient(g) => *g,
-                }
-            ).unwrap_or(Color::NONE.into());
+            let border_gradient = maybe_border_color
+                .map(|border_color| match **border_color {
+                    UiColor::Color(c) => c.into(),
+                    UiColor::LinearGradient(g) => g,
+                })
+                .unwrap_or(Color::NONE.into());
 
             // Skip invisible and completely transparent nodes
-            if visibility.is_visible() || gradient.is_transparent() && border_gradient.is_transparent() {
+            if visibility.is_visible()
+                || gradient.is_transparent() && border_gradient.is_transparent()
+            {
                 let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
                     // Skip loading images
                     if !images.contains(&image.texture) {
@@ -345,7 +341,8 @@ pub fn extract_uinodes(
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
                     color: Color::NONE,
-                    position: uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
+                    position: uinode.position()
+                        - Vec2::splat(uinode.outline_offset + uinode.outline_width),
                     size: uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
                     uv_rect: Rect::new(0., 0., 1., 1.),
                     clip: clip.map(|clip| clip.clip),
@@ -610,7 +607,7 @@ pub fn prepare_uinodes(
     fn is_textured(image: &Handle<Image>) -> bool {
         image.id() != DEFAULT_IMAGE_HANDLE.id()
     }
-    
+
     for extracted_uinode in &extracted_uinodes.uinodes {
         let mode = if is_textured(&extracted_uinode.image) {
             if current_batch_image.id() != extracted_uinode.image.id() {
@@ -628,12 +625,11 @@ pub fn prepare_uinodes(
         } else {
             UNTEXTURED_QUAD
         };
-        let clip =
-            if let Some(clip) = extracted_uinode.clip {
-                Vec4::from((clip.min, clip.max))
-            } else {
-                Vec4::new(-f32::MAX, -f32::MAX, f32::MAX, f32::MAX)
-            };
+        let clip = if let Some(clip) = extracted_uinode.clip {
+            Vec4::from((clip.min, clip.max))
+        } else {
+            Vec4::new(-f32::MAX, -f32::MAX, f32::MAX, f32::MAX)
+        };
 
         ui_meta.instance_buffer.push(UiInstance::from(
             extracted_uinode.position,
@@ -647,8 +643,7 @@ pub fn prepare_uinodes(
             clip,
             extracted_uinode.end_color,
             extracted_uinode.end_border_color,
-            extracted_uinode.gradient_angle
-            
+            extracted_uinode.gradient_angle,
         ));
 
         last_z = extracted_uinode.stack_index as f32;

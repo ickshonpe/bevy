@@ -120,6 +120,7 @@ impl Plugin for UiPlugin {
             .register_type::<widget::Button>()
             .register_type::<widget::Label>()
             .register_type::<ZIndex>()
+            .register_type::<UiColor>()
             .add_systems(
                 PreUpdate,
                 ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),

@@ -426,17 +426,28 @@ pub fn resolve_border_and_outlines_system(
 
     for (outline, style, mut node) in outlines_query.iter_mut() {
         let node = node.bypass_change_detection();
-        let (outline_width,outline_offset): (f32, f32) = outline
-            .and_then(|outline| 
-                outline.width.resolve(node.size().x, viewport_size).ok()
-                .map(|width| { 
-                    let vs = (width, outline.offset.resolve(node.size().x, viewport_size).ok().unwrap_or(0.));
-                    vs
-                }))
+        let (outline_width, outline_offset): (f32, f32) = outline
+            .and_then(|outline| {
+                outline
+                    .width
+                    .resolve(node.size().x, viewport_size)
+                    .ok()
+                    .map(|width| {
+                        let vs = (
+                            width,
+                            outline
+                                .offset
+                                .resolve(node.size().x, viewport_size)
+                                .ok()
+                                .unwrap_or(0.),
+                        );
+                        vs
+                    })
+            })
             .unwrap_or((0., 0.));
         node.outline_width = outline_width.max(0.);
         node.outline_offset = outline_offset.max(0.);
-        node.border_radius = 
+        node.border_radius =
             resolve_border_radius(&style.border_radius, node.calculated_size, viewport_size);
         node.border = [
             resolve_border_thickness(style.border.left, viewport_size),
