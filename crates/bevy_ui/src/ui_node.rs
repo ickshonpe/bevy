@@ -1960,10 +1960,39 @@ impl From<Color> for LinearGradient {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect, Default)]
+#[reflect(PartialEq, Serialize, Deserialize)]
+/// The gradient's ending shape
+pub enum RadialGradientShape {
+    /// The shape is a circle with constant radius
+    #[default]
+    Circle,
+    /// The shape is an axis-aligned ellipse
+    Ellipse
+}
+
+
+#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect, Default)]
+#[reflect(PartialEq, Serialize, Deserialize)]
+/// Determines the size of the gradient's ending shape.
+pub enum RadialGradientSize {
+    /// The gradient's ending shape meets the side of the box closest to its center (for circles) or meets both the vertical and horizontal sides closest to the center (for ellipses).
+    ClosestSide,
+    /// The gradient's ending shape is sized so that it exactly meets the closest corner of the box from its center.
+    ClosestCorner,
+    /// Similar to `ClosestSide``, except the ending shape is sized to meet the side of the box farthest from its center (or vertical and horizontal sides).
+    FarthestSide,
+    /// The default value, the gradient's ending shape is sized so that it exactly meets the farthest corner of the box from its center.
+    #[default]
+    FarthestCorner,
+}
+
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Reflect, Component, Default)]
 #[reflect(PartialEq, Serialize, Deserialize)]
 pub struct RadialGradient {
     pub center: Vec2,
+    pub shape: RadialGradientShape,
+    pub size: RadialGradientSize,
     pub stops: Vec<ColorStop>,
 }
 
@@ -1971,6 +2000,8 @@ impl RadialGradient {
     pub fn simple(start_color: Color, end_color: Color) -> Self {
         Self {
             center: Vec2::splat(0.5),
+            shape: RadialGradientShape::Circle,
+            size: RadialGradientSize::FarthestCorner,
             stops: vec![start_color.into(), end_color.into()],
         }
     }
@@ -1979,7 +2010,7 @@ impl RadialGradient {
         self.stops.iter().all(|stop| stop.color.a() == 0.)
     }
 
-    pub fn new(center: Vec2, stops: Vec<ColorStop>) -> Self {
-        Self { center, stops }
+    pub fn new(center: Vec2, shape: RadialGradientShape, size: RadialGradientSize, stops: Vec<ColorStop>) -> Self {
+        Self { center, shape, size, stops }
     }
 }
