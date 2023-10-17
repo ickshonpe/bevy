@@ -70,15 +70,13 @@ fn vertex(in: VertexInput) -> VertexOutput {
     switch (i) {
         case 0: {
             out.g_f = vec2(-1., 1.) * half_size;
-            
         }
         case 1: {
             out.g_f = vec2(-1., -1.) * half_size;
         }
         case 2: {
             out.g_f = vec2(1., -1.) * half_size;
-        }
-            
+        }            
         default: {
             out.g_f = vec2(1., 1.) * half_size;
         }           
@@ -86,6 +84,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.g_len = 2. * sdf_line(out.g_f, out.g_dir, vec2(0., 0.));
 
     return out;
+
 }
 
 @group(1) @binding(0) var sprite_texture: texture_2d<f32>;
@@ -115,8 +114,12 @@ struct Distance {
 }
 
 fn find_quadrant(angle: f32) -> i32 {
-    let reduced = angle % (2. * PI);
+    let reduced = modulo(angle, 2.0 * PI) ;
     return i32(reduced * 2.0 / PI);
+}
+
+fn modulo(x: f32, m: f32) -> f32 {
+    return x - m * floor(x / m);
 }
 
 // The returned value is the shortest distance from the given point to the boundary of the rounded box.
@@ -423,3 +426,33 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     //return draw_node(d, in);
     return draw_node_with_gradient(d, in);
 }
+
+
+
+
+// fn find_quadrant(angle: f32) -> i32 {
+//     let reduced = angle % (2. * PI);
+//     return i32(reduced * 2.0 / PI);
+// }
+
+// fn color(i: i32) -> vec4<f32> {
+	
+	
+//     switch(i) {
+		
+// 		case 0: {
+// 			return vec4(1.0, 0.0, 0.0, 1.);
+// 		}
+//         case 1: {
+// 			return vec4(0.0, 1.0, 0.0, 1.);
+// 		}
+//         case 2: {
+// 			return vec4(0.0, 0.0, 1.0, 1.);
+// 		}
+//         default: {
+// 			return vec4(0.0, 0.0, 0.0, 1.);
+// 		}
+
+// 	}
+	
+// }
