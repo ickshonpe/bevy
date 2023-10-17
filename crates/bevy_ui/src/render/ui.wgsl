@@ -426,33 +426,3 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     //return draw_node(d, in);
     return draw_node_with_gradient(d, in);
 }
-
-
-
-
-// fn find_quadrant(angle: f32) -> i32 {
-//     let reduced = angle % (2. * PI);
-//     return i32(reduced * 2.0 / PI);
-// }
-
-// fn color(i: i32) -> vec4<f32> {
-	
-	
-//     switch(i) {
-		
-// 		case 0: {
-// 			return vec4(1.0, 0.0, 0.0, 1.);
-// 		}
-//         case 1: {
-// 			return vec4(0.0, 1.0, 0.0, 1.);
-// 		}
-//         case 2: {
-// 			return vec4(0.0, 0.0, 1.0, 1.);
-// 		}
-//         default: {
-// 			return vec4(0.0, 0.0, 0.0, 1.);
-// 		}
-
-// 	}
-	
-// }

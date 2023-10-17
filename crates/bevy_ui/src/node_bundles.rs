@@ -254,7 +254,7 @@ impl TextBundle {
     }
 
     /// Returns this [`TextBundle`] with a new [`BackgroundColor`].
-    pub const fn with_background_color(mut self, color: Color) -> Self {
+    pub fn with_background_color(mut self, color: Color) -> Self {
         self.background_color = BackgroundColor(UiColor::Color(color));
         self
     }

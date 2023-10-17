@@ -200,7 +200,7 @@ pub fn extract_atlas_uinodes(
             uinode_query.get(*entity)
         {
             // Skip invisible and completely transparent nodes
-            if !visibility.is_visible() || color.is_transparent() {
+            if !visibility.is_visible() || color.is_visible() {
                 continue;
             }
 
@@ -234,14 +234,15 @@ pub fn extract_atlas_uinodes(
             atlas_rect.min /= atlas_size;
             atlas_rect.max /= atlas_size;
 
-            let gradient = match **color {
-                UiColor::Color(color) => color.into(),
-                UiColor::LinearGradient(g) => g,
+            let gradient = match &color.0 {
+                UiColor::Color(color) => (*color).into(),
+                UiColor::LinearGradient(g) => g.clone(),
+                UiColor::RadialGradient(_r) => Color::NONE.into(),
             };
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index,
-                color: gradient.start_color,
+                color: gradient.stops[0].color,
                 position: uinode.position(),
                 size: uinode.size(),
                 clip: clip.map(|clip| clip.clip),
@@ -252,7 +253,7 @@ pub fn extract_atlas_uinodes(
                 border: [0.; 4],
                 radius: [0.; 4],
                 border_color: Color::NONE,
-                end_color: gradient.end_color,
+                end_color: gradient.stops[0].color,
                 end_border_color: Color::NONE,
                 gradient_angle: gradient.angle,
             });
@@ -292,22 +293,22 @@ pub fn extract_uinodes(
             clip,
         )) = uinode_query.get(*entity)
         {
-            let gradient = match **color {
-                UiColor::Color(color) => color.into(),
-                UiColor::LinearGradient(g) => g,
+            let gradient: LinearGradient = match &color.0 {
+                UiColor::Color(color) => (*color).into(),
+                UiColor::LinearGradient(g) => g.clone(),
+                UiColor::RadialGradient(_r) => Color::PINK.into(),
             };
 
-            let border_gradient = maybe_border_color
-                .map(|border_color| match **border_color {
-                    UiColor::Color(c) => c.into(),
-                    UiColor::LinearGradient(g) => g,
+            let border_gradient: LinearGradient = maybe_border_color
+                .map(|border_color| match &border_color.0 {
+                    UiColor::Color(c) => (*c).into(),
+                    UiColor::LinearGradient(g) => g.clone(),
+                    UiColor::RadialGradient(_r) => Color::PINK.into(),
                 })
                 .unwrap_or(Color::NONE.into());
 
             // Skip invisible and completely transparent nodes
-            if visibility.is_visible()
-                || gradient.is_transparent() && border_gradient.is_transparent()
-            {
+            if visibility.is_visible() {
                 let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
                     // Skip loading images
                     if !images.contains(&image.texture) {
@@ -320,7 +321,7 @@ pub fn extract_uinodes(
 
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index,
-                    color: gradient.start_color,
+                    color: gradient.stops[0].color,
                     position: uinode.position(),
                     size: uinode.size(),
                     uv_rect: Rect::new(0., 0., 1., 1.),
@@ -330,9 +331,9 @@ pub fn extract_uinodes(
                     flip_y,
                     border: uinode.border,
                     radius: uinode.border_radius,
-                    border_color: border_gradient.start_color,
-                    end_color: gradient.end_color,
-                    end_border_color: border_gradient.end_color,
+                    border_color: border_gradient.stops[0].color,
+                    end_color: gradient.stops[1].color,
+                    end_border_color: border_gradient.stops[1].color,
                     gradient_angle: gradient.angle,
                 });
             }
@@ -352,6 +353,7 @@ pub fn extract_uinodes(
                     border: [uinode.outline_width; 4],
                     radius: uinode.border_radius,
                     border_color: outline.color,
+                    end_border_color: outline.color,
                     ..Default::default()
                 });
             }

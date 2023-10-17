@@ -8,7 +8,10 @@ use bevy_render::{color::Color, texture::Image};
 use bevy_transform::prelude::GlobalTransform;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use std::num::{NonZeroI16, NonZeroU16};
+use std::{
+    f32::consts::{FRAC_2_PI, FRAC_PI_2, PI},
+    num::{NonZeroI16, NonZeroU16},
+};
 use thiserror::Error;
 
 /// Describes the size of a UI node
@@ -1479,7 +1482,7 @@ pub enum GridPlacementError {
 ///
 /// This serves as the "fill" color.
 /// When combined with [`UiImage`], tints the provided texture.
-#[derive(Component, Copy, Clone, Debug, Reflect, Deref, DerefMut, Serialize, Deserialize)]
+#[derive(Component, Clone, Debug, Reflect, Deref, DerefMut, Serialize, Deserialize)]
 #[reflect(Component, Default)]
 pub struct BackgroundColor(pub UiColor);
 
@@ -1514,11 +1517,12 @@ pub struct UiTextureAtlasImage {
     pub flip_y: bool,
 }
 
-#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Reflect)]
 #[reflect(PartialEq, Serialize, Deserialize)]
 pub enum UiColor {
     Color(Color),
     LinearGradient(LinearGradient),
+    RadialGradient(RadialGradient),
 }
 
 impl From<Color> for UiColor {
@@ -1534,18 +1538,17 @@ impl From<LinearGradient> for UiColor {
 }
 
 impl UiColor {
-    pub fn is_transparent(&self) -> bool {
+    pub fn is_visible(&self) -> bool {
         match self {
-            Self::Color(color) => color.a() == 0.,
-            Self::LinearGradient(gradient) => {
-                gradient.start_color.a() == 0. && gradient.end_color.a() == 0.
-            }
+            Self::Color(color) => color.a() != 0.,
+            Self::LinearGradient(gradient) => gradient.is_visible(),
+            Self::RadialGradient(gradient) => gradient.is_visible(),
         }
     }
 }
 
 /// The border color of the UI node.
-#[derive(Component, Copy, Clone, Debug, Reflect, Deref, DerefMut)]
+#[derive(Component, Clone, Debug, Reflect, Deref, DerefMut)]
 #[reflect(Component, Default)]
 pub struct BorderColor(pub UiColor);
 
@@ -1898,30 +1901,85 @@ impl From<BorderRadius> for [Val; 4] {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect, Component, Default)]
+/// Converts an angle from degrees into radians
+///
+/// formula: `angle * PI / 180.`
+pub fn deg(angle: f32) -> f32 {
+    angle * PI / 180.
+}
+
+#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect, Default)]
+#[reflect(PartialEq, Serialize, Deserialize)]
+pub struct ColorStop {
+    pub color: Color,
+    pub position: Option<f32>,
+    pub hint: Option<f32>,
+}
+
+impl From<Color> for ColorStop {
+    fn from(color: Color) -> Self {
+        Self {
+            color,
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Reflect, Component, Default)]
 #[reflect(PartialEq, Serialize, Deserialize)]
 pub struct LinearGradient {
-    pub start_color: Color,
-    pub end_color: Color,
     pub angle: f32,
+    pub stops: Vec<ColorStop>,
 }
 
 impl LinearGradient {
-    pub fn new(start_color: Color, end_color: Color, angle: f32) -> Self {
+    pub const BOTTOM_TO_TOP: f32 = 0.;
+    pub const LEFT_TO_RIGHT: f32 = FRAC_PI_2;
+    pub const TOP_TO_BOTTOM: f32 = PI;
+    pub const RIGHT_TO_LEFT: f32 = 1.5 * PI;
+
+    pub fn simple(angle: f32, start_color: Color, end_color: Color) -> Self {
         Self {
-            start_color,
-            end_color,
             angle,
+            stops: vec![start_color.into(), end_color.into()],
         }
     }
 
-    pub fn is_transparent(&self) -> bool {
-        self.start_color.a() == 0. && self.end_color.a() == 0.
+    pub fn new(angle: f32, stops: Vec<ColorStop>) -> Self {
+        Self { angle, stops }
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.stops.iter().all(|stop| stop.color.a() == 0.)
     }
 }
 
 impl From<Color> for LinearGradient {
     fn from(color: Color) -> Self {
-        Self::new(color, color, 0.)
+        Self::new(0., vec![color.into(), color.into()])
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Reflect, Component, Default)]
+#[reflect(PartialEq, Serialize, Deserialize)]
+pub struct RadialGradient {
+    pub center: Vec2,
+    pub stops: Vec<ColorStop>,
+}
+
+impl RadialGradient {
+    pub fn simple(start_color: Color, end_color: Color) -> Self {
+        Self {
+            center: Vec2::splat(0.5),
+            stops: vec![start_color.into(), end_color.into()],
+        }
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.stops.iter().all(|stop| stop.color.a() == 0.)
+    }
+
+    pub fn new(center: Vec2, stops: Vec<ColorStop>) -> Self {
+        Self { center, stops }
     }
 }

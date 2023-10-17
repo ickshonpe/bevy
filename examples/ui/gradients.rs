@@ -26,19 +26,18 @@ fn setup(mut commands: Commands) {
                 ..Default::default()
             },
             ..Default::default()
-        }).id();
+        })
+        .id();
     let dirs = spawn_dirs(&mut commands);
     commands.entity(root).add_child(dirs);
     let group = spawn_group(&mut commands);
-    
+
     commands.entity(root).add_child(group);
 
     let group = spawn_group2(&mut commands);
-    
+
     commands.entity(root).add_child(group);
-
 }
-
 
 fn spawn_dirs(commands: &mut Commands) -> Entity {
     commands
@@ -53,8 +52,8 @@ fn spawn_dirs(commands: &mut Commands) -> Entity {
             },
             ..Default::default()
         })
-        .with_children(|commands| {    
-            for angle in [-0.125 * PI, 0., 0.125 * PI ] {
+        .with_children(|commands| {
+            for angle in [-0.125 * PI, 0., 0.125 * PI] {
                 commands
                     .spawn(NodeBundle {
                         style: Style {
@@ -70,11 +69,12 @@ fn spawn_dirs(commands: &mut Commands) -> Entity {
                                 height: Val::Px(100.),
                                 ..Default::default()
                             },
-                            background_color: LinearGradient {
-                                start_color: Color::WHITE,
-                                end_color: Color::BLACK,
+                            background_color: LinearGradient::simple(
                                 angle,
-                            }.into(),
+                                Color::WHITE,
+                                Color::BLACK,
+                            )
+                            .into(),
                             ..Default::default()
                         });
 
@@ -84,7 +84,8 @@ fn spawn_dirs(commands: &mut Commands) -> Entity {
                         ));
                     });
             }
-        }).id()
+        })
+        .id()
 }
 
 fn spawn_group(commands: &mut Commands) -> Entity {
@@ -100,73 +101,75 @@ fn spawn_group(commands: &mut Commands) -> Entity {
             },
             ..Default::default()
         })
-        .with_children(|commands| {    
-    for i in 0..4 {
-        let angle = 0.5 * PI * i as f32;
-        commands
-            .spawn(NodeBundle {
-                style: Style {
-                    flex_direction: FlexDirection::Column,
-                    ..Default::default()
-                },
-                ..Default::default()
-            })
-            .with_children(|commands| {
-                commands.spawn(NodeBundle {
-                    style: Style {
-                        width: Val::Px(100.),
-                        height: Val::Px(100.),
+        .with_children(|commands| {
+            for i in 0..4 {
+                let angle = 0.5 * PI * i as f32;
+                commands
+                    .spawn(NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Column,
+                            ..Default::default()
+                        },
                         ..Default::default()
-                    },
-                    background_color: LinearGradient {
-                        start_color: Color::WHITE,
-                        end_color: Color::BLACK,
-                        angle,
-                    }.into(),
-                    ..Default::default()
-                });
+                    })
+                    .with_children(|commands| {
+                        commands.spawn(NodeBundle {
+                            style: Style {
+                                width: Val::Px(100.),
+                                height: Val::Px(100.),
+                                ..Default::default()
+                            },
+                            background_color: LinearGradient::simple(
+                                angle,
+                                Color::WHITE,
+                                Color::BLACK,
+                            )
+                            .into(),
+                            ..Default::default()
+                        });
 
-                commands.spawn(TextBundle::from_section(
-                    angle.to_string(),
-                    TextStyle::default(),
-                ));
-            });
-    }
+                        commands.spawn(TextBundle::from_section(
+                            angle.to_string(),
+                            TextStyle::default(),
+                        ));
+                    });
+            }
 
-    for i in 0..8 {
-        let angle = 0.25 * PI * i as f32;
-        commands
-            .spawn(NodeBundle {
-                style: Style {
-                    flex_direction: FlexDirection::Column,
-                    ..Default::default()
-                },
-                ..Default::default()
-            })
-            .with_children(|commands| {
-                commands.spawn(NodeBundle {
-                    style: Style {
-                        width: Val::Px(100.),
-                        height: Val::Px(100.),
+            for i in 0..8 {
+                let angle = 0.25 * PI * i as f32;
+                commands
+                    .spawn(NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Column,
+                            ..Default::default()
+                        },
                         ..Default::default()
-                    },
-                    background_color: LinearGradient {
-                        start_color: Color::WHITE,
-                        end_color: Color::RED,
-                        angle,
-                    }.into(),
-                    ..Default::default()
-                });
+                    })
+                    .with_children(|commands| {
+                        commands.spawn(NodeBundle {
+                            style: Style {
+                                width: Val::Px(100.),
+                                height: Val::Px(100.),
+                                ..Default::default()
+                            },
+                            background_color: LinearGradient::simple(
+                                angle,
+                                Color::WHITE,
+                                Color::RED,
+                            )
+                            .into(),
+                            ..Default::default()
+                        });
 
-                commands.spawn(TextBundle::from_section(
-                    angle.to_string(),
-                    TextStyle::default(),
-                ));
-            });
-    }
-    }).id()
+                        commands.spawn(TextBundle::from_section(
+                            angle.to_string(),
+                            TextStyle::default(),
+                        ));
+                    });
+            }
+        })
+        .id()
 }
-
 
 fn spawn_group2(commands: &mut Commands) -> Entity {
     commands
@@ -181,69 +184,72 @@ fn spawn_group2(commands: &mut Commands) -> Entity {
             },
             ..Default::default()
         })
-        .with_children(|commands| {    
-    for i in 0..4 {
-        let angle = -0.5 * PI * i as f32;
-        commands
-            .spawn(NodeBundle {
-                style: Style {
-                    flex_direction: FlexDirection::Column,
-                    ..Default::default()
-                },
-                ..Default::default()
-            })
-            .with_children(|commands| {
-                commands.spawn(NodeBundle {
-                    style: Style {
-                        width: Val::Px(100.),
-                        height: Val::Px(100.),
+        .with_children(|commands| {
+            for i in 0..4 {
+                let angle = -0.5 * PI * i as f32;
+                commands
+                    .spawn(NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Column,
+                            ..Default::default()
+                        },
                         ..Default::default()
-                    },
-                    background_color: LinearGradient {
-                        start_color: Color::WHITE,
-                        end_color: Color::BLACK,
-                        angle,
-                    }.into(),
-                    ..Default::default()
-                });
+                    })
+                    .with_children(|commands| {
+                        commands.spawn(NodeBundle {
+                            style: Style {
+                                width: Val::Px(100.),
+                                height: Val::Px(100.),
+                                ..Default::default()
+                            },
+                            background_color: LinearGradient::simple(
+                                angle,
+                                Color::WHITE,
+                                Color::BLACK,
+                            )
+                            .into(),
+                            ..Default::default()
+                        });
 
-                commands.spawn(TextBundle::from_section(
-                    angle.to_string(),
-                    TextStyle::default(),
-                ));
-            });
-    }
+                        commands.spawn(TextBundle::from_section(
+                            angle.to_string(),
+                            TextStyle::default(),
+                        ));
+                    });
+            }
 
-    for i in 0..8 {
-        let angle = -0.25 * PI * i as f32;
-        commands
-            .spawn(NodeBundle {
-                style: Style {
-                    flex_direction: FlexDirection::Column,
-                    ..Default::default()
-                },
-                ..Default::default()
-            })
-            .with_children(|commands| {
-                commands.spawn(NodeBundle {
-                    style: Style {
-                        width: Val::Px(100.),
-                        height: Val::Px(100.),
+            for i in 0..8 {
+                let angle = -0.25 * PI * i as f32;
+                commands
+                    .spawn(NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Column,
+                            ..Default::default()
+                        },
                         ..Default::default()
-                    },
-                    background_color: LinearGradient {
-                        start_color: Color::WHITE,
-                        end_color: Color::RED,
-                        angle,
-                    }.into(),
-                    ..Default::default()
-                });
+                    })
+                    .with_children(|commands| {
+                        commands.spawn(NodeBundle {
+                            style: Style {
+                                width: Val::Px(100.),
+                                height: Val::Px(100.),
+                                ..Default::default()
+                            },
+                            background_color: LinearGradient::simple(
+                                angle,
+                                Color::WHITE,
+                                Color::RED,
+                            )
+                            .into(),
+                            ..Default::default()
+                        });
 
-                commands.spawn(TextBundle::from_section(
-                    angle.to_string(),
-                    TextStyle::default(),
-                ));
-            });
-    }
-    }).id()
+                        commands.spawn(TextBundle::from_section(
+                            angle.to_string(),
+                            TextStyle::default(),
+                        ));
+                    });
+            }
+        })
+        .id()
 }
