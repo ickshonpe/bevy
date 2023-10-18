@@ -2,9 +2,9 @@ use crate::{UiRect, Val};
 use bevy_asset::Handle;
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
-use bevy_math::{Rect, Vec2};
+use bevy_math::{Rect, Vec2, vec2};
 use bevy_reflect::prelude::*;
-use bevy_render::{color::Color, texture::Image};
+use bevy_render::{color::Color, texture::Image, view};
 use bevy_transform::prelude::GlobalTransform;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -1960,15 +1960,21 @@ impl From<Color> for LinearGradient {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect, Default)]
+#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect)]
 #[reflect(PartialEq, Serialize, Deserialize)]
 /// The gradient's ending shape
 pub enum RadialGradientShape {
     /// The shape is a circle with constant radius
-    #[default]
-    Circle,
-    /// The shape is an axis-aligned ellipse
-    Ellipse
+    CircleRadius(Val),
+    CircleSized(RadialGradientSize),
+    Ellipse(Val, Val),
+    EllipseSized(RadialGradientSize),
+}
+
+impl Default for RadialGradientShape {
+    fn default() -> Self {
+        Self::CircleSized(RadialGradientSize::FarthestCorner)
+    }
 }
 
 
@@ -1976,7 +1982,7 @@ pub enum RadialGradientShape {
 #[reflect(PartialEq, Serialize, Deserialize)]
 /// Determines the size of the gradient's ending shape.
 pub enum RadialGradientSize {
-    /// The gradient's ending shape meets the side of the box closest to its center (for circles) or meets both the vertical and horizontal sides closest to the center (for ellipses).
+    /// The gradient's ending shape meets the side of the box closest to its center.
     ClosestSide,
     /// The gradient's ending shape is sized so that it exactly meets the closest corner of the box from its center.
     ClosestCorner,
@@ -1987,21 +1993,32 @@ pub enum RadialGradientSize {
     FarthestCorner,
 }
 
+#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect)]
+#[reflect(PartialEq, Serialize, Deserialize)]
+pub enum RadialGradientCenter {
+    Percent(Vec2),
+    Px(Vec2),
+}
+
+impl Default for RadialGradientCenter {
+    fn default() -> Self {
+        Self::Percent(Vec2::splat(50.0))
+    }
+}
+
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Reflect, Component, Default)]
 #[reflect(PartialEq, Serialize, Deserialize)]
 pub struct RadialGradient {
-    pub center: Vec2,
+    pub center: RadialGradientCenter,
     pub shape: RadialGradientShape,
-    pub size: RadialGradientSize,
     pub stops: Vec<ColorStop>,
 }
 
 impl RadialGradient {
     pub fn simple(start_color: Color, end_color: Color) -> Self {
         Self {
-            center: Vec2::splat(0.5),
-            shape: RadialGradientShape::Circle,
-            size: RadialGradientSize::FarthestCorner,
+            center: RadialGradientCenter::default(),
+            shape: RadialGradientShape::default(),
             stops: vec![start_color.into(), end_color.into()],
         }
     }
@@ -2010,7 +2027,101 @@ impl RadialGradient {
         self.stops.iter().all(|stop| stop.color.a() == 0.)
     }
 
-    pub fn new(center: Vec2, shape: RadialGradientShape, size: RadialGradientSize, stops: Vec<ColorStop>) -> Self {
-        Self { center, shape, size, stops }
+    pub fn new(center: RadialGradientCenter, shape: RadialGradientShape, stops: Vec<ColorStop>) -> Self {
+        Self { center, shape, stops }
     }
 }
+
+pub fn resolve_circular_gradient_geometry(
+    relative_center: RadialGradientCenter,
+    shape: RadialGradientShape,
+    node: Rect,
+    viewport_size: Vec2,
+) -> Rect {
+    let c = node.min + match relative_center {
+        RadialGradientCenter::Percent(p) => node.size() * p / 100.,
+        RadialGradientCenter::Px(p) => p,
+    };
+
+    fn shortest(p: Vec2, r: Rect) -> Vec2 {
+        let a = (p-r.min).abs();
+        let b = (p-r.max).abs();
+        a.min(b)
+    }
+
+    fn longest(p: Vec2, r: Rect) -> Vec2 {
+        let a = (p - r.min).abs();
+        let b = (p - r.max).abs();
+        a.max(b)
+    }
+
+    fn closest(p: f32, a: f32, b: f32) -> f32 {
+        if (p-a).abs() < (p-b).abs() {
+            a
+        } else {
+            b
+        }
+    }
+
+    fn furthest(p: f32, a: f32, b: f32) -> f32 {
+        if (p-a).abs() < (p-b).abs() {
+            b
+        } else {
+            a
+        }
+    }
+
+    fn closest_point(p: Vec2, r: Rect) -> Vec2 {
+        vec2(
+            closest(p.x, r.min.x, r.max.x),
+            closest(p.y, r.min.y, r.max.x),
+        )
+    }
+
+    fn furthest_point(p: Vec2, r: Rect) -> Vec2 {
+        vec2(
+            furthest(p.x, r.min.x, r.max.x),
+            furthest(p.y, r.min.y, r.max.y),
+        )
+    }
+    
+    let size = 
+        match shape {
+            RadialGradientShape::CircleRadius(r) => {
+                Vec2::splat(r.resolve(node.width(), viewport_size)
+                    .unwrap_or(furthest_point(c, node).distance(c)))
+            },
+            RadialGradientShape::CircleSized(shape) => match shape {
+                RadialGradientSize::ClosestSide => {
+                    Vec2::splat(shortest(c, node).min_element())
+                },
+                RadialGradientSize::ClosestCorner => {
+                    Vec2::splat(closest_point(c, node).distance(c))
+                },
+                RadialGradientSize::FarthestSide => {
+                    Vec2::splat(longest(c, node).max_element())
+                },
+                RadialGradientSize::FarthestCorner => {
+                    Vec2::splat(furthest_point(c, node).distance(c))
+                },
+            },
+            RadialGradientShape::Ellipse(w, h) => {
+                let w = w.resolve(node.width(), viewport_size).ok();
+                let h = h.resolve(node.width(), viewport_size).ok();
+                match (w, h) {
+                    (None, None) => (c - furthest_point(c, node)).abs(),
+                    (Some(w), None) => Vec2::splat(w),
+                    (None, Some(h)) => Vec2::splat(h),
+                    (Some(w), Some(h)) => vec2(w, h),
+                }
+            },
+            RadialGradientShape::EllipseSized(shape) => match shape {
+                RadialGradientSize::ClosestSide => shortest(c, node),
+                RadialGradientSize::ClosestCorner => closest_point(c, node),
+                RadialGradientSize::FarthestSide => longest(c, node),
+                RadialGradientSize::FarthestCorner => furthest_point(c, node),
+            },
+        };
+    Rect::from_center_half_size(c, size)
+    
+} 

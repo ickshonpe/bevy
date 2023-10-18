@@ -20,6 +20,7 @@ struct VertexInput {
     @location(10) i_g_color: vec4<f32>,
     @location(11) i_gb_color: vec4<f32>,
     @location(12) i_rad_center: vec2<f32>,
+    @location(13) i_rad_size: vec2<f32>,
 }
 
 struct VertexOutput {
