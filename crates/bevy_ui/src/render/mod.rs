@@ -39,6 +39,7 @@ use bevy_transform::components::GlobalTransform;
 use bevy_utils::FloatOrd;
 use bevy_utils::HashMap;
 use bytemuck::{Pod, Zeroable};
+use std::num::NonZeroU64;
 use std::ops::Range;
 
 pub mod node {
@@ -525,6 +526,12 @@ struct UiInstance {
     pub i_angle: f32,
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
+pub struct ClipUniform {
+    pub clip: [f32;4],
+}
+
 impl UiInstance {
     #[inline]
     fn from(
@@ -561,17 +568,21 @@ impl UiInstance {
 
 #[derive(Resource)]
 pub struct UiMeta {
+    clip_bind_group: Option<BindGroup>,
     view_bind_group: Option<BindGroup>,
     index_buffer: BufferVec<u32>,
     instance_buffer: BufferVec<UiInstance>,
+    clip_buffer: BufferVec<[f32;4]>,
 }
 
 impl Default for UiMeta {
     fn default() -> Self {
         Self {
+            clip_bind_group: None,
             view_bind_group: None,
             index_buffer: BufferVec::<u32>::new(BufferUsages::INDEX),
             instance_buffer: BufferVec::<UiInstance>::new(BufferUsages::VERTEX),
+            clip_buffer: BufferVec::<[f32; 4]>::new(BufferUsages::UNIFORM),
         }
     }
 }
@@ -594,6 +605,7 @@ pub fn prepare_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
 ) {
     ui_meta.instance_buffer.clear();
+    ui_meta.clip_buffer.clear();
 
     // sort by ui stack index, starting from the deepest node
     extracted_uinodes
@@ -687,6 +699,11 @@ pub fn prepare_uinodes(
             .index_buffer
             .write_buffer(&render_device, &render_queue);
     }
+
+    ui_meta.clip_buffer.push([10., 30.0, 400., 700.]);
+    
+    ui_meta.clip_buffer.write_buffer(&render_device, &render_queue);
+
 }
 
 #[derive(Resource, Default)]
@@ -709,6 +726,7 @@ pub fn queue_uinodes(
     mut views: Query<(&ExtractedView, &mut RenderPhase<TransparentUi>)>,
     events: Res<SpriteAssetEvents>,
 ) {
+    println!("queue");
     // If an image has changed, the GpuImage has (probably) changed
     for event in &events.images {
         match event {
@@ -728,18 +746,36 @@ pub fn queue_uinodes(
             label: Some("ui_view_bind_group"),
             layout: &ui_pipeline.view_layout,
         }));
+
+        if let Some(clip) = ui_meta.clip_buffer.buffer() {
+            ui_meta.clip_bind_group = Some(render_device.create_bind_group(&BindGroupDescriptor {
+                entries: &[BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::Buffer(BufferBinding { 
+                        buffer: clip, 
+                        offset: 0, 
+                        size: NonZeroU64::new(16),
+                    }),
+                }],
+                label: Some("ui_clip_bind_group"),
+                layout: &ui_pipeline.clip_layout,
+            }));
+        } 
+    
         let draw_ui_function = draw_functions.read().id::<DrawUi>();
         for (view, mut transparent_phase) in &mut views {
             let pipeline = pipelines.specialize(
                 &pipeline_cache,
                 &ui_pipeline,
-                UiPipelineKey { hdr: view.hdr },
+                UiPipelineKey { hdr: view.hdr, radial: false },
             );
             for (entity, batch) in &ui_batches {
                 image_bind_groups
                     .values
                     .entry(batch.image.clone_weak())
                     .or_insert_with(|| {
+                        
+                        
                         let gpu_image = gpu_images.get(&batch.image).unwrap();
                         render_device.create_bind_group(&BindGroupDescriptor {
                             entries: &[

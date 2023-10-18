@@ -4,6 +4,11 @@ const TEXTURED_QUAD: u32 = 0u;
 
 @group(0) @binding(0) var<uniform> view: View;
 
+@group(1) @binding(0) var sprite_texture: texture_2d<f32>;
+@group(1) @binding(1) var sprite_sampler: sampler;
+
+@group(2) @binding(0) var<uniform> clip_uniform: array<vec4<f32>, 1u>;
+
 struct VertexInput {
     @builtin(vertex_index) index: u32,
     // NOTE: Instance-rate vertex buffer members prefixed with i_
@@ -21,6 +26,9 @@ struct VertexInput {
     @location(11) i_gb_color: vec4<f32>,
     @location(12) i_g_angle: f32,
 }
+
+
+
 
 struct VertexOutput {
 @builtin(position) clip_position: vec4<f32>,
@@ -62,7 +70,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.size = in.i_size;
     out.point = in.i_size * (norm_location - 0.4999);
     out.border_color = in.i_border_color;
-    out.clip = in.i_clip;
+    out.clip = clip_uniform[0];
     out.end_color = in.i_g_color;
     out.border_end_color = in.i_gb_color;
     let i = find_quadrant(in.i_g_angle);
@@ -87,8 +95,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
 
 }
 
-@group(1) @binding(0) var sprite_texture: texture_2d<f32>;
-@group(1) @binding(1) var sprite_sampler: sampler;
+
 
 struct Box {
     // center
