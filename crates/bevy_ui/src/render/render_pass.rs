@@ -214,7 +214,14 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
             0,
             IndexFormat::Uint32,
         );
-        pass.set_vertex_buffer(0, ui_meta.instance_buffer.buffer().unwrap().slice(..));
+        match batch.batch_type {
+            super::BatchType::Node => {
+                pass.set_vertex_buffer(0, ui_meta.instance_buffer.buffer().unwrap().slice(..));
+            },
+            super::BatchType::Text => {
+                pass.set_vertex_buffer(0, ui_meta.text_instance_buffer.buffer().unwrap().slice(..));
+            },
+        };
         pass.draw_indexed(0..6, 0, batch.range.clone());
         RenderCommandResult::Success
     }

@@ -1,5 +1,6 @@
 mod pipeline;
 mod render_pass;
+//mod gradients;
 
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
 use bevy_render::{ExtractSchedule, Render};
@@ -18,7 +19,7 @@ use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped}
 use bevy_ecs::prelude::*;
 use bevy_math::{Mat4, Rect, UVec4, Vec2, Vec3, Vec3Swizzles, Vec4};
 use bevy_reflect::TypeUuid;
-use bevy_render::texture::DEFAULT_IMAGE_HANDLE;
+use bevy_render::texture::{DEFAULT_IMAGE_HANDLE, TEXTURE_ASSET_INDEX};
 use bevy_render::{
     camera::Camera,
     color::Color,
@@ -152,30 +153,6 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
     ui_graph
 }
 
-#[derive(Default)]
-pub struct ExtractedUiNode {
-    pub stack_index: usize,
-    pub color: Color,
-    pub position: Vec2,
-    pub size: Vec2,
-    pub uv_rect: Rect,
-    pub image: Handle<Image>,
-    pub clip: Option<Rect>,
-    pub flip_x: bool,
-    pub flip_y: bool,
-    pub border: [f32; 4],
-    pub radius: [f32; 4],
-    pub border_color: Color,
-    pub end_color: Color,
-    pub end_border_color: Color,
-    pub gradient_angle: f32,
-}
-
-#[derive(Resource, Default)]
-pub struct ExtractedUiNodes {
-    pub uinodes: Vec<ExtractedUiNode>,
-}
-
 pub fn extract_atlas_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     images: Extract<Res<Assets<Image>>>,
@@ -184,6 +161,7 @@ pub fn extract_atlas_uinodes(
     uinode_query: Extract<
         Query<
             (
+
                 &Node,
                 &GlobalTransform,
                 &BackgroundColor,
@@ -241,22 +219,23 @@ pub fn extract_atlas_uinodes(
                 UiColor::RadialGradient(_r) => Color::NONE.into(),
             };
 
-            extracted_uinodes.uinodes.push(ExtractedUiNode {
+            extracted_uinodes.uinodes.push(ExtractedItem {
                 stack_index,
-                color: gradient.stops[0].color,
-                position: uinode.position(),
-                size: uinode.size(),
                 clip: clip.map(|clip| clip.clip),
                 image,
-                uv_rect: atlas_rect,
-                flip_x: atlas_image.flip_x,
-                flip_y: atlas_image.flip_y,
-                border: [0.; 4],
-                radius: [0.; 4],
-                border_color: Color::NONE,
-                end_color: gradient.stops[0].color,
-                end_border_color: Color::NONE,
-                gradient_angle: gradient.angle,
+                instance: ExtractedInstance::Node(NodeInstance {
+                    location: uinode.position.into(),
+                    size: uinode.size().into(),
+                    uv_border: [
+                            atlas_rect.min.x,
+                            atlas_rect.min.y,
+                            atlas_rect.size().x,
+                            atlas_rect.size().y,
+                    ],
+                    color: gradient.stops[0].color.as_linear_rgba_f32(),
+                    radius: [0.; 4],
+                    flags: 1,
+                }),
             });
         }
     }
@@ -294,68 +273,81 @@ pub fn extract_uinodes(
             clip,
         )) = uinode_query.get(*entity)
         {
-            let gradient: LinearGradient = match &color.0 {
+            if !visibility.is_visible() {
+                continue;
+            }
+            
+            let color = match &color.0 {
                 UiColor::Color(color) => (*color).into(),
-                UiColor::LinearGradient(g) => g.clone(),
-                UiColor::RadialGradient(_r) => Color::PINK.into(),
+                _ => None,
+            };
+            
+            let border_color = match maybe_border_color {
+                Some(BorderColor(UiColor::Color(color))) => (*color).into(),
+                _ => None,
+            };
+            
+            
+            
+            let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
+                // Skip loading images
+                if !images.contains(&image.texture) {
+                    continue;
+                }
+                (image.texture.clone_weak(), image.flip_x, image.flip_y)
+            } else {
+                (DEFAULT_IMAGE_HANDLE.typed(), false, false)
             };
 
-            let border_gradient: LinearGradient = maybe_border_color
-                .map(|border_color| match &border_color.0 {
-                    UiColor::Color(c) => (*c).into(),
-                    UiColor::LinearGradient(g) => g.clone(),
-                    UiColor::RadialGradient(_r) => Color::PINK.into(),
-                })
-                .unwrap_or(Color::NONE.into());
+            if let Some(color) = color {
+                extracted_uinodes.uinodes.push(ExtractedItem {
+                    stack_index,
+                    clip: clip.map(|clip| clip.clip),
+                    image,
+                    instance: ExtractedInstance::Node(NodeInstance {
+                        location: uinode.position.into(),
+                        size: uinode.size().into(),
+                        uv_border: [0., 0., 1., 1.],
+                        color: color.as_linear_rgba_f32(),
+                        radius: uinode.border_radius,
+                        flags: TEXTURED_QUAD,
+                    }),
+                });
+            }
+            
 
-            // Skip invisible and completely transparent nodes
-            if visibility.is_visible() {
-                let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
-                    // Skip loading images
-                    if !images.contains(&image.texture) {
-                        continue;
-                    }
-                    (image.texture.clone_weak(), image.flip_x, image.flip_y)
-                } else {
-                    (DEFAULT_IMAGE_HANDLE.typed(), false, false)
+            if let Some(border_color) = border_color {
+                let i = NodeInstance {
+                    location:  uinode.position.into(),
+                    size: uinode.size().into(),
+                    uv_border: [20.; 4],
+                    color: border_color.as_linear_rgba_f32(),
+                    radius: [0.; 4],
+                    flags: BORDERED,
                 };
 
-                extracted_uinodes.uinodes.push(ExtractedUiNode {
+                extracted_uinodes.uinodes.push(ExtractedItem {
                     stack_index,
-                    color: gradient.stops[0].color,
-                    position: uinode.position(),
-                    size: uinode.size(),
-                    uv_rect: Rect::new(0., 0., 1., 1.),
                     clip: clip.map(|clip| clip.clip),
-                    image: image.clone(),
-                    flip_x,
-                    flip_y,
-                    border: uinode.border,
-                    radius: uinode.border_radius,
-                    border_color: border_gradient.stops[0].color,
-                    end_color: gradient.stops[1].color,
-                    end_border_color: border_gradient.stops[1].color,
-                    gradient_angle: gradient.angle,
+                    image: DEFAULT_IMAGE_HANDLE.typed().clone(),
+                    instance: ExtractedInstance::Node(i)
                 });
+
             }
 
             if let Some(outline) = maybe_outline {
-                extracted_uinodes.uinodes.push(ExtractedUiNode {
+                extracted_uinodes.uinodes.push(ExtractedItem {
                     stack_index,
-                    color: Color::NONE,
-                    position: uinode.position()
-                        - Vec2::splat(uinode.outline_offset + uinode.outline_width),
-                    size: uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
-                    uv_rect: Rect::new(0., 0., 1., 1.),
                     clip: clip.map(|clip| clip.clip),
                     image: DEFAULT_IMAGE_HANDLE.typed().clone(),
-                    flip_x: false,
-                    flip_y: false,
-                    border: [uinode.outline_width; 4],
-                    radius: uinode.border_radius,
-                    border_color: outline.color,
-                    end_border_color: outline.color,
-                    ..Default::default()
+                    instance: ExtractedInstance::Node(NodeInstance {
+                        location:  (uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width)).into(),
+                        size: (uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset)).into(),
+                        uv_border: [uinode.outline_width; 4],
+                        color: outline.color.as_linear_rgba_f32(),
+                        radius: uinode.border_radius.map(|r| r + uinode.outline_width + uinode.outline_offset),
+                        flags: BORDERED,
+                    })
                 });
             }
         };
@@ -486,44 +478,73 @@ pub fn extract_text_uinodes(
 
                 let position = node_position + scaled_glyph_position - 0.5 * scaled_glyph_size;
 
-                extracted_uinodes.uinodes.push(ExtractedUiNode {
+                extracted_uinodes.uinodes.push(ExtractedItem {
                     stack_index,
-                    position,
-                    size: scaled_glyph_size,
-                    color,
-                    image: atlas.texture.clone_weak(),
-                    uv_rect,
-                    clip: clip.map(|clip| clip.clip),
-                    flip_x: false,
-                    flip_y: false,
-                    border: [0.; 4],
-                    radius: [0.; 4],
-                    border_color: Color::NONE,
-                    end_border_color: Color::NONE,
-                    end_color: color,
-                    ..Default::default()
+                    clip: None,
+                    image: atlas.texture.clone(),
+                    instance: ExtractedInstance::Text(TextInstance {
+                        location: position.into(),
+                        size: scaled_glyph_size.into(),
+                        uv_min: uv_rect.min.into(),
+                        uv_size: uv_rect.size().into(),
+                        color: color.as_linear_rgba_f32(),
+                    }),
                 });
             }
         }
     }
 }
 
+#[derive(Resource, Default)]
+pub struct ExtractedUiNodes {
+    pub uinodes: Vec<ExtractedItem>,
+}
+
+pub struct ExtractedItem {
+    pub stack_index: usize,
+    pub clip: Option<Rect>,
+    pub image: Handle<Image>,
+    pub instance: ExtractedInstance,
+}
+
+pub enum BatchType {
+    Node,
+    Text,
+}
+
+pub enum ExtractedInstance {
+    Node(NodeInstance),
+    Text(TextInstance),
+}
+
+impl ExtractedInstance {
+    pub fn get_type(&self) -> BatchType {
+        match self {
+            ExtractedInstance::Node(_) => BatchType::Node,
+            ExtractedInstance::Text(_) => BatchType::Text,
+        }
+    }
+}
+
 #[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable)]
-struct UiInstance {
-    pub i_location: [f32; 2],
-    pub i_size: [f32; 2],
-    pub i_uv_min: [f32; 2],
-    pub i_uv_size: [f32; 2],
-    pub i_color: [f32; 4],
-    pub i_radius: [f32; 4],
-    pub i_border: [f32; 4],
-    pub i_flags: u32,
-    pub i_border_color: [f32; 4],
-    pub i_clip: [f32; 4],
-    pub i_end_color: [f32; 4],
-    pub i_end_border_color: [f32; 4],
-    pub i_angle: f32,
+#[derive(Copy, Clone, Pod, Zeroable, Debug)]
+pub struct NodeInstance {
+    pub location: [f32; 2],
+    pub size: [f32; 2],
+    pub uv_border: [f32; 4],
+    pub color: [f32; 4],
+    pub radius: [f32; 4],
+    pub flags: u32,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable, Debug)]
+pub struct TextInstance {
+    pub location: [f32; 2],
+    pub size: [f32; 2],
+    pub uv_min: [f32; 2],
+    pub uv_size: [f32; 2],
+    pub color: [f32; 4],
 }
 
 #[repr(C)]
@@ -532,46 +553,15 @@ pub struct ClipUniform {
     pub clip: [f32;4],
 }
 
-impl UiInstance {
-    #[inline]
-    fn from(
-        location: Vec2,
-        size: Vec2,
-        uv_rect: Rect,
-        color: Color,
-        mode: u32,
-        radius: [f32; 4],
-        border: [f32; 4],
-        border_color: Color,
-        clip: Vec4,
-        end_color: Color,
-        end_border_color: Color,
-        angle: f32,
-    ) -> Self {
-        Self {
-            i_location: location.into(),
-            i_size: size.into(),
-            i_uv_min: uv_rect.min.into(),
-            i_uv_size: uv_rect.size().into(),
-            i_color: color.as_linear_rgba_f32(),
-            i_radius: radius,
-            i_border: border,
-            i_flags: mode,
-            i_border_color: border_color.as_linear_rgba_f32(),
-            i_clip: clip.into(),
-            i_end_border_color: end_border_color.as_linear_rgba_f32(),
-            i_end_color: end_color.as_linear_rgba_f32(),
-            i_angle: angle,
-        }
-    }
-}
-
 #[derive(Resource)]
 pub struct UiMeta {
     clip_bind_group: Option<BindGroup>,
     view_bind_group: Option<BindGroup>,
     index_buffer: BufferVec<u32>,
-    instance_buffer: BufferVec<UiInstance>,
+    instance_buffer: BufferVec<NodeInstance>,
+    text_instance_buffer: BufferVec<TextInstance>,
+    clipped_instance_buffer: BufferVec<NodeInstance>,
+    clipped_text_instance_buffer: BufferVec<TextInstance>,
     clip_buffer: BufferVec<[f32;4]>,
 }
 
@@ -581,7 +571,10 @@ impl Default for UiMeta {
             clip_bind_group: None,
             view_bind_group: None,
             index_buffer: BufferVec::<u32>::new(BufferUsages::INDEX),
-            instance_buffer: BufferVec::<UiInstance>::new(BufferUsages::VERTEX),
+            instance_buffer: BufferVec::<NodeInstance>::new(BufferUsages::VERTEX),
+            text_instance_buffer: BufferVec::<TextInstance>::new(BufferUsages::VERTEX),
+            clipped_instance_buffer: BufferVec::<NodeInstance>::new(BufferUsages::VERTEX),
+            clipped_text_instance_buffer: BufferVec::<TextInstance>::new(BufferUsages::VERTEX),
             clip_buffer: BufferVec::<[f32; 4]>::new(BufferUsages::UNIFORM),
         }
     }
@@ -589,13 +582,15 @@ impl Default for UiMeta {
 
 #[derive(Component)]
 pub struct UiBatch {
+    pub batch_type: BatchType,
     pub range: Range<u32>,
     pub image: Handle<Image>,
     pub z: f32,
 }
 
 const UNTEXTURED_QUAD: u32 = 0;
-const TEXTURED_QUAD: u32 = 1;
+const TEXTURED_QUAD: u32 = 1; 
+const BORDERED: u32 = 32;
 
 pub fn prepare_uinodes(
     mut commands: Commands,
@@ -606,74 +601,50 @@ pub fn prepare_uinodes(
 ) {
     ui_meta.instance_buffer.clear();
     ui_meta.clip_buffer.clear();
+    ui_meta.text_instance_buffer.clear();
 
     // sort by ui stack index, starting from the deepest node
     extracted_uinodes
         .uinodes
         .sort_by_key(|node| node.stack_index);
 
-    let mut start = 0;
-    let mut end = 0;
-    let mut current_batch_image = DEFAULT_IMAGE_HANDLE.typed();
-    let mut last_z = 0.0;
+    let mut text_index: u32 = 0;
+    let mut node_index = 0;
 
-    #[inline]
-    fn is_textured(image: &Handle<Image>) -> bool {
-        image.id() != DEFAULT_IMAGE_HANDLE.id()
-    }
 
-    for extracted_uinode in &extracted_uinodes.uinodes {
-        let mode = if is_textured(&extracted_uinode.image) {
-            if current_batch_image.id() != extracted_uinode.image.id() {
-                if is_textured(&current_batch_image) && start != end {
-                    commands.spawn(UiBatch {
-                        range: start..end,
-                        image: current_batch_image,
-                        z: last_z,
-                    });
-                    start = end;
-                }
-                current_batch_image = extracted_uinode.image.clone_weak();
-            }
-            TEXTURED_QUAD
-        } else {
-            UNTEXTURED_QUAD
-        };
-        let clip = if let Some(clip) = extracted_uinode.clip {
-            Vec4::from((clip.min, clip.max))
-        } else {
-            Vec4::new(-f32::MAX, -f32::MAX, f32::MAX, f32::MAX)
+    
+
+    for node in &extracted_uinodes.uinodes {
+        let index = match node.instance {
+            ExtractedInstance::Node(node) => {
+                ui_meta.instance_buffer.push(node);
+                node_index += 1;
+                node_index - 1
+            },
+            ExtractedInstance::Text(text) => {
+                ui_meta.text_instance_buffer.push(text);
+                text_index += 1;
+                text_index - 1
+            },
         };
 
-        ui_meta.instance_buffer.push(UiInstance::from(
-            extracted_uinode.position,
-            extracted_uinode.size,
-            extracted_uinode.uv_rect,
-            extracted_uinode.color,
-            mode,
-            extracted_uinode.radius,
-            extracted_uinode.border,
-            extracted_uinode.border_color,
-            clip,
-            extracted_uinode.end_color,
-            extracted_uinode.end_border_color,
-            extracted_uinode.gradient_angle,
-        ));
 
-        last_z = extracted_uinode.stack_index as f32;
-        end += 1;
+        let ui_batch = UiBatch {
+            batch_type: node.instance.get_type(),
+            range: index..index + 1,
+            image: node.image.clone(),
+            z: node.stack_index as f32,
+        };
+
+        commands.spawn(ui_batch);
     }
 
-    // if start != end, there is one last batch to process
-    if start != end {
-        commands.spawn(UiBatch {
-            range: start..end,
-            image: current_batch_image,
-            z: last_z,
-        });
-    }
     ui_meta
         .instance_buffer
+        .write_buffer(&render_device, &render_queue);
+
+    ui_meta
+        .text_instance_buffer
         .write_buffer(&render_device, &render_queue);
 
     if ui_meta.index_buffer.len() != 6 {
@@ -726,7 +697,6 @@ pub fn queue_uinodes(
     mut views: Query<(&ExtractedView, &mut RenderPhase<TransparentUi>)>,
     events: Res<SpriteAssetEvents>,
 ) {
-    println!("queue");
     // If an image has changed, the GpuImage has (probably) changed
     for event in &events.images {
         match event {
@@ -764,11 +734,27 @@ pub fn queue_uinodes(
     
         let draw_ui_function = draw_functions.read().id::<DrawUi>();
         for (view, mut transparent_phase) in &mut views {
-            let pipeline = pipelines.specialize(
+            let node_pipeline = pipelines.specialize(
                 &pipeline_cache,
                 &ui_pipeline,
-                UiPipelineKey { hdr: view.hdr, radial: false },
+                UiPipelineKey { hdr: view.hdr, clip: false, text: false, node: true  },
             );
+            let clipped_node_pipeline = pipelines.specialize(
+                &pipeline_cache,
+                &ui_pipeline,
+                UiPipelineKey { hdr: view.hdr, clip: true, text: false, node: true },
+            );
+            let text_pipeline = pipelines.specialize(
+                &pipeline_cache,
+                &ui_pipeline,
+                UiPipelineKey { hdr: view.hdr, clip: false, text: true, node: false },
+            );
+            let clipped_text_pipeline = pipelines.specialize(
+                &pipeline_cache,
+                &ui_pipeline,
+                UiPipelineKey { hdr: view.hdr, clip: true, text: true, node: false },
+            );
+
             for (entity, batch) in &ui_batches {
                 image_bind_groups
                     .values
@@ -792,6 +778,10 @@ pub fn queue_uinodes(
                             layout: &ui_pipeline.image_layout,
                         })
                     });
+                let pipeline = match batch.batch_type {
+                    BatchType::Node => node_pipeline,
+                    BatchType::Text => text_pipeline,
+                };
                 transparent_phase.add(TransparentUi {
                     draw_function: draw_ui_function,
                     pipeline,

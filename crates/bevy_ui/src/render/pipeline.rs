@@ -59,7 +59,7 @@ impl FromWorld for UiPipeline {
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: ShaderStages::VERTEX,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -82,62 +82,84 @@ impl FromWorld for UiPipeline {
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub struct UiPipelineKey {
     pub hdr: bool,
-    pub radial: bool,
+    pub clip: bool,
+    pub text: bool,
+    // pub radial: bool,
+    // pub linear: bool,
+    // pub border: bool,
+    // pub radius: bool,
+    pub node: bool,
 }
 
 impl SpecializedRenderPipeline for UiPipeline {
     type Key = UiPipelineKey;
-
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
-        let formats = vec![
-           
-                // @location(0) i_location: vec2<f32>,
-           
-                VertexFormat::Float32x2,
-                
-                // @location(1) i_size: vec2<f32>,
-                
-                VertexFormat::Float32x2,
-                
-                // @location(2) i_uv_min: vec2<f32>,
-                
-                VertexFormat::Float32x2,
-                
-                // @location(3) i_uv_size: vec2<f32>,
-                
-                VertexFormat::Float32x2,
-                
-                // @location(4) i_color: vec4<f32>,
-                
-                    VertexFormat::Float32x4,
-                    
-                // @location(5) i_radius: vec4<f32>,
-                VertexFormat::Float32x4,
-                
-                // @location(6) i_border: vec4<f32>,
-                VertexFormat::Float32x4,
-                
-                // @location(7) i_flags: u32,
-                VertexFormat::Uint32,
-                
-                // @location(8) i_border_color: vec4<f32>,
-                VertexFormat::Float32x4,
-                // @location(9) i_clip: vec4<f32>
-                VertexFormat::Float32x4,
-                
-                // @location(10) i_g_color: vec4<f32>,
-                VertexFormat::Float32x4,
-                
-                // @location(11) i_gb_color: vec4<f32>,
-                VertexFormat::Float32x4,
-                
-                // @location(12) i_g_angle: f32,
-                VertexFormat::Float32,
-            ];
-        
-        let instance_rate_vertex_buffer_layout = VertexBufferLayout::from_vertex_formats(VertexStepMode::Instance, formats);
+        let mut shader_defs = Vec::new();
+        let mut formats = vec![];
+        if key.clip {
+            shader_defs.push("CLIP".into());
+        }
 
-        let shader_defs = Vec::new();
+        if key.text {
+            shader_defs.push("SPECIAL".into());
+            shader_defs.push("TEXT".into());
+            formats.extend([   
+                // @location(0) i_location: vec2<f32>,
+                VertexFormat::Float32x2,
+                // @location(1) i_size: vec2<f32>,
+                VertexFormat::Float32x2,
+                // @location(2) i_uv_min: vec2<f32>,
+                VertexFormat::Float32x2,
+                // @location(3) i_uv_size: vec2<f32>,
+                VertexFormat::Float32x2,
+                // @location(4) i_color: vec4<f32>,
+                VertexFormat::Float32x4,
+            ]);
+        } else if key.node {
+            shader_defs.push("SPECIAL".into());
+            shader_defs.push("NODE".into());
+            formats.extend([
+                    // @location(0) i_location: vec2<f32>,
+                    VertexFormat::Float32x2,
+                    // @location(1) i_size: vec2<f32>,
+                    VertexFormat::Float32x2,
+                    // @location(2) i_uv_border: vec4<f32>,
+                    VertexFormat::Float32x4,
+                    // @location(3) i_color: vec4<f32>,
+                    VertexFormat::Float32x4,
+                    // @location(4) i_radius: vec4<f32>,
+                    VertexFormat::Float32x4,
+                    // @location(5) i_flags: u32,
+                    VertexFormat::Uint32,
+                ]); 
+        }
+        
+        //    // @location(0) i_location: vec2<f32>,
+        //    VertexFormat::Float32x2,
+        //    // @location(1) i_size: vec2<f32>,
+        //    VertexFormat::Float32x2,
+        //    // @location(2) i_uv_min: vec2<f32>,
+        //    VertexFormat::Float32x2,
+        //    // @location(3) i_uv_size: vec2<f32>,
+        //    VertexFormat::Float32x2,
+        //    // @location(4) i_color: vec4<f32>,
+        //    VertexFormat::Float32x4,
+        //    // @location(5) i_radius: vec4<f32>,
+        //    VertexFormat::Float32x4,
+        //    // @location(6) i_border: vec4<f32>,
+        //    VertexFormat::Float32x4,
+        //    // @location(7) i_flags: u32,
+        //    VertexFormat::Uint32,
+        //    // @location(8) i_border_color: vec4<f32>,
+        //    VertexFormat::Float32x4,
+        //    // @location(9) i_g_color: vec4<f32>,
+        //    VertexFormat::Float32x4,
+        //    // @location(10) i_gb_color: vec4<f32>,
+        //    VertexFormat::Float32x4,
+        //    // @location(11) i_g_angle: f32,
+        //    VertexFormat::Float32,
+
+        let instance_rate_vertex_buffer_layout = VertexBufferLayout::from_vertex_formats(VertexStepMode::Instance, formats);
 
         RenderPipelineDescriptor {
             vertex: VertexState {

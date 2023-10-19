@@ -109,8 +109,8 @@ fn setup(mut commands: Commands) {
                     justify_content: JustifyContent::Center,
                     ..Default::default()
                 },
-                background_color: LinearGradient::new(Color::BLUE, Color::CYAN, 0.).into(),
-                border_color: LinearGradient::new(Color::RED, Color::PURPLE, 0.25 * PI).into(),
+                background_color: LinearGradient::simple(0., Color::BLUE, Color::CYAN).into(),
+                border_color: LinearGradient::simple(0.25 * PI, Color::RED, Color::PURPLE).into(),
                 ..Default::default()
             })
             .add_child(inner_spot)
