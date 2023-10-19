@@ -124,7 +124,6 @@ pub type DrawUi = (
     SetItemPipeline,
     SetUiViewBindGroup<0>,
     SetUiTextureBindGroup<1>,
-    SetUiUniformBindGroup<2>,
     DrawUiNode,
 );
 
@@ -169,31 +168,6 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetUiTextureBindGroup<I>
     }
 }
 
-pub struct SetUiUniformBindGroup<const I: usize>;
-impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetUiUniformBindGroup<I> {
-    type Param = SRes<UiMeta>;
-    type ViewWorldQuery = ();
-    type ItemWorldQuery = ();
-
-    fn render<'w>(
-        item: &P,
-        view: (),
-        entity: (),
-        ui_meta: SystemParamItem<'w, '_, Self::Param>,
-        pass: &mut TrackedRenderPass<'w>,
-    ) -> RenderCommandResult {
-        let ui_meta = ui_meta.into_inner();
-        pass.set_bind_group(
-            I, 
-            ui_meta.clip_bind_group.as_ref().unwrap(),
-            &[],
-        );
-        RenderCommandResult::Success
-    }
-
-    
-}
-    
 pub struct DrawUiNode;
 impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
     type Param = SRes<UiMeta>;
@@ -216,11 +190,51 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
         );
         match batch.batch_type {
             super::BatchType::Node => {
-                pass.set_vertex_buffer(0, ui_meta.instance_buffer.buffer().unwrap().slice(..));
-            },
+                //pass.set_vertex_buffer(0, ui_meta.unclipped_instance_buffers.node.buffer().unwrap().slice(..));
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .unclipped_instance_buffers
+                        .node
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            }
             super::BatchType::Text => {
-                pass.set_vertex_buffer(0, ui_meta.text_instance_buffer.buffer().unwrap().slice(..));
-            },
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .unclipped_instance_buffers
+                        .text
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            }
+            super::BatchType::CNode => {
+                //pass.set_vertex_buffer(0, ui_meta.unclipped_instance_buffers.node.buffer().unwrap().slice(..));
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .clipped_instance_buffers
+                        .node
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            }
+            super::BatchType::CText => {
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .clipped_instance_buffers
+                        .text
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            }
         };
         pass.draw_indexed(0..6, 0, batch.range.clone());
         RenderCommandResult::Success

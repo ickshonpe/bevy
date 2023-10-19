@@ -8,18 +8,11 @@ const PI: f32 = 3.14159265358979323846;
 @group(1) @binding(0) var sprite_texture: texture_2d<f32>;
 @group(1) @binding(1) var sprite_sampler: sampler;
 
-@group(2) @binding(0) var<uniform> clip_uniform: array<vec4<f32>, 1u>;
-
-fn clip(color: vec4<f32>, position: vec2<f32>) -> vec4<f32> {
-     #ifdef CLIP {
-        let clip = clip_uniform[0];
-        if position.x < clip.x || clip.z < position.x || position.y < clip.y || clip.w < position.y {
-            return vec4(0.);
-        }
-        return color;
-    #else
-        return color;
-    #endif
+fn clip(color: vec4<f32>, position: vec2<f32>, clip: vec4<f32>) -> vec4<f32> { 
+    if position.x < clip.x || clip.z < position.x || position.y < clip.y || clip.w < position.y {
+        return vec4(0.);
+    }
+    return color;
 }
 
 const TEXTURED = 1u;
@@ -41,6 +34,9 @@ struct VertexInput {
     @location(2) i_uv_min: vec2<f32>,
     @location(3) i_uv_size: vec2<f32>,
     @location(4) i_color: vec4<f32>,
+    #ifdef CLIP 
+        @location(5) i_clip: vec4<f32>,
+    #endif
 }
 
 struct VertexOutput {
@@ -48,6 +44,9 @@ struct VertexOutput {
     @location(0) position: vec2<f32>,
     @location(1) uv: vec2<f32>,
     @location(2) @interpolate(flat) color: vec4<f32>,
+    #ifdef CLIP 
+        @location(3) clip: vec4<f32>,
+    #endif
 };
 
 @vertex
@@ -63,6 +62,10 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
     out.uv = in.i_uv_min + in.i_uv_size * norm_location;
     out.color = in.i_color;
+
+    #ifdef CLIP 
+        out.clip = in.i_clip;
+    #endif
     return out;
 }
 
@@ -70,7 +73,11 @@ fn vertex(in: VertexInput) -> VertexOutput {
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let color = in.color * textureSample(sprite_texture, sprite_sampler, in.uv);
     
-    return clip(color, in.position);
+    #ifdef CLIP 
+        return clip(color, in.position, in.clip);
+    #else 
+        return color;
+    #endif
 }
 #endif
 
@@ -84,6 +91,9 @@ struct VertexInput {
     @location(3) i_color: vec4<f32>,
     @location(4) i_radius: vec4<f32>,
     @location(5) i_flags: u32,
+    #ifdef CLIP 
+        @location(6) i_clip: vec4<f32>,
+    #endif
 }
 
 struct VertexOutput {
@@ -96,6 +106,9 @@ struct VertexOutput {
     @location(7) @interpolate(flat) size: vec2<f32>,
     @location(8) position: vec2<f32>,
     @location(9) @interpolate(flat) border: vec4<f32>,
+    #ifdef CLIP 
+        @location(10) clip: vec4<f32>,
+    #endif
 };
 
 
@@ -118,6 +131,10 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.radius = in.i_radius;
     out.size = in.i_size;
     out.point = in.i_size * (norm_location - 0.4999);
+
+    #ifdef CLIP 
+        out.clip = in.i_clip;
+    #endif
     return out;
 }
 
@@ -132,10 +149,19 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 
     if enabled(in.flags, BORDER) {
         if distance.border <= 0. {    
-            return clip(in.color, in.position);
+            #ifdef CLIP
+                return clip(in.color, in.position, in.clip);
+            #else 
+                return in.color;
+            #endif
         }  
     } else if distance.edge <= 0. {        
-        return clip(select(in.color, in.color * sampled_color, enabled(in.flags, TEXTURED)), in.position);
+        let color = select(in.color, in.color * sampled_color, enabled(in.flags, TEXTURED));
+        #ifdef CLIP
+            return clip(color, in.position, in.clip);
+        #else 
+            return color;
+        #endif
     }
     return vec4<f32>(0.);
 }

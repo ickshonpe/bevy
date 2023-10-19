@@ -12,7 +12,6 @@ use bevy_render::{
 pub struct UiPipeline {
     pub view_layout: BindGroupLayout,
     pub image_layout: BindGroupLayout,
-    pub clip_layout: BindGroupLayout,
 }
 
 impl FromWorld for UiPipeline {
@@ -54,41 +53,26 @@ impl FromWorld for UiPipeline {
             ],
             label: Some("ui_image_layout"),
         });
-
-        let clip_layout = render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: NonZeroU64::new(16),
-                    },
-                    count: None,
-                },
-            ],
-            label: Some("ui_clip_layout"),
-        });
-
         UiPipeline {
             view_layout,
             image_layout,
-            clip_layout,
         }
     }
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+pub enum UiPipelineSpecialization {
+    Node,
+    Text,
+    LinearGradient,
+    RadialGradient,
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub struct UiPipelineKey {
     pub hdr: bool,
     pub clip: bool,
-    pub text: bool,
-    // pub radial: bool,
-    // pub linear: bool,
-    // pub border: bool,
-    // pub radius: bool,
-    pub node: bool,
+    pub specialization: UiPipelineSpecialization,
 }
 
 impl SpecializedRenderPipeline for UiPipeline {
@@ -96,29 +80,12 @@ impl SpecializedRenderPipeline for UiPipeline {
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
         let mut shader_defs = Vec::new();
         let mut formats = vec![];
-        if key.clip {
-            shader_defs.push("CLIP".into());
-        }
 
-        if key.text {
-            shader_defs.push("SPECIAL".into());
-            shader_defs.push("TEXT".into());
-            formats.extend([   
-                // @location(0) i_location: vec2<f32>,
-                VertexFormat::Float32x2,
-                // @location(1) i_size: vec2<f32>,
-                VertexFormat::Float32x2,
-                // @location(2) i_uv_min: vec2<f32>,
-                VertexFormat::Float32x2,
-                // @location(3) i_uv_size: vec2<f32>,
-                VertexFormat::Float32x2,
-                // @location(4) i_color: vec4<f32>,
-                VertexFormat::Float32x4,
-            ]);
-        } else if key.node {
-            shader_defs.push("SPECIAL".into());
-            shader_defs.push("NODE".into());
-            formats.extend([
+        match key.specialization {
+            UiPipelineSpecialization::Node => {
+                shader_defs.push("SPECIAL".into());
+                shader_defs.push("NODE".into());
+                formats.extend([
                     // @location(0) i_location: vec2<f32>,
                     VertexFormat::Float32x2,
                     // @location(1) i_size: vec2<f32>,
@@ -131,9 +98,34 @@ impl SpecializedRenderPipeline for UiPipeline {
                     VertexFormat::Float32x4,
                     // @location(5) i_flags: u32,
                     VertexFormat::Uint32,
-                ]); 
+                ]);
+            }
+            UiPipelineSpecialization::Text => {
+                shader_defs.push("SPECIAL".into());
+                shader_defs.push("TEXT".into());
+                formats.extend([
+                    // @location(0) i_location: vec2<f32>,
+                    VertexFormat::Float32x2,
+                    // @location(1) i_size: vec2<f32>,
+                    VertexFormat::Float32x2,
+                    // @location(2) i_uv_min: vec2<f32>,
+                    VertexFormat::Float32x2,
+                    // @location(3) i_uv_size: vec2<f32>,
+                    VertexFormat::Float32x2,
+                    // @location(4) i_color: vec4<f32>,
+                    VertexFormat::Float32x4,
+                ]);
+            }
+            UiPipelineSpecialization::LinearGradient => {}
+            UiPipelineSpecialization::RadialGradient => {}
         }
-        
+
+        if key.clip {
+            shader_defs.push("CLIP".into());
+            // @location(?) i_flags: u32,
+            formats.push(VertexFormat::Float32x4);
+        }
+
         //    // @location(0) i_location: vec2<f32>,
         //    VertexFormat::Float32x2,
         //    // @location(1) i_size: vec2<f32>,
@@ -159,7 +151,8 @@ impl SpecializedRenderPipeline for UiPipeline {
         //    // @location(11) i_g_angle: f32,
         //    VertexFormat::Float32,
 
-        let instance_rate_vertex_buffer_layout = VertexBufferLayout::from_vertex_formats(VertexStepMode::Instance, formats);
+        let instance_rate_vertex_buffer_layout =
+            VertexBufferLayout::from_vertex_formats(VertexStepMode::Instance, formats);
 
         RenderPipelineDescriptor {
             vertex: VertexState {
@@ -182,11 +175,7 @@ impl SpecializedRenderPipeline for UiPipeline {
                     write_mask: ColorWrites::ALL,
                 })],
             }),
-            layout: vec![
-                self.view_layout.clone(), 
-                self.image_layout.clone(),
-                self.clip_layout.clone(),
-            ],
+            layout: vec![self.view_layout.clone(), self.image_layout.clone()],
             push_constant_ranges: Vec::new(),
             primitive: PrimitiveState {
                 front_face: FrontFace::Ccw,
