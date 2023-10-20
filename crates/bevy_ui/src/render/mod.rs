@@ -152,6 +152,14 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
     ui_graph
 }
 
+fn is_color_none(ui_color: &UiColor) -> bool {
+    if let UiColor::Color(color) = ui_color {
+        color.a() == 0.0
+    } else {
+        false
+    }
+}
+
 pub fn extract_atlas_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     images: Extract<Res<Assets<Image>>>,
@@ -266,49 +274,68 @@ pub fn extract_uinodes(
                 continue;
             }
 
-            let color = match &color.0 {
-                UiColor::Color(color) => (*color).into(),
-                _ => None,
-            };
+            if color.is_visible() {
+                let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
+                    // Skip loading images
+                    if !images.contains(&image.texture) {
+                        continue;
+                    }
+                    (Some(image.texture.clone_weak()), image.flip_x, image.flip_y)
+                } else {
+                    (None, false, false)
+                };
 
-            let border_color = match maybe_border_color {
-                Some(BorderColor(UiColor::Color(color))) => (*color).into(),
-                _ => None,
-            };
-
-            let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
-                // Skip loading images
-                if !images.contains(&image.texture) {
-                    continue;
+                match &color.0 {
+                    UiColor::Color(color) => {
+                        extracted_uinodes.push_node(
+                            stack_index,
+                            uinode.position,
+                            uinode.size(),
+                            image,
+                            Rect::new(0.0, 0.0, 1.0, 1.0),
+                            *color,
+                            uinode.border_radius,
+                            clip.map(|clip| clip.clip),
+                        );        
+                    },
+                    UiColor::LinearGradient(l) => {
+                        extracted_uinodes.push_node_with_linear_gradient(
+                            stack_index,
+                            uinode.position,
+                            uinode.size(),
+                            image,
+                            Rect::new(0.0, 0.0, 1.0, 1.0),
+                            uinode.border_radius,   
+                            l.clone(),
+                            clip.map(|clip| clip.clip),
+                        );        
+                    },
+                    UiColor::RadialGradient(_) => {
+                    },
                 }
-                (Some(image.texture.clone_weak()), image.flip_x, image.flip_y)
-            } else {
-                (None, false, false)
-            };
-
-            if let Some(color) = color {
-                extracted_uinodes.push_node(
-                    stack_index,
-                    uinode.position,
-                    uinode.size(),
-                    image,
-                    Rect::new(0.0, 0.0, 1.0, 1.0),
-                    color,
-                    uinode.border_radius,
-                    clip.map(|clip| clip.clip),
-                );
             }
+                
 
-            if let Some(border_color) = border_color {
-                extracted_uinodes.push_border(
-                    stack_index,
-                    uinode.position,
-                    uinode.size(),
-                    border_color,
-                    uinode.border,
-                    uinode.border_radius,
-                    clip.map(|clip| clip.clip),
-                );
+            if let Some(border_color) = maybe_border_color {
+                if border_color.is_visible() {
+                    match border_color.0 {
+                        UiColor::Color(color) => {
+                            extracted_uinodes.push_border(
+                                stack_index,
+                                uinode.position,
+                                uinode.size(),
+                                color,
+                                uinode.border,
+                                uinode.border_radius,
+                                clip.map(|clip| clip.clip),
+                            );                    
+                        },
+                        UiColor::LinearGradient(_) => {
+                        },
+                        UiColor::RadialGradient(_) => {
+                        },
+                    }
+                }
             }
 
             if let Some(outline) = maybe_outline {
@@ -619,6 +646,97 @@ impl ExtractedUiNodes {
             });
         }
     }
+
+    pub fn push_node_with_linear_gradient(
+        &mut self,
+        stack_index: usize,
+        position: Vec2,
+        size: Vec2,
+        image: Option<Handle<Image>>,
+        uv_rect: Rect,
+        radius: [f32; 4],
+        gradient: LinearGradient,
+        clip: Option<Rect>,
+
+    ) {
+        let uv_min = uv_rect.min;
+        let uv_size = uv_rect.size();
+
+       
+        let focal_point = (gradient.point - Vec2::splat(0.5)) * size;
+
+        let tflag = if image.is_some() {
+            TEXTURED_QUAD //| FILL_START | FILL_END
+        } else {
+            UNTEXTURED_QUAD //| FILL_START | FILL_END
+        };
+        let len = size.y;
+        let s = len / (gradient.stops.len() - 1) as f32;
+        let mut a = 0.;
+        let mut b = s;
+
+        let image = image.unwrap_or(DEFAULT_IMAGE_HANDLE.typed());
+
+        for i in 0..gradient.stops.len() - 1 {
+            let start = gradient.stops[i];
+            let end = gradient.stops[i + 1];
+            let mut flags = tflag;
+            if i == 0 {
+                flags |= FILL_START;
+            }
+
+            if i + 2 == gradient.stops.len() {
+                flags |= FILL_END;
+            }
+            
+            if let Some(clip) = clip {
+                let i = CLinearGradientInstance {
+                    location: position.into(),
+                    size: size.into(),
+                    uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
+                    radius,
+                    flags,
+                    focal_point: focal_point.into(),
+                    angle: gradient.angle,
+                    start_color: start.color.as_linear_rgba_f32(),
+                    start_len: a,
+                    mid_len: 0.5 *(b - a),
+                    end_len: b,
+                    end_color: end.color.as_linear_rgba_f32(),
+                    clip: rect_to_arr(clip),
+                };
+                self.uinodes.push(ExtractedItem {
+                    stack_index,
+                    image: image.clone(),
+                    instance: ExtractedInstance::CLinearGradient(i),
+                });
+            } else {
+                let i = LinearGradientInstance {
+                    location: position.into(),
+                    size: size.into(),
+                    uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
+                    radius,
+                    flags,
+                    focal_point: focal_point.into(),
+                    angle: gradient.angle,
+                    start_color: start.color.as_linear_rgba_f32(),
+                    start_len: a,
+                    mid_len: 0.5 *(b - a),
+                    end_len: b,
+                    end_color: end.color.as_linear_rgba_f32(),
+                };
+                self.uinodes.push(ExtractedItem {
+                    stack_index,
+                    image: image.clone(),
+                    instance: ExtractedInstance::LinearGradient(i),
+                });
+            }
+
+            a += s;
+            b += s;
+        }
+    }
+
 }
 
 pub enum BatchType {
@@ -626,22 +744,29 @@ pub enum BatchType {
     Text,
     CNode,
     CText,
+    LinearGradient,
+    CLinearGradient,
 }
 
 pub enum ExtractedInstance {
     Node(NodeInstance),
     Text(TextInstance),
+    LinearGradient(LinearGradientInstance),
     CNode(CNodeInstance),
     CText(CTextInstance),
+    CLinearGradient(CLinearGradientInstance),
 }
 
 impl ExtractedInstance {
     pub fn get_type(&self) -> BatchType {
         match self {
             ExtractedInstance::Node(_) => BatchType::Node,
-            ExtractedInstance::Text(_) => BatchType::Text,
+            ExtractedInstance::Text(_) => BatchType::Text,            
             ExtractedInstance::CNode(_) => BatchType::CNode,
             ExtractedInstance::CText(_) => BatchType::CText,
+            ExtractedInstance::LinearGradient(_) => BatchType::LinearGradient,
+            ExtractedInstance::CLinearGradient(_) => BatchType::CLinearGradient,
+            
         }
     }
 }
@@ -672,7 +797,7 @@ pub struct TextInstance {
 pub struct LinearGradientInstance {
     pub location: [f32; 2],
     pub size: [f32; 2],
-    pub uv_border: [f32; 2],
+    pub uv_border: [f32; 4],
     pub radius: [f32; 4],
     pub flags: u32,
     pub focal_point: [f32; 2],
@@ -717,7 +842,7 @@ pub struct CTextInstance {
 pub struct CLinearGradientInstance {
     pub location: [f32; 2],
     pub size: [f32; 2],
-    pub uv_border: [f32; 2],
+    pub uv_border: [f32; 4],
     pub radius: [f32; 4],
     pub flags: u32,
     pub focal_point: [f32; 2],
@@ -775,6 +900,7 @@ where
     pub fn write_buffers(&mut self, render_device: &RenderDevice, render_queue: &RenderQueue) {
         self.node.write_buffer(&render_device, &render_queue);
         self.text.write_buffer(&render_device, &render_queue);
+        self.linear_gradient.write_buffer(&render_device, &render_queue);
     }
 }
 
@@ -790,7 +916,6 @@ pub struct UiMeta {
     index_buffer: BufferVec<u32>,
     unclipped_instance_buffers: UiInstanceBuffers<NodeInstance, TextInstance, LinearGradientInstance>,
     clipped_instance_buffers: UiInstanceBuffers<CNodeInstance, CTextInstance, CLinearGradientInstance>,
-
     clip_buffer: BufferVec<[f32; 4]>,
 }
 
@@ -831,6 +956,8 @@ pub struct UiBatch {
 const UNTEXTURED_QUAD: u32 = 0;
 const TEXTURED_QUAD: u32 = 1;
 const BORDERED: u32 = 32;
+const FILL_START: u32 = 64;
+const FILL_END: u32 = 128;
 
 pub fn prepare_uinodes(
     mut commands: Commands,
@@ -851,34 +978,46 @@ pub fn prepare_uinodes(
     let mut node_index = 0;
     let mut ctext_index: u32 = 0;
     let mut cnode_index = 0;
+    let mut lg_index = 0;
+    let mut clg_index = 0;
 
     for node in &extracted_uinodes.uinodes {
         let index = match node.instance {
             ExtractedInstance::Node(node) => {
                 ui_meta.unclipped_instance_buffers.node.push(node);
                 node_index += 1;
-                node_index - 1
+                node_index
             }
             ExtractedInstance::Text(text) => {
                 ui_meta.unclipped_instance_buffers.text.push(text);
                 text_index += 1;
-                text_index - 1
+                text_index
             }
+            ExtractedInstance::LinearGradient(l) => {
+                ui_meta.unclipped_instance_buffers.linear_gradient.push(l);
+                lg_index += 1;
+                lg_index
+            },
             ExtractedInstance::CNode(c) => {
                 ui_meta.clipped_instance_buffers.node.push(c);
                 cnode_index += 1;
-                cnode_index - 1
+                cnode_index
             }
             ExtractedInstance::CText(c) => {
                 ui_meta.clipped_instance_buffers.text.push(c);
                 ctext_index += 1;
-                ctext_index - 1
+                ctext_index
+            }
+            ExtractedInstance::CLinearGradient(l) => {
+                ui_meta.clipped_instance_buffers.linear_gradient.push(l);
+                clg_index += 1;
+                clg_index
             }
         };
 
         let ui_batch = UiBatch {
             batch_type: node.instance.get_type(),
-            range: index..index + 1,
+            range: index - 1..index,
             image: node.image.clone(),
             z: node.stack_index as f32,
         };
@@ -995,6 +1134,24 @@ pub fn queue_uinodes(
                     specialization: UiPipelineSpecialization::Text,
                 },
             );
+            let linear_gradient_pipeline = pipelines.specialize(
+                &pipeline_cache,
+                &ui_pipeline,
+                UiPipelineKey {
+                    hdr: view.hdr,
+                    clip: false,
+                    specialization: UiPipelineSpecialization::LinearGradient,
+                },
+            );
+            let clipped_linear_gradient_pipeline = pipelines.specialize(
+                &pipeline_cache,
+                &ui_pipeline,
+                UiPipelineKey {
+                    hdr: view.hdr,
+                    clip: true,
+                    specialization: UiPipelineSpecialization::LinearGradient,
+                },
+            );
 
             for (entity, batch) in &ui_batches {
                 image_bind_groups
@@ -1020,8 +1177,10 @@ pub fn queue_uinodes(
                 let pipeline = match batch.batch_type {
                     BatchType::Node => node_pipeline,
                     BatchType::Text => text_pipeline,
+                    BatchType::LinearGradient => linear_gradient_pipeline,
                     BatchType::CNode => clipped_node_pipeline,
                     BatchType::CText => clipped_text_pipeline,
+                    BatchType::CLinearGradient => clipped_linear_gradient_pipeline,
                 };
                 transparent_phase.add(TransparentUi {
                     draw_function: draw_ui_function,

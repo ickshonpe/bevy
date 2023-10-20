@@ -1541,8 +1541,8 @@ impl UiColor {
     pub fn is_visible(&self) -> bool {
         match self {
             Self::Color(color) => color.a() != 0.,
-            Self::LinearGradient(gradient) => gradient.is_visible(),
-            Self::RadialGradient(gradient) => gradient.is_visible(),
+            Self::LinearGradient(gradient) => true,
+            Self::RadialGradient(gradient) => true,
         }
     }
 }
@@ -1928,6 +1928,7 @@ impl From<Color> for ColorStop {
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Reflect, Component, Default)]
 #[reflect(PartialEq, Serialize, Deserialize)]
 pub struct LinearGradient {
+    pub point: Vec2,
     pub angle: f32,
     pub stops: Vec<ColorStop>,
 }
@@ -1940,23 +1941,34 @@ impl LinearGradient {
 
     pub fn simple(angle: f32, start_color: Color, end_color: Color) -> Self {
         Self {
+            point: Vec2::ZERO,
             angle,
             stops: vec![start_color.into(), end_color.into()],
         }
     }
 
-    pub fn new(angle: f32, stops: Vec<ColorStop>) -> Self {
-        Self { angle, stops }
+    pub fn new(point: Vec2, angle: f32, stops: Vec<ColorStop>) -> Self {
+        Self { point, angle, stops }
     }
 
     pub fn is_visible(&self) -> bool {
         self.stops.iter().all(|stop| stop.color.a() == 0.)
     }
+
+    pub fn left_to_right(&self, stops: Vec<ColorStop>) -> Self {
+        Self {
+            point: Vec2::ZERO,
+            angle: Self::LEFT_TO_RIGHT,
+            stops,
+        }
+    }
+
+
 }
 
 impl From<Color> for LinearGradient {
     fn from(color: Color) -> Self {
-        Self::new(0., vec![color.into(), color.into()])
+        Self::new(Vec2::ZERO, 0., vec![color.into(), color.into()])
     }
 }
 
