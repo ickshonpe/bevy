@@ -40,7 +40,6 @@ use bevy_transform::components::GlobalTransform;
 use bevy_utils::FloatOrd;
 use bevy_utils::HashMap;
 use bytemuck::{Pod, Zeroable};
-use std::num::NonZeroU64;
 use std::ops::Range;
 
 pub mod node {
@@ -670,6 +669,28 @@ pub struct TextInstance {
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable, Debug)]
+pub struct LinearGradientInstance {
+    pub location: [f32; 2],
+    pub size: [f32; 2],
+    pub uv_border: [f32; 2],
+    pub radius: [f32; 4],
+    pub flags: u32,
+    pub focal_point: [f32; 2],
+    pub angle: f32,
+    // @location(7) start_color: vec4<f32>,
+    pub start_color: [f32; 4],
+    // @location(8) start_len: f32,
+    pub start_len: f32,
+    // @location(9) mid_len: f32,
+    pub mid_len: f32,
+    // @location(10) end_len: f32,
+    pub end_len: f32,
+    // @location(11) end_color: vec4<f32>,
+    pub end_color: [f32; 4],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable, Debug)]
 pub struct CNodeInstance {
     pub location: [f32; 2],
     pub size: [f32; 2],
@@ -691,32 +712,60 @@ pub struct CTextInstance {
     pub clip: [f32; 4],
 }
 
-pub struct UiInstanceBuffers<N, T>
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable, Debug)]
+pub struct CLinearGradientInstance {
+    pub location: [f32; 2],
+    pub size: [f32; 2],
+    pub uv_border: [f32; 2],
+    pub radius: [f32; 4],
+    pub flags: u32,
+    pub focal_point: [f32; 2],
+    pub angle: f32,
+    // @location(7) start_color: vec4<f32>,
+    pub start_color: [f32; 4],
+    // @location(8) start_len: f32,
+    pub start_len: f32,
+    // @location(9) mid_len: f32,
+    pub mid_len: f32,
+    // @location(10) end_len: f32,
+    pub end_len: f32,
+    // @location(11) end_color: vec4<f32>,
+    pub end_color: [f32; 4],
+    pub clip: [f32; 4],
+}
+
+pub struct UiInstanceBuffers<N, T, L>
 where
     N: Pod + Zeroable,
     T: Pod + Zeroable,
+    L: Pod + Zeroable,
 {
     node: BufferVec<N>,
     text: BufferVec<T>,
+    linear_gradient: BufferVec<L>,
 }
 
-impl<N, T> Default for UiInstanceBuffers<N, T>
+impl<N, T, L> Default for UiInstanceBuffers<N, T, L>
 where
     N: Pod + Zeroable,
     T: Pod + Zeroable,
+    L: Pod + Zeroable,
 {
     fn default() -> Self {
         Self {
             node: BufferVec::<N>::new(BufferUsages::VERTEX),
             text: BufferVec::<T>::new(BufferUsages::VERTEX),
+            linear_gradient: BufferVec::<L>::new(BufferUsages::VERTEX),
         }
     }
 }
 
-impl<N, T> UiInstanceBuffers<N, T>
+impl<N, T, L> UiInstanceBuffers<N, T, L>
 where
     N: Pod + Zeroable,
     T: Pod + Zeroable,
+    L: Pod + Zeroable,
 {
     pub fn clear(&mut self) {
         self.node.clear();
@@ -739,8 +788,8 @@ struct UiClip {
 pub struct UiMeta {
     view_bind_group: Option<BindGroup>,
     index_buffer: BufferVec<u32>,
-    unclipped_instance_buffers: UiInstanceBuffers<NodeInstance, TextInstance>,
-    clipped_instance_buffers: UiInstanceBuffers<CNodeInstance, CTextInstance>,
+    unclipped_instance_buffers: UiInstanceBuffers<NodeInstance, TextInstance, LinearGradientInstance>,
+    clipped_instance_buffers: UiInstanceBuffers<CNodeInstance, CTextInstance, CLinearGradientInstance>,
 
     clip_buffer: BufferVec<[f32; 4]>,
 }
