@@ -700,7 +700,6 @@ impl ExtractedUiNodes {
                     angle: gradient.angle,
                     start_color: start.color.as_linear_rgba_f32(),
                     start_len: a,
-                    mid_len: 0.5 *(b - a),
                     end_len: b,
                     end_color: end.color.as_linear_rgba_f32(),
                     clip: rect_to_arr(clip),
@@ -721,7 +720,6 @@ impl ExtractedUiNodes {
                     angle: gradient.angle,
                     start_color: start.color.as_linear_rgba_f32(),
                     start_len: a,
-                    mid_len: 0.5 *(b - a),
                     end_len: b,
                     end_color: end.color.as_linear_rgba_f32(),
                 };
@@ -806,11 +804,9 @@ pub struct LinearGradientInstance {
     pub start_color: [f32; 4],
     // @location(8) start_len: f32,
     pub start_len: f32,
-    // @location(9) mid_len: f32,
-    pub mid_len: f32,
-    // @location(10) end_len: f32,
+    // @location(9) end_len: f32,
     pub end_len: f32,
-    // @location(11) end_color: vec4<f32>,
+    // @location(10) end_color: vec4<f32>,
     pub end_color: [f32; 4],
 }
 
@@ -851,11 +847,9 @@ pub struct CLinearGradientInstance {
     pub start_color: [f32; 4],
     // @location(8) start_len: f32,
     pub start_len: f32,
-    // @location(9) mid_len: f32,
-    pub mid_len: f32,
-    // @location(10) end_len: f32,
+    // @location(9) end_len: f32,
     pub end_len: f32,
-    // @location(11) end_color: vec4<f32>,
+    // @location(10) end_color: vec4<f32>,
     pub end_color: [f32; 4],
     pub clip: [f32; 4],
 }

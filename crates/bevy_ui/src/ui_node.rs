@@ -1963,6 +1963,14 @@ impl LinearGradient {
         }
     }
 
+    pub fn resolve(&self) -> Vec<(Color, f32)> {
+        let out = vec![];
+        let remaining =
+
+        out
+    }
+
+
 
 }
 

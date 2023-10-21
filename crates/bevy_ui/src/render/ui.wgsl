@@ -186,15 +186,13 @@ struct VertexInput {
     @location(7) start_color: vec4<f32>,
     // distance from focal point where the gradient starts
     @location(8) start_len: f32,
-    // distance from the gradient where the color is between the start and end colors
-    @location(9) mid_len: f32,
     // distance from the focal point when the gradient ends
-    @location(10) end_len: f32,
+    @location(9) end_len: f32,
     // color the gradient ends at
-    @location(11) end_color: vec4<f32>,
+    @location(10) end_color: vec4<f32>,
     
     #ifdef CLIP 
-        @location(12) i_clip: vec4<f32>,
+        @location(11) i_clip: vec4<f32>,
     #endif
 }
 
@@ -212,9 +210,8 @@ struct VertexOutput {
     @location(8) @interpolate(flat) dir: vec2<f32>,
     @location(9) @interpolate(flat) start_color: vec4<f32>,
     @location(10) @interpolate(flat) start_len: f32,
-    @location(11) @interpolate(flat) mid_len: f32,
-    @location(12) @interpolate(flat) end_len: f32,
-    @location(13) @interpolate(flat) end_color: vec4<f32>,
+    @location(11) @interpolate(flat) end_len: f32,
+    @location(12) @interpolate(flat) end_color: vec4<f32>,
     
     #ifdef CLIP 
         @location(14) clip: vec4<f32>,
@@ -244,7 +241,6 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.dir = gradient_dir(in.angle);
     out.start_color = in.start_color;
     out.start_len = in.start_len;
-    out.mid_len = in.mid_len;
     out.end_len = in.end_len;
     out.end_color = in.end_color;
     
@@ -261,10 +257,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let distance = compute_geometry(in.point, n);
 
     let gradient_distance = sdf_line(in.focal_point, in.dir, in.point);
-    // let gradient_len = in.end_len - in.start_len;
-    // let t = (gradient_distance - in.start_len) / gradient_len;
-    
-    let t = gradient(gradient_distance, in.start_len, in.mid_len, in.end_len);
+    let t = gradient(gradient_distance, in.start_len, in.end_len);
 
     var gradient_color: vec4<f32>;
 
@@ -756,13 +749,7 @@ fn gradient_dir(angle: f32) -> vec2<f32> {
     return vec2<f32>(x, y);
 }
 
-fn gradient(p: f32, start: f32, middle: f32, end:f32) -> f32 {
+fn gradient(p: f32, start: f32, end:f32) -> f32 {
     let len = end - start;
-    let m = (middle - start) / len;
-    let t = (p - start) / len;
-    if t < m {
-        return 0.5 * t / m;
-    } else {
-        return 0.5 * (1. + (t - m) / (1. - m));
-    }
+    return (p - start) / len;
 }
