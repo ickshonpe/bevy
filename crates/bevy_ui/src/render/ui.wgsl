@@ -753,3 +753,125 @@ fn gradient(p: f32, start: f32, end:f32) -> f32 {
     let len = end - start;
     return (p - start) / len;
 }
+
+
+
+
+struct VertexInput {
+    @builtin(vertex_index) index: u32,
+    @location(0) i_location: vec2<f32>,
+    @location(1) i_size: vec2<f32>,
+    @location(2) i_uv_border: vec4<f32>,
+    @location(3) i_radius: vec4<f32>,
+    @location(4) i_flags: u32,
+    // center of the radial gradient
+    @location(5) g_center: vec2<f32>,
+    @location(6) start_color: vec4<f32>,
+    // distance from center where the gradient starts
+    @location(7) start_len: f32,
+    // distance from the center where the gradient ends
+    @location(8) end_len: f32,
+    // color the gradient ends at
+    @location(9) end_color: vec4<f32>,
+    
+    #ifdef CLIP 
+        @location(10) i_clip: vec4<f32>,
+    #endif
+}
+
+struct VertexOutput {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+    @location(1) @interpolate(flat) flags: u32,
+    @location(2) @interpolate(flat) radius: vec4<f32>,
+    @location(3) point: vec2<f32>,
+    @location(4) @interpolate(flat) size: vec2<f32>,
+    @location(5) position: vec2<f32>,
+    @location(6) @interpolate(flat) border: vec4<f32>,
+    @location(7) @interpolate(flat) g_center: vec2<f32>,
+    @location(8) @interpolate(flat) start_color: vec4<f32>,
+    @location(9) @interpolate(flat) start_len: f32,
+    @location(10) @interpolate(flat) end_len: f32,
+    @location(11) @interpolate(flat) end_color: vec4<f32>,
+    
+    #ifdef CLIP 
+        @location(13) clip: vec4<f32>,
+    #endif
+};
+
+@vertex
+fn vertex(in: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    
+    let half_size = 0.5 * in.i_size;
+    let norm_x = f32(in.index & 1u);
+    let norm_y = f32((in.index & 2u) >> 1u);
+    let norm_location = vec2(norm_x, norm_y);
+    let relative_location = in.i_size * norm_location;
+    out.position = in.i_location + relative_location;
+    out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
+    let uv_min = in.i_uv_border.xy;
+    let uv_size = in.i_uv_border.zw;
+    out.uv = uv_min + uv_size * norm_location;
+    out.flags = in.i_flags;
+    out.border = in.i_uv_border;
+    out.radius = in.i_radius;
+    out.size = in.i_size;
+    out.point = in.i_size * (norm_location - 0.4999);
+    out.g_center = in.g_center;
+    out.start_color = in.start_color;
+    out.start_len = in.start_len;
+    out.end_len = in.end_len;
+    out.end_color = in.end_color;
+    
+    return out;
+}
+
+@fragment
+fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+    let sampled_color = textureSample(sprite_texture, sprite_sampler, in.uv);
+    var n: Node;
+    n.size = in.size;
+    n.radius = in.radius;
+    n.inset = in.border;
+    let distance = compute_geometry(in.point, n);
+
+    let gradient_distance = sdf_line(in.focal_point, in.dir, in.point);
+    let t = gradient(gradient_distance, in.start_len, in.end_len);
+
+    var gradient_color: vec4<f32>;
+
+    if t <= 0.0 {
+        if enabled(in.flags, FILL_START) {
+            gradient_color = in.start_color;
+        } else {
+            return vec4<f32>(0.);
+        }
+    } else if 1.0 < t {
+        if enabled(in.flags, FILL_END) {
+            gradient_color = in.end_color;
+        } else {
+            return vec4<f32>(0.);
+        }
+    } else {
+        gradient_color = mix(in.start_color, in.end_color, t);
+    }
+        
+    if enabled(in.flags, BORDER) {
+        if distance.border <= 0. {    
+            #ifdef CLIP
+                return clip(gradient_color, in.position, in.clip);
+            #else 
+                return gradient_color;
+            #endif
+        }  
+    } else if distance.edge <= 0. {        
+        let color = select(gradient_color, gradient_color * sampled_color, enabled(in.flags, TEXTURED));
+        #ifdef CLIP
+            return clip(color, in.position, in.clip);
+        #else 
+            return color;
+        #endif
+    }
+    return vec4<f32>(0.);
+}

@@ -734,7 +734,6 @@ impl ExtractedUiNodes {
             b += s;
         }
     }
-
 }
 
 pub enum BatchType {
@@ -812,6 +811,26 @@ pub struct LinearGradientInstance {
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable, Debug)]
+pub struct RadialGradientInstance {
+    pub location: [f32; 2],
+    pub size: [f32; 2],
+    pub uv_border: [f32; 4],
+    pub radius: [f32; 4],
+    pub flags: u32,
+    pub focal_point: [f32; 2],
+    pub ratio: f32,
+    // @location(7) start_color: vec4<f32>,
+    pub start_color: [f32; 4],
+    // @location(8) start_len: f32,
+    pub start_len: f32,
+    // @location(9) end_len: f32,
+    pub end_len: f32,
+    // @location(10) end_color: vec4<f32>,
+    pub end_color: [f32; 4],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable, Debug)]
 pub struct CNodeInstance {
     pub location: [f32; 2],
     pub size: [f32; 2],
@@ -843,6 +862,27 @@ pub struct CLinearGradientInstance {
     pub flags: u32,
     pub focal_point: [f32; 2],
     pub angle: f32,
+    // @location(7) start_color: vec4<f32>,
+    pub start_color: [f32; 4],
+    // @location(8) start_len: f32,
+    pub start_len: f32,
+    // @location(9) end_len: f32,
+    pub end_len: f32,
+    // @location(10) end_color: vec4<f32>,
+    pub end_color: [f32; 4],
+    pub clip: [f32; 4],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable, Debug)]
+pub struct CRadialGradientInstance {
+    pub location: [f32; 2],
+    pub size: [f32; 2],
+    pub uv_border: [f32; 4],
+    pub radius: [f32; 4],
+    pub flags: u32,
+    pub focal_point: [f32; 2],
+    pub ratio: f32,
     // @location(7) start_color: vec4<f32>,
     pub start_color: [f32; 4],
     // @location(8) start_len: f32,

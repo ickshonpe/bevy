@@ -1912,8 +1912,7 @@ pub fn deg(angle: f32) -> f32 {
 #[reflect(PartialEq, Serialize, Deserialize)]
 pub struct ColorStop {
     pub color: Color,
-    pub position: Option<f32>,
-    pub hint: Option<f32>,
+    pub point: Val,
 }
 
 impl From<Color> for ColorStop {
@@ -1923,6 +1922,55 @@ impl From<Color> for ColorStop {
             ..Default::default()
         }
     }
+}
+
+pub fn resolve_color_stops(stops: Vec<ColorStop>, len: f32, viewport_size: Vec2) -> Vec<(Color, f32)>{
+    if stops.is_empty() {
+        return vec![];
+    }
+
+    let mut out =  stops.iter().map(|ColorStop { color, point }| (*color, point.resolve(len, viewport_size).unwrap_or(-1.))).collect::<Vec<_>>();
+    if out[0].1 < 0.0 {
+        out[0].1 = 0.0;
+    }
+
+    let last = out.last_mut().unwrap();
+    if last.1 < 0.0 {
+        last.1 = len;
+    }
+
+    let mut current = 0.;
+    for (_, point) in &mut out {
+        if 0.0 <= *point { 
+            if *point < current {
+                *point = current;
+            }
+            current = *point;
+        }
+    }
+
+    let mut i = 1;
+    while i < out.len() - 1 {
+        if out[i].1 < 0.0 {
+            let mut j = i + 1;
+            while out[j].1 < 0.0 {
+                dbg!(j);
+                j += 1;
+            }
+            let n = 1 + j - i;
+            dbg!(n);
+            let mut s = out[i - 1].1;
+            let d = (out[j].1 - s) / n as f32;
+            while i < j {
+                s += d;
+                out[i].1 = s;
+                i += 1;
+            }
+        } else {
+            i += 1;
+        }
+    }
+    out
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Reflect, Component, Default)]
@@ -1962,15 +2010,6 @@ impl LinearGradient {
             stops,
         }
     }
-
-    pub fn resolve(&self) -> Vec<(Color, f32)> {
-        let out = vec![];
-        let remaining =
-
-        out
-    }
-
-
 
 }
 
@@ -2142,4 +2181,39 @@ pub fn resolve_circular_gradient_geometry(
         },
     };
     Rect::from_center_half_size(c, size)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn simple_two_stops() {
+        let stops = vec![
+            ColorStop { color: Color::WHITE, point: Val::Auto },
+            ColorStop { color: Color::BLACK, point: Val::Auto },
+        ];
+
+        let r = resolve_color_stops(stops, 1., Vec2::ZERO);
+
+        assert_eq!(r.len(), 2);
+        assert_eq!(r[0].1, 0.0);
+        assert_eq!(r[1].1, 1.0);
+        
+        let stops = vec![
+            ColorStop { color: Color::WHITE, point: Val::Auto },
+            ColorStop { color: Color::RED, point: Val::Auto },
+            ColorStop { color: Color::GREEN, point: Val::Auto },
+            ColorStop { color: Color::YELLOW, point: Val::Auto },
+            ColorStop { color: Color::BLACK, point: Val::Auto },
+        ];
+
+        let r = resolve_color_stops(stops, 1., Vec2::ZERO);
+
+        assert_eq!(r.len() == 5);
+        assert_eq!(r[0].1, 0.0);
+        assert_eq!(r[1].1, 0.25);
+        assert_eq!(r[2].1, 0.5);
+        assert_eq!(r[3].1, 0.75);
+        assert_eq!(r[4].1, 1.0);
+    }
 }
