@@ -4,12 +4,12 @@ use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
 use bevy_math::{vec2, Rect, Vec2};
 use bevy_reflect::prelude::*;
-use bevy_render::{color::Color, texture::Image, view};
+use bevy_render::{color::Color, texture::Image};
 use bevy_transform::prelude::GlobalTransform;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::{
-    f32::consts::{FRAC_2_PI, FRAC_PI_2, PI},
+    f32::consts::{FRAC_PI_2, PI},
     num::{NonZeroI16, NonZeroU16},
 };
 use thiserror::Error;
@@ -1537,6 +1537,12 @@ impl From<LinearGradient> for UiColor {
     }
 }
 
+impl From<RadialGradient> for UiColor {
+    fn from(value: RadialGradient) -> Self {
+        Self::RadialGradient(value)
+    }
+}
+
 impl UiColor {
     pub fn is_visible(&self) -> bool {
         match self {
@@ -1924,7 +1930,17 @@ impl From<Color> for ColorStop {
     }
 }
 
-pub fn resolve_color_stops(stops: Vec<ColorStop>, len: f32, viewport_size: Vec2) -> Vec<(Color, f32)>{
+impl From<(Color, Val)> for ColorStop {
+    fn from((color, val): (Color, Val)) -> Self {
+        Self {
+            color,
+            point: val,
+        }
+    }
+}
+
+
+pub fn resolve_color_stops(stops: &[ColorStop], len: f32, viewport_size: Vec2) -> Vec<(Color, f32)>{
     if stops.is_empty() {
         return vec![];
     }
@@ -1995,8 +2011,8 @@ impl LinearGradient {
         }
     }
 
-    pub fn new(point: Vec2, angle: f32, stops: Vec<ColorStop>) -> Self {
-        Self { point, angle, stops }
+    pub fn new(angle: f32, stops: Vec<ColorStop>) -> Self {
+        Self { point: Vec2::ZERO, angle, stops }
     }
 
     pub fn is_visible(&self) -> bool {
@@ -2015,7 +2031,7 @@ impl LinearGradient {
 
 impl From<Color> for LinearGradient {
     fn from(color: Color) -> Self {
-        Self::new(Vec2::ZERO, 0., vec![color.into(), color.into()])
+        Self::new( 0., vec![color.into(), color.into()])
     }
 }
 
@@ -2193,7 +2209,7 @@ mod tests {
             ColorStop { color: Color::BLACK, point: Val::Auto },
         ];
 
-        let r = resolve_color_stops(stops, 1., Vec2::ZERO);
+        let r = resolve_color_stops(&stops, 1., Vec2::ZERO);
 
         assert_eq!(r.len(), 2);
         assert_eq!(r[0].1, 0.0);
@@ -2207,9 +2223,9 @@ mod tests {
             ColorStop { color: Color::BLACK, point: Val::Auto },
         ];
 
-        let r = resolve_color_stops(stops, 1., Vec2::ZERO);
+        let r = resolve_color_stops(&stops, 1., Vec2::ZERO);
 
-        assert_eq!(r.len() == 5);
+        assert_eq!(r.len(), 5);
         assert_eq!(r[0].1, 0.0);
         assert_eq!(r[1].1, 0.25);
         assert_eq!(r[2].1, 0.5);

@@ -145,7 +145,34 @@ impl SpecializedRenderPipeline for UiPipeline {
                 ]);
 
             }
-            UiPipelineSpecialization::RadialGradient => {}
+            UiPipelineSpecialization::RadialGradient => {
+                shader_defs.push("SPECIAL".into());
+                shader_defs.push("RADIAL_GRADIENT".into());
+                formats.extend([
+                    // @location(0) i_location: vec2<f32>,
+                    VertexFormat::Float32x2,
+                    // @location(1) i_size: vec2<f32>,
+                    VertexFormat::Float32x2,
+                    // @location(2) i_uv_border: vec4<f32>,
+                    VertexFormat::Float32x4,
+                    // @location(3) i_radius: vec4<f32>,
+                    VertexFormat::Float32x4,
+                    // @location(4) i_flags: u32,
+                    VertexFormat::Uint32,
+                    // @location(5) center: vec2<f32>,
+                    VertexFormat::Float32x2,
+                    // @location(6) ratio: f32,
+                    VertexFormat::Float32,
+                    // @location(7) start_color: vec4<f32>,
+                    VertexFormat::Float32x4,
+                    // @location(8) start_len: f32,
+                    VertexFormat::Float32,
+                    // @location(9) end_len: f32,
+                    VertexFormat::Float32,
+                    // @location(10) end_color: vec4<f32>,
+                    VertexFormat::Float32x4,
+                ]);
+            }
         }
 
         if key.clip {

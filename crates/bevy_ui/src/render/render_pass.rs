@@ -257,6 +257,28 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
                         .slice(..),
                 );
             },
+            crate::BatchType::RadialGradient => {
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .unclipped_instance_buffers
+                        .radial_gradient
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            },
+            crate::BatchType::CRadialGradient => {
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .clipped_instance_buffers
+                        .radial_gradient
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            },
         };
         pass.draw_indexed(0..6, 0, batch.range.clone());
         RenderCommandResult::Success
