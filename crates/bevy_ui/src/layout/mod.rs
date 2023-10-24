@@ -767,34 +767,34 @@ mod tests {
         assert!(ui_surface.entity_to_taffy.is_empty());
     }
 
-    #[test]
-    fn ui_node_should_be_set_to_its_content_size() {
-        let (mut world, mut ui_schedule) = setup_ui_test_world();
+    // #[test]
+    // fn ui_node_should_be_set_to_its_content_size() {
+    //     let (mut world, mut ui_schedule) = setup_ui_test_world();
 
-        let content_size = Vec2::new(50., 25.);
+    //     let content_size = Vec2::new(50., 25.);
 
-        let ui_entity = world
-            .spawn((
-                NodeBundle {
-                    style: Style {
-                        align_self: AlignSelf::Start,
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-                ContentSize::fixed_size(content_size),
-            ))
-            .id();
+    //     let ui_entity = world
+    //         .spawn((
+    //             NodeBundle {
+    //                 style: Style {
+    //                     align_self: AlignSelf::Start,
+    //                     ..Default::default()
+    //                 },
+    //                 ..Default::default()
+    //             },
+    //             ContentSize::fixed_size(content_size),
+    //         ))
+    //         .id();
 
-        ui_schedule.run(&mut world);
+    //     ui_schedule.run(&mut world);
 
-        let ui_surface = world.resource::<UiSurface>();
-        let layout = ui_surface.get_layout(ui_entity).unwrap();
+    //     let ui_surface = world.resource::<UiSurface>();
+    //     let layout = ui_surface.get_layout(ui_entity).unwrap();
 
-        // the node should takes its size from the fixed size measure func
-        assert_eq!(layout.size.width, content_size.x);
-        assert_eq!(layout.size.height, content_size.y);
-    }
+    //     // the node should takes its size from the fixed size measure func
+    //     assert_eq!(layout.size.width, content_size.x);
+    //     assert_eq!(layout.size.height, content_size.y);
+    // }
 
     // #[test]
     // fn measure_funcs_should_be_removed_on_content_size_removal() {

@@ -506,9 +506,23 @@ pub struct ExtractedUiNodes {
 }
 
 pub struct ExtractedItem {
-    pub stack_index: usize,
+    pub stack_index: u32,
     pub image: Handle<Image>,
     pub instance: ExtractedInstance,
+}
+
+impl ExtractedItem {
+    fn new(
+        stack_index: usize,
+        image: Handle<Image>,
+        instance: impl Into<ExtractedInstance>,
+    ) -> Self {
+        Self {
+            stack_index: stack_index as u32,
+            image,
+            instance: instance.into(),
+        }
+    }
 }
 
 pub(crate) fn rect_to_f32_4(r: Rect) -> [f32; 4] {
@@ -536,11 +550,11 @@ impl ExtractedUiNodes {
             uv_size,
             color,
         };
-        self.uinodes.push(ExtractedItem {
+        self.uinodes.push(ExtractedItem::new(
             stack_index,
             image,
-            instance: (i, clip).into(),
-        });
+            (i, clip),
+        ));
     }
 
     pub fn push_node(
@@ -573,11 +587,11 @@ impl ExtractedUiNodes {
             radius,
             flags,
         };
-        self.uinodes.push(ExtractedItem {
+        self.uinodes.push(ExtractedItem::new(
             stack_index,
             image,
-            instance: (i, clip).into(),
-        });
+            (i, clip),
+        ));
     }
 
     pub fn push_border(
@@ -600,11 +614,11 @@ impl ExtractedUiNodes {
             radius,
             flags,
         };
-        self.uinodes.push(ExtractedItem {
+        self.uinodes.push(ExtractedItem::new(
             stack_index,
-            image: DEFAULT_IMAGE_HANDLE.typed(),
-            instance: (i, clip).into(),
-        });
+            image,
+            (i, clip),
+        ));
     }
 
     pub fn push_node_with_linear_gradient(
@@ -681,11 +695,11 @@ impl ExtractedUiNodes {
                 end_len: end.1,
                 end_color: end.0.as_linear_rgba_f32(),
             };
-            self.uinodes.push(ExtractedItem {
+            self.uinodes.push(ExtractedItem::new(
                 stack_index,
-                image: image.clone(),
-                instance: (i, clip).into(),
-            });
+                image,
+                (i, clip),
+            ));
         }
     }
 
@@ -740,11 +754,11 @@ impl ExtractedUiNodes {
                 end_len: end.1,
                 end_color: end.0.as_linear_rgba_f32(),
             };
-            self.uinodes.push(ExtractedItem {
+            self.uinodes.push(ExtractedItem::new(
                 stack_index,
-                image: image.clone(),
-                instance: (i, clip).into(),
-            });
+                image.clone(),
+                (i, clip),
+            ));
         }
     }
 }
@@ -791,7 +805,7 @@ pub struct UiBatch {
     pub batch_type: BatchType,
     pub range: Range<u32>,
     pub image: Handle<Image>,
-    pub z: f32,
+    pub stack_index: u32,
 }
 
 const UNTEXTURED_QUAD: u32 = 0;
@@ -825,7 +839,7 @@ pub fn prepare_uinodes(
             batch_type: node.instance.get_type(),
             range: index - 1..index,
             image: node.image.clone(),
-            z: node.stack_index as f32,
+            stack_index: node.stack_index,
         };
 
         commands.spawn(ui_batch);
@@ -1009,7 +1023,7 @@ pub fn queue_uinodes(
                     draw_function: draw_ui_function,
                     pipeline,
                     entity,
-                    sort_key: FloatOrd(batch.z),
+                    sort_key: batch.stack_index,
                 });
             }
         }
