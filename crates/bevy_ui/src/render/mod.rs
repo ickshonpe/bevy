@@ -616,7 +616,7 @@ impl ExtractedUiNodes {
         };
         self.uinodes.push(ExtractedItem::new(
             stack_index,
-            image,
+            DEFAULT_IMAGE_HANDLE.typed(),
             (i, clip),
         ));
     }
