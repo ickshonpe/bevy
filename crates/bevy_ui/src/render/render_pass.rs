@@ -190,12 +190,13 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
         );
         match batch.batch_type {
             super::BatchType::Node => {
-                //pass.set_vertex_buffer(0, ui_meta.unclipped_instance_buffers.node.buffer().unwrap().slice(..));
+                //pass.set_vertex_buffer(0, ui_meta.instance_buffers.node.buffer().unwrap().slice(..));
                 pass.set_vertex_buffer(
                     0,
                     ui_meta
-                        .unclipped_instance_buffers
+                        .instance_buffers
                         .node
+                        .unclipped
                         .buffer()
                         .unwrap()
                         .slice(..),
@@ -205,20 +206,22 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
                 pass.set_vertex_buffer(
                     0,
                     ui_meta
-                        .unclipped_instance_buffers
+                        .instance_buffers
                         .text
+                        .unclipped
                         .buffer()
                         .unwrap()
                         .slice(..),
                 );
             }
             super::BatchType::CNode => {
-                //pass.set_vertex_buffer(0, ui_meta.unclipped_instance_buffers.node.buffer().unwrap().slice(..));
+                //pass.set_vertex_buffer(0, ui_meta.uninstance_buffers.node.buffer().unwrap().slice(..));
                 pass.set_vertex_buffer(
                     0,
                     ui_meta
-                        .clipped_instance_buffers
+                        .instance_buffers
                         .node
+                        .clipped
                         .buffer()
                         .unwrap()
                         .slice(..),
@@ -228,52 +231,57 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
                 pass.set_vertex_buffer(
                     0,
                     ui_meta
-                        .clipped_instance_buffers
+                        .instance_buffers
                         .text
+                        .clipped
                         .buffer()
                         .unwrap()
                         .slice(..),
                 );
             }
-            crate::BatchType::LinearGradient => {
+            super::BatchType::LinearGradient => {
                 pass.set_vertex_buffer(
                     0,
                     ui_meta
-                        .unclipped_instance_buffers
+                        .instance_buffers
                         .linear_gradient
+                        .unclipped
                         .buffer()
                         .unwrap()
                         .slice(..),
                 );
             },
-            crate::BatchType::CLinearGradient => {
+            super::BatchType::CLinearGradient => {
                 pass.set_vertex_buffer(
                     0,
                     ui_meta
-                        .clipped_instance_buffers
+                        .instance_buffers
                         .linear_gradient
+                        .clipped
                         .buffer()
                         .unwrap()
                         .slice(..),
                 );
             },
-            crate::BatchType::RadialGradient => {
+            super::BatchType::RadialGradient => {
                 pass.set_vertex_buffer(
                     0,
                     ui_meta
-                        .unclipped_instance_buffers
+                        .instance_buffers
                         .radial_gradient
+                        .unclipped
                         .buffer()
                         .unwrap()
                         .slice(..),
                 );
             },
-            crate::BatchType::CRadialGradient => {
+            super::BatchType::CRadialGradient => {
                 pass.set_vertex_buffer(
                     0,
                     ui_meta
-                        .clipped_instance_buffers
+                        .instance_buffers
                         .radial_gradient
+                        .clipped
                         .buffer()
                         .unwrap()
                         .slice(..),

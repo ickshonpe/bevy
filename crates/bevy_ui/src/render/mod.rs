@@ -1,7 +1,9 @@
 mod pipeline;
 mod render_pass;
+pub mod instances;
 //mod gradients;
 
+use instances::*;
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
 use bevy_render::{ExtractSchedule, Render};
 use bevy_window::{PrimaryWindow, Window};
@@ -513,7 +515,10 @@ pub struct ExtractedItem {
     pub instance: ExtractedInstance,
 }
 
-fn rect_to_arr(r: Rect) -> [f32; 4] {
+
+
+
+pub (crate) fn rect_to_f32_4(r: Rect) -> [f32; 4] {
     [r.min.x, r.min.y, r.max.x, r.max.y]
 }
 
@@ -531,34 +536,18 @@ impl ExtractedUiNodes {
         let color = color.as_linear_rgba_f32();
         let uv_min = uv_rect.min.into();
         let uv_size = uv_rect.size().into();
-        if let Some(clip) = clip {
-            let i = CTextInstance {
-                location: position.into(),
-                size: size.into(),
-                uv_min,
-                uv_size,
-                color,
-                clip: rect_to_arr(clip),
-            };
-            self.uinodes.push(ExtractedItem {
-                stack_index,
-                image,
-                instance: ExtractedInstance::CText(i),
-            });
-        } else {
-            let i = TextInstance {
-                location: position.into(),
-                size: size.into(),
-                uv_min,
-                uv_size,
-                color,
-            };
-            self.uinodes.push(ExtractedItem {
-                stack_index,
-                image,
-                instance: ExtractedInstance::Text(i),
-            });
-        }
+        let i = TextInstance {
+            location: position.into(),
+            size: size.into(),
+            uv_min,
+            uv_size,
+            color,
+        };
+        self.uinodes.push(ExtractedItem {
+            stack_index,
+            image,
+            instance: (i, clip).into(),
+        });
     }
 
     pub fn push_node(
@@ -582,36 +571,20 @@ impl ExtractedUiNodes {
             UNTEXTURED_QUAD
         };
         let image = image.unwrap_or(DEFAULT_IMAGE_HANDLE.typed());
-        if let Some(clip) = clip {
-            let i = CNodeInstance {
-                location: position.into(),
-                size: size.into(),
-                uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
-                color,
-                radius,
-                flags,
-                clip: rect_to_arr(clip),
-            };
-            self.uinodes.push(ExtractedItem {
-                stack_index,
-                image,
-                instance: ExtractedInstance::CNode(i),
-            });
-        } else {
-            let i = NodeInstance {
-                location: position.into(),
-                size: size.into(),
-                uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
-                color,
-                radius,
-                flags,
-            };
-            self.uinodes.push(ExtractedItem {
-                stack_index,
-                image,
-                instance: ExtractedInstance::Node(i),
-            });
-        }
+    
+        let i = NodeInstance {
+            location: position.into(),
+            size: size.into(),
+            uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
+            color,
+            radius,
+            flags,
+        };
+        self.uinodes.push(ExtractedItem {
+            stack_index,
+            image,
+            instance: (i, clip).into(),
+        });
     }
 
     pub fn push_border(
@@ -626,36 +599,19 @@ impl ExtractedUiNodes {
     ) {
         let color = color.as_linear_rgba_f32();
         let flags = UNTEXTURED_QUAD | BORDERED;
-        if let Some(clip) = clip {
-            let i = CNodeInstance {
-                location: position.into(),
-                size: size.into(),
-                uv_border: inset,
-                color,
-                radius,
-                flags,
-                clip: rect_to_arr(clip),
-            };
-            self.uinodes.push(ExtractedItem {
-                stack_index,
-                image: DEFAULT_IMAGE_HANDLE.typed(),
-                instance: ExtractedInstance::CNode(i),
-            });
-        } else {
-            let i = NodeInstance {
-                location: position.into(),
-                size: size.into(),
-                uv_border: inset,
-                color,
-                radius,
-                flags,
-            };
-            self.uinodes.push(ExtractedItem {
-                stack_index,
-                image: DEFAULT_IMAGE_HANDLE.typed(),
-                instance: ExtractedInstance::Node(i),
-            });
-        }
+        let i = NodeInstance {
+            location: position.into(),
+            size: size.into(),
+            uv_border: inset,
+            color,
+            radius,
+            flags,
+        };
+        self.uinodes.push(ExtractedItem {
+            stack_index,
+            image: DEFAULT_IMAGE_HANDLE.typed(),
+            instance: (i, clip).into(),
+        });   
     }
 
     pub fn push_node_with_linear_gradient(
@@ -729,46 +685,25 @@ impl ExtractedUiNodes {
                 flags |= FILL_END;
             }
             
-            if let Some(clip) = clip {
-                let i = CLinearGradientInstance {
-                    location: position.into(),
-                    size: size.into(),
-                    uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
-                    radius,
-                    flags,
-                    focal_point: focal_point.into(),
-                    angle: gradient.angle,
-                    start_color: start.0.as_linear_rgba_f32(),
-                    start_len: start.1,
-                    end_len: end.1,
-                    end_color: end.0.as_linear_rgba_f32(),
-                    clip: rect_to_arr(clip),
-                };
-                self.uinodes.push(ExtractedItem {
-                    stack_index,
-                    image: image.clone(),
-                    instance: ExtractedInstance::CLinearGradient(i),
-                });
-            } else {
-                let i = LinearGradientInstance {
-                    location: position.into(),
-                    size: size.into(),
-                    uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
-                    radius,
-                    flags,
-                    focal_point: focal_point.into(),
-                    angle: gradient.angle,
-                    start_color: start.0.as_linear_rgba_f32(),
-                    start_len: start.1,
-                    end_len: end.1,
-                    end_color: end.0.as_linear_rgba_f32(),
-                };
-                self.uinodes.push(ExtractedItem {
-                    stack_index,
-                    image: image.clone(),
-                    instance: ExtractedInstance::LinearGradient(i),
-                });
-            }
+            let i = LinearGradientInstance {
+                location: position.into(),
+                size: size.into(),
+                uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
+                radius,
+                flags,
+                focal_point: focal_point.into(),
+                angle: gradient.angle,
+                start_color: start.0.as_linear_rgba_f32(),
+                start_len: start.1,
+                end_len: end.1,
+                end_color: end.0.as_linear_rgba_f32(),
+            };
+            self.uinodes.push(ExtractedItem {
+                stack_index,
+                image: image.clone(),
+                instance: (i, clip).into(),
+            });
+            
         }
     }
 
@@ -811,263 +746,27 @@ impl ExtractedUiNodes {
             if i + 2 == gradient.stops.len() {
                 flags |= FILL_END;
             }
+        
+            let i = RadialGradientInstance {
+                location: position.into(),
+                size: size.into(),
+                uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
+                radius,
+                flags,
+                focal_point: Vec2::ZERO.into(),
+                ratio: 1.0,
+                start_color: start.0.as_linear_rgba_f32(),
+                start_len: start.1,
+                end_len: end.1,
+                end_color: end.0.as_linear_rgba_f32(),
+            };
+            self.uinodes.push(ExtractedItem {
+                stack_index,
+                image: image.clone(),
+                instance: (i, clip).into(),
+            });
             
-            if let Some(clip) = clip {
-                let i = CRadialGradientInstance {
-                    location: position.into(),
-                    size: size.into(),
-                    uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
-                    radius,
-                    flags,
-                    focal_point: Vec2::ZERO.into(),
-                    ratio: 1.0,
-                    start_color: start.0.as_linear_rgba_f32(),
-                    start_len: start.1,
-                    end_len: end.1,
-                    end_color: end.0.as_linear_rgba_f32(),
-                    clip: rect_to_arr(clip),
-                };
-                self.uinodes.push(ExtractedItem {
-                    stack_index,
-                    image: image.clone(),
-                    instance: ExtractedInstance::CRadialGradient(i),
-                });
-            } else {
-                let i = RadialGradientInstance {
-                    location: position.into(),
-                    size: size.into(),
-                    uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
-                    radius,
-                    flags,
-                    focal_point: Vec2::ZERO.into(),
-                    ratio: 1.0,
-                    start_color: start.0.as_linear_rgba_f32(),
-                    start_len: start.1,
-                    end_len: end.1,
-                    end_color: end.0.as_linear_rgba_f32(),
-                };
-                self.uinodes.push(ExtractedItem {
-                    stack_index,
-                    image: image.clone(),
-                    instance: ExtractedInstance::RadialGradient(i),
-                });
-            }
         }
-    }
-}
-
-pub enum BatchType {
-    Node,
-    Text,
-    CNode,
-    CText,
-    LinearGradient,
-    CLinearGradient,
-    RadialGradient,
-    CRadialGradient,
-}
-
-pub enum ExtractedInstance {
-    Node(NodeInstance),
-    Text(TextInstance),
-    LinearGradient(LinearGradientInstance),
-    RadialGradient(RadialGradientInstance),
-    CNode(CNodeInstance),
-    CText(CTextInstance),
-    CLinearGradient(CLinearGradientInstance),
-    CRadialGradient(CRadialGradientInstance),
-}
-
-impl ExtractedInstance {
-    pub fn get_type(&self) -> BatchType {
-        match self {
-            ExtractedInstance::Node(_) => BatchType::Node,
-            ExtractedInstance::Text(_) => BatchType::Text,            
-            ExtractedInstance::CNode(_) => BatchType::CNode,
-            ExtractedInstance::CText(_) => BatchType::CText,
-            ExtractedInstance::LinearGradient(_) => BatchType::LinearGradient,
-            ExtractedInstance::CLinearGradient(_) => BatchType::CLinearGradient,
-            ExtractedInstance::RadialGradient(_) => BatchType::RadialGradient,
-            ExtractedInstance::CRadialGradient(_) => BatchType::CRadialGradient,
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable, Debug)]
-pub struct NodeInstance {
-    pub location: [f32; 2],
-    pub size: [f32; 2],
-    pub uv_border: [f32; 4],
-    pub color: [f32; 4],
-    pub radius: [f32; 4],
-    pub flags: u32,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable, Debug)]
-pub struct TextInstance {
-    pub location: [f32; 2],
-    pub size: [f32; 2],
-    pub uv_min: [f32; 2],
-    pub uv_size: [f32; 2],
-    pub color: [f32; 4],
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable, Debug)]
-pub struct LinearGradientInstance {
-    pub location: [f32; 2],
-    pub size: [f32; 2],
-    pub uv_border: [f32; 4],
-    pub radius: [f32; 4],
-    pub flags: u32,
-    pub focal_point: [f32; 2],
-    pub angle: f32,
-    // @location(7) start_color: vec4<f32>,
-    pub start_color: [f32; 4],
-    // @location(8) start_len: f32,
-    pub start_len: f32,
-    // @location(9) end_len: f32,
-    pub end_len: f32,
-    // @location(10) end_color: vec4<f32>,
-    pub end_color: [f32; 4],
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable, Debug)]
-pub struct RadialGradientInstance {
-    pub location: [f32; 2],
-    pub size: [f32; 2],
-    pub uv_border: [f32; 4],
-    pub radius: [f32; 4],
-    pub flags: u32,
-    pub focal_point: [f32; 2],
-    pub ratio: f32,
-    // @location(7) start_color: vec4<f32>,
-    pub start_color: [f32; 4],
-    // @location(8) start_len: f32,
-    pub start_len: f32,
-    // @location(9) end_len: f32,
-    pub end_len: f32,
-    // @location(10) end_color: vec4<f32>,
-    pub end_color: [f32; 4],
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable, Debug)]
-pub struct CNodeInstance {
-    pub location: [f32; 2],
-    pub size: [f32; 2],
-    pub uv_border: [f32; 4],
-    pub color: [f32; 4],
-    pub radius: [f32; 4],
-    pub flags: u32,
-    pub clip: [f32; 4],
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable, Debug)]
-pub struct CTextInstance {
-    pub location: [f32; 2],
-    pub size: [f32; 2],
-    pub uv_min: [f32; 2],
-    pub uv_size: [f32; 2],
-    pub color: [f32; 4],
-    pub clip: [f32; 4],
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable, Debug)]
-pub struct CLinearGradientInstance {
-    pub location: [f32; 2],
-    pub size: [f32; 2],
-    pub uv_border: [f32; 4],
-    pub radius: [f32; 4],
-    pub flags: u32,
-    pub focal_point: [f32; 2],
-    pub angle: f32,
-    // @location(7) start_color: vec4<f32>,
-    pub start_color: [f32; 4],
-    // @location(8) start_len: f32,
-    pub start_len: f32,
-    // @location(9) end_len: f32,
-    pub end_len: f32,
-    // @location(10) end_color: vec4<f32>,
-    pub end_color: [f32; 4],
-    pub clip: [f32; 4],
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable, Debug)]
-pub struct CRadialGradientInstance {
-    pub location: [f32; 2],
-    pub size: [f32; 2],
-    pub uv_border: [f32; 4],
-    pub radius: [f32; 4],
-    pub flags: u32,
-    pub focal_point: [f32; 2],
-    pub ratio: f32,
-    // @location(7) start_color: vec4<f32>,
-    pub start_color: [f32; 4],
-    // @location(8) start_len: f32,
-    pub start_len: f32,
-    // @location(9) end_len: f32,
-    pub end_len: f32,
-    // @location(10) end_color: vec4<f32>,
-    pub end_color: [f32; 4],
-    pub clip: [f32; 4],
-}
-
-pub struct UiInstanceBuffers<N, T, L, R>
-where
-    N: Pod + Zeroable,
-    T: Pod + Zeroable,
-    L: Pod + Zeroable,
-    R: Pod + Zeroable,
-{
-    node: BufferVec<N>,
-    text: BufferVec<T>,
-    linear_gradient: BufferVec<L>,
-    radial_gradient: BufferVec<R>,
-}
-
-impl<N, T, L, R> Default for UiInstanceBuffers<N, T, L, R>
-where
-    N: Pod + Zeroable,
-    T: Pod + Zeroable,
-    L: Pod + Zeroable,
-    R: Pod + Zeroable,
-{
-    fn default() -> Self {
-        Self {
-            node: BufferVec::<N>::new(BufferUsages::VERTEX),
-            text: BufferVec::<T>::new(BufferUsages::VERTEX),
-            linear_gradient: BufferVec::<L>::new(BufferUsages::VERTEX),
-            radial_gradient: BufferVec::<R>::new(BufferUsages::VERTEX),
-        }
-    }
-}
-
-impl<N, T, L, R> UiInstanceBuffers<N, T, L, R>
-where
-    N: Pod + Zeroable,
-    T: Pod + Zeroable,
-    L: Pod + Zeroable,
-    R: Pod + Zeroable,
-{
-    pub fn clear(&mut self) {
-        self.node.clear();
-        self.text.clear();
-        self.linear_gradient.clear();
-        self.radial_gradient.clear();
-    }
-
-    pub fn write_buffers(&mut self, render_device: &RenderDevice, render_queue: &RenderQueue) {
-        self.node.write_buffer(&render_device, &render_queue);
-        self.text.write_buffer(&render_device, &render_queue);
-        self.linear_gradient.write_buffer(&render_device, &render_queue);
-        self.radial_gradient.write_buffer(&render_device, &render_queue);
     }
 }
 
@@ -1079,11 +778,9 @@ struct UiClip {
 
 #[derive(Resource)]
 pub struct UiMeta {
-    view_bind_group: Option<BindGroup>,
-    index_buffer: BufferVec<u32>,
-    unclipped_instance_buffers: UiInstanceBuffers<NodeInstance, TextInstance, LinearGradientInstance, RadialGradientInstance>,
-    clipped_instance_buffers: UiInstanceBuffers<CNodeInstance, CTextInstance, CLinearGradientInstance, CRadialGradientInstance>,
-    clip_buffer: BufferVec<[f32; 4]>,
+    pub view_bind_group: Option<BindGroup>,
+    pub index_buffer: BufferVec<u32>,
+    pub instance_buffers: UiInstanceBuffers,
 }
 
 impl Default for UiMeta {
@@ -1091,24 +788,33 @@ impl Default for UiMeta {
         Self {
             view_bind_group: None,
             index_buffer: BufferVec::<u32>::new(BufferUsages::INDEX),
-            unclipped_instance_buffers: Default::default(),
-            clipped_instance_buffers: Default::default(),
-            clip_buffer: BufferVec::<[f32; 4]>::new(BufferUsages::UNIFORM),
+            instance_buffers: Default::default(),
         }
     }
 }
 
 impl UiMeta {
     fn clear_instance_buffers(&mut self) {
-        self.unclipped_instance_buffers.clear();
-        self.clipped_instance_buffers.clear();
+        self.instance_buffers.clear_all();
+        
     }
 
     fn write_instance_buffers(&mut self, render_device: &RenderDevice, render_queue: &RenderQueue) {
-        self.unclipped_instance_buffers
-            .write_buffers(render_device, render_queue);
-        self.clipped_instance_buffers
-            .write_buffers(render_device, render_queue);
+        self.instance_buffers.write_all(render_device, render_queue);        
+    }
+
+    fn push(&mut self, item: &ExtractedInstance) {
+        match item {
+            ExtractedInstance::Node(i) => i.push(&mut self.instance_buffers),
+            ExtractedInstance::Text(i) => i.push(&mut self.instance_buffers),
+            ExtractedInstance::LinearGradient(i) => i.push(&mut self.instance_buffers),
+            ExtractedInstance::RadialGradient(i) => i.push(&mut self.instance_buffers),
+            ExtractedInstance::CNode(i) => i.push(&mut self.instance_buffers),
+            ExtractedInstance::CText(i) => i.push(&mut self.instance_buffers),
+            ExtractedInstance::CLinearGradient(i) => i.push(&mut self.instance_buffers),
+            ExtractedInstance::CRadialGradient(i) => i.push(&mut self.instance_buffers),
+        };
+
     }
 }
 
@@ -1134,67 +840,18 @@ pub fn prepare_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
 ) {
     ui_meta.clear_instance_buffers();
-    ui_meta.clip_buffer.clear();
 
     // sort by ui stack index, starting from the deepest node
     extracted_uinodes
         .uinodes
         .sort_by_key(|node| node.stack_index);
 
-    let mut text_index: u32 = 0;
-    let mut node_index = 0;
-    let mut ctext_index: u32 = 0;
-    let mut cnode_index = 0;
-    let mut lg_index = 0;
-    let mut clg_index = 0;
-    let mut rg_index = 0;
-    let mut crg_index = 0;
-
+    let mut instance_counters = InstanceCounters::default();
 
     for node in &extracted_uinodes.uinodes {
-        let index = match node.instance {
-            ExtractedInstance::Node(node) => {
-                ui_meta.unclipped_instance_buffers.node.push(node);
-                node_index += 1;
-                node_index
-            }
-            ExtractedInstance::Text(text) => {
-                ui_meta.unclipped_instance_buffers.text.push(text);
-                text_index += 1;
-                text_index
-            }
-            ExtractedInstance::LinearGradient(l) => {
-                ui_meta.unclipped_instance_buffers.linear_gradient.push(l);
-                lg_index += 1;
-                lg_index
-            },
-            ExtractedInstance::CNode(c) => {
-                ui_meta.clipped_instance_buffers.node.push(c);
-                cnode_index += 1;
-                cnode_index
-            }
-            ExtractedInstance::CText(c) => {
-                ui_meta.clipped_instance_buffers.text.push(c);
-                ctext_index += 1;
-                ctext_index
-            }
-            ExtractedInstance::CLinearGradient(l) => {
-                ui_meta.clipped_instance_buffers.linear_gradient.push(l);
-                clg_index += 1;
-                clg_index
-            }
-            ExtractedInstance::RadialGradient(r) => {
-                ui_meta.unclipped_instance_buffers.radial_gradient.push(r);
-                rg_index += 1;
-                rg_index
-            },
-            ExtractedInstance::CRadialGradient(r) => {
-                ui_meta.clipped_instance_buffers.radial_gradient.push(r);
-                crg_index += 1;
-                crg_index
-            },
-            
-        };
+        let batch_type: BatchType = node.instance.get_type();
+        node.instance.push(&mut ui_meta.instance_buffers);
+        let index = instance_counters.increment(batch_type);
 
         let ui_batch = UiBatch {
             batch_type: node.instance.get_type(),
@@ -1231,10 +888,6 @@ pub fn prepare_uinodes(
             .index_buffer
             .write_buffer(&render_device, &render_queue);
     }
-
-    ui_meta
-        .clip_buffer
-        .write_buffer(&render_device, &render_queue);
 }
 
 #[derive(Resource, Default)]
