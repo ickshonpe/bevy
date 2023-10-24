@@ -1571,8 +1571,8 @@ impl Default for BorderColor {
     }
 }
 
-#[derive(Component, Copy, Clone, Default, Debug, Reflect)]
-#[reflect(Component, Default)]
+#[derive(Component, Copy, Clone, Default, Debug, Reflect, Serialize, Deserialize)]
+#[reflect(Component, Default, Serialize, Deserialize)]
 /// The [`Outline`] component adds an outline outside the edge of a UI node.
 /// Outlines do not take up space in the layout
 ///
@@ -1728,8 +1728,8 @@ impl Default for ZIndex {
 /// * A corner set to a 0 value will be right angled.
 /// * The value is clamped to between 0 and half the length of the shortest side of the node before being used.
 /// * `Val::AUTO` is resolved to `Val::Px(0.)`.
-#[derive(Copy, Clone, Debug, PartialEq, Reflect)]
-#[reflect(PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Reflect, Serialize, Deserialize)]
+#[reflect(PartialEq, Serialize, Deserialize)]
 pub struct BorderRadius {
     pub top_left: Val,
     pub top_right: Val,
