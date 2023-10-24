@@ -1,7 +1,6 @@
-pub mod instances;
+mod instances;
 mod pipeline;
 mod render_pass;
-//mod gradients;
 
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
 use bevy_render::{ExtractSchedule, Render};
@@ -39,7 +38,6 @@ use bevy_sprite::TextureAtlas;
 #[cfg(feature = "bevy_text")]
 use bevy_text::{PositionedGlyph, Text, TextLayoutInfo};
 use bevy_transform::components::GlobalTransform;
-use bevy_utils::FloatOrd;
 use bevy_utils::HashMap;
 use bytemuck::{Pod, Zeroable};
 use std::f32::consts::PI;
@@ -697,7 +695,7 @@ impl ExtractedUiNodes {
             };
             self.uinodes.push(ExtractedItem::new(
                 stack_index,
-                image,
+                image.clone(),
                 (i, clip),
             ));
         }
