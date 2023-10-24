@@ -11,17 +11,17 @@ pub use pipeline::*;
 pub use render_pass::*;
 
 use crate::{
-    prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ContentSize, Node,
-    Style, UiImage, UiScale, UiStack, UiTextureAtlasImage, Val,
+    prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, Node,
+    UiImage, UiScale, UiStack, UiTextureAtlasImage,
 };
 use crate::{LinearGradient, Outline, UiColor, resolve_color_stops, RadialGradient};
 
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
-use bevy_math::{Mat4, Rect, UVec4, Vec2, Vec3, Vec3Swizzles, Vec4, vec2};
+use bevy_math::{Mat4, Rect, UVec4, Vec2, Vec4, vec2};
 use bevy_reflect::TypeUuid;
-use bevy_render::texture::{DEFAULT_IMAGE_HANDLE, TEXTURE_ASSET_INDEX};
+use bevy_render::texture::DEFAULT_IMAGE_HANDLE;
 use bevy_render::{
     camera::Camera,
     color::Color,
@@ -155,14 +155,6 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
     ui_graph
 }
 
-fn is_color_none(ui_color: &UiColor) -> bool {
-    if let UiColor::Color(color) = ui_color {
-        color.a() == 0.0
-    } else {
-        false
-    }
-}
-
 pub fn extract_atlas_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     images: Extract<Res<Assets<Image>>>,
@@ -184,7 +176,7 @@ pub fn extract_atlas_uinodes(
     >,
 ) {
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, transform, color, visibility, clip, texture_atlas_handle, atlas_image)) =
+        if let Ok((uinode, _transform, color, visibility, clip, texture_atlas_handle, atlas_image)) =
             uinode_query.get(*entity)
         {
             // Skip invisible and completely transparent nodes
@@ -278,7 +270,7 @@ pub fn extract_uinodes(
             }
 
             if color.is_visible() {
-                let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
+                let (image, _flip_x, _flip_y) = if let Some(image) = maybe_image {
                     // Skip loading images
                     if !images.contains(&image.texture) {
                         continue;
@@ -796,7 +788,6 @@ impl Default for UiMeta {
 impl UiMeta {
     fn clear_instance_buffers(&mut self) {
         self.instance_buffers.clear_all();
-        
     }
 
     fn write_instance_buffers(&mut self, render_device: &RenderDevice, render_queue: &RenderQueue) {
@@ -804,17 +795,7 @@ impl UiMeta {
     }
 
     fn push(&mut self, item: &ExtractedInstance) {
-        match item {
-            ExtractedInstance::Node(i) => i.push(&mut self.instance_buffers),
-            ExtractedInstance::Text(i) => i.push(&mut self.instance_buffers),
-            ExtractedInstance::LinearGradient(i) => i.push(&mut self.instance_buffers),
-            ExtractedInstance::RadialGradient(i) => i.push(&mut self.instance_buffers),
-            ExtractedInstance::CNode(i) => i.push(&mut self.instance_buffers),
-            ExtractedInstance::CText(i) => i.push(&mut self.instance_buffers),
-            ExtractedInstance::CLinearGradient(i) => i.push(&mut self.instance_buffers),
-            ExtractedInstance::CRadialGradient(i) => i.push(&mut self.instance_buffers),
-        };
-
+        item.push(&mut self.instance_buffers);
     }
 }
 
@@ -850,7 +831,7 @@ pub fn prepare_uinodes(
 
     for node in &extracted_uinodes.uinodes {
         let batch_type: BatchType = node.instance.get_type();
-        node.instance.push(&mut ui_meta.instance_buffers);
+        ui_meta.push(&node.instance);
         let index = instance_counters.increment(batch_type);
 
         let ui_batch = UiBatch {

@@ -211,8 +211,6 @@ pub enum BatchType {
 #[derive(Default)]
 pub struct InstanceCounters([u32; 8]);
 
-
-
 impl InstanceCounters {
     #[inline]
     pub fn get(&self, batch_type: BatchType) -> u32 {
