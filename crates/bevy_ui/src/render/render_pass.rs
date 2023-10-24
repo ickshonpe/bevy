@@ -250,7 +250,7 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
                         .unwrap()
                         .slice(..),
                 );
-            },
+            }
             super::BatchType::CLinearGradient => {
                 pass.set_vertex_buffer(
                     0,
@@ -262,7 +262,7 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
                         .unwrap()
                         .slice(..),
                 );
-            },
+            }
             super::BatchType::RadialGradient => {
                 pass.set_vertex_buffer(
                     0,
@@ -274,7 +274,7 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
                         .unwrap()
                         .slice(..),
                 );
-            },
+            }
             super::BatchType::CRadialGradient => {
                 pass.set_vertex_buffer(
                     0,
@@ -286,7 +286,7 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
                         .unwrap()
                         .slice(..),
                 );
-            },
+            }
         };
         pass.draw_indexed(0..6, 0, batch.range.clone());
         RenderCommandResult::Success

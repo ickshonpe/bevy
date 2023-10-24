@@ -1932,20 +1932,25 @@ impl From<Color> for ColorStop {
 
 impl From<(Color, Val)> for ColorStop {
     fn from((color, val): (Color, Val)) -> Self {
-        Self {
-            color,
-            point: val,
-        }
+        Self { color, point: val }
     }
 }
 
-
-pub fn resolve_color_stops(stops: &[ColorStop], len: f32, viewport_size: Vec2) -> Vec<(Color, f32)>{
+pub fn resolve_color_stops(
+    stops: &[ColorStop],
+    len: f32,
+    viewport_size: Vec2,
+) -> Vec<(Color, f32)> {
     if stops.is_empty() {
         return vec![];
     }
 
-    let mut out =  stops.iter().map(|ColorStop { color, point }| (*color, point.resolve(len, viewport_size).unwrap_or(-1.))).collect::<Vec<_>>();
+    let mut out = stops
+        .iter()
+        .map(|ColorStop { color, point }| {
+            (*color, point.resolve(len, viewport_size).unwrap_or(-1.))
+        })
+        .collect::<Vec<_>>();
     if out[0].1 < 0.0 {
         out[0].1 = 0.0;
     }
@@ -1957,7 +1962,7 @@ pub fn resolve_color_stops(stops: &[ColorStop], len: f32, viewport_size: Vec2) -
 
     let mut current = 0.;
     for (_, point) in &mut out {
-        if 0.0 <= *point { 
+        if 0.0 <= *point {
             if *point < current {
                 *point = current;
             }
@@ -2012,7 +2017,11 @@ impl LinearGradient {
     }
 
     pub fn new(angle: f32, stops: Vec<ColorStop>) -> Self {
-        Self { point: Vec2::ZERO, angle, stops }
+        Self {
+            point: Vec2::ZERO,
+            angle,
+            stops,
+        }
     }
 
     pub fn is_visible(&self) -> bool {
@@ -2026,12 +2035,11 @@ impl LinearGradient {
             stops,
         }
     }
-
 }
 
 impl From<Color> for LinearGradient {
     fn from(color: Color) -> Self {
-        Self::new( 0., vec![color.into(), color.into()])
+        Self::new(0., vec![color.into(), color.into()])
     }
 }
 
@@ -2205,8 +2213,14 @@ mod tests {
     #[test]
     fn simple_two_stops() {
         let stops = vec![
-            ColorStop { color: Color::WHITE, point: Val::Auto },
-            ColorStop { color: Color::BLACK, point: Val::Auto },
+            ColorStop {
+                color: Color::WHITE,
+                point: Val::Auto,
+            },
+            ColorStop {
+                color: Color::BLACK,
+                point: Val::Auto,
+            },
         ];
 
         let r = resolve_color_stops(&stops, 1., Vec2::ZERO);
@@ -2214,13 +2228,28 @@ mod tests {
         assert_eq!(r.len(), 2);
         assert_eq!(r[0].1, 0.0);
         assert_eq!(r[1].1, 1.0);
-        
+
         let stops = vec![
-            ColorStop { color: Color::WHITE, point: Val::Auto },
-            ColorStop { color: Color::RED, point: Val::Auto },
-            ColorStop { color: Color::GREEN, point: Val::Auto },
-            ColorStop { color: Color::YELLOW, point: Val::Auto },
-            ColorStop { color: Color::BLACK, point: Val::Auto },
+            ColorStop {
+                color: Color::WHITE,
+                point: Val::Auto,
+            },
+            ColorStop {
+                color: Color::RED,
+                point: Val::Auto,
+            },
+            ColorStop {
+                color: Color::GREEN,
+                point: Val::Auto,
+            },
+            ColorStop {
+                color: Color::YELLOW,
+                point: Val::Auto,
+            },
+            ColorStop {
+                color: Color::BLACK,
+                point: Val::Auto,
+            },
         ];
 
         let r = resolve_color_stops(&stops, 1., Vec2::ZERO);

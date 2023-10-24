@@ -1,25 +1,25 @@
+pub mod instances;
 mod pipeline;
 mod render_pass;
-pub mod instances;
 //mod gradients;
 
-use instances::*;
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
 use bevy_render::{ExtractSchedule, Render};
 use bevy_window::{PrimaryWindow, Window};
+use instances::*;
 pub use pipeline::*;
 pub use render_pass::*;
 
 use crate::{
-    prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, Node,
-    UiImage, UiScale, UiStack, UiTextureAtlasImage,
+    prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, Node, UiImage, UiScale,
+    UiStack, UiTextureAtlasImage,
 };
-use crate::{LinearGradient, Outline, UiColor, resolve_color_stops, RadialGradient};
+use crate::{resolve_color_stops, LinearGradient, Outline, RadialGradient, UiColor};
 
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
 use bevy_ecs::prelude::*;
-use bevy_math::{Mat4, Rect, UVec4, Vec2, Vec4, vec2};
+use bevy_math::{vec2, Mat4, Rect, UVec4, Vec2, Vec4};
 use bevy_reflect::TypeUuid;
 use bevy_render::texture::DEFAULT_IMAGE_HANDLE;
 use bevy_render::{
@@ -176,8 +176,15 @@ pub fn extract_atlas_uinodes(
     >,
 ) {
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, _transform, color, visibility, clip, texture_atlas_handle, atlas_image)) =
-            uinode_query.get(*entity)
+        if let Ok((
+            uinode,
+            _transform,
+            color,
+            visibility,
+            clip,
+            texture_atlas_handle,
+            atlas_image,
+        )) = uinode_query.get(*entity)
         {
             // Skip invisible and completely transparent nodes
             if !visibility.is_visible() {
@@ -291,8 +298,8 @@ pub fn extract_uinodes(
                             *color,
                             uinode.border_radius,
                             clip.map(|clip| clip.clip),
-                        );        
-                    },
+                        );
+                    }
                     UiColor::LinearGradient(l) => {
                         extracted_uinodes.push_node_with_linear_gradient(
                             stack_index,
@@ -300,11 +307,11 @@ pub fn extract_uinodes(
                             uinode.size(),
                             image,
                             Rect::new(0.0, 0.0, 1.0, 1.0),
-                            uinode.border_radius,   
+                            uinode.border_radius,
                             l.clone(),
                             clip.map(|clip| clip.clip),
-                        );        
-                    },
+                        );
+                    }
                     UiColor::RadialGradient(r) => {
                         extracted_uinodes.push_node_with_radial_gradient(
                             stack_index,
@@ -312,14 +319,13 @@ pub fn extract_uinodes(
                             uinode.size(),
                             image,
                             Rect::new(0.0, 0.0, 1.0, 1.0),
-                            uinode.border_radius,   
+                            uinode.border_radius,
                             r.clone(),
                             clip.map(|clip| clip.clip),
-                        );        
-                    },
+                        );
+                    }
                 }
             }
-                
 
             if let Some(border_color) = maybe_border_color {
                 if border_color.is_visible() {
@@ -333,12 +339,10 @@ pub fn extract_uinodes(
                                 uinode.border,
                                 uinode.border_radius,
                                 clip.map(|clip| clip.clip),
-                            );                    
-                        },
-                        UiColor::LinearGradient(_) => {
-                        },
-                        UiColor::RadialGradient(_) => {
-                        },
+                            );
+                        }
+                        UiColor::LinearGradient(_) => {}
+                        UiColor::RadialGradient(_) => {}
                     }
                 }
             }
@@ -507,10 +511,7 @@ pub struct ExtractedItem {
     pub instance: ExtractedInstance,
 }
 
-
-
-
-pub (crate) fn rect_to_f32_4(r: Rect) -> [f32; 4] {
+pub(crate) fn rect_to_f32_4(r: Rect) -> [f32; 4] {
     [r.min.x, r.min.y, r.max.x, r.max.y]
 }
 
@@ -563,7 +564,7 @@ impl ExtractedUiNodes {
             UNTEXTURED_QUAD
         };
         let image = image.unwrap_or(DEFAULT_IMAGE_HANDLE.typed());
-    
+
         let i = NodeInstance {
             location: position.into(),
             size: size.into(),
@@ -603,7 +604,7 @@ impl ExtractedUiNodes {
             stack_index,
             image: DEFAULT_IMAGE_HANDLE.typed(),
             instance: (i, clip).into(),
-        });   
+        });
     }
 
     pub fn push_node_with_linear_gradient(
@@ -616,7 +617,6 @@ impl ExtractedUiNodes {
         radius: [f32; 4],
         gradient: LinearGradient,
         clip: Option<Rect>,
-
     ) {
         let x = gradient.angle.cos();
         let y = gradient.angle.sin();
@@ -625,7 +625,7 @@ impl ExtractedUiNodes {
         // return the distance of point `p` from the line defined by point `o` and direction `dir`
         fn sdf_line(o: Vec2, dir: Vec2, p: Vec2) -> f32 {
             // project p onto the the o-dir line and then return the distance between p and the projection.
-            return p.distance(o + dir * (p-o).dot(dir));
+            return p.distance(o + dir * (p - o).dot(dir));
         }
 
         let uv_min = uv_rect.min;
@@ -635,24 +635,15 @@ impl ExtractedUiNodes {
             return x - m * (x / m).floor();
         }
 
-        let reduced = modulo(gradient.angle, 2.0 * PI) ;
+        let reduced = modulo(gradient.angle, 2.0 * PI);
         let q = (reduced * 2.0 / PI) as i32;
-        let focal_point =
-            match q {
-                0 => {
-                    vec2(-1., 1.) * size
-                }
-                1 => {
-                    vec2(-1., -1.) * size
-                }
-                2 => {
-                    vec2(1., -1.) * size
-                }            
-                _ => {
-                    vec2(1., 1.) * size
-                }           
-            } * 0.5f32;
-        
+        let focal_point = match q {
+            0 => vec2(-1., 1.) * size,
+            1 => vec2(-1., -1.) * size,
+            2 => vec2(1., -1.) * size,
+            _ => vec2(1., 1.) * size,
+        } * 0.5f32;
+
         let tflag = if image.is_some() {
             TEXTURED_QUAD //| FILL_START | FILL_END
         } else {
@@ -676,7 +667,7 @@ impl ExtractedUiNodes {
             if i + 2 == gradient.stops.len() {
                 flags |= FILL_END;
             }
-            
+
             let i = LinearGradientInstance {
                 location: position.into(),
                 size: size.into(),
@@ -695,7 +686,6 @@ impl ExtractedUiNodes {
                 image: image.clone(),
                 instance: (i, clip).into(),
             });
-            
         }
     }
 
@@ -709,9 +699,7 @@ impl ExtractedUiNodes {
         radius: [f32; 4],
         gradient: RadialGradient,
         clip: Option<Rect>,
-
     ) {
-        
         let tflag = if image.is_some() {
             TEXTURED_QUAD
         } else {
@@ -738,7 +726,7 @@ impl ExtractedUiNodes {
             if i + 2 == gradient.stops.len() {
                 flags |= FILL_END;
             }
-        
+
             let i = RadialGradientInstance {
                 location: position.into(),
                 size: size.into(),
@@ -757,7 +745,6 @@ impl ExtractedUiNodes {
                 image: image.clone(),
                 instance: (i, clip).into(),
             });
-            
         }
     }
 }
@@ -791,7 +778,7 @@ impl UiMeta {
     }
 
     fn write_instance_buffers(&mut self, render_device: &RenderDevice, render_queue: &RenderQueue) {
-        self.instance_buffers.write_all(render_device, render_queue);        
+        self.instance_buffers.write_all(render_device, render_queue);
     }
 
     fn push(&mut self, item: &ExtractedInstance) {
@@ -1017,7 +1004,6 @@ pub fn queue_uinodes(
                     BatchType::CLinearGradient => clipped_linear_gradient_pipeline,
                     BatchType::RadialGradient => radial_gradient_pipeline,
                     BatchType::CRadialGradient => clipped_radial_gradient_pipeline,
-                    
                 };
                 transparent_phase.add(TransparentUi {
                     draw_function: draw_ui_function,

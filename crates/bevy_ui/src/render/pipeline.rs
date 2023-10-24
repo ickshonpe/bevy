@@ -143,7 +143,6 @@ impl SpecializedRenderPipeline for UiPipeline {
                     // @location(10) end_color: vec4<f32>,
                     VertexFormat::Float32x4,
                 ]);
-
             }
             UiPipelineSpecialization::RadialGradient => {
                 shader_defs.push("SPECIAL".into());

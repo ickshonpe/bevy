@@ -1,8 +1,12 @@
 use bevy_math::Rect;
-use bevy_render::{render_resource::{BufferVec, BufferUsages}, renderer::{RenderDevice, RenderQueue}, Extract};
+use bevy_render::{
+    render_resource::{BufferUsages, BufferVec},
+    renderer::{RenderDevice, RenderQueue},
+    Extract,
+};
 use bytemuck::{Pod, Zeroable};
 
-use crate::{CalculatedClip, rect_to_f32_4, UiMeta};
+use crate::{rect_to_f32_4, CalculatedClip, UiMeta};
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable, Debug)]
@@ -67,27 +71,37 @@ pub struct RadialGradientInstance {
 
 #[repr(C)]
 #[derive(Copy, Clone, Zeroable, Debug)]
-pub struct ClippedInstance<I> 
-where I: Copy + Clone + Pod + Zeroable + std::fmt::Debug
+pub struct ClippedInstance<I>
+where
+    I: Copy + Clone + Pod + Zeroable + std::fmt::Debug,
 {
-    pub instance: I, 
-    clip: [f32; 4]
+    pub instance: I,
+    clip: [f32; 4],
 }
 
-impl <I> From<(I, [f32; 4])> for ClippedInstance<I> where I: Clone + Copy + Pod + Zeroable + std::fmt::Debug {
+impl<I> From<(I, [f32; 4])> for ClippedInstance<I>
+where
+    I: Clone + Copy + Pod + Zeroable + std::fmt::Debug,
+{
     fn from((instance, clip): (I, [f32; 4])) -> Self {
         ClippedInstance { instance, clip }
     }
 }
 
-unsafe impl <I> Pod for ClippedInstance<I> where I: Clone + Copy + Pod + Zeroable + std::fmt::Debug {}
+unsafe impl<I> Pod for ClippedInstance<I> where I: Clone + Copy + Pod + Zeroable + std::fmt::Debug {}
 
-pub struct UiInstanceBuffer<I> where I: Copy + Clone + Pod + Zeroable + std::fmt::Debug {
+pub struct UiInstanceBuffer<I>
+where
+    I: Copy + Clone + Pod + Zeroable + std::fmt::Debug,
+{
     pub clipped: BufferVec<ClippedInstance<I>>,
     pub unclipped: BufferVec<I>,
 }
 
-impl <I> UiInstanceBuffer<I> where I: Copy + Clone + Pod + Zeroable + std::fmt::Debug {
+impl<I> UiInstanceBuffer<I>
+where
+    I: Copy + Clone + Pod + Zeroable + std::fmt::Debug,
+{
     #[inline]
     pub fn clear(&mut self) {
         self.clipped.clear();
@@ -101,11 +115,14 @@ impl <I> UiInstanceBuffer<I> where I: Copy + Clone + Pod + Zeroable + std::fmt::
     }
 }
 
-impl <I> Default for UiInstanceBuffer<I> where I: Copy + Clone + Pod + Zeroable + std::fmt::Debug  {
+impl<I> Default for UiInstanceBuffer<I>
+where
+    I: Copy + Clone + Pod + Zeroable + std::fmt::Debug,
+{
     fn default() -> Self {
         Self {
-            clipped:  BufferVec::<ClippedInstance<I>>::new(BufferUsages::VERTEX),
-            unclipped:  BufferVec::<I>::new(BufferUsages::VERTEX),
+            clipped: BufferVec::<ClippedInstance<I>>::new(BufferUsages::VERTEX),
+            unclipped: BufferVec::<I>::new(BufferUsages::VERTEX),
         }
     }
 }
@@ -235,12 +252,11 @@ pub enum ExtractedInstance {
     CRadialGradient(ClippedInstance<RadialGradientInstance>),
 }
 
-
 impl ExtractedInstance {
     pub fn get_type(&self) -> BatchType {
         match self {
             ExtractedInstance::Node(_) => BatchType::Node,
-            ExtractedInstance::Text(_) => BatchType::Text,            
+            ExtractedInstance::Text(_) => BatchType::Text,
             ExtractedInstance::CNode(_) => BatchType::CNode,
             ExtractedInstance::CText(_) => BatchType::CText,
             ExtractedInstance::LinearGradient(_) => BatchType::LinearGradient,
@@ -271,7 +287,7 @@ fn get_clip(clip: Option<Rect>) -> Option<[f32; 4]> {
 
 impl From<(NodeInstance, Option<Rect>)> for ExtractedInstance {
     fn from((instance, clip): (NodeInstance, Option<Rect>)) -> Self {
-        if let Some(clip) = get_clip(clip) {       
+        if let Some(clip) = get_clip(clip) {
             Self::CNode((instance, clip).into())
         } else {
             Self::Node(instance)
@@ -281,7 +297,7 @@ impl From<(NodeInstance, Option<Rect>)> for ExtractedInstance {
 
 impl From<(TextInstance, Option<Rect>)> for ExtractedInstance {
     fn from((instance, clip): (TextInstance, Option<Rect>)) -> Self {
-        if let Some(clip) = get_clip(clip) {       
+        if let Some(clip) = get_clip(clip) {
             Self::CText((instance, clip).into())
         } else {
             Self::Text(instance)
@@ -291,7 +307,7 @@ impl From<(TextInstance, Option<Rect>)> for ExtractedInstance {
 
 impl From<(LinearGradientInstance, Option<Rect>)> for ExtractedInstance {
     fn from((instance, clip): (LinearGradientInstance, Option<Rect>)) -> Self {
-        if let Some(clip) = get_clip(clip) {       
+        if let Some(clip) = get_clip(clip) {
             Self::CLinearGradient((instance, clip).into())
         } else {
             Self::LinearGradient(instance)
@@ -301,7 +317,7 @@ impl From<(LinearGradientInstance, Option<Rect>)> for ExtractedInstance {
 
 impl From<(RadialGradientInstance, Option<Rect>)> for ExtractedInstance {
     fn from((instance, clip): (RadialGradientInstance, Option<Rect>)) -> Self {
-        if let Some(clip) = get_clip(clip) {       
+        if let Some(clip) = get_clip(clip) {
             Self::CRadialGradient((instance, clip).into())
         } else {
             Self::RadialGradient(instance)

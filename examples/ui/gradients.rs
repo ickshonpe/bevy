@@ -257,7 +257,6 @@ fn spawn_group2(commands: &mut Commands) -> Entity {
         .id()
 }
 
-
 fn spawn_group3(commands: &mut Commands) -> Entity {
     commands
         .spawn(NodeBundle {
@@ -325,9 +324,15 @@ fn spawn_group3(commands: &mut Commands) -> Entity {
                             background_color: LinearGradient::new(
                                 angle,
                                 vec![
-                                    ColorStop { color: Color::WHITE, point: Val::Percent(25.) },
-                                    ColorStop { color: Color::RED, point: Val::Percent(75.) },
-                                ]
+                                    ColorStop {
+                                        color: Color::WHITE,
+                                        point: Val::Percent(25.),
+                                    },
+                                    ColorStop {
+                                        color: Color::RED,
+                                        point: Val::Percent(75.),
+                                    },
+                                ],
                             )
                             .into(),
                             ..Default::default()
@@ -360,13 +365,31 @@ fn spawn_group3(commands: &mut Commands) -> Entity {
                             background_color: LinearGradient::new(
                                 angle,
                                 vec![
-                                    ColorStop { color: Color::GREEN, point: Val::Auto },
-                                    ColorStop { color: Color::BLACK, point: Val::Percent(25.) },
-                                    ColorStop { color: Color::WHITE, point: Val::Percent(25.) },
-                                    ColorStop { color: Color::RED, point: Val::Percent(75.) },
-                                    ColorStop { color: Color::BLACK, point: Val::Percent(75.) },
-                                    ColorStop { color: Color::YELLOW, point: Val::Auto },
-                                ]
+                                    ColorStop {
+                                        color: Color::GREEN,
+                                        point: Val::Auto,
+                                    },
+                                    ColorStop {
+                                        color: Color::BLACK,
+                                        point: Val::Percent(25.),
+                                    },
+                                    ColorStop {
+                                        color: Color::WHITE,
+                                        point: Val::Percent(25.),
+                                    },
+                                    ColorStop {
+                                        color: Color::RED,
+                                        point: Val::Percent(75.),
+                                    },
+                                    ColorStop {
+                                        color: Color::BLACK,
+                                        point: Val::Percent(75.),
+                                    },
+                                    ColorStop {
+                                        color: Color::YELLOW,
+                                        point: Val::Auto,
+                                    },
+                                ],
                             )
                             .into(),
                             ..Default::default()
