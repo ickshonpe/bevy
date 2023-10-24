@@ -22,7 +22,7 @@ const BORDER: u32 = 32u;
 const FILL_START: u32 = 64u;
 const FILL_END: u32 = 128u;
 
-fn enabled(flags: u32, mask: u32) -> bool {
+fn is_enabled(flags: u32, mask: u32) -> bool {
     return (flags & mask) != 0u;
 }
 
@@ -147,7 +147,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     n.inset = in.border;
     let distance = compute_geometry(in.point, n);
 
-    if enabled(in.flags, BORDER) {
+    if is_enabled(in.flags, BORDER) {
         if distance.border <= 0. {    
             #ifdef CLIP
                 return clip(in.color, in.position, in.clip);
@@ -156,7 +156,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
             #endif
         }  
     } else if distance.edge <= 0. {        
-        let color = select(in.color, in.color * sampled_color, enabled(in.flags, TEXTURED));
+        let color = select(in.color, in.color * sampled_color, is_enabled(in.flags, TEXTURED));
         #ifdef CLIP
             return clip(color, in.position, in.clip);
         #else 
@@ -262,13 +262,13 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     var gradient_color: vec4<f32>;
 
     if t <= 0.0 {
-        if enabled(in.flags, FILL_START) {
+        if is_enabled(in.flags, FILL_START) {
             gradient_color = in.start_color;
         } else {
             return vec4<f32>(0.);
         }
     } else if 1.0 < t {
-        if enabled(in.flags, FILL_END) {
+        if is_enabled(in.flags, FILL_END) {
             gradient_color = in.end_color;
         } else {
             return vec4<f32>(0.);
@@ -277,7 +277,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         gradient_color = mix(in.start_color, in.end_color, t);
     }
         
-    if enabled(in.flags, BORDER) {
+    if is_enabled(in.flags, BORDER) {
         if distance.border <= 0. {    
             #ifdef CLIP
                 return clip(gradient_color, in.position, in.clip);
@@ -286,7 +286,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
             #endif
         }  
     } else if distance.edge <= 0. {        
-        let color = select(gradient_color, gradient_color * sampled_color, enabled(in.flags, TEXTURED));
+        let color = select(gradient_color, gradient_color * sampled_color, is_enabled(in.flags, TEXTURED));
         #ifdef CLIP
             return clip(color, in.position, in.clip);
         #else 
@@ -392,13 +392,13 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     var gradient_color: vec4<f32>;
 
     if t <= 0.0 {
-        if enabled(in.flags, FILL_START) {
+        if is_enabled(in.flags, FILL_START) {
             gradient_color = in.start_color;
         } else {
             return vec4<f32>(0.);
         }
     } else if 1.0 < t {
-        if enabled(in.flags, FILL_END) {
+        if is_enabled(in.flags, FILL_END) {
             gradient_color = in.end_color;
         } else {
             return vec4<f32>(0.);
@@ -407,7 +407,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         gradient_color = mix(in.start_color, in.end_color, t);
     }
         
-    if enabled(in.flags, BORDER) {
+    if is_enabled(in.flags, BORDER) {
         if distance.border <= 0. {    
             #ifdef CLIP
                 return clip(gradient_color, in.position, in.clip);
@@ -416,7 +416,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
             #endif
         }  
     } else if distance.edge <= 0. {        
-        let color = select(gradient_color, gradient_color * sampled_color, enabled(in.flags, TEXTURED));
+        let color = select(gradient_color, gradient_color * sampled_color, is_enabled(in.flags, TEXTURED));
         #ifdef CLIP
             return clip(color, in.position, in.clip);
         #else 
@@ -664,6 +664,7 @@ fn apply_gradient(f: vec2<f32>, dir: vec2<f32>, point: vec2<f32>, len: f32, samp
 }
 
 // return the distance of point `p` from the line defined by point `o` and direction `dir`
+// returned value is always positive
 fn df_line(o: vec2<f32>, dir: vec2<f32>, p: vec2<f32>) -> f32 {
     // project p onto the the o-dir line and then return the distance between p and the projection.
     return distance(p, o + dir * dot(p-o, dir));
