@@ -256,7 +256,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     n.inset = in.border;
     let distance = compute_geometry(in.point, n);
 
-    let gradient_distance = sdf_line(in.focal_point, in.dir, in.point);
+    let gradient_distance = df_line(in.focal_point, in.dir, in.point);
     let t = gradient(gradient_distance, in.start_len, in.end_len);
 
     var gradient_color: vec4<f32>;
@@ -441,10 +441,6 @@ fn compute_geometry(
     let border_distance = max(external_distance, -internal_distance_2);
     return Distance(external_distance, border_distance);
 }
-
-
-
-
 
 struct Box {
     // center
@@ -650,92 +646,10 @@ fn compute_rounded_2(point: vec2<f32>, n: Node) -> Distance {
     return Distance(external_distance, border_distance);
 }
 
-
-
 fn g(d: f32) -> f32 {
     let d = abs(d);
     return exp(-0.028 * d);
 }
-
-// fn draw_node_outlined(distance: Distance, in: VertexOutput) -> vec4<f32> {
-//     let color = in.color * textureSample(sprite_texture, sprite_sampler, in.uv);
-
-//     if distance.border <= 0. {
-//         return vec4(g(distance.border) * in.border_color.rgb, in.border_color.a);
-       
-//     }
-
-//     if distance.edge <= 0. {
-//         return vec4(g(distance.edge) * in.color.rgb, in.color.a);
-//     }
-
-//     return vec4<f32>(0.);
-// }
-
-// fn draw_node_normalized(distance: Distance, in: VertexOutput) -> vec4<f32> {
-//     let color = in.color * textureSample(sprite_texture, sprite_sampler, in.uv);
-
-//     if distance.border <= 0. {
-//         let s = smooth_normalize(distance.border, -length(0.4 * in.size), 0.);
-//         return vec4(s * in.border_color.rgb, in.border_color.a);
-//     }
-
-//     if distance.edge <= 0. {
-//         let s = smooth_normalize(distance.border, 0.0,length(0.4 * in.size));
-//         return vec4(s * in.color.rgb, in.color.a);
-//     }
-
-//     return vec4<f32>(0.);
-// }
-
-// fn draw_node_mixed_border(distance: Distance, in: VertexOutput) -> vec4<f32> {
-//     let color = in.color * select(vec4<f32>(1.), textureSample(sprite_texture, sprite_sampler, in.uv), enabled(in.flags, TEXTURED));
-
-//     if distance.border <= 0. {    
-//         let rgb = mix(color.rgb, in.border_color.rgb, in.border.a);
-//         let a = color.a + in.border_color.a * (1.0 - color.a);
-//         return vec4<f32>(rgb, a);
-//     }
-
-//     if distance.edge <= 0. {
-//         return color;
-//     }
-
-//     return vec4<f32>(0.);
-// }
-
-// fn draw_node(distance: Distance, in: VertexOutput) -> vec4<f32> {
-//     let color = in.color * select(vec4<f32>(1.), textureSample(sprite_texture, sprite_sampler, in.uv), enabled(in.flags, TEXTURED));
-
-//     if distance.border <= 0. {
-//         #ifdef CLIP  
-//             return clip(in.border_color, in.position);
-//         #else 
-//             return in.border_color;
-//         #endif
-//     }
-
-//     if distance.edge <= 0. {
-//         #ifdef CLIP  
-//             return clip(in.color, in.position);
-//         #else 
-//             return in.color;
-//         #endif
-//     }
-
-//     return vec4<f32>(0.);
-// }
-
-// fn basic_border(in: VertexOutput) -> vec4<f32> { 
-//     let half_size = 0.5 * in.size;
-//     let tl = -half_size + in.border.xy;
-//     let br = half_size - in.border.zw;
-//     if (tl.x < in.point.x) && (tl.y < in.point.y) && (in.point.x < br.x) && (in.point.y < br.y) {
-//         return in.color;
-//     }
-
-//     return in.border_color;
-// }
 
 fn smooth_normalize(distance: f32, min_val: f32, max_val: f32) -> f32 {
     let t = clamp((distance - min_val) / (max_val - min_val), 0.0, 1.0);
@@ -743,36 +657,14 @@ fn smooth_normalize(distance: f32, min_val: f32, max_val: f32) -> f32 {
 }
 
 fn apply_gradient(f: vec2<f32>, dir: vec2<f32>, point: vec2<f32>, len: f32, sampled_color: vec4<f32>, sc: vec4<f32>, ec: vec4<f32>) -> vec4<f32> {
-    let d = sdf_line(f, dir, point);
+    let d = df_line(f, dir, point);
     let s = d / len;
     let c = mix(sc, ec, s);
     return  c * sampled_color;
 }
 
-
-
-// fn draw_node_with_gradient(distance: Distance, in: VertexOutput) -> vec4<f32> {
-//     let tc = select(vec4<f32>(1.), textureSample(sprite_texture, sprite_sampler, in.uv), enabled(in.flags, TEXTURED));
-//     #ifdef CLIP
-//         if in.position.x < in.clip.x || in.clip.z < in.position.x || in.position.y < in.clip.y || in.clip.w < in.position.y {
-//             return apply_gradient(vec4<f32>(0.), vec4<f32>(0.), vec4<f32>(0.), in);
-//         }
-//     #endif
-
-//     if distance.border <= 0. {    
-//         return apply_gradient(vec4<f32>(1.), in.border_color, in.border_end_color, in);
-        
-//     }
-
-//     if distance.edge <= 0. {
-//         return apply_gradient(tc, in.color, in.end_color, in);
-//     }
-
-//     return vec4<f32>(0.);
-// }
-
 // return the distance of point `p` from the line defined by point `o` and direction `dir`
-fn sdf_line(o: vec2<f32>, dir: vec2<f32>, p: vec2<f32>) -> f32 {
+fn df_line(o: vec2<f32>, dir: vec2<f32>, p: vec2<f32>) -> f32 {
     // project p onto the the o-dir line and then return the distance between p and the projection.
     return distance(p, o + dir * dot(p-o, dir));
 }
