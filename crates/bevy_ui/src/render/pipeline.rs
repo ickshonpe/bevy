@@ -180,31 +180,6 @@ impl SpecializedRenderPipeline for UiPipeline {
             formats.push(VertexFormat::Float32x4);
         }
 
-        //    // @location(0) i_location: vec2<f32>,
-        //    VertexFormat::Float32x2,
-        //    // @location(1) i_size: vec2<f32>,
-        //    VertexFormat::Float32x2,
-        //    // @location(2) i_uv_min: vec2<f32>,
-        //    VertexFormat::Float32x2,
-        //    // @location(3) i_uv_size: vec2<f32>,
-        //    VertexFormat::Float32x2,
-        //    // @location(4) i_color: vec4<f32>,
-        //    VertexFormat::Float32x4,
-        //    // @location(5) i_radius: vec4<f32>,
-        //    VertexFormat::Float32x4,
-        //    // @location(6) i_border: vec4<f32>,
-        //    VertexFormat::Float32x4,
-        //    // @location(7) i_flags: u32,
-        //    VertexFormat::Uint32,
-        //    // @location(8) i_border_color: vec4<f32>,
-        //    VertexFormat::Float32x4,
-        //    // @location(9) i_g_color: vec4<f32>,
-        //    VertexFormat::Float32x4,
-        //    // @location(10) i_gb_color: vec4<f32>,
-        //    VertexFormat::Float32x4,
-        //    // @location(11) i_g_angle: f32,
-        //    VertexFormat::Float32,
-
         let instance_rate_vertex_buffer_layout =
             VertexBufferLayout::from_vertex_formats(VertexStepMode::Instance, formats);
 

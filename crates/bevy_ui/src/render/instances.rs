@@ -2,11 +2,10 @@ use bevy_math::Rect;
 use bevy_render::{
     render_resource::{BufferUsages, BufferVec},
     renderer::{RenderDevice, RenderQueue},
-    Extract,
 };
 use bytemuck::{Pod, Zeroable};
 
-use crate::{rect_to_f32_4, CalculatedClip, UiMeta};
+use crate::rect_to_f32_4;
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable, Debug)]
@@ -39,13 +38,9 @@ pub struct LinearGradientInstance {
     pub flags: u32,
     pub focal_point: [f32; 2],
     pub angle: f32,
-    // @location(7) start_color: vec4<f32>,
     pub start_color: [f32; 4],
-    // @location(8) start_len: f32,
     pub start_len: f32,
-    // @location(9) end_len: f32,
     pub end_len: f32,
-    // @location(10) end_color: vec4<f32>,
     pub end_color: [f32; 4],
 }
 
@@ -59,13 +54,9 @@ pub struct RadialGradientInstance {
     pub flags: u32,
     pub focal_point: [f32; 2],
     pub ratio: f32,
-    // @location(7) start_color: vec4<f32>,
     pub start_color: [f32; 4],
-    // @location(8) start_len: f32,
     pub start_len: f32,
-    // @location(9) end_len: f32,
     pub end_len: f32,
-    // @location(10) end_color: vec4<f32>,
     pub end_color: [f32; 4],
 }
 
