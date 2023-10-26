@@ -88,14 +88,14 @@ impl Node for UiPassNode {
 }
 
 pub struct TransparentUi {
-    pub sort_key: FloatOrd,
+    pub sort_key: u32,
     pub entity: Entity,
     pub pipeline: CachedRenderPipelineId,
     pub draw_function: DrawFunctionId,
 }
 
 impl PhaseItem for TransparentUi {
-    type SortKey = FloatOrd;
+    type SortKey = u32;
 
     #[inline]
     fn entity(&self) -> Entity {
@@ -167,6 +167,7 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetUiTextureBindGroup<I>
         RenderCommandResult::Success
     }
 }
+
 pub struct DrawUiNode;
 impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
     type Param = SRes<UiMeta>;
@@ -187,7 +188,106 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
             0,
             IndexFormat::Uint32,
         );
-        pass.set_vertex_buffer(0, ui_meta.instance_buffer.buffer().unwrap().slice(..));
+        match batch.batch_type {
+            super::BatchType::Node => {
+                //pass.set_vertex_buffer(0, ui_meta.instance_buffers.node.buffer().unwrap().slice(..));
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .instance_buffers
+                        .node
+                        .unclipped
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            }
+            super::BatchType::Text => {
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .instance_buffers
+                        .text
+                        .unclipped
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            }
+            super::BatchType::CNode => {
+                //pass.set_vertex_buffer(0, ui_meta.uninstance_buffers.node.buffer().unwrap().slice(..));
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .instance_buffers
+                        .node
+                        .clipped
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            }
+            super::BatchType::CText => {
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .instance_buffers
+                        .text
+                        .clipped
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            }
+            super::BatchType::LinearGradient => {
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .instance_buffers
+                        .linear_gradient
+                        .unclipped
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            }
+            super::BatchType::CLinearGradient => {
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .instance_buffers
+                        .linear_gradient
+                        .clipped
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            }
+            super::BatchType::RadialGradient => {
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .instance_buffers
+                        .radial_gradient
+                        .unclipped
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            }
+            super::BatchType::CRadialGradient => {
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .instance_buffers
+                        .radial_gradient
+                        .clipped
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            }
+        };
         pass.draw_indexed(0..6, 0, batch.range.clone());
         RenderCommandResult::Success
     }

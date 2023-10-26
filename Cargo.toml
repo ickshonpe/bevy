@@ -2133,6 +2133,16 @@ description = "Gradients example"
 category = "UI (User Interface)"
 wasm = true
 
+[[example]]
+name = "radial_gradients"
+path = "examples/ui/radial_gradients.rs"
+doc-scrape-examples = true
+
+[package.metadata.example.radial_gradients]
+name = "Radial Gradients example"
+description = "Radial gradients example"
+category = "UI (User Interface)"
+wasm = true
 
 [[example]]
 name = "ui"

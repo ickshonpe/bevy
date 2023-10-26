@@ -1,47 +1,53 @@
 #import bevy_render::view  View
 
-const TEXTURED_QUAD: u32 = 0u;
+const PI: f32 = 3.14159265358979323846;
+
 
 @group(0) @binding(0) var<uniform> view: View;
 
+@group(1) @binding(0) var sprite_texture: texture_2d<f32>;
+@group(1) @binding(1) var sprite_sampler: sampler;
+
+fn clip(color: vec4<f32>, position: vec2<f32>, clip: vec4<f32>) -> vec4<f32> { 
+    if position.x < clip.x || clip.z < position.x || position.y < clip.y || clip.w < position.y {
+        return vec4(0.);
+    }
+    return color;
+}
+
+const TEXTURED = 1u;
+const BOX_SHADOW = 2u;
+const DISABLE_AA = 4u;
+const BORDER: u32 = 32u;
+const FILL_START: u32 = 64u;
+const FILL_END: u32 = 128u;
+
+fn is_enabled(flags: u32, mask: u32) -> bool {
+    return (flags & mask) != 0u;
+}
+
+#ifdef TEXT 
 struct VertexInput {
     @builtin(vertex_index) index: u32,
-    // NOTE: Instance-rate vertex buffer members prefixed with i_
     @location(0) i_location: vec2<f32>,
     @location(1) i_size: vec2<f32>,
     @location(2) i_uv_min: vec2<f32>,
     @location(3) i_uv_size: vec2<f32>,
     @location(4) i_color: vec4<f32>,
-    @location(5) i_radius: vec4<f32>,
-    @location(6) i_border: vec4<f32>,
-    @location(7) i_flags: u32,
-    @location(8) i_border_color: vec4<f32>,
-    @location(9) i_clip: vec4<f32>,
-    @location(10) i_g_color: vec4<f32>,
-    @location(11) i_gb_color: vec4<f32>,
-    @location(12) i_g_angle: f32,
+    #ifdef CLIP 
+        @location(5) i_clip: vec4<f32>,
+    #endif
 }
 
 struct VertexOutput {
-@builtin(position) clip_position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-    @location(1) @interpolate(flat) color: vec4<f32>,
-    @location(2) @interpolate(flat) flags: u32,
-    @location(3) @interpolate(flat) radius: vec4<f32>,
-    @location(4) @interpolate(flat) border: vec4<f32>,
-    @location(5) point: vec2<f32>,
-    @location(6) @interpolate(flat) border_color: vec4<f32>,
-    @location(7) @interpolate(flat) size: vec2<f32>,
-    @location(8) @interpolate(flat) clip: vec4<f32>,
-    @location(9) position: vec2<f32>,
-    @location(10) end_color: vec4<f32>,
-    @location(11) border_end_color: vec4<f32>,
-    @location(12) @interpolate(flat) g_f: vec2<f32>,
-    @location(13) @interpolate(flat) g_dir: vec2<f32>,
-    @location(14) @interpolate(flat) g_len: f32,
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) position: vec2<f32>,
+    @location(1) uv: vec2<f32>,
+    @location(2) @interpolate(flat) color: vec4<f32>,
+    #ifdef CLIP 
+        @location(3) clip: vec4<f32>,
+    #endif
 };
-
-const PI: f32 = 3.14159265358979323846;
 
 @vertex
 fn vertex(in: VertexInput) -> VertexOutput {
@@ -56,39 +62,385 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
     out.uv = in.i_uv_min + in.i_uv_size * norm_location;
     out.color = in.i_color;
+
+    #ifdef CLIP 
+        out.clip = in.i_clip;
+    #endif
+    return out;
+}
+
+@fragment 
+fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+    let color = in.color * textureSample(sprite_texture, sprite_sampler, in.uv);
+    
+    #ifdef CLIP 
+        return clip(color, in.position, in.clip);
+    #else 
+        return color;
+    #endif
+}
+#endif
+
+#ifdef NODE
+
+struct VertexInput {
+    @builtin(vertex_index) index: u32,
+    @location(0) i_location: vec2<f32>,
+    @location(1) i_size: vec2<f32>,
+    @location(2) i_uv_border: vec4<f32>,
+    @location(3) i_color: vec4<f32>,
+    @location(4) i_radius: vec4<f32>,
+    @location(5) i_flags: u32,
+    #ifdef CLIP 
+        @location(6) i_clip: vec4<f32>,
+    #endif
+}
+
+struct VertexOutput {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+    @location(1) @interpolate(flat) color: vec4<f32>,
+    @location(2) @interpolate(flat) flags: u32,
+    @location(3) @interpolate(flat) radius: vec4<f32>,
+    @location(5) point: vec2<f32>,
+    @location(7) @interpolate(flat) size: vec2<f32>,
+    @location(8) position: vec2<f32>,
+    @location(9) @interpolate(flat) border: vec4<f32>,
+    #ifdef CLIP 
+        @location(10) clip: vec4<f32>,
+    #endif
+};
+
+
+@vertex
+fn vertex(in: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    let half_size = 0.5 * in.i_size;
+    let norm_x = f32(in.index & 1u);
+    let norm_y = f32((in.index & 2u) >> 1u);
+    let norm_location = vec2(norm_x, norm_y);
+    let relative_location = in.i_size * norm_location;
+    out.position = in.i_location + relative_location;
+    out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
+    let uv_min = in.i_uv_border.xy;
+    let uv_size = in.i_uv_border.zw;
+    out.uv = uv_min + uv_size * norm_location;
+    out.color = in.i_color;
     out.flags = in.i_flags;
-    out.border = in.i_border;
+    out.border = in.i_uv_border;
     out.radius = in.i_radius;
     out.size = in.i_size;
     out.point = in.i_size * (norm_location - 0.4999);
-    out.border_color = in.i_border_color;
-    out.clip = in.i_clip;
-    out.end_color = in.i_g_color;
-    out.border_end_color = in.i_gb_color;
-    let i = find_quadrant(in.i_g_angle);
-    out.g_dir = gradient_dir(in.i_g_angle);
-    switch (i) {
-        case 0: {
-            out.g_f = vec2(-1., 1.) * half_size;
-        }
-        case 1: {
-            out.g_f = vec2(-1., -1.) * half_size;
-        }
-        case 2: {
-            out.g_f = vec2(1., -1.) * half_size;
-        }            
-        default: {
-            out.g_f = vec2(1., 1.) * half_size;
-        }           
-    }
-    out.g_len = 2. * sdf_line(out.g_f, out.g_dir, vec2(0., 0.));
 
+    #ifdef CLIP 
+        out.clip = in.i_clip;
+    #endif
     return out;
-
 }
 
-@group(1) @binding(0) var sprite_texture: texture_2d<f32>;
-@group(1) @binding(1) var sprite_sampler: sampler;
+@fragment
+fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+    let sampled_color = textureSample(sprite_texture, sprite_sampler, in.uv);
+    var n: Node;
+    n.size = in.size;
+    n.radius = in.radius;
+    n.inset = in.border;
+    let distance = compute_geometry(in.point, n);
+
+    if is_enabled(in.flags, BORDER) {
+        if distance.border <= 0. {    
+            #ifdef CLIP
+                return clip(in.color, in.position, in.clip);
+            #else 
+                return in.color;
+            #endif
+        }  
+    } else if distance.edge <= 0. {        
+        let color = select(in.color, in.color * sampled_color, is_enabled(in.flags, TEXTURED));
+        #ifdef CLIP
+            return clip(color, in.position, in.clip);
+        #else 
+            return color;
+        #endif
+    }
+    return vec4<f32>(0.);
+}
+
+#endif
+
+#ifdef LINEAR_GRADIENT
+
+struct VertexInput {
+    @builtin(vertex_index) index: u32,
+    @location(0) i_location: vec2<f32>,
+    @location(1) i_size: vec2<f32>,
+    @location(2) i_uv_border: vec4<f32>,
+    @location(3) i_radius: vec4<f32>,
+    @location(4) i_flags: u32,
+    // point on a line perpendicular to the gradient
+    // coordinates should be relative to the center of the ui node
+    @location(5) focal_point: vec2<f32>,
+    // angle of the gradient
+    @location(6) angle: f32,
+    // color it starts at
+    @location(7) start_color: vec4<f32>,
+    // distance from focal point where the gradient starts
+    @location(8) start_len: f32,
+    // distance from the focal point when the gradient ends
+    @location(9) end_len: f32,
+    // color the gradient ends at
+    @location(10) end_color: vec4<f32>,
+    
+    #ifdef CLIP 
+        @location(11) i_clip: vec4<f32>,
+    #endif
+}
+
+struct VertexOutput {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+    @location(1) @interpolate(flat) flags: u32,
+    @location(2) @interpolate(flat) radius: vec4<f32>,
+    @location(3) point: vec2<f32>,
+    @location(4) @interpolate(flat) size: vec2<f32>,
+    @location(5) position: vec2<f32>,
+    @location(6) @interpolate(flat) border: vec4<f32>,
+    @location(7) @interpolate(flat) focal_point: vec2<f32>,
+    // unit vector in the direction of the gradient
+    @location(8) @interpolate(flat) dir: vec2<f32>,
+    @location(9) @interpolate(flat) start_color: vec4<f32>,
+    @location(10) @interpolate(flat) start_len: f32,
+    @location(11) @interpolate(flat) end_len: f32,
+    @location(12) @interpolate(flat) end_color: vec4<f32>,
+    
+    #ifdef CLIP 
+        @location(14) clip: vec4<f32>,
+    #endif
+};
+
+@vertex
+fn vertex(in: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    
+    let half_size = 0.5 * in.i_size;
+    let norm_x = f32(in.index & 1u);
+    let norm_y = f32((in.index & 2u) >> 1u);
+    let norm_location = vec2(norm_x, norm_y);
+    let relative_location = in.i_size * norm_location;
+    out.position = in.i_location + relative_location;
+    out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
+    let uv_min = in.i_uv_border.xy;
+    let uv_size = in.i_uv_border.zw;
+    out.uv = uv_min + uv_size * norm_location;
+    out.flags = in.i_flags;
+    out.border = in.i_uv_border;
+    out.radius = in.i_radius;
+    out.size = in.i_size;
+    out.point = in.i_size * (norm_location - 0.4999);
+    out.focal_point = in.focal_point;
+    out.dir = gradient_dir(in.angle);
+    out.start_color = in.start_color;
+    out.start_len = in.start_len;
+    out.end_len = in.end_len;
+    out.end_color = in.end_color;
+    
+    return out;
+}
+
+@fragment
+fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+    let sampled_color = textureSample(sprite_texture, sprite_sampler, in.uv);
+    var n: Node;
+    n.size = in.size;
+    n.radius = in.radius;
+    n.inset = in.border;
+    let distance = compute_geometry(in.point, n);
+
+    let gradient_distance = df_line(in.focal_point, in.dir, in.point);
+    let t = gradient(gradient_distance, in.start_len, in.end_len);
+
+    var gradient_color: vec4<f32>;
+
+    if t <= 0.0 {
+        if is_enabled(in.flags, FILL_START) {
+            gradient_color = in.start_color;
+        } else {
+            return vec4<f32>(0.);
+        }
+    } else if 1.0 < t {
+        if is_enabled(in.flags, FILL_END) {
+            gradient_color = in.end_color;
+        } else {
+            return vec4<f32>(0.);
+        }
+    } else {
+        gradient_color = mix(in.start_color, in.end_color, t);
+    }
+        
+    if is_enabled(in.flags, BORDER) {
+        if distance.border <= 0. {    
+            #ifdef CLIP
+                return clip(gradient_color, in.position, in.clip);
+            #else 
+                return gradient_color;
+            #endif
+        }  
+    } else if distance.edge <= 0. {        
+        let color = select(gradient_color, gradient_color * sampled_color, is_enabled(in.flags, TEXTURED));
+        #ifdef CLIP
+            return clip(color, in.position, in.clip);
+        #else 
+            return color;
+        #endif
+    }
+    return vec4<f32>(0.);
+}
+#endif
+
+#ifdef RADIAL_GRADIENT
+
+
+struct VertexInput {
+    @builtin(vertex_index) index: u32,
+    @location(0) i_location: vec2<f32>,
+    @location(1) i_size: vec2<f32>,
+    @location(2) i_uv_border: vec4<f32>,
+    @location(3) i_radius: vec4<f32>,
+    @location(4) i_flags: u32,
+    // center of the radial gradient
+    @location(5) g_center: vec2<f32>,
+    @location(6) g_ratio: f32,
+    @location(7) start_color: vec4<f32>,
+    // distance from center where the gradient starts
+    @location(8) start_len: f32,
+    // distance from the center where the gradient ends
+    @location(9) end_len: f32,
+    // color the gradient ends at
+    @location(10) end_color: vec4<f32>,
+    
+    #ifdef CLIP 
+        @location(11) i_clip: vec4<f32>,
+    #endif
+}
+
+struct VertexOutput {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+    @location(1) @interpolate(flat) flags: u32,
+    @location(2) @interpolate(flat) radius: vec4<f32>,
+    @location(3) point: vec2<f32>,
+    @location(4) @interpolate(flat) size: vec2<f32>,
+    @location(5) position: vec2<f32>,
+    @location(6) @interpolate(flat) border: vec4<f32>,
+    @location(7) @interpolate(flat) g_center: vec2<f32>,
+    @location(8) @interpolate(flat) g_ratio: f32,
+    @location(9) @interpolate(flat) start_color: vec4<f32>,
+    @location(10) @interpolate(flat) start_len: f32,
+    @location(11) @interpolate(flat) end_len: f32,
+    @location(12) @interpolate(flat) end_color: vec4<f32>,
+    
+    #ifdef CLIP 
+        @location(13) clip: vec4<f32>,
+    #endif
+};
+
+@vertex
+fn vertex(in: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    
+    let half_size = 0.5 * in.i_size;
+    let norm_x = f32(in.index & 1u);
+    let norm_y = f32((in.index & 2u) >> 1u);
+    let norm_location = vec2(norm_x, norm_y);
+    let relative_location = in.i_size * norm_location;
+    out.position = in.i_location + relative_location;
+    out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
+    let uv_min = in.i_uv_border.xy;
+    let uv_size = in.i_uv_border.zw;
+    out.uv = uv_min + uv_size * norm_location;
+    out.flags = in.i_flags;
+    out.border = in.i_uv_border;
+    out.radius = in.i_radius;
+    out.size = in.i_size;
+    out.point = in.i_size * (norm_location - 0.4999);
+    out.g_center = in.g_center;
+    out.start_color = in.start_color;
+    out.start_len = in.start_len;
+    out.end_len = in.end_len;
+    out.end_color = in.end_color;
+    out.g_ratio = in.g_ratio;
+    
+    return out;
+}
+
+@fragment
+fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+    let sampled_color = textureSample(sprite_texture, sprite_sampler, in.uv);
+    var n: Node;
+    n.size = in.size;
+    n.radius = in.radius;
+    n.inset = in.border;
+    let distance = compute_geometry(in.point, n);
+
+
+    let x = in.point.x;
+    let y = in.point.y * in.g_ratio;
+    let p = vec2<f32>(x, y);
+    let gradient_distance = distance(in.g_center, p);
+    let t = gradient(gradient_distance, in.start_len, in.end_len);
+
+    var gradient_color: vec4<f32>;
+
+    if t <= 0.0 {
+        if is_enabled(in.flags, FILL_START) {
+            gradient_color = in.start_color;
+        } else {
+            return vec4<f32>(0.);
+        }
+    } else if 1.0 < t {
+        if is_enabled(in.flags, FILL_END) {
+            gradient_color = in.end_color;
+        } else {
+            return vec4<f32>(0.);
+        }
+    } else {
+        gradient_color = mix(in.start_color, in.end_color, t);
+    }
+        
+    if is_enabled(in.flags, BORDER) {
+        if distance.border <= 0. {    
+            #ifdef CLIP
+                return clip(gradient_color, in.position, in.clip);
+            #else 
+                return gradient_color;
+            #endif
+        }  
+    } else if distance.edge <= 0. {        
+        let color = select(gradient_color, gradient_color * sampled_color, is_enabled(in.flags, TEXTURED));
+        #ifdef CLIP
+            return clip(color, in.position, in.clip);
+        #else 
+            return color;
+        #endif
+    }
+    return vec4<f32>(0.);
+}
+
+#endif
+
+fn compute_geometry(
+    point: vec2<f32>, 
+    n: Node,
+) -> Distance {
+    let box = Box(point, 0.5 * n.size);
+    let inner_box = inset_box(box, n.inset);
+    let external_distance = sd_rounded_box(box, n.radius);
+    let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
+    let i = select_inset(point, n.inset);
+    let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
+    let border_distance = max(external_distance, -internal_distance_2);
+    return Distance(external_distance, border_distance);
+}
 
 struct Box {
     // center
@@ -145,7 +497,10 @@ fn sd_rounded_box(b: Box, corner_radii: vec4<f32>) -> f32 {
     return l + m - radius;
 }
 
-fn sd_inset_rounded_box(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, inset: vec4<f32>) -> f32 {
+fn sd_inset_rounded_box(point: vec2<f32>, node: Node) -> f32 {
+    let inset = node.inset;
+    let size = node.size;
+    let radius = node.radius;
     let inner_size = size - inset.xy - inset.zw;
     let inner_center = inset.xy + 0.5 * inner_size - 0.5 *size;
     let inner_point = point - inner_center;
@@ -173,13 +528,13 @@ fn sd_inset_rounded_box(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, in
 }
 
 
-fn sd_inset_rounded_box_clamped_inner_radius(point: vec2<f32>, size: vec2<f32>, radius: vec4<f32>, inset: vec4<f32>) -> f32 {
-    let inner_size = size - inset.xy - inset.zw;
-    let inner_center = inset.xy + 0.5 * inner_size - 0.5 *size;
+fn sd_inset_rounded_box_clamped_inner_radius(point: vec2<f32>, n: Node) -> f32 {
+    let inner_size = n.size - n.inset.xy - n.inset.zw;
+    let inner_center = n.inset.xy + 0.5 * inner_size - 0.5 * n.size;
     let inner_point = point - inner_center;
 
-    var r = radius;
-
+    var r = n.radius;
+    let inset = n.inset;
     
     if 0. < min(inset.x, inset.y) || inset.x + inset.y <= 0. {
         // top left corner
@@ -217,21 +572,11 @@ fn sd_inset_rounded_box_clamped_inner_radius(point: vec2<f32>, size: vec2<f32>, 
     return sd_rounded_box(Box(inner_point, 0.5 * inner_size), r);
 }
 
-const TEXTURED = 1u;
-const BOX_SHADOW = 2u;
-const DISABLE_AA = 4u;
-const RIGHT_VERTEX = 8u;
-const BOTTOM_VERTEX = 16u;
-const BORDER: u32 = 32u;
-
-fn enabled(flags: u32, mask: u32) -> bool {
-    return (flags & mask) != 0u;
-}
 
 
-fn compute_sd_boxes(in: VertexOutput) -> Distance {
-    let box = Box(in.point, 0.5 * in.size);
-    let inner_box = inset_box(box, in.border);
+fn compute_sd_boxes(point: vec2<f32>, n: Node) -> Distance {
+    let box = Box(point, 0.5 * n.size);
+    let inner_box = inset_box(box, n.inset);
 
     let external_distance = sd_box(box);
     let internal_distance = sd_box(inner_box);
@@ -255,127 +600,55 @@ fn select_inset(p: vec2<f32>, inset: vec4<f32>) -> vec2<f32> {
     }
 }
 
-fn compute_rounded_clamped(in: VertexOutput) -> Distance {
-    let box = Box(in.point, 0.5 * in.size);
-    let inner_box = inset_box(box, in.border);
-    let external_distance = sd_rounded_box(box, in.radius);
-    let internal_distance = sd_inset_rounded_box_clamped_inner_radius(in.point, in.size, in.radius, in.border);
+struct Node {
+    size: vec2<f32>,
+    radius: vec4<f32>,
+    inset: vec4<f32>,
+}
+
+fn compute_rounded_clamped(point: vec2<f32>, n: Node) -> Distance {
+    let box = Box(point, 0.5 * n.size);
+    let inner_box = inset_box(box, n.inset);
+    let external_distance = sd_rounded_box(box, n.radius);
+    let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
     let border_distance = max(external_distance, -internal_distance);
     return Distance(external_distance, border_distance);
 }
 
-fn compute_rounded_clamped_2(in: VertexOutput) -> Distance {
-    let box = Box(in.point, 0.5 * in.size);
-    let inner_box = inset_box(box, in.border);
-    let external_distance = sd_rounded_box(box, in.radius);
-    let internal_distance = sd_inset_rounded_box_clamped_inner_radius(in.point, in.size, in.radius, in.border);
-    let i = select_inset(in.point, in.border);
+fn compute_rounded_clamped_2(point: vec2<f32>, n: Node) -> Distance {
+    let box = Box(point, 0.5 * n.size);
+    let inner_box = inset_box(box, n.inset);
+    let external_distance = sd_rounded_box(box, n.radius);
+    let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
+    let i = select_inset(point, n.inset);
     let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
     let border_distance = max(external_distance, -internal_distance_2);
     return Distance(external_distance, border_distance);
 }
 
-fn compute_rounded(in: VertexOutput) -> Distance {
-    let box = Box(in.point, 0.5 * in.size);
-    let inner_box = inset_box(box, in.border);
-    let external_distance = sd_rounded_box(box, in.radius);
-    let internal_distance = sd_inset_rounded_box(in.point, in.size, in.radius, in.border);
+fn compute_rounded(point: vec2<f32>, n: Node) -> Distance {
+    let box = Box(point, 0.5 * n.size);
+    let inner_box = inset_box(box, n.inset);
+    let external_distance = sd_rounded_box(box, n.radius);
+    let internal_distance = sd_inset_rounded_box(point, n);
     let border_distance = max(external_distance, -internal_distance);
     return Distance(external_distance, border_distance);
 }
 
-fn compute_rounded_2(in: VertexOutput) -> Distance {
-    let box = Box(in.point, 0.5 * in.size);
-    let inner_box = inset_box(box, in.border);
-    let external_distance = sd_rounded_box(box, in.radius);
-    let internal_distance = sd_inset_rounded_box(in.point, in.size, in.radius, in.border);
-    let i = select_inset(in.point, in.border);
+fn compute_rounded_2(point: vec2<f32>, n: Node) -> Distance {
+    let box = Box(point, 0.5 * n.size);
+    let inner_box = inset_box(box, n.inset);
+    let external_distance = sd_rounded_box(box, n.radius);
+    let internal_distance = sd_inset_rounded_box(point, n);
+    let i = select_inset(point, n.inset);
     let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
     let border_distance = max(external_distance, -internal_distance_2);
     return Distance(external_distance, border_distance);
 }
-
-
 
 fn g(d: f32) -> f32 {
     let d = abs(d);
     return exp(-0.028 * d);
-}
-
-fn draw_node_outlined(distance: Distance, in: VertexOutput) -> vec4<f32> {
-    let color = in.color * textureSample(sprite_texture, sprite_sampler, in.uv);
-
-    if distance.border <= 0. {
-        return vec4(g(distance.border) * in.border_color.rgb, in.border_color.a);
-       
-    }
-
-    if distance.edge <= 0. {
-        return vec4(g(distance.edge) * in.color.rgb, in.color.a);
-    }
-
-    return vec4<f32>(0.);
-}
-
-fn draw_node_normalized(distance: Distance, in: VertexOutput) -> vec4<f32> {
-    let color = in.color * textureSample(sprite_texture, sprite_sampler, in.uv);
-
-    if distance.border <= 0. {
-        let s = smooth_normalize(distance.border, -length(0.4 * in.size), 0.);
-        return vec4(s * in.border_color.rgb, in.border_color.a);
-    }
-
-    if distance.edge <= 0. {
-        let s = smooth_normalize(distance.border, 0.0,length(0.4 * in.size));
-        return vec4(s * in.color.rgb, in.color.a);
-    }
-
-    return vec4<f32>(0.);
-}
-
-fn draw_node_mixed_border(distance: Distance, in: VertexOutput) -> vec4<f32> {
-    let color = in.color * select(vec4<f32>(1.), textureSample(sprite_texture, sprite_sampler, in.uv), enabled(in.flags, TEXTURED));
-
-    if distance.border <= 0. {    
-        let rgb = mix(color.rgb, in.border_color.rgb, in.border.a);
-        let a = color.a + in.border_color.a * (1.0 - color.a);
-        return vec4<f32>(rgb, a);
-    }
-
-    if distance.edge <= 0. {
-        return color;
-    }
-
-    return vec4<f32>(0.);
-}
-
-fn draw_node(distance: Distance, in: VertexOutput) -> vec4<f32> {
-    let color = in.color * select(vec4<f32>(1.), textureSample(sprite_texture, sprite_sampler, in.uv), enabled(in.flags, TEXTURED));
-
-    if in.position.x < in.clip.x || in.clip.z < in.position.x || in.position.y < in.clip.y || in.clip.w < in.position.y {
-        return vec4<f32>(0.);
-    }
-
-    if distance.border <= 0. {    
-        return in.border_color;
-    }
-
-    if distance.edge <= 0. {
-        return color;
-    }
-
-    return vec4<f32>(0.);
-}
-
-fn basic_border(in: VertexOutput) -> vec4<f32> { 
-    let half_size = 0.5 * in.size;
-    let tl = -half_size + in.border.xy;
-    let br = half_size - in.border.zw;
-    if (tl.x < in.point.x) && (tl.y < in.point.y) && (in.point.x < br.x) && (in.point.y < br.y) {
-        return in.color;
-    }
-
-    return in.border_color;
 }
 
 fn smooth_normalize(distance: f32, min_val: f32, max_val: f32) -> f32 {
@@ -383,33 +656,17 @@ fn smooth_normalize(distance: f32, min_val: f32, max_val: f32) -> f32 {
     return t * t * (3.0 - 2.0 * t);
 }
 
-fn apply_gradient(tc: vec4<f32>, sc: vec4<f32>, ec: vec4<f32>, in: VertexOutput) -> vec4<f32> {
-    let d = sdf_line(in.g_f, in.g_dir, in.point);
-    let s = d / in.g_len;
+fn apply_gradient(f: vec2<f32>, dir: vec2<f32>, point: vec2<f32>, len: f32, sampled_color: vec4<f32>, sc: vec4<f32>, ec: vec4<f32>) -> vec4<f32> {
+    let d = df_line(f, dir, point);
+    let s = d / len;
     let c = mix(sc, ec, s);
-    return  c * tc;
+    return  c * sampled_color;
 }
 
-fn draw_node_with_gradient(distance: Distance, in: VertexOutput) -> vec4<f32> {
-    let tc = select(vec4<f32>(1.), textureSample(sprite_texture, sprite_sampler, in.uv), enabled(in.flags, TEXTURED));
-    if in.position.x < in.clip.x || in.clip.z < in.position.x || in.position.y < in.clip.y || in.clip.w < in.position.y {
-        return apply_gradient(vec4<f32>(0.), vec4<f32>(0.), vec4<f32>(0.), in);
-    }
-
-    if distance.border <= 0. {    
-        return apply_gradient(vec4<f32>(1.), in.border_color, in.border_end_color, in);
-        
-    }
-
-    if distance.edge <= 0. {
-        return apply_gradient(tc, in.color, in.end_color, in);
-    }
-
-    return vec4<f32>(0.);
-}
-
-// o point on line, dir normalised direction of the line, p distant point
-fn sdf_line(o: vec2<f32>, dir: vec2<f32>, p: vec2<f32>) -> f32 {
+// return the distance of point `p` from the line defined by point `o` and direction `dir`
+// returned value is always positive
+fn df_line(o: vec2<f32>, dir: vec2<f32>, p: vec2<f32>) -> f32 {
+    // project p onto the the o-dir line and then return the distance between p and the projection.
     return distance(p, o + dir * dot(p-o, dir));
 }
 
@@ -419,10 +676,7 @@ fn gradient_dir(angle: f32) -> vec2<f32> {
     return vec2<f32>(x, y);
 }
 
-@fragment
-fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    
-    let d = compute_rounded_clamped_2(in);
-    //return draw_node(d, in);
-    return draw_node_with_gradient(d, in);
+fn gradient(p: f32, start: f32, end:f32) -> f32 {
+    let len = end - start;
+    return (p - start) / len;
 }

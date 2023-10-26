@@ -68,7 +68,7 @@ fn button_system(
         if matches!(interaction, Interaction::Hovered) {
             *material = Color::ORANGE_RED.into();
         } else {
-            *material = *idle_color;
+            *material = (*idle_color).clone();
         }
     }
 }
@@ -138,11 +138,11 @@ fn spawn_button(
                 border,
                 ..default()
             },
-            background_color,
+            background_color: background_color.clone(),
             border_color,
             ..default()
         },
-        IdleColor(background_color),
+        IdleColor(background_color.clone()),
     ));
 
     if spawn_text {
