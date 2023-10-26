@@ -15,22 +15,22 @@ fn inner(
     stops: &Vec<ColorStop>,
 ) {
     for s in [
-        RadialGradientShape::CircleRadius(Val::Percent(25.)),
-        RadialGradientShape::CircleRadius(Val::Percent(40.)),
-        RadialGradientShape::CircleSized(RadialGradientSize::ClosestCorner),
-        RadialGradientShape::CircleSized(RadialGradientSize::ClosestSide),
-        RadialGradientShape::CircleSized(RadialGradientSize::FarthestCorner),
-        RadialGradientShape::CircleSized(RadialGradientSize::FarthestSide),
-        RadialGradientShape::Ellipse(Val::Percent(40.), Val::Percent(20.)),
-        RadialGradientShape::Ellipse(Val::Percent(20.), Val::Percent(40.)),
-        RadialGradientShape::EllipseSized(RadialGradientSize::ClosestCorner),
-        RadialGradientShape::EllipseSized(RadialGradientSize::ClosestSide),
-        RadialGradientShape::EllipseSized(RadialGradientSize::FarthestCorner),
-        RadialGradientShape::EllipseSized(RadialGradientSize::FarthestSide),
+        RadialGradientShape::Circle(Val::Percent(25.).into()),
+        RadialGradientShape::Circle(Val::Percent(40.).into()),
+        RadialGradientShape::Circle(RadialGradientExtent::ClosestSide),
+        RadialGradientShape::Circle(RadialGradientExtent::FarthestSide),
+        RadialGradientShape::ClosestCorner,
+        RadialGradientShape::FarthestCorner,
+        RadialGradientShape::Ellipse(Val::Percent(40.).into(), Val::Percent(20.).into()),
+        RadialGradientShape::Ellipse(Val::Percent(20.).into(), Val::Percent(40.).into()),
+        RadialGradientShape::Ellipse(RadialGradientExtent::ClosestSide, RadialGradientExtent::ClosestSide),
+        RadialGradientShape::Ellipse(RadialGradientExtent::ClosestSide, RadialGradientExtent::FarthestSide),
+        RadialGradientShape::Ellipse(RadialGradientExtent::FarthestSide, RadialGradientExtent::ClosestSide),
+        RadialGradientShape::Ellipse(RadialGradientExtent::FarthestSide, RadialGradientExtent::FarthestSide),
     ] {
         commands.spawn(NodeBundle {
             style: Style {
-                width: Val::Px(50.),
+                width: Val::Px(75.),
                 height: Val::Px(50.),
                 ..Default::default()
             },
