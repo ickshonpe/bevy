@@ -52,7 +52,7 @@ pub struct RadialGradientInstance {
     pub uv_border: [f32; 4],
     pub radius: [f32; 4],
     pub flags: u32,
-    pub focal_point: [f32; 2],
+    pub start_point: [f32; 2],
     pub ratio: f32,
     pub start_color: [f32; 4],
     pub start_len: f32,

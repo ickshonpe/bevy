@@ -154,7 +154,7 @@ impl RectPositionAxis {
         let length = max - min;
         let (val, point) = match self {
             RectPositionAxis::Start(val) => (val, min),
-            RectPositionAxis::Center(val) => (val, 0.5 * length),
+            RectPositionAxis::Center(val) => (val, min + 0.5 * length),
             RectPositionAxis::End(val) => (val, max),
         };
         point + val.resolve(length, viewport_size).unwrap_or(0.)

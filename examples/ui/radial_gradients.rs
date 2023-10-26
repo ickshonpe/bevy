@@ -1,7 +1,5 @@
 //! Example demonstrating gradients
 
-use std::f32::consts::PI;
-
 use bevy::prelude::*;
 
 fn main() {
@@ -9,6 +7,42 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
         .run();
+}
+
+fn inner(
+    commands: &mut ChildBuilder,
+    c: RectPosition,
+    stops: &Vec<ColorStop>,
+) {
+    for s in [
+        RadialGradientShape::CircleRadius(Val::Percent(25.)),
+        RadialGradientShape::CircleRadius(Val::Percent(40.)),
+        RadialGradientShape::CircleSized(RadialGradientSize::ClosestCorner),
+        RadialGradientShape::CircleSized(RadialGradientSize::ClosestSide),
+        RadialGradientShape::CircleSized(RadialGradientSize::FarthestCorner),
+        RadialGradientShape::CircleSized(RadialGradientSize::FarthestSide),
+        RadialGradientShape::Ellipse(Val::Percent(40.), Val::Percent(20.)),
+        RadialGradientShape::Ellipse(Val::Percent(20.), Val::Percent(40.)),
+        RadialGradientShape::EllipseSized(RadialGradientSize::ClosestCorner),
+        RadialGradientShape::EllipseSized(RadialGradientSize::ClosestSide),
+        RadialGradientShape::EllipseSized(RadialGradientSize::FarthestCorner),
+        RadialGradientShape::EllipseSized(RadialGradientSize::FarthestSide),
+    ] {
+        commands.spawn(NodeBundle {
+            style: Style {
+                width: Val::Px(50.),
+                height: Val::Px(50.),
+                ..Default::default()
+            },
+            background_color: RadialGradient::new(
+                c,
+                s,
+                stops.clone(),
+            )
+            .into(),
+            ..Default::default()
+        });
+    }
 }
 
 fn setup(mut commands: Commands) {
@@ -40,7 +74,6 @@ fn spawn_group(commands: &mut Commands) -> Entity {
             style: Style {
                 align_items: AlignItems::Start,
                 justify_content: JustifyContent::Start,
-                flex_wrap: FlexWrap::Wrap,
                 row_gap: Val::Px(10.),
                 column_gap: Val::Px(10.),
                 ..Default::default()
@@ -52,53 +85,53 @@ fn spawn_group(commands: &mut Commands) -> Entity {
                 .spawn(NodeBundle {
                     style: Style {
                         flex_direction: FlexDirection::Column,
+                        row_gap: Val::Px(10.),
+                        column_gap: Val::Px(10.),
                         ..Default::default()
                     },
                     ..Default::default()
                 })
                 .with_children(|commands| {
-                    commands.spawn(NodeBundle {
-                        style: Style {
-                            width: Val::Px(500.),
-                            height: Val::Px(500.),
-                            ..Default::default()
-                        },
-                        background_color: RadialGradient::new(
-                            Default::default(),
-                            Default::default(),
+                   
+                    for c in [
+                        RectPosition::CENTER,
+                        RectPosition::new(RectPositionAxis::CENTER, RectPositionAxis::Start(Val::Percent(25.))),
+                        RectPosition::new(RectPositionAxis::CENTER, RectPositionAxis::End(Val::Percent(25.))),
+                        RectPosition::new( RectPositionAxis::Start(Val::Percent(25.)), RectPositionAxis::CENTER),
+                        RectPosition::new( RectPositionAxis::End(Val::Percent(25.)), RectPositionAxis::CENTER),
+                        RectPosition::new(RectPositionAxis::Start(Val::Percent(25.)), RectPositionAxis::Start(Val::Percent(25.))),
+                        RectPosition::new(RectPositionAxis::End(Val::Percent(25.)), RectPositionAxis::Start(Val::Percent(25.))),
+                        RectPosition::new(RectPositionAxis::Start(Val::Percent(25.)), RectPositionAxis::End(Val::Percent(25.))),
+                        RectPosition::new(RectPositionAxis::End(Val::Percent(25.)), RectPositionAxis::End(Val::Percent(25.))),
+                    ] {
+                        for stops in [
+                            vec![(Color::WHITE, Val::Auto).into(), (Color::BLACK, Val::Auto).into()],
                             vec![
-                                (Color::RED, Val::Auto).into(),
-                                //(Color::GREEN, Val::Auto).into(),
-                                (Color::BLUE, Val::Auto).into(),
+                                (Color::RED, Val::Percent(10.)).into(),
+                                (Color::GREEN, Val::Percent(20.)).into(),
+                                (Color::GREEN, Val::Percent(30.)).into(),
+                                (Color::BLUE, Val::Percent(30.)).into(),
+                                (Color::BLUE, Val::Percent(40.)).into(),
+                                (Color::YELLOW, Val::Auto).into(),
                             ],
-                        )
-                        .into(),
-                        ..Default::default()
-                    });
-
-                    commands.spawn(NodeBundle {
-                        style: Style {
-                            width: Val::Px(500.),
-                            height: Val::Px(500.),
-                            ..Default::default()
-                        },
-                        background_color: RadialGradient::new(
-                            Default::default(),
-                            Default::default(),
-                            vec![
-                                (Color::RED, Val::Px(10.)).into(),
-                                (Color::GREEN, Val::Px(20.)).into(),
-                                (Color::GREEN, Val::Px(30.)).into(),
-                                (Color::BLUE, Val::Px(50.)).into(),
-                                (Color::BLUE, Val::Px(80.)).into(),
-                                (Color::YELLOW, Val::Px(300.)).into(),
-                                (Color::BLACK, Val::Px(300.)).into(),
-                            ],
-                        )
-                        .into(),
-                        ..Default::default()
-                    });
+                        ] {
+                            commands
+                                .spawn(NodeBundle {
+                                    style: Style {
+                                        flex_direction: FlexDirection::Row,
+                                        row_gap: Val::Px(10.),
+                                        column_gap: Val::Px(10.),
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                })
+                                .with_children(|commands| {
+                                    inner(commands, c, &stops);
+                                }); 
+                        }
+                    }
                 });
-        })
-        .id()
+            }).id()
+    
 }
+

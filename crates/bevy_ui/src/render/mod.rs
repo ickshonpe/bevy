@@ -721,7 +721,8 @@ impl ExtractedUiNodes {
         let uv_size = uv_rect.size();
 
         let image = image.unwrap_or(DEFAULT_IMAGE_HANDLE.typed());
-
+        let start_point = (ellipse.center - position - 0.5 * size).into();
+        
         for i in 0..stops.len() - 1 {
             let start = &stops[i];
             let end = &stops[i + 1];
@@ -740,7 +741,7 @@ impl ExtractedUiNodes {
                 uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
                 radius,
                 flags,
-                focal_point: (ellipse.center - position + 0.5 * size).into(),
+                start_point,
                 ratio: ellipse.extents.y / ellipse.extents.x,
                 start_color: start.0.as_linear_rgba_f32(),
                 start_len: start.1,
