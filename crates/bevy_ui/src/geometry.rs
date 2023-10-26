@@ -154,6 +154,22 @@ impl DivAssign<f32> for Val {
     }
 }
 
+impl std::ops::Neg for Val {
+    type Output = Val;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            Val::Auto => Val::Auto,
+            Val::Px(value) => Val::Px(-value),
+            Val::Percent(value) => Val::Percent(-value),
+            Val::Vw(value) => Val::Vw(-value),
+            Val::Vh(value) => Val::Vh(-value),
+            Val::VMin(value) => Val::VMin(-value),
+            Val::VMax(value) => Val::VMax(-value),
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Error)]
 pub enum ValArithmeticError {
     #[error("the variants of the Vals don't match")]

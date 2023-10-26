@@ -11,7 +11,7 @@ fn main() {
 
 fn inner(
     commands: &mut ChildBuilder,
-    c: RectPosition,
+    c: RelativePosition,
     stops: &Vec<ColorStop>,
 ) {
     for s in [
@@ -93,15 +93,15 @@ fn spawn_group(commands: &mut Commands) -> Entity {
                 })
                 .with_children(|commands| {                   
                     for c in [
-                        RectPosition::CENTER,
-                        RectPosition::new(RectPositionAxis::CENTER, RectPositionAxis::Start(Val::Percent(25.))),
-                        RectPosition::new(RectPositionAxis::CENTER, RectPositionAxis::End(Val::Percent(25.))),
-                        RectPosition::new( RectPositionAxis::Start(Val::Percent(25.)), RectPositionAxis::CENTER),
-                        RectPosition::new( RectPositionAxis::End(Val::Percent(25.)), RectPositionAxis::CENTER),
-                        RectPosition::new(RectPositionAxis::Start(Val::Percent(25.)), RectPositionAxis::Start(Val::Percent(25.))),
-                        RectPosition::new(RectPositionAxis::End(Val::Percent(25.)), RectPositionAxis::Start(Val::Percent(25.))),
-                        RectPosition::new(RectPositionAxis::Start(Val::Percent(25.)), RectPositionAxis::End(Val::Percent(25.))),
-                        RectPosition::new(RectPositionAxis::End(Val::Percent(25.)), RectPositionAxis::End(Val::Percent(25.))),
+                        RelativePosition::CENTER,
+                        RelativePosition::new(RelativePositionAxis::CENTER, RelativePositionAxis::Start(Val::Percent(25.))),
+                        RelativePosition::new(RelativePositionAxis::CENTER, RelativePositionAxis::End(Val::Percent(25.))),
+                        RelativePosition::new( RelativePositionAxis::Start(Val::Percent(25.)), RelativePositionAxis::CENTER),
+                        RelativePosition::new( RelativePositionAxis::End(Val::Percent(25.)), RelativePositionAxis::CENTER),
+                        RelativePosition::new(RelativePositionAxis::Start(Val::Percent(25.)), RelativePositionAxis::Start(Val::Percent(25.))),
+                        RelativePosition::new(RelativePositionAxis::End(Val::Percent(25.)), RelativePositionAxis::Start(Val::Percent(25.))),
+                        RelativePosition::new(RelativePositionAxis::Start(Val::Percent(25.)), RelativePositionAxis::End(Val::Percent(25.))),
+                        RelativePosition::new(RelativePositionAxis::End(Val::Percent(25.)), RelativePositionAxis::End(Val::Percent(25.))),
                     ] {
                         for stops in [
                             vec![(Color::WHITE, Val::Auto).into(), (Color::BLACK, Val::Auto).into()],

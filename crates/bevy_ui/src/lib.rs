@@ -121,8 +121,8 @@ impl Plugin for UiPlugin {
             .register_type::<widget::Label>()
             .register_type::<ZIndex>()
             .register_type::<UiColor>()
-            .register_type::<RectPosition>()
-            .register_type::<RectPositionAxis>()
+            .register_type::<RelativePosition>()
+            .register_type::<RelativePositionAxis>()
             .register_type::<Ellipse>()
             .add_systems(
                 PreUpdate,

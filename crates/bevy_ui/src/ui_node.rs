@@ -122,27 +122,29 @@ impl Default for Node {
 }
 
 /// Position relative to an axis-aligned rectangle along one of its axis
-/// * Negative values move the origin left or up on the respective axis, positive values down and to the right.
 /// * `Val::Auto` is equivalent to `Val::ZERO`
 /// * `Val::Percent` is based on the length of the axis of the node.
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 #[reflect(Default, PartialEq, Serialize, Deserialize)]
-pub enum RectPositionAxis {
-    /// Position is relative to the rectangle's start (left or top edge) on this axes
+pub enum RelativePositionAxis {
+    /// The position is relative to the rectangle's start (left or top edge) on this axes
+    /// Positive values translate the point inwards, towards the end, negative values are outside of the rectangle.
     Start(Val),
-    /// Position is relative to the rectangle's center on this axes
+    /// The position is relative to the rectangle's center on this axes    
+    /// Positive values transalte to the end, negative to the start.
     Center(Val),
-    /// Position is relative to the rectangle's start (right or bottom edge) on this axes
+    /// The position is relative to the rectangle's start (right or bottom edge) on this axes
+    /// Positive values translate the point inwards, towards the start, negative values are outside of the rectangle.
     End(Val),
 }
 
-impl Default for RectPositionAxis {
+impl Default for RelativePositionAxis {
     fn default() -> Self {
-        RectPositionAxis::Center(Val::Auto)
+        RelativePositionAxis::Center(Val::Auto)
     }
 }
 
-impl RectPositionAxis {
+impl RelativePositionAxis {
     pub const START: Self = Self::Start(Val::Auto);
     pub const CENTER: Self = Self::Center(Val::Auto);
     pub const END: Self = Self::End(Val::Auto);
@@ -153,9 +155,9 @@ impl RectPositionAxis {
     pub fn resolve(self, min: f32, max: f32, viewport_size: Vec2) -> f32 {
         let length = max - min;
         let (val, point) = match self {
-            RectPositionAxis::Start(val) => (val, min),
-            RectPositionAxis::Center(val) => (val, min + 0.5 * length),
-            RectPositionAxis::End(val) => (val, max),
+            RelativePositionAxis::Start(val) => (val, min),
+            RelativePositionAxis::Center(val) => (val, min + 0.5 * length),
+            RelativePositionAxis::End(val) => (-val, max),
         };
         point + val.resolve(length, viewport_size).unwrap_or(0.)
     }
@@ -165,50 +167,50 @@ impl RectPositionAxis {
 /// Position outside of a rectangle's bounds are valid.
 #[derive(Default, Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect)]
 #[reflect(Default, PartialEq, Serialize, Deserialize)]
-pub struct RectPosition {
+pub struct RelativePosition {
     /// Horizontal position
-    pub x: RectPositionAxis,
+    pub x: RelativePositionAxis,
     /// Vertical position
-    pub y: RectPositionAxis,
+    pub y: RelativePositionAxis,
 }
 
-impl RectPosition {
+impl RelativePosition {
     /// A new `RectPosition` with the given axis values
-    pub const fn new(x: RectPositionAxis, y: RectPositionAxis) -> Self {
+    pub const fn new(x: RelativePositionAxis, y: RelativePositionAxis) -> Self {
         Self { x, y }
     }
 
     /// A `RectPosition`with both axis set to the same value
-    pub const fn all(value: RectPositionAxis) -> Self {
+    pub const fn all(value: RelativePositionAxis) -> Self {
         Self { x: value, y: value }
     }
 
     /// An `RectPosition` relative to the center of the node.
     pub const fn center(x: Val, y: Val) -> Self {
         Self {
-            x: RectPositionAxis::Center(x),
-            y: RectPositionAxis::Center(y),
+            x: RelativePositionAxis::Center(x),
+            y: RelativePositionAxis::Center(y),
         }
     }
 
     /// A `RectPosition` at the center.
-    pub const CENTER: Self = Self::all(RectPositionAxis::CENTER);
+    pub const CENTER: Self = Self::all(RelativePositionAxis::CENTER);
     /// A `RectPosition` at the top left corner.
-    pub const TOP_LEFT: Self = Self::all(RectPositionAxis::START);
+    pub const TOP_LEFT: Self = Self::all(RelativePositionAxis::START);
     /// A `RectPosition` at the top right corner.
-    pub const TOP_RIGHT: Self = Self::new(RectPositionAxis::END, RectPositionAxis::START);
+    pub const TOP_RIGHT: Self = Self::new(RelativePositionAxis::END, RelativePositionAxis::START);
     /// A `RectPosition` at the bottom right corner.
-    pub const BOTTOM_RIGHT: Self = Self::new(RectPositionAxis::END, RectPositionAxis::END);
+    pub const BOTTOM_RIGHT: Self = Self::new(RelativePositionAxis::END, RelativePositionAxis::END);
     /// A `RectPosition` at the bottom left corner.
-    pub const BOTTOM_LEFT: Self = Self::all(RectPositionAxis::END);
+    pub const BOTTOM_LEFT: Self = Self::all(RelativePositionAxis::END);
     /// A `RectPosition` at the center of the top edge.
-    pub const TOP_CENTER: Self = Self::new(RectPositionAxis::CENTER, RectPositionAxis::START);
+    pub const TOP_CENTER: Self = Self::new(RelativePositionAxis::CENTER, RelativePositionAxis::START);
     /// A `RectPosition` at the center of the bottom edge.
-    pub const BOTTOM_CENTER: Self = Self::new(RectPositionAxis::CENTER, RectPositionAxis::END);
+    pub const BOTTOM_CENTER: Self = Self::new(RelativePositionAxis::CENTER, RelativePositionAxis::END);
     /// A `RectPosition` at the center of the left edge.
-    pub const LEFT_CENTER: Self = Self::new(RectPositionAxis::CENTER, RectPositionAxis::START);
+    pub const LEFT_CENTER: Self = Self::new(RelativePositionAxis::CENTER, RelativePositionAxis::START);
     /// A `RectPosition` at the center of the right edge.
-    pub const RIGHT_CENTER: Self = Self::new(RectPositionAxis::CENTER, RectPositionAxis::END);
+    pub const RIGHT_CENTER: Self = Self::new(RelativePositionAxis::CENTER, RelativePositionAxis::END);
 
     pub fn resolve(self, rect: Rect, viewport_size: Vec2) -> Vec2 {
         Vec2 {
@@ -2246,7 +2248,7 @@ pub struct Ellipse {
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Reflect, Component, Default)]
 #[reflect(PartialEq, Serialize, Deserialize)]
 pub struct RadialGradient {
-    pub center: RectPosition,
+    pub center: RelativePosition,
     pub shape: RadialGradientShape,
     pub stops: Vec<ColorStop>,
 }
@@ -2255,7 +2257,7 @@ impl RadialGradient {
     /// A circular gradient from `start_color` to `end_color` sized using `FarthestCorner``.
     pub fn simple(start_color: Color, end_color: Color) -> Self {
         Self {
-            center: RectPosition::CENTER,
+            center: RelativePosition::CENTER,
             shape: RadialGradientShape::default(),
             stops: vec![start_color.into(), end_color.into()],
         }
@@ -2265,7 +2267,7 @@ impl RadialGradient {
         self.stops.iter().all(|stop| stop.color.a() == 0.)
     }
 
-    pub fn new(center: RectPosition, shape: RadialGradientShape, stops: Vec<ColorStop>) -> Self {
+    pub fn new(center: RelativePosition, shape: RadialGradientShape, stops: Vec<ColorStop>) -> Self {
         Self {
             center,
             shape,
