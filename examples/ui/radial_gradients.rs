@@ -91,8 +91,7 @@ fn spawn_group(commands: &mut Commands) -> Entity {
                     },
                     ..Default::default()
                 })
-                .with_children(|commands| {
-                   
+                .with_children(|commands| {                   
                     for c in [
                         RectPosition::CENTER,
                         RectPosition::new(RectPositionAxis::CENTER, RectPositionAxis::Start(Val::Percent(25.))),

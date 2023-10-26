@@ -722,7 +722,7 @@ impl ExtractedUiNodes {
 
         let image = image.unwrap_or(DEFAULT_IMAGE_HANDLE.typed());
         let start_point = (ellipse.center - position - 0.5 * size).into();
-        
+        let ratio = ellipse.extents.x / ellipse.extents.y;
         for i in 0..stops.len() - 1 {
             let start = &stops[i];
             let end = &stops[i + 1];
@@ -742,7 +742,7 @@ impl ExtractedUiNodes {
                 radius,
                 flags,
                 start_point,
-                ratio: ellipse.extents.y / ellipse.extents.x,
+                ratio,
                 start_color: start.0.as_linear_rgba_f32(),
                 start_len: start.1,
                 end_len: end.1,
