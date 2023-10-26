@@ -121,6 +121,9 @@ impl Plugin for UiPlugin {
             .register_type::<widget::Label>()
             .register_type::<ZIndex>()
             .register_type::<UiColor>()
+            .register_type::<RectPosition>()
+            .register_type::<RectPositionAxis>()
+            .register_type::<Ellipse>()
             .add_systems(
                 PreUpdate,
                 ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),

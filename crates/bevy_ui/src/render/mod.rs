@@ -13,7 +13,7 @@ use crate::{
     prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, Node, UiImage, UiScale,
     UiStack, UiTextureAtlasImage,
 };
-use crate::{resolve_color_stops, LinearGradient, Outline, RadialGradient, UiColor};
+use crate::{resolve_color_stops, Outline, UiColor, Ellipse};
 
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
@@ -40,7 +40,6 @@ use bevy_text::{PositionedGlyph, Text, TextLayoutInfo};
 use bevy_transform::components::GlobalTransform;
 use bevy_utils::HashMap;
 use bytemuck::{Pod, Zeroable};
-use std::f32::consts::PI;
 use std::ops::Range;
 
 pub mod node {
@@ -242,6 +241,8 @@ pub fn extract_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     images: Extract<Res<Assets<Image>>>,
     ui_stack: Extract<Res<UiStack>>,
+    ui_scale: Extract<Res<UiScale>>,
+    windows: Extract<Query<&Window, With<PrimaryWindow>>>,
     uinode_query: Extract<
         Query<
             (
@@ -257,6 +258,21 @@ pub fn extract_uinodes(
         >,
     >,
 ) {
+    let (_, viewport_size) = {
+        let (scale_factor, viewport_size) = windows.get_single()
+            .map(|window|
+                (      
+                    window.resolution.scale_factor(),
+                    vec2(window.resolution.width(), window.resolution.height()),
+                )
+            )
+            .unwrap_or((1., Vec2::ZERO));
+        (
+            scale_factor * ui_scale.scale,
+            viewport_size * ui_scale.scale as f32,
+        )
+    };
+
     extracted_uinodes.uinodes.clear();
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
@@ -299,6 +315,8 @@ pub fn extract_uinodes(
                         );
                     }
                     UiColor::LinearGradient(l) => {
+                        let (start_point, length) = l.resolve_geometry(uinode.rect());
+                        let stops = resolve_color_stops(&l.stops, length, viewport_size);
                         extracted_uinodes.push_node_with_linear_gradient(
                             stack_index,
                             uinode.position,
@@ -306,11 +324,15 @@ pub fn extract_uinodes(
                             image,
                             Rect::new(0.0, 0.0, 1.0, 1.0),
                             uinode.border_radius,
-                            l.clone(),
+                            start_point,
+                            l.angle,
+                            &stops,
                             clip.map(|clip| clip.clip),
                         );
                     }
                     UiColor::RadialGradient(r) => {
+                        let ellipse = r.resolve_geometry(uinode.rect(), viewport_size);
+                        let stops = resolve_color_stops(&r.stops, ellipse.extents.x, viewport_size);
                         extracted_uinodes.push_node_with_radial_gradient(
                             stack_index,
                             uinode.position,
@@ -318,7 +340,8 @@ pub fn extract_uinodes(
                             image,
                             Rect::new(0.0, 0.0, 1.0, 1.0),
                             uinode.border_radius,
-                            r.clone(),
+                            ellipse,
+                            &stops,
                             clip.map(|clip| clip.clip),
                         );
                     }
@@ -444,11 +467,20 @@ pub fn extract_text_uinodes(
     >,
 ) {
     // TODO: Support window-independent UI scale: https://github.com/bevyengine/bevy/issues/5621
-    let scale_factor = windows
-        .get_single()
-        .map(|window| window.resolution.scale_factor())
-        .unwrap_or(1.0)
-        * ui_scale.scale;
+    let (scale_factor, _viewport_size) = {
+        let (scale_factor, viewport_size) = windows.get_single()
+            .map(|window|
+                (      
+                    window.resolution.scale_factor(),
+                    vec2(window.resolution.width(), window.resolution.height()),
+                )
+            )
+            .unwrap_or((1., Vec2::ZERO));
+        (
+            scale_factor * ui_scale.scale,
+            viewport_size * ui_scale.scale as f32,
+        )
+    };
 
     let inverse_scale_factor = (scale_factor as f32).recip();
 
@@ -548,11 +580,8 @@ impl ExtractedUiNodes {
             uv_size,
             color,
         };
-        self.uinodes.push(ExtractedItem::new(
-            stack_index,
-            image,
-            (i, clip),
-        ));
+        self.uinodes
+            .push(ExtractedItem::new(stack_index, image, (i, clip)));
     }
 
     pub fn push_node(
@@ -585,11 +614,8 @@ impl ExtractedUiNodes {
             radius,
             flags,
         };
-        self.uinodes.push(ExtractedItem::new(
-            stack_index,
-            image,
-            (i, clip),
-        ));
+        self.uinodes
+            .push(ExtractedItem::new(stack_index, image, (i, clip)));
     }
 
     pub fn push_border(
@@ -627,34 +653,13 @@ impl ExtractedUiNodes {
         image: Option<Handle<Image>>,
         uv_rect: Rect,
         radius: [f32; 4],
-        gradient: LinearGradient,
+        start_point: Vec2, 
+        angle: f32,
+        stops: &[(Color, f32)],
         clip: Option<Rect>,
     ) {
-        let x = gradient.angle.cos();
-        let y = gradient.angle.sin();
-        let dir = Vec2::new(x, y);
-
-        // return the distance of point `p` from the line defined by point `o` and direction `dir`
-        fn sdf_line(o: Vec2, dir: Vec2, p: Vec2) -> f32 {
-            // project p onto the the o-dir line and then return the distance between p and the projection.
-            return p.distance(o + dir * (p - o).dot(dir));
-        }
-
         let uv_min = uv_rect.min;
         let uv_size = uv_rect.size();
-
-        fn modulo(x: f32, m: f32) -> f32 {
-            return x - m * (x / m).floor();
-        }
-
-        let reduced = modulo(gradient.angle, 2.0 * PI);
-        let q = (reduced * 2.0 / PI) as i32;
-        let focal_point = match q {
-            0 => vec2(-1., 1.) * size,
-            1 => vec2(-1., -1.) * size,
-            2 => vec2(1., -1.) * size,
-            _ => vec2(1., 1.) * size,
-        } * 0.5f32;
 
         let tflag = if image.is_some() {
             TEXTURED_QUAD //| FILL_START | FILL_END
@@ -662,11 +667,7 @@ impl ExtractedUiNodes {
             UNTEXTURED_QUAD //| FILL_START | FILL_END
         };
 
-        let len = 2.0 * sdf_line(focal_point, dir, Vec2::ZERO);
-
         let image = image.unwrap_or(DEFAULT_IMAGE_HANDLE.typed());
-
-        let stops = resolve_color_stops(&gradient.stops, len, Vec2::ZERO);
 
         for i in 0..stops.len() - 1 {
             let start = &stops[i];
@@ -676,7 +677,7 @@ impl ExtractedUiNodes {
                 flags |= FILL_START;
             }
 
-            if i + 2 == gradient.stops.len() {
+            if i + 2 == stops.len() {
                 flags |= FILL_END;
             }
 
@@ -686,18 +687,15 @@ impl ExtractedUiNodes {
                 uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
                 radius,
                 flags,
-                focal_point: focal_point.into(),
-                angle: gradient.angle,
+                focal_point: start_point.into(),
+                angle,
                 start_color: start.0.as_linear_rgba_f32(),
                 start_len: start.1,
                 end_len: end.1,
                 end_color: end.0.as_linear_rgba_f32(),
             };
-            self.uinodes.push(ExtractedItem::new(
-                stack_index,
-                image.clone(),
-                (i, clip),
-            ));
+            self.uinodes
+                .push(ExtractedItem::new(stack_index, image.clone(), (i, clip)));
         }
     }
 
@@ -709,7 +707,8 @@ impl ExtractedUiNodes {
         image: Option<Handle<Image>>,
         uv_rect: Rect,
         radius: [f32; 4],
-        gradient: RadialGradient,
+        ellipse: Ellipse,
+        stops: &[(Color, f32)],
         clip: Option<Rect>,
     ) {
         let tflag = if image.is_some() {
@@ -721,11 +720,7 @@ impl ExtractedUiNodes {
         let uv_min = uv_rect.min;
         let uv_size = uv_rect.size();
 
-        let len = 0.5 * size.x;
-
         let image = image.unwrap_or(DEFAULT_IMAGE_HANDLE.typed());
-
-        let stops = resolve_color_stops(&gradient.stops, len, Vec2::ZERO);
 
         for i in 0..stops.len() - 1 {
             let start = &stops[i];
@@ -735,7 +730,7 @@ impl ExtractedUiNodes {
                 flags |= FILL_START;
             }
 
-            if i + 2 == gradient.stops.len() {
+            if i + 2 == stops.len() {
                 flags |= FILL_END;
             }
 
@@ -745,18 +740,15 @@ impl ExtractedUiNodes {
                 uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
                 radius,
                 flags,
-                focal_point: Vec2::ZERO.into(),
-                ratio: 1.0,
+                focal_point: (ellipse.center - position + 0.5 * size).into(),
+                ratio: ellipse.extents.y / ellipse.extents.x,
                 start_color: start.0.as_linear_rgba_f32(),
                 start_len: start.1,
                 end_len: end.1,
                 end_color: end.0.as_linear_rgba_f32(),
             };
-            self.uinodes.push(ExtractedItem::new(
-                stack_index,
-                image.clone(),
-                (i, clip),
-            ));
+            self.uinodes
+                .push(ExtractedItem::new(stack_index, image.clone(), (i, clip)));
         }
     }
 }
