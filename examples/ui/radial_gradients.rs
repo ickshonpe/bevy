@@ -9,11 +9,7 @@ fn main() {
         .run();
 }
 
-fn inner(
-    commands: &mut ChildBuilder,
-    c: RelativePosition,
-    stops: &Vec<ColorStop>,
-) {
+fn inner(commands: &mut ChildBuilder, c: RelativePosition, stops: &Vec<ColorStop>) {
     for s in [
         RadialGradientShape::Circle(Val::Percent(25.).into()),
         RadialGradientShape::Circle(Val::Percent(40.).into()),
@@ -23,10 +19,22 @@ fn inner(
         RadialGradientShape::FarthestCorner,
         RadialGradientShape::Ellipse(Val::Percent(40.).into(), Val::Percent(20.).into()),
         RadialGradientShape::Ellipse(Val::Percent(20.).into(), Val::Percent(40.).into()),
-        RadialGradientShape::Ellipse(RadialGradientExtent::ClosestSide, RadialGradientExtent::ClosestSide),
-        RadialGradientShape::Ellipse(RadialGradientExtent::ClosestSide, RadialGradientExtent::FarthestSide),
-        RadialGradientShape::Ellipse(RadialGradientExtent::FarthestSide, RadialGradientExtent::ClosestSide),
-        RadialGradientShape::Ellipse(RadialGradientExtent::FarthestSide, RadialGradientExtent::FarthestSide),
+        RadialGradientShape::Ellipse(
+            RadialGradientExtent::ClosestSide,
+            RadialGradientExtent::ClosestSide,
+        ),
+        RadialGradientShape::Ellipse(
+            RadialGradientExtent::ClosestSide,
+            RadialGradientExtent::FarthestSide,
+        ),
+        RadialGradientShape::Ellipse(
+            RadialGradientExtent::FarthestSide,
+            RadialGradientExtent::ClosestSide,
+        ),
+        RadialGradientShape::Ellipse(
+            RadialGradientExtent::FarthestSide,
+            RadialGradientExtent::FarthestSide,
+        ),
     ] {
         commands.spawn(NodeBundle {
             style: Style {
@@ -34,12 +42,7 @@ fn inner(
                 height: Val::Px(50.),
                 ..Default::default()
             },
-            background_color: RadialGradient::new(
-                c,
-                s,
-                stops.clone(),
-            )
-            .into(),
+            background_color: RadialGradient::new(c, s, stops.clone()).into(),
             ..Default::default()
         });
     }
@@ -91,20 +94,47 @@ fn spawn_group(commands: &mut Commands) -> Entity {
                     },
                     ..Default::default()
                 })
-                .with_children(|commands| {                   
+                .with_children(|commands| {
                     for c in [
                         RelativePosition::CENTER,
-                        RelativePosition::new(RelativePositionAxis::CENTER, RelativePositionAxis::Start(Val::Percent(25.))),
-                        RelativePosition::new(RelativePositionAxis::CENTER, RelativePositionAxis::End(Val::Percent(25.))),
-                        RelativePosition::new( RelativePositionAxis::Start(Val::Percent(25.)), RelativePositionAxis::CENTER),
-                        RelativePosition::new( RelativePositionAxis::End(Val::Percent(25.)), RelativePositionAxis::CENTER),
-                        RelativePosition::new(RelativePositionAxis::Start(Val::Percent(25.)), RelativePositionAxis::Start(Val::Percent(25.))),
-                        RelativePosition::new(RelativePositionAxis::End(Val::Percent(25.)), RelativePositionAxis::Start(Val::Percent(25.))),
-                        RelativePosition::new(RelativePositionAxis::Start(Val::Percent(25.)), RelativePositionAxis::End(Val::Percent(25.))),
-                        RelativePosition::new(RelativePositionAxis::End(Val::Percent(25.)), RelativePositionAxis::End(Val::Percent(25.))),
+                        RelativePosition::new(
+                            RelativePositionAxis::CENTER,
+                            RelativePositionAxis::Start(Val::Percent(25.)),
+                        ),
+                        RelativePosition::new(
+                            RelativePositionAxis::CENTER,
+                            RelativePositionAxis::End(Val::Percent(25.)),
+                        ),
+                        RelativePosition::new(
+                            RelativePositionAxis::Start(Val::Percent(25.)),
+                            RelativePositionAxis::CENTER,
+                        ),
+                        RelativePosition::new(
+                            RelativePositionAxis::End(Val::Percent(25.)),
+                            RelativePositionAxis::CENTER,
+                        ),
+                        RelativePosition::new(
+                            RelativePositionAxis::Start(Val::Percent(25.)),
+                            RelativePositionAxis::Start(Val::Percent(25.)),
+                        ),
+                        RelativePosition::new(
+                            RelativePositionAxis::End(Val::Percent(25.)),
+                            RelativePositionAxis::Start(Val::Percent(25.)),
+                        ),
+                        RelativePosition::new(
+                            RelativePositionAxis::Start(Val::Percent(25.)),
+                            RelativePositionAxis::End(Val::Percent(25.)),
+                        ),
+                        RelativePosition::new(
+                            RelativePositionAxis::End(Val::Percent(25.)),
+                            RelativePositionAxis::End(Val::Percent(25.)),
+                        ),
                     ] {
                         for stops in [
-                            vec![(Color::WHITE, Val::Auto).into(), (Color::BLACK, Val::Auto).into()],
+                            vec![
+                                (Color::WHITE, Val::Auto).into(),
+                                (Color::BLACK, Val::Auto).into(),
+                            ],
                             vec![
                                 (Color::RED, Val::Percent(10.)).into(),
                                 (Color::GREEN, Val::Percent(20.)).into(),
@@ -126,11 +156,10 @@ fn spawn_group(commands: &mut Commands) -> Entity {
                                 })
                                 .with_children(|commands| {
                                     inner(commands, c, &stops);
-                                }); 
+                                });
                         }
                     }
                 });
-            }).id()
-    
+        })
+        .id()
 }
-

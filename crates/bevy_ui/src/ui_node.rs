@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::{
     f32::consts::{FRAC_PI_2, PI},
-    num::{NonZeroI16, NonZeroU16}
+    num::{NonZeroI16, NonZeroU16},
 };
 use thiserror::Error;
 
@@ -66,7 +66,10 @@ impl Node {
     /// Returns the logical pixel coordinates of the UI node, based on its [`GlobalTransform`].
     #[inline]
     pub fn rect(&self) -> Rect {
-        Rect { min: self.position, max: self.position + self.size() }
+        Rect {
+            min: self.position,
+            max: self.position + self.size(),
+        }
     }
 
     /// Returns the physical pixel coordinates of the UI node, based on its [`GlobalTransform`] and the scale factor.
@@ -163,6 +166,12 @@ impl RelativePositionAxis {
     }
 }
 
+impl From<Val> for RelativePositionAxis {
+    fn from(value: Val) -> Self {
+        Self::Start(value)
+    }
+}
+
 /// Position relative to an axis aligned rectangle
 /// Position outside of a rectangle's bounds are valid.
 #[derive(Default, Copy, Clone, PartialEq, Debug, Serialize, Deserialize, Reflect)]
@@ -204,19 +213,41 @@ impl RelativePosition {
     /// A `RectPosition` at the bottom left corner.
     pub const BOTTOM_LEFT: Self = Self::all(RelativePositionAxis::END);
     /// A `RectPosition` at the center of the top edge.
-    pub const TOP_CENTER: Self = Self::new(RelativePositionAxis::CENTER, RelativePositionAxis::START);
+    pub const TOP_CENTER: Self =
+        Self::new(RelativePositionAxis::CENTER, RelativePositionAxis::START);
     /// A `RectPosition` at the center of the bottom edge.
-    pub const BOTTOM_CENTER: Self = Self::new(RelativePositionAxis::CENTER, RelativePositionAxis::END);
+    pub const BOTTOM_CENTER: Self =
+        Self::new(RelativePositionAxis::CENTER, RelativePositionAxis::END);
     /// A `RectPosition` at the center of the left edge.
-    pub const LEFT_CENTER: Self = Self::new(RelativePositionAxis::CENTER, RelativePositionAxis::START);
+    pub const LEFT_CENTER: Self =
+        Self::new(RelativePositionAxis::CENTER, RelativePositionAxis::START);
     /// A `RectPosition` at the center of the right edge.
-    pub const RIGHT_CENTER: Self = Self::new(RelativePositionAxis::CENTER, RelativePositionAxis::END);
+    pub const RIGHT_CENTER: Self =
+        Self::new(RelativePositionAxis::CENTER, RelativePositionAxis::END);
 
     pub fn resolve(self, rect: Rect, viewport_size: Vec2) -> Vec2 {
         Vec2 {
             x: self.x.resolve(rect.min.x, rect.max.x, viewport_size),
             y: self.y.resolve(rect.min.y, rect.max.y, viewport_size),
         }
+    }
+}
+
+impl From<Val> for RelativePosition {
+    fn from(val: Val) -> Self {
+        Self {
+            x: RelativePositionAxis::Start(val),
+            y: RelativePositionAxis::CENTER, 
+        }
+    }
+}
+
+impl From<(Val, Val)> for RelativePosition {
+    fn from((x, y): (Val, Val)) -> Self {
+        Self::new(
+            RelativePositionAxis::Start(x),
+            RelativePositionAxis::Start(y), 
+        )
     }
 }
 
@@ -2130,10 +2161,7 @@ impl LinearGradient {
     }
 
     pub fn new(angle: f32, stops: Vec<ColorStop>) -> Self {
-        Self {
-            angle,
-            stops,
-        }
+        Self { angle, stops }
     }
 
     pub fn is_visible(&self) -> bool {
@@ -2166,26 +2194,35 @@ impl LinearGradient {
         } * 0.5f32;
 
         let length = 2.0 * df_line(start_point, dir, Vec2::ZERO);
-        (
-            start_point,
-            length
-        )
+        (start_point, length)
     }
 
     pub fn bottom_to_top(stops: Vec<ColorStop>) -> LinearGradient {
-        LinearGradient { angle: Self::BOTTOM_TO_TOP, stops }
+        LinearGradient {
+            angle: Self::BOTTOM_TO_TOP,
+            stops,
+        }
     }
 
     pub fn left_to_right(stops: Vec<ColorStop>) -> LinearGradient {
-        LinearGradient { angle: Self::LEFT_TO_RIGHT, stops }
+        LinearGradient {
+            angle: Self::LEFT_TO_RIGHT,
+            stops,
+        }
     }
 
     pub fn top_to_bottom(stops: Vec<ColorStop>) -> LinearGradient {
-        LinearGradient { angle: Self::TOP_TO_BOTTOM, stops }
+        LinearGradient {
+            angle: Self::TOP_TO_BOTTOM,
+            stops,
+        }
     }
 
     pub fn right_to_left(stops: Vec<ColorStop>) -> LinearGradient {
-        LinearGradient { angle: Self::RIGHT_TO_LEFT, stops }
+        LinearGradient {
+            angle: Self::RIGHT_TO_LEFT,
+            stops,
+        }
     }
 }
 
@@ -2202,7 +2239,7 @@ pub enum RadialGradientExtent {
     /// Percentage values are based on the width of the node.
     Length(Val),
     /// Circle: The edge of the circle will touch the closest side of the node.
-    /// Ellipse: The edge along this axis will touch the closest side on this axis. 
+    /// Ellipse: The edge along this axis will touch the closest side on this axis.
     #[default]
     ClosestSide,
     /// Circle: The edge of the circle will touch the farthest side of the node.
@@ -2213,7 +2250,9 @@ pub enum RadialGradientExtent {
 impl RadialGradientExtent {
     pub fn resolve<const N: usize>(self, sides: [f32; N], width: f32, viewport_size: Vec2) -> f32 {
         match self {
-            RadialGradientExtent::Length(val) => val.resolve(width, viewport_size).unwrap_or(sides[0].max(sides[1])),
+            RadialGradientExtent::Length(val) => val
+                .resolve(width, viewport_size)
+                .unwrap_or(sides[0].max(sides[1])),
             RadialGradientExtent::ClosestSide => sides[0].min(sides[1]),
             RadialGradientExtent::FarthestSide => sides[0].max(sides[1]),
         }
@@ -2273,7 +2312,11 @@ impl RadialGradient {
         self.stops.iter().all(|stop| stop.color.a() == 0.)
     }
 
-    pub fn new(center: RelativePosition, shape: RadialGradientShape, stops: Vec<ColorStop>) -> Self {
+    pub fn new(
+        center: RelativePosition,
+        shape: RadialGradientShape,
+        stops: Vec<ColorStop>,
+    ) -> Self {
         Self {
             center,
             shape,
@@ -2318,26 +2361,24 @@ impl RadialGradient {
         let extents = match self.shape {
             RadialGradientShape::Circle(e) => {
                 let sides = [
-                    (center.x - r.min.x).abs(),    
+                    (center.x - r.min.x).abs(),
                     (center.x - r.max.x).abs(),
                     (center.y - r.min.y).abs(),
                     (center.y - r.max.y).abs(),
                 ];
                 let radius = e.resolve(sides, r.width(), viewport_size);
                 Vec2::splat(radius)
-            },
-            RadialGradientShape::ClosestCorner => Vec2::splat(closest_corner(center, r).distance(center)),
-            RadialGradientShape::FarthestCorner => Vec2::splat(farthest_corner(center, r).distance(center)),
+            }
+            RadialGradientShape::ClosestCorner => {
+                Vec2::splat(closest_corner(center, r).distance(center))
+            }
+            RadialGradientShape::FarthestCorner => {
+                Vec2::splat(farthest_corner(center, r).distance(center))
+            }
             RadialGradientShape::Ellipse(w, h) => {
-                let x_sides = [
-                    (center.x - r.min.x).abs(),    
-                    (center.x - r.max.x).abs(),
-                ];
+                let x_sides = [(center.x - r.min.x).abs(), (center.x - r.max.x).abs()];
                 let w = w.resolve(x_sides, r.width(), viewport_size);
-                let y_sides = [
-                    (center.y - r.min.y).abs(),
-                    (center.y - r.max.y).abs(),
-                ];
+                let y_sides = [(center.y - r.min.y).abs(), (center.y - r.max.y).abs()];
                 let h = h.resolve(y_sides, r.width(), viewport_size);
                 vec2(w, h)
             }
