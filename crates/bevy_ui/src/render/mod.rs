@@ -60,6 +60,7 @@ pub const UI_SHADER_HANDLE: HandleUntyped =
 pub enum RenderUiSystem {
     ExtractNode,
     ExtractBorder,
+    ExtractOutline,
     ExtractAtlasNode,
 }
 
@@ -89,9 +90,11 @@ pub fn build_ui_render(app: &mut App) {
                     .after(RenderUiSystem::ExtractNode),
                 extract_borders.in_set(RenderUiSystem::ExtractBorder)
                     .after(RenderUiSystem::ExtractAtlasNode),
+                extract_outlines.after(RenderUiSystem::ExtractBorder),
                 #[cfg(feature = "bevy_text")]
                 extract_text_uinodes.after(RenderUiSystem::ExtractAtlasNode)
                 .after(RenderUiSystem::ExtractBorder)
+                .after(RenderUiSystem::ExtractOutline)
                 ,
             ),
         )
@@ -462,7 +465,7 @@ pub fn extract_outlines(
         >,
     >,
 ) {
-    let (_, viewport_size) = {
+    let (_, _viewport_size) = {
         let (scale_factor, viewport_size) = windows
             .get_single()
             .map(|window| {
