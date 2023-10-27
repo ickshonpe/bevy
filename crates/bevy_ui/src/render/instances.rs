@@ -205,6 +205,8 @@ impl UiInstance for ClippedInstance<RadialGradientInstance> {
         buffers.radial_gradient.clipped.push(self);
     }
 }
+
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub enum BatchType {
     Node = 0,
     Text = 1,

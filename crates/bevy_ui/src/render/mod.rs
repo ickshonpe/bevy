@@ -1035,20 +1035,30 @@ pub fn prepare_uinodes(
         .sort_by_key(|node| node.stack_index);
 
     let mut instance_counters = InstanceCounters::default();
-
+    let mut batches: Vec<UiBatch> = vec![];
     for node in &extracted_uinodes.uinodes {
-        let batch_type: BatchType = node.instance.get_type();
         ui_meta.push(&node.instance);
-        let index = instance_counters.increment(batch_type);
-
-        let ui_batch = UiBatch {
-            batch_type: node.instance.get_type(),
-            range: index - 1..index,
-            image: node.image.clone(),
-            stack_index: node.stack_index,
-        };
-        commands.spawn(ui_batch);
+        let index = instance_counters.increment(node.instance.get_type());
+        let current_batch = 
+            batches.last_mut()
+                .filter(|batch| 
+                    batch.batch_type == node.instance.get_type()
+                    && batch.image.id() == node.image.id()
+                );
+        if let Some(batch) = current_batch {
+            batch.range.end = index;
+        } else {
+            let new_batch = UiBatch {
+                batch_type: node.instance.get_type(),
+                image: node.image.clone(),
+                stack_index: node.stack_index,
+                range: index - 1..index,
+            };
+            batches.push(new_batch);
+        }
     }
+    commands.spawn_batch(batches);
+
 
     ui_meta.write_instance_buffers(&render_device, &render_queue);
 
