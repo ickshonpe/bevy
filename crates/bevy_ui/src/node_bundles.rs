@@ -317,7 +317,7 @@ impl Default for ButtonBundle {
             border_color: Color::NONE.into(),
             interaction: Default::default(),
             background_color: Default::default(),
-            image: Default::default(),
+            image: bevy_render::texture::DEFAULT_IMAGE_HANDLE.typed().into(),
             transform: Default::default(),
             global_transform: Default::default(),
             visibility: Default::default(),

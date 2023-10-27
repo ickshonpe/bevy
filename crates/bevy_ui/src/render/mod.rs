@@ -277,8 +277,6 @@ pub fn extract_uinodes(
         )
     };
 
-    extracted_uinodes.uinodes.clear();
-
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {        
         if let Ok((
             uinode,
@@ -386,8 +384,6 @@ pub fn extract_borders(
         )
     };
 
-    extracted_uinodes.uinodes.clear();
-
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {        
         if let Ok((
             uinode,
@@ -447,18 +443,64 @@ pub fn extract_borders(
                 }
             }
         }
+    }
+}
 
-            // if let Some(outline) = maybe_outline {
-            //     extracted_uinodes.push_border(
-            //         stack_index,
-            //         uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
-            //         uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
-            //         outline.color,
-            //         [uinode.outline_width; 4],
-            //         uinode.border_radius,
-            //         clip.map(|clip| clip.clip),
-            //     );
-            // }
+pub fn extract_outlines(
+    mut extracted_uinodes: ResMut<ExtractedUiNodes>,
+    ui_stack: Extract<Res<UiStack>>,
+    ui_scale: Extract<Res<UiScale>>,
+    windows: Extract<Query<&Window, With<PrimaryWindow>>>,
+    uinode_query: Extract<
+        Query<
+            (
+                &Node,
+                &Outline,
+                &ComputedVisibility,
+                Option<&CalculatedClip>,
+            ),
+        >,
+    >,
+) {
+    let (_, viewport_size) = {
+        let (scale_factor, viewport_size) = windows
+            .get_single()
+            .map(|window| {
+                (
+                    window.resolution.scale_factor(),
+                    vec2(window.resolution.width(), window.resolution.height()),
+                )
+            })
+            .unwrap_or((1., Vec2::ZERO));
+        (
+            scale_factor * ui_scale.scale,
+            viewport_size * ui_scale.scale as f32,
+        )
+    };
+
+    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {        
+        if let Ok((
+            uinode,
+            outline,
+            visibility,
+            clip,
+        )) = uinode_query.get(*entity)
+        {
+            
+            if !visibility.is_visible() {
+                continue;
+            }
+            
+            extracted_uinodes.push_border(
+                stack_index,
+                uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
+                uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
+                outline.color,
+                [uinode.outline_width; 4],
+                uinode.border_radius,
+                clip.map(|clip| clip.clip),
+            );
+        }   
     }
 }
 
@@ -675,7 +717,6 @@ impl ExtractedUiNodes {
         radius: [f32; 4],
         clip: Option<Rect>,
     ) {
-        println!("push node: {stack_index}");
         let color = color.as_linear_rgba_f32();
         let uv_min = uv_rect.min;
         let uv_size = uv_rect.size();
@@ -695,7 +736,6 @@ impl ExtractedUiNodes {
             radius,
             flags,
         };
-        dbg!(i);
         self.uinodes
             .push(ExtractedItem::new(stack_index, image, (i, clip)));
     }
@@ -998,7 +1038,6 @@ pub fn prepare_uinodes(
         ui_meta.push(&node.instance);
         let index = instance_counters.increment(batch_type);
 
-        dbg!(node.stack_index);
         let ui_batch = UiBatch {
             batch_type: node.instance.get_type(),
             range: index - 1..index,
@@ -1032,7 +1071,9 @@ pub fn prepare_uinodes(
         ui_meta
             .index_buffer
             .write_buffer(&render_device, &render_queue);
+
     }
+    extracted_uinodes.uinodes.clear();
 }
 
 #[derive(Resource, Default)]

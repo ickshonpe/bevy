@@ -522,7 +522,6 @@ mod tests {
     use crate::layout::round_layout_coords;
     use crate::prelude::*;
     use crate::ui_layout_system;
-    use crate::ContentSize;
     use crate::UiSurface;
     use bevy_ecs::event::Events;
     use bevy_ecs::schedule::Schedule;
@@ -530,7 +529,6 @@ mod tests {
     use bevy_hierarchy::despawn_with_children_recursive;
     use bevy_hierarchy::BuildWorldChildren;
     use bevy_math::vec2;
-    use bevy_math::Vec2;
     use bevy_utils::prelude::default;
     use bevy_utils::HashMap;
     use bevy_window::PrimaryWindow;
