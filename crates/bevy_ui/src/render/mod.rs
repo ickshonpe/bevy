@@ -88,14 +88,15 @@ pub fn build_ui_render(app: &mut App) {
                 extract_atlas_uinodes
                     .in_set(RenderUiSystem::ExtractAtlasNode)
                     .after(RenderUiSystem::ExtractNode),
-                extract_borders.in_set(RenderUiSystem::ExtractBorder)
+                extract_borders
+                    .in_set(RenderUiSystem::ExtractBorder)
                     .after(RenderUiSystem::ExtractAtlasNode),
                 extract_outlines.after(RenderUiSystem::ExtractBorder),
                 #[cfg(feature = "bevy_text")]
-                extract_text_uinodes.after(RenderUiSystem::ExtractAtlasNode)
-                .after(RenderUiSystem::ExtractBorder)
-                .after(RenderUiSystem::ExtractOutline)
-                ,
+                extract_text_uinodes
+                    .after(RenderUiSystem::ExtractAtlasNode)
+                    .after(RenderUiSystem::ExtractBorder)
+                    .after(RenderUiSystem::ExtractOutline),
             ),
         )
         .add_systems(
@@ -280,20 +281,12 @@ pub fn extract_uinodes(
         )
     };
 
-    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {        
-        if let Ok((
-            uinode,
-            color,
-            maybe_image,
-            visibility,
-            clip,
-        )) = uinode_query.get(*entity)
-        {
-           
+    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
+        if let Ok((uinode, color, maybe_image, visibility, clip)) = uinode_query.get(*entity) {
             if !visibility.is_visible() {
                 continue;
             }
-           
+
             if color.is_visible() {
                 let (image, _flip_x, _flip_y) = if let Some(image) = maybe_image {
                     // Skip loading images
@@ -304,7 +297,7 @@ pub fn extract_uinodes(
                 } else {
                     (None, false, false)
                 };
-                
+
                 match &color.0 {
                     UiColor::Color(color) => {
                         extracted_uinodes.push_node(
@@ -350,7 +343,7 @@ pub fn extract_uinodes(
                         );
                     }
                 }
-            } 
+            }
         }
     }
 }
@@ -361,14 +354,12 @@ pub fn extract_borders(
     ui_scale: Extract<Res<UiScale>>,
     windows: Extract<Query<&Window, With<PrimaryWindow>>>,
     uinode_query: Extract<
-        Query<
-            (
-                &Node,
-                &BorderColor,
-                &ComputedVisibility,
-                Option<&CalculatedClip>,
-            ),
-        >,
+        Query<(
+            &Node,
+            &BorderColor,
+            &ComputedVisibility,
+            Option<&CalculatedClip>,
+        )>,
     >,
 ) {
     let (_, viewport_size) = {
@@ -387,19 +378,11 @@ pub fn extract_borders(
         )
     };
 
-    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {        
-        if let Ok((
-            uinode,
-            border_color,
-            visibility,
-            clip,
-        )) = uinode_query.get(*entity)
-        {
-            
+    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
+        if let Ok((uinode, border_color, visibility, clip)) = uinode_query.get(*entity) {
             if !visibility.is_visible() {
                 continue;
             }
-           
 
             if border_color.is_visible() {
                 match &border_color.0 {
@@ -455,14 +438,12 @@ pub fn extract_outlines(
     ui_scale: Extract<Res<UiScale>>,
     windows: Extract<Query<&Window, With<PrimaryWindow>>>,
     uinode_query: Extract<
-        Query<
-            (
-                &Node,
-                &Outline,
-                &ComputedVisibility,
-                Option<&CalculatedClip>,
-            ),
-        >,
+        Query<(
+            &Node,
+            &Outline,
+            &ComputedVisibility,
+            Option<&CalculatedClip>,
+        )>,
     >,
 ) {
     let (_, _viewport_size) = {
@@ -481,19 +462,12 @@ pub fn extract_outlines(
         )
     };
 
-    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {        
-        if let Ok((
-            uinode,
-            outline,
-            visibility,
-            clip,
-        )) = uinode_query.get(*entity)
-        {
-            
+    for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
+        if let Ok((uinode, outline, visibility, clip)) = uinode_query.get(*entity) {
             if !visibility.is_visible() {
                 continue;
             }
-            
+
             extracted_uinodes.push_border(
                 stack_index,
                 uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
@@ -503,7 +477,7 @@ pub fn extract_outlines(
                 uinode.border_radius,
                 clip.map(|clip| clip.clip),
             );
-        }   
+        }
     }
 }
 
@@ -781,12 +755,12 @@ impl ExtractedUiNodes {
         angle: f32,
         stops: &[(Color, f32)],
         clip: Option<Rect>,
-    ) {       
+    ) {
         for i in 0..stops.len() - 1 {
             let start = &stops[i];
             let end = &stops[i + 1];
-            
-            let mut flags = UNTEXTURED_QUAD | BORDERED; 
+
+            let mut flags = UNTEXTURED_QUAD | BORDERED;
             if i == 0 {
                 flags |= FILL_START;
             }
@@ -808,9 +782,11 @@ impl ExtractedUiNodes {
                 end_len: end.1,
                 end_color: end.0.as_linear_rgba_f32(),
             };
-            self.uinodes.push(
-                ExtractedItem::new(stack_index, DEFAULT_IMAGE_HANDLE.typed(), (i, clip))
-            );
+            self.uinodes.push(ExtractedItem::new(
+                stack_index,
+                DEFAULT_IMAGE_HANDLE.typed(),
+                (i, clip),
+            ));
         }
     }
 
@@ -820,8 +796,8 @@ impl ExtractedUiNodes {
         position: Vec2,
         size: Vec2,
         inset: [f32; 4],
-        radius: [f32; 4],      
-        ellipse: Ellipse,  
+        radius: [f32; 4],
+        ellipse: Ellipse,
         stops: &[(Color, f32)],
         clip: Option<Rect>,
     ) {
@@ -831,8 +807,8 @@ impl ExtractedUiNodes {
         for i in 0..stops.len() - 1 {
             let start = &stops[i];
             let end = &stops[i + 1];
-            
-            let mut flags = UNTEXTURED_QUAD | BORDERED; 
+
+            let mut flags = UNTEXTURED_QUAD | BORDERED;
             if i == 0 {
                 flags |= FILL_START;
             }
@@ -854,9 +830,11 @@ impl ExtractedUiNodes {
                 end_len: end.1,
                 end_color: end.0.as_linear_rgba_f32(),
             };
-            self.uinodes.push(
-                ExtractedItem::new(stack_index, DEFAULT_IMAGE_HANDLE.typed(), (i, clip))
-            );
+            self.uinodes.push(ExtractedItem::new(
+                stack_index,
+                DEFAULT_IMAGE_HANDLE.typed(),
+                (i, clip),
+            ));
         }
     }
 
@@ -1039,12 +1017,9 @@ pub fn prepare_uinodes(
     for node in &extracted_uinodes.uinodes {
         ui_meta.push(&node.instance);
         let index = instance_counters.increment(node.instance.get_type());
-        let current_batch = 
-            batches.last_mut()
-                .filter(|batch| 
-                    batch.batch_type == node.instance.get_type()
-                    && batch.image.id() == node.image.id()
-                );
+        let current_batch = batches.last_mut().filter(|batch| {
+            batch.batch_type == node.instance.get_type() && batch.image.id() == node.image.id()
+        });
         if let Some(batch) = current_batch {
             batch.range.end = index;
         } else {
@@ -1058,7 +1033,6 @@ pub fn prepare_uinodes(
         }
     }
     commands.spawn_batch(batches);
-
 
     ui_meta.write_instance_buffers(&render_device, &render_queue);
 
@@ -1084,7 +1058,6 @@ pub fn prepare_uinodes(
         ui_meta
             .index_buffer
             .write_buffer(&render_device, &render_queue);
-
     }
     extracted_uinodes.uinodes.clear();
 }

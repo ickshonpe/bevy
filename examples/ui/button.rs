@@ -13,7 +13,6 @@ fn main() {
         .run();
 }
 
-
 fn normal_button() -> UiColor {
     Color::hex("0E1012").unwrap().into()
 }
@@ -22,24 +21,33 @@ fn linear() -> UiColor {
     LinearGradient {
         angle: deg(311.35),
         stops: vec![
-            (Color::rgb_u8(156, 165, 174).with_a(0.2), Val::Percent(14.06)).into(),
+            (
+                Color::rgb_u8(156, 165, 174).with_a(0.2),
+                Val::Percent(14.06),
+            )
+                .into(),
             (Color::rgb_u8(21, 23, 25).with_a(0.2), Val::Percent(33.95)).into(),
             (Color::rgb_u8(51, 56, 62).with_a(0.2), Val::Percent(95.24)).into(),
         ],
-    }.into()
+    }
+    .into()
 }
 
 fn radial() -> UiColor {
     RadialGradient {
         center: (-Val::Percent(36.85), -Val::Percent(75.74)).into(),
-        shape: RadialGradientShape::Ellipse(Val::Percent(228.15).into(), Val::Percent(175.74).into()),
+        shape: RadialGradientShape::Ellipse(
+            Val::Percent(228.15).into(),
+            Val::Percent(175.74).into(),
+        ),
         stops: vec![
             (Color::hex("BFA6FB").unwrap(), Val::Percent(24.48)).into(),
             (Color::hex("AC158B").unwrap(), Val::Percent(53.12)).into(),
             (Color::rgb_u8(209, 124, 42).with_a(0.69), Val::Percent(90.6)).into(),
             (Color::hex("EBE1D4").unwrap(), Val::Percent(100.)).into(),
         ],
-    }.into()
+    }
+    .into()
 }
 
 fn button_system(
