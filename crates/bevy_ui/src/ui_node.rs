@@ -10,6 +10,7 @@ use bevy_render::{
     view,
 };
 use bevy_transform::prelude::GlobalTransform;
+use bevy_utils::FloatOrd;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::{
@@ -2253,10 +2254,10 @@ impl RadialGradientExtent {
     pub fn resolve<const N: usize>(self, sides: [f32; N], width: f32, viewport_size: Vec2) -> f32 {
         match self {
             RadialGradientExtent::Length(val) => val
-                .resolve(width, viewport_size)
-                .unwrap_or(sides[0].max(sides[1])),
-            RadialGradientExtent::ClosestSide => sides[0].min(sides[1]),
-            RadialGradientExtent::FarthestSide => sides[0].max(sides[1]),
+                .resolve(width, viewport_size).ok()
+                .unwrap_or_else(|| sides.iter().map(|n| FloatOrd(*n)).min().unwrap().0),
+            RadialGradientExtent::ClosestSide => sides.iter().map(|n| FloatOrd(*n)).min().unwrap().0,
+            RadialGradientExtent::FarthestSide => sides.iter().map(|n| FloatOrd(*n)).max().unwrap().0,
         }
     }
 }
