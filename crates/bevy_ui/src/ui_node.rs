@@ -2121,11 +2121,9 @@ pub fn resolve_color_stops(
         if out[i].1 < 0.0 {
             let mut j = i + 1;
             while out[j].1 < 0.0 {
-                dbg!(j);
                 j += 1;
             }
             let n = 1 + j - i;
-            dbg!(n);
             let mut s = out[i - 1].1;
             let d = (out[j].1 - s) / n as f32;
             while i < j {
