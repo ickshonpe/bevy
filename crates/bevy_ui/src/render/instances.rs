@@ -223,11 +223,6 @@ pub struct InstanceCounters([u32; 8]);
 
 impl InstanceCounters {
     #[inline]
-    pub fn get(&self, batch_type: BatchType) -> u32 {
-        self.0[batch_type as usize]
-    }
-
-    #[inline]
     pub fn increment(&mut self, batch_type: BatchType) -> u32 {
         let value = &mut self.0[batch_type as usize];
         *value += 1;
