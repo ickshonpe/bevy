@@ -4,11 +4,7 @@ use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
 use bevy_math::{vec2, Rect, Vec2};
 use bevy_reflect::prelude::*;
-use bevy_render::{
-    color::Color,
-    texture::{Image, DEFAULT_IMAGE_HANDLE},
-    view,
-};
+use bevy_render::{color::Color, texture::Image};
 use bevy_transform::prelude::GlobalTransform;
 use bevy_utils::FloatOrd;
 use serde::{Deserialize, Serialize};
@@ -2254,10 +2250,15 @@ impl RadialGradientExtent {
     pub fn resolve<const N: usize>(self, sides: [f32; N], width: f32, viewport_size: Vec2) -> f32 {
         match self {
             RadialGradientExtent::Length(val) => val
-                .resolve(width, viewport_size).ok()
+                .resolve(width, viewport_size)
+                .ok()
                 .unwrap_or_else(|| sides.iter().map(|n| FloatOrd(*n)).min().unwrap().0),
-            RadialGradientExtent::ClosestSide => sides.iter().map(|n| FloatOrd(*n)).min().unwrap().0,
-            RadialGradientExtent::FarthestSide => sides.iter().map(|n| FloatOrd(*n)).max().unwrap().0,
+            RadialGradientExtent::ClosestSide => {
+                sides.iter().map(|n| FloatOrd(*n)).min().unwrap().0
+            }
+            RadialGradientExtent::FarthestSide => {
+                sides.iter().map(|n| FloatOrd(*n)).max().unwrap().0
+            }
         }
     }
 }
