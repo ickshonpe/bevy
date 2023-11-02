@@ -112,6 +112,13 @@ impl Node {
     pub fn border_radius(&self) -> [f32; 4] {
         self.border_radius
     }
+
+    /// Returns the UI node's computed `border`
+    /// in order [top_left, top, right, bottom]
+    #[inline]
+    pub fn border(&self) -> [f32; 4] {
+        self.border
+    }
 }
 
 impl Node {
