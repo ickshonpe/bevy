@@ -705,7 +705,6 @@ impl ExtractedUiNodes {
             radius,
             flags,
         };
-        dbg!(inset);
         self.uinodes.push(ExtractedItem::new(
             stack_index,
             DEFAULT_IMAGE_HANDLE.typed(),
