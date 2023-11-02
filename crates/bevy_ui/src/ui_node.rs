@@ -94,9 +94,9 @@ impl Node {
         }
     }
 
-    #[inline]
     /// Returns the thickness of the UI node's outline.
     /// If this value is negative or `0.` then no outline will be rendered.
+    #[inline]
     pub fn outline_width(&self) -> f32 {
         self.outline_width
     }
@@ -104,6 +104,13 @@ impl Node {
     #[inline]
     pub fn position(&self) -> Vec2 {
         self.position
+    }
+
+    /// Returns the UI node's computed `border_radius`
+    /// in order [top_left, top_right, bottom_right, bottom_left]
+    #[inline]
+    pub fn border_radius(&self) -> [f32; 4] {
+        self.border_radius
     }
 }
 
