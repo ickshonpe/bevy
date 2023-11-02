@@ -421,7 +421,6 @@ pub fn extract_borders(
 pub fn extract_outlines(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     ui_stack: Extract<Res<UiStack>>,
-    windows: Extract<Query<&Window, With<PrimaryWindow>>>,
     uinode_query: Extract<
         Query<(
             &Node,
