@@ -268,7 +268,8 @@ pub fn extract_uinodes(
     let viewport_size = windows
         .get_single()
         .map(|window| vec2(window.resolution.width(), window.resolution.height()))
-        .unwrap_or(Vec2::ZERO) / ui_scale.scale as f32;
+        .unwrap_or(Vec2::ZERO)
+        / ui_scale.scale as f32;
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, color, maybe_image, visibility, clip)) = uinode_query.get(*entity) {
@@ -354,7 +355,8 @@ pub fn extract_borders(
     let viewport_size = windows
         .get_single()
         .map(|window| vec2(window.resolution.width(), window.resolution.height()))
-        .unwrap_or(Vec2::ZERO) / ui_scale.scale as f32;
+        .unwrap_or(Vec2::ZERO)
+        / ui_scale.scale as f32;
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, border_color, visibility, clip)) = uinode_query.get(*entity) {
