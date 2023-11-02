@@ -146,24 +146,28 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     n.radius = in.radius;
     n.inset = in.border;
     let distance = compute_geometry(in.point, n);
-
+    let fb = fwidth(distance.border);
+    let fe = fwidth(distance.edge);
+    var f: f32;
+    var d: f32;
     if is_enabled(in.flags, BORDER) {
-        if distance.border <= 0. {    
-            #ifdef CLIP
-                return clip(in.color, in.position, in.clip);
-            #else 
-                return in.color;
-            #endif
-        }  
-    } else if distance.edge <= 0. {        
-        let color = select(in.color, in.color * sampled_color, is_enabled(in.flags, TEXTURED));
-        #ifdef CLIP
-            return clip(color, in.position, in.clip);
-        #else 
-            return color;
-        #endif
+        d = distance.border;
+        f = fb;
+    } else {
+        d = distance.edge;
+        f = fe;
     }
-    return vec4<f32>(0.);
+    
+    let color = select(in.color, in.color * sampled_color, is_enabled(in.flags, TEXTURED));
+    let a = mix(0.0, color.a, 1.0 - smoothstep(0.0, f, d));
+    let color_out = vec4(color.rgb, a);   
+    
+    #ifdef CLIP
+        return clip(color_out, in.position, in.clip);
+    #else 
+        return color_out;
+    #endif
+    
 }
 
 #endif
@@ -265,35 +269,39 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         if is_enabled(in.flags, FILL_START) {
             gradient_color = in.start_color;
         } else {
-            return vec4<f32>(0.);
+            gradient_color = vec4(0.0);   
         }
     } else if 1.0 < t {
         if is_enabled(in.flags, FILL_END) {
             gradient_color = in.end_color;
         } else {
-            return vec4<f32>(0.);
+            gradient_color = vec4(0.0);   
         }
     } else {
         gradient_color = mix(in.start_color, in.end_color, t);
     }
-        
+
+    let fb = fwidth(distance.border);
+    let fe = fwidth(distance.edge);
+    var f: f32;
+    var d: f32;
     if is_enabled(in.flags, BORDER) {
-        if distance.border <= 0. {    
-            #ifdef CLIP
-                return clip(gradient_color, in.position, in.clip);
-            #else 
-                return gradient_color;
-            #endif
-        }  
-    } else if distance.edge <= 0. {        
-        let color = select(gradient_color, gradient_color * sampled_color, is_enabled(in.flags, TEXTURED));
-        #ifdef CLIP
-            return clip(color, in.position, in.clip);
-        #else 
-            return color;
-        #endif
+        d = distance.border;
+        f = fb;
+    } else {
+        d = distance.edge;
+        f = fe;
     }
-    return vec4<f32>(0.);
+    
+    let color = select(gradient_color, gradient_color * sampled_color, is_enabled(in.flags, TEXTURED));
+    let alpha_out = mix(0.0, gradient_color.a, 1.0 - smoothstep(0.0, f, d));
+    let color_out = vec4(gradient_color.rgb, alpha_out);   
+
+    #ifdef CLIP
+        return clip(color, in.position, in.clip);
+    #else 
+        return color;
+    #endif
 }
 #endif
 
@@ -382,7 +390,6 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     n.inset = in.border;
     let distance = compute_geometry(in.point, n);
 
-
     let x = in.point.x;
     let y = in.point.y * in.g_ratio;
     let p = vec2<f32>(x, y);
@@ -395,35 +402,39 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         if is_enabled(in.flags, FILL_START) {
             gradient_color = in.start_color;
         } else {
-            return vec4<f32>(0.);
+            gradient_color = vec4(0.);
         }
     } else if 1.0 < t {
         if is_enabled(in.flags, FILL_END) {
             gradient_color = in.end_color;
         } else {
-            return vec4<f32>(0.);
+            gradient_color = vec4(0.);
         }
     } else {
         gradient_color = mix(in.start_color, in.end_color, t);
     }
         
+    let fb = fwidth(distance.border);
+    let fe = fwidth(distance.edge);
+    var f: f32;
+    var d: f32;
     if is_enabled(in.flags, BORDER) {
-        if distance.border <= 0. {    
-            #ifdef CLIP
-                return clip(gradient_color, in.position, in.clip);
-            #else 
-                return gradient_color;
-            #endif
-        }  
-    } else if distance.edge <= 0. {        
-        let color = select(gradient_color, gradient_color * sampled_color, is_enabled(in.flags, TEXTURED));
-        #ifdef CLIP
-            return clip(color, in.position, in.clip);
-        #else 
-            return color;
-        #endif
+        d = distance.border;
+        f = fb;
+    } else {
+        d = distance.edge;
+        f = fe;
     }
-    return vec4<f32>(0.);
+    
+    let color = select(gradient_color, gradient_color * sampled_color, is_enabled(in.flags, TEXTURED));
+    let alpha_out = mix(0.0, gradient_color.a, 1.0 - smoothstep(0.0, f, d));
+    let color_out = vec4(gradient_color.rgb, alpha_out);   
+
+    #ifdef CLIP
+        return clip(color, in.position, in.clip);
+    #else 
+        return color;
+    #endif
 }
 
 #endif

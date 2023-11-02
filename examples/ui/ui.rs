@@ -199,6 +199,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             style: Style {
                                 width: Val::Px(100.0),
                                 height: Val::Px(100.0),
+                                border_radius: BorderRadius::all(Val::Px(50.)),
                                 ..default()
                             },
                             background_color: Color::rgb(1.0, 0.0, 0.).into(),
@@ -213,6 +214,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                     position_type: PositionType::Absolute,
                                     left: Val::Px(20.),
                                     bottom: Val::Px(20.),
+                                    border_radius: BorderRadius::all(Val::Px(50.)),
                                     ..default()
                                 },
                                 background_color: Color::rgb(1.0, 0.3, 0.3).into(),
@@ -225,6 +227,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                     position_type: PositionType::Absolute,
                                     left: Val::Px(40.),
                                     bottom: Val::Px(40.),
+                                    border_radius: BorderRadius::all(Val::Px(50.)),
                                     ..default()
                                 },
                                 background_color: Color::rgb(1.0, 0.5, 0.5).into(),
@@ -237,6 +240,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                     position_type: PositionType::Absolute,
                                     left: Val::Px(60.),
                                     bottom: Val::Px(60.),
+                                    border_radius: BorderRadius::all(Val::Px(50.)),
                                     ..default()
                                 },
                                 background_color: Color::rgb(1.0, 0.7, 0.7).into(),
@@ -250,6 +254,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                     position_type: PositionType::Absolute,
                                     left: Val::Px(80.),
                                     bottom: Val::Px(80.),
+                                    border_radius: BorderRadius::all(Val::Px(50.)),
                                     ..default()
                                 },
                                 background_color: Color::rgba(1.0, 0.9, 0.9, 0.4).into(),
