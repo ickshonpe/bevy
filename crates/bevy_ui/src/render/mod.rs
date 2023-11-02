@@ -421,7 +421,6 @@ pub fn extract_borders(
 pub fn extract_outlines(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     ui_stack: Extract<Res<UiStack>>,
-    ui_scale: Extract<Res<UiScale>>,
     windows: Extract<Query<&Window, With<PrimaryWindow>>>,
     uinode_query: Extract<
         Query<(
@@ -432,11 +431,6 @@ pub fn extract_outlines(
         )>,
     >,
 ) {
-    let viewport_size = windows
-        .get_single()
-        .map(|window| vec2(window.resolution.width(), window.resolution.height()))
-        .unwrap_or(Vec2::ZERO) / ui_scale.scale as f32;
-
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, outline, visibility, clip)) = uinode_query.get(*entity) {
             if !visibility.is_visible() {
