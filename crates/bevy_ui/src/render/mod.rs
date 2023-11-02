@@ -265,21 +265,10 @@ pub fn extract_uinodes(
         >,
     >,
 ) {
-    let (_, viewport_size) = {
-        let (scale_factor, viewport_size) = windows
-            .get_single()
-            .map(|window| {
-                (
-                    window.resolution.scale_factor(),
-                    vec2(window.resolution.width(), window.resolution.height()),
-                )
-            })
-            .unwrap_or((1., Vec2::ZERO));
-        (
-            scale_factor * ui_scale.scale,
-            viewport_size * ui_scale.scale as f32,
-        )
-    };
+    let viewport_size = windows
+        .get_single()
+        .map(|window| vec2(window.resolution.width(), window.resolution.height()))
+        .unwrap_or(Vec2::ZERO) / ui_scale.scale as f32;
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, color, maybe_image, visibility, clip)) = uinode_query.get(*entity) {
@@ -362,21 +351,10 @@ pub fn extract_borders(
         )>,
     >,
 ) {
-    let (_, viewport_size) = {
-        let (scale_factor, viewport_size) = windows
-            .get_single()
-            .map(|window| {
-                (
-                    window.resolution.scale_factor(),
-                    vec2(window.resolution.width(), window.resolution.height()),
-                )
-            })
-            .unwrap_or((1., Vec2::ZERO));
-        (
-            scale_factor * ui_scale.scale,
-            viewport_size * ui_scale.scale as f32,
-        )
-    };
+    let viewport_size = windows
+        .get_single()
+        .map(|window| vec2(window.resolution.width(), window.resolution.height()))
+        .unwrap_or(Vec2::ZERO) / ui_scale.scale as f32;
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, border_color, visibility, clip)) = uinode_query.get(*entity) {
@@ -389,7 +367,7 @@ pub fn extract_borders(
             // so the anti-aliased edge of the node doesn't bleed out from under the border
             let lip = 0.25;
             let size = uinode.size() + 2. * lip;
-            let position = uinode.position() - 0.25;
+            let position = uinode.position() - lip;
             let border = uinode.border.map(|edge| edge + lip);
 
             if border_color.is_visible() {
@@ -454,21 +432,10 @@ pub fn extract_outlines(
         )>,
     >,
 ) {
-    let (_, _viewport_size) = {
-        let (scale_factor, viewport_size) = windows
-            .get_single()
-            .map(|window| {
-                (
-                    window.resolution.scale_factor(),
-                    vec2(window.resolution.width(), window.resolution.height()),
-                )
-            })
-            .unwrap_or((1., Vec2::ZERO));
-        (
-            scale_factor * ui_scale.scale,
-            viewport_size * ui_scale.scale as f32,
-        )
-    };
+    let viewport_size = windows
+        .get_single()
+        .map(|window| vec2(window.resolution.width(), window.resolution.height()))
+        .unwrap_or(Vec2::ZERO) / ui_scale.scale as f32;
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, outline, visibility, clip)) = uinode_query.get(*entity) {
