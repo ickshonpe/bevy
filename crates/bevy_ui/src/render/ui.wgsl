@@ -52,8 +52,7 @@ struct VertexOutput {
 @vertex
 fn vertex(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    
-    let half_size = 0.5 * in.i_size;
+    var half_size = 0.5 * in.i_size;
     let norm_x = f32(in.index & 1u);
     let norm_y = f32((in.index & 2u) >> 1u);
     let norm_location = vec2(norm_x, norm_y);
@@ -62,6 +61,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
     out.uv = in.i_uv_min + in.i_uv_size * norm_location;
     out.color = in.i_color;
+    
 
     #ifdef CLIP 
         out.clip = in.i_clip;
@@ -298,9 +298,9 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let color_out = vec4(gradient_color.rgb, alpha_out);   
 
     #ifdef CLIP
-        return clip(color, in.position, in.clip);
+        return clip(color_out, in.position, in.clip);
     #else 
-        return color;
+        return color_out;
     #endif
 }
 #endif
@@ -431,15 +431,29 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let color_out = vec4(gradient_color.rgb, alpha_out);   
 
     #ifdef CLIP
-        return clip(color, in.position, in.clip);
+        return clip(color_out, in.position, in.clip);
     #else 
-        return color;
+        return color_out;
     #endif
 }
 
 #endif
 
 fn compute_geometry(
+    point: vec2<f32>, 
+    n: Node,
+) -> Distance {
+    let box = Box(point, 0.5 * n.size);
+    let inner_box = inset_box(box, n.inset);
+    let external_distance = sd_rounded_box(box, n.radius);
+    let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
+    let i = select_inset(point, n.inset);
+    let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
+    let border_distance = max(external_distance, -internal_distance_2);
+    return Distance(external_distance, border_distance);
+}
+
+fn compute_geometry_adjusted(
     point: vec2<f32>, 
     n: Node,
 ) -> Distance {

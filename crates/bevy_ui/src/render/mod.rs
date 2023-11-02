@@ -384,15 +384,23 @@ pub fn extract_borders(
                 continue;
             }
 
+            // *hack*
+            // increase the size of the border outwards slightly
+            // so the anti-aliased edge of the node doesn't bleed out from under the border
+            let lip = 0.25;
+            let size = uinode.size() + 2. * lip;
+            let position = uinode.position() - 0.25;
+            let border = uinode.border.map(|edge| edge + lip);
+
             if border_color.is_visible() {
                 match &border_color.0 {
                     UiColor::Color(color) => {
                         extracted_uinodes.push_border(
                             stack_index,
-                            uinode.position,
-                            uinode.size(),
+                            position,
+                            size,
                             *color,
-                            uinode.border,
+                            border,
                             uinode.border_radius,
                             clip.map(|clip| clip.clip),
                         );
@@ -402,9 +410,9 @@ pub fn extract_borders(
                         let stops = resolve_color_stops(&l.stops, length, viewport_size);
                         extracted_uinodes.push_border_with_linear_gradient(
                             stack_index,
-                            uinode.position,
-                            uinode.size(),
-                            uinode.border,
+                            position,
+                            size,
+                            border,
                             uinode.border_radius,
                             start_point,
                             l.angle,
@@ -417,9 +425,9 @@ pub fn extract_borders(
                         let stops = resolve_color_stops(&r.stops, ellipse.extents.x, viewport_size);
                         extracted_uinodes.push_border_with_radial_gradient(
                             stack_index,
-                            uinode.position,
-                            uinode.size(),
-                            uinode.border,
+                            position,
+                            size,
+                            border,
                             uinode.border_radius,
                             ellipse,
                             &stops,
@@ -737,6 +745,7 @@ impl ExtractedUiNodes {
             radius,
             flags,
         };
+        dbg!(inset);
         self.uinodes.push(ExtractedItem::new(
             stack_index,
             DEFAULT_IMAGE_HANDLE.typed(),
