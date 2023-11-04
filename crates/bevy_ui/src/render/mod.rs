@@ -13,7 +13,7 @@ use crate::{
     prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, Node, UiImage, UiScale,
     UiStack, UiTextureAtlasImage,
 };
-use crate::{resolve_color_stops, Ellipse, Outline, UiColor};
+use crate::{resolve_color_stops, Ellipse, Outline, UiColor, OutlineStyle};
 
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
@@ -240,7 +240,9 @@ pub fn extract_atlas_uinodes(
                 atlas_rect,
                 color,
                 uinode.border_radius,
+                uinode.border,
                 clip.map(|clip| clip.clip),
+                
             );
         }
     }
@@ -298,6 +300,7 @@ pub fn extract_uinodes(
                             Rect::new(0.0, 0.0, 1.0, 1.0),
                             *color,
                             uinode.border_radius,
+                            uinode.border,
                             clip.map(|clip| clip.clip),
                         );
                     }
@@ -363,14 +366,10 @@ pub fn extract_borders(
             if !visibility.is_visible() {
                 continue;
             }
-
-            // *hack*
-            // increase the size of the border outwards slightly
-            // so the anti-aliased edge of the node doesn't bleed out from under the border
-            let lip = 0.25;
-            let size = uinode.size() + 2. * lip;
-            let position = uinode.position() - lip;
-            let border = uinode.border.map(|edge| edge + lip);
+    
+            let size = uinode.size();
+            let position = uinode.position();
+            let border = uinode.border;
 
             if border_color.is_visible() {
                 match &border_color.0 {
@@ -427,26 +426,43 @@ pub fn extract_outlines(
         Query<(
             &Node,
             &Outline,
+            Option<&OutlineStyle>,
             &ComputedVisibility,
             Option<&CalculatedClip>,
         )>,
     >,
 ) {
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, outline, visibility, clip)) = uinode_query.get(*entity) {
+        if let Ok((uinode, outline, maybe_outline_style, visibility, clip)) = uinode_query.get(*entity) {
             if !visibility.is_visible() {
                 continue;
             }
 
-            extracted_uinodes.push_border(
-                stack_index,
-                uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
-                uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
-                outline.color,
-                [uinode.outline_width; 4],
-                uinode.border_radius,
-                clip.map(|clip| clip.clip),
-            );
+            match maybe_outline_style.unwrap_or(&OutlineStyle::Solid) {
+                OutlineStyle::Solid => {
+                    extracted_uinodes.push_border(
+                        stack_index,
+                        uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
+                        uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
+                        outline.color,
+                        [uinode.outline_width; 4],
+                        uinode.border_radius,
+                        clip.map(|clip| clip.clip),
+                    );
+                },
+                OutlineStyle::Dashed(gap) => {
+                    extracted_uinodes.push_dashed_border(
+                        stack_index, 
+                        uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
+                        uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
+                        outline.color,
+                        uinode.outline_width,
+                        *gap,
+                        uinode.border_radius,
+                        clip.map(|clip| clip.clip),
+                    )
+                },
+            }
         }
     }
 }
@@ -662,6 +678,7 @@ impl ExtractedUiNodes {
         uv_rect: Rect,
         color: Color,
         radius: [f32; 4],
+        border: [f32; 4],
         clip: Option<Rect>,
     ) {
         let color = color.as_linear_rgba_f32();
@@ -678,10 +695,11 @@ impl ExtractedUiNodes {
         let i = NodeInstance {
             location: position.into(),
             size: size.into(),
-            uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
+            uv: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
             color,
             radius,
             flags,
+            border,
         };
         self.uinodes
             .push(ExtractedItem::new(stack_index, image, (i, clip)));
@@ -702,10 +720,38 @@ impl ExtractedUiNodes {
         let i = NodeInstance {
             location: position.into(),
             size: size.into(),
-            uv_border: inset,
+            uv: [0., 0., 1., 1.],
             color,
             radius,
             flags,
+            border: inset,
+        };
+        self.uinodes.push(ExtractedItem::new(
+            stack_index,
+            DEFAULT_IMAGE_HANDLE.typed(),
+            (i, clip),
+        ));
+    }
+
+    pub fn push_dashed_border(
+        &mut self,
+        stack_index: usize,
+        position: Vec2,
+        size: Vec2,
+        color: Color,
+        line_thickness: f32,
+        gap_length: f32,
+        radius: [f32; 4],
+        clip: Option<Rect>,
+    ) {
+        let color = color.as_linear_rgba_f32();
+        let i = DashedBorderInstance {
+            location: position.into(),
+            size: size.into(),
+            color,
+            radius,
+            line_thickness,
+            gap_length,
         };
         self.uinodes.push(ExtractedItem::new(
             stack_index,
@@ -1147,6 +1193,24 @@ pub fn queue_uinodes(
                     specialization: UiPipelineSpecialization::RadialGradient,
                 },
             );
+            let dashed_border_pipeline = pipelines.specialize(
+                &pipeline_cache,
+                &ui_pipeline,
+                UiPipelineKey {
+                    hdr: view.hdr,
+                    clip: false,
+                    specialization: UiPipelineSpecialization::DashedBorder,
+                },
+            );
+            let clipped_dashed_border_pipeline = pipelines.specialize(
+                &pipeline_cache,
+                &ui_pipeline,
+                UiPipelineKey {
+                    hdr: view.hdr,
+                    clip: true,
+                    specialization: UiPipelineSpecialization::DashedBorder,
+                },
+            );
 
             for (entity, batch) in &ui_batches {
                 image_bind_groups
@@ -1178,6 +1242,9 @@ pub fn queue_uinodes(
                     BatchType::CLinearGradient => clipped_linear_gradient_pipeline,
                     BatchType::RadialGradient => radial_gradient_pipeline,
                     BatchType::CRadialGradient => clipped_radial_gradient_pipeline,
+                    BatchType::DashedBorder => dashed_border_pipeline,
+                    BatchType::CDashedBorder => clipped_dashed_border_pipeline,
+                    
                 };
                 transparent_phase.add(TransparentUi {
                     draw_function: draw_ui_function,

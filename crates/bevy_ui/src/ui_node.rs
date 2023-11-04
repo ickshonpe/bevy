@@ -1731,6 +1731,14 @@ impl Default for BorderColor {
 
 #[derive(Component, Copy, Clone, Default, Debug, Reflect, Serialize, Deserialize)]
 #[reflect(Component, Default, Serialize, Deserialize)]
+pub enum OutlineStyle {
+    #[default]
+    Solid,
+    Dashed(f32)
+}
+
+#[derive(Component, Copy, Clone, Default, Debug, Reflect, Serialize, Deserialize)]
+#[reflect(Component, Default, Serialize, Deserialize)]
 /// The [`Outline`] component adds an outline outside the edge of a UI node.
 /// Outlines do not take up space in the layout
 ///

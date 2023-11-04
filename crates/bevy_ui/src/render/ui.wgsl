@@ -61,7 +61,6 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
     out.uv = in.i_uv_min + in.i_uv_size * norm_location;
     out.color = in.i_color;
-    
 
     #ifdef CLIP 
         out.clip = in.i_clip;
@@ -87,12 +86,13 @@ struct VertexInput {
     @builtin(vertex_index) index: u32,
     @location(0) i_location: vec2<f32>,
     @location(1) i_size: vec2<f32>,
-    @location(2) i_uv_border: vec4<f32>,
+    @location(2) i_uv: vec4<f32>,
     @location(3) i_color: vec4<f32>,
     @location(4) i_radius: vec4<f32>,
     @location(5) i_flags: u32,
+    @location(6) i_border: vec4<f32>,
     #ifdef CLIP 
-        @location(6) i_clip: vec4<f32>,
+        @location(7) i_clip: vec4<f32>,
     #endif
 }
 
@@ -122,12 +122,12 @@ fn vertex(in: VertexInput) -> VertexOutput {
     let relative_location = in.i_size * norm_location;
     out.position = in.i_location + relative_location;
     out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
-    let uv_min = in.i_uv_border.xy;
-    let uv_size = in.i_uv_border.zw;
+    let uv_min = in.i_uv.xy;
+    let uv_size = in.i_uv.zw;
     out.uv = uv_min + uv_size * norm_location;
     out.color = in.i_color;
     out.flags = in.i_flags;
-    out.border = in.i_uv_border;
+    out.border = in.i_border;
     out.radius = in.i_radius;
     out.size = in.i_size;
     out.point = in.i_size * (norm_location - 0.4999);
@@ -145,7 +145,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     n.size = in.size;
     n.radius = in.radius;
     n.inset = in.border;
-    let distance = compute_geometry(in.point, n);
+    let distance = compute_geometry_separated(in.point, n);
     let fb = fwidth(distance.border);
     let fe = fwidth(distance.edge);
     var f: f32;
@@ -157,6 +157,8 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         d = distance.edge;
         f = fe;
     }
+
+    
     
     let color = select(in.color, in.color * sampled_color, is_enabled(in.flags, TEXTURED));
     let a = mix(0.0, color.a, 1.0 - smoothstep(0.0, f, d));
@@ -388,7 +390,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     n.size = in.size;
     n.radius = in.radius;
     n.inset = in.border;
-    let distance = compute_geometry(in.point, n);
+    let distance = compute_geometry_separated(in.point, n);
 
     let x = in.point.x;
     let y = in.point.y * in.g_ratio;
@@ -438,6 +440,100 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 
 #endif
+
+
+#ifdef DASHED_BORDER
+
+struct VertexInput {
+    @builtin(vertex_index) index: u32,
+    @location(0) i_location: vec2<f32>,
+    @location(1) i_size: vec2<f32>,
+    @location(2) i_line_thickness: f32,
+    @location(3) i_color: vec4<f32>,
+    @location(4) i_radius: vec4<f32>,
+    @location(5) i_dash_length: f32,
+    #ifdef CLIP 
+        @location(6) i_clip: vec4<f32>,
+    #endif
+}
+
+struct VertexOutput {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) @interpolate(flat) color: vec4<f32>,
+    @location(1) @interpolate(flat) radius: vec4<f32>,
+    @location(2) point: vec2<f32>,
+    @location(3) @interpolate(flat) size: vec2<f32>,
+    @location(4) position: vec2<f32>,
+    @location(5) @interpolate(flat) line_thickness: f32,
+    @location(6) @interpolate(flat) quadrant_lengths: vec4<f32>,
+    @location(7) @interpolate(flat) dash_length: f32,
+    #ifdef CLIP 
+        @location(10) clip: vec4<f32>,
+    #endif
+};
+
+
+@vertex
+fn vertex(in: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    let half_size = 0.5 * in.i_size;
+    let norm_x = f32(in.index & 1u);
+    let norm_y = f32((in.index & 2u) >> 1u);
+    let norm_location = vec2(norm_x, norm_y);
+    let relative_location = in.i_size * norm_location;
+
+    out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
+    out.color = in.i_color;
+    out.radius = in.i_radius;
+    out.point = in.i_size * (norm_location - 0.4999);
+    out.size = in.i_size;
+    out.position = in.i_location + relative_location;
+    out.line_thickness = in.i_line_thickness;
+    
+    out.dash_length = in.i_dash_length;
+
+    #ifdef CLIP 
+        out.clip = in.i_clip;
+    #endif
+    return out;
+}
+
+@fragment
+fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+    let box = Box(in.point, 0.5 * in.size);
+    let d = sd_rounded_box(box, in.radius);
+    if 0. < d {
+        return vec4(0.);
+    }
+
+    if d < -in.line_thickness {
+        return vec4(0.);
+    }
+    
+    #ifdef CLIP
+        return clip(in.color, in.position, in.clip);
+    #else 
+        return in.color;
+    #endif
+    
+}
+
+#endif
+
+fn compute_geometry_separated(
+    point: vec2<f32>, 
+    n: Node,
+) -> Distance {
+    let box = Box(point, 0.5 * n.size);
+    let inner_box = inset_box(box, n.inset);
+    let external_distance = sd_rounded_box(box, n.radius);
+    let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
+    let i = select_inset(point, n.inset);
+    let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
+    let border_distance = max(external_distance, -internal_distance_2);
+    return Distance(internal_distance_2, border_distance);
+}
+
 
 fn compute_geometry(
     point: vec2<f32>, 
@@ -705,3 +801,76 @@ fn gradient(p: f32, start: f32, end:f32) -> f32 {
     let len = end - start;
     return (p - start) / len;
 }
+
+// calculate the length along the edge of this quadrant
+// r should be clamped to min of half_size's components
+fn calculate_quadrant_perimeter(
+    half_size: vec2<f32>,
+    r: f32,
+) -> f32 {
+    let h = half_size.x - r;
+    let v = half_size.y - r;
+    let arc_length = r * PI / 2.;
+    return h + v + arc_length;
+}
+
+// returns the perimeter of a rounded UI node rect
+fn calculate_perimeter(
+    half_size: vec2<f32>,
+    rs: vec4<f32>
+) -> f32 {
+    return
+        calculate_quadrant_perimeter(half_size, rs[0])
+        + calculate_quadrant_perimeter(half_size, rs[1])
+        + calculate_quadrant_perimeter(half_size, rs[2])
+        + calculate_quadrant_perimeter(half_size, rs[3]);
+}
+
+// // return distance along the perimeter for a quarter edge
+// fn perimeter_distance_in_quadrant(
+//     half_size: vec2<f32>,
+//     r: f32,
+//     p: vec2<f32>,
+// ) {
+//     let run = half_size.x - r;
+//     let rise = half_size.y - r;
+//     if p.x < run {
+//         if p.y < rise {
+//             // origin 
+//             let dh = abs(half_size.x - p.x);
+//             let dv = abs(half_size.y - p.y);
+//             if dh <= dv {
+//                 // closer to top 
+//                p.x
+//             } else {
+//                 //closer to right
+//                 -p.y
+//             }
+//         } else {
+            
+//         }
+//     } else {
+//         if p.y < rise {
+//             p.x
+//         } else {
+//             // arc section
+//             // circle center
+//             let o = vec2(run, rise);
+//             // vector from center to p
+//             let q = p - o;
+//             // normlize q
+//             let n = normalize(q);
+//             return abs(atan2(n.x, n.y)) * r;
+//         }
+//     }
+// }
+
+// // calculate distance along the perimeter from the midpoint of the left side to the point on the perimeter closest to the given point
+// fn calculate_perimeter_distance(
+//     half_size: vec2<f32>,
+//     rs: vec4<f32>,
+//     point: vec2<f32>
+// ) {
+    
+// }
+

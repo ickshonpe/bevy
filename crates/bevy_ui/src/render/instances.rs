@@ -12,10 +12,11 @@ use crate::rect_to_f32_4;
 pub struct NodeInstance {
     pub location: [f32; 2],
     pub size: [f32; 2],
-    pub uv_border: [f32; 4],
+    pub uv: [f32; 4],
     pub color: [f32; 4],
     pub radius: [f32; 4],
     pub flags: u32,
+    pub border: [f32; 4],
 }
 
 #[repr(C)]
@@ -59,6 +60,18 @@ pub struct RadialGradientInstance {
     pub end_len: f32,
     pub end_color: [f32; 4],
 }
+
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable, Debug)]
+pub struct DashedBorderInstance {
+    pub location: [f32; 2],
+    pub size: [f32; 2],
+    pub line_thickness: f32,
+    pub color: [f32; 4],
+    pub radius: [f32; 4],
+    pub gap_length: f32,
+}
+
 
 #[repr(C)]
 #[derive(Copy, Clone, Zeroable, Debug)]
@@ -124,6 +137,7 @@ pub struct UiInstanceBuffers {
     pub text: UiInstanceBuffer<TextInstance>,
     pub linear_gradient: UiInstanceBuffer<LinearGradientInstance>,
     pub radial_gradient: UiInstanceBuffer<RadialGradientInstance>,
+    pub dashed_border: UiInstanceBuffer<DashedBorderInstance>,
 }
 
 impl UiInstanceBuffers {
@@ -133,6 +147,7 @@ impl UiInstanceBuffers {
         self.text.clear();
         self.linear_gradient.clear();
         self.radial_gradient.clear();
+        self.dashed_border.clear();
     }
 
     /// Queue writes for all instance buffers.
@@ -143,6 +158,7 @@ impl UiInstanceBuffers {
         self.text.write(&render_device, &render_queue);
         self.linear_gradient.write(&render_device, &render_queue);
         self.radial_gradient.write(&render_device, &render_queue);
+        self.dashed_border.write(&render_device, &render_queue);
     }
 }
 
@@ -206,6 +222,20 @@ impl UiInstance for ClippedInstance<RadialGradientInstance> {
     }
 }
 
+impl UiInstance for DashedBorderInstance {
+    #[inline]
+    fn push(self, buffers: &mut UiInstanceBuffers) {
+        buffers.dashed_border.unclipped.push(self);
+    }
+}
+
+impl UiInstance for ClippedInstance<DashedBorderInstance> {
+    #[inline]
+    fn push(self, buffers: &mut UiInstanceBuffers) {
+        buffers.dashed_border.clipped.push(self);
+    }
+}
+
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum BatchType {
     Node = 0,
@@ -216,10 +246,12 @@ pub enum BatchType {
     CLinearGradient = 5,
     RadialGradient = 6,
     CRadialGradient = 7,
+    DashedBorder = 8,
+    CDashedBorder = 9,
 }
 
 #[derive(Default)]
-pub struct InstanceCounters([u32; 8]);
+pub struct InstanceCounters([u32; 10]);
 
 impl InstanceCounters {
     #[inline]
@@ -234,10 +266,12 @@ pub enum ExtractedInstance {
     Text(TextInstance),
     LinearGradient(LinearGradientInstance),
     RadialGradient(RadialGradientInstance),
+    DashedBorder(DashedBorderInstance),
     CNode(ClippedInstance<NodeInstance>),
     CText(ClippedInstance<TextInstance>),
     CLinearGradient(ClippedInstance<LinearGradientInstance>),
     CRadialGradient(ClippedInstance<RadialGradientInstance>),
+    CDashedBorder(ClippedInstance<DashedBorderInstance>),
 }
 
 impl ExtractedInstance {
@@ -251,6 +285,9 @@ impl ExtractedInstance {
             ExtractedInstance::CLinearGradient(_) => BatchType::CLinearGradient,
             ExtractedInstance::RadialGradient(_) => BatchType::RadialGradient,
             ExtractedInstance::CRadialGradient(_) => BatchType::CRadialGradient,
+            ExtractedInstance::DashedBorder(_) => BatchType::DashedBorder,
+            ExtractedInstance::CDashedBorder(_) => BatchType::CDashedBorder,
+            
         }
     }
 
@@ -264,6 +301,8 @@ impl ExtractedInstance {
             ExtractedInstance::CText(i) => i.push(instance_buffers),
             ExtractedInstance::CLinearGradient(i) => i.push(instance_buffers),
             ExtractedInstance::CRadialGradient(i) => i.push(instance_buffers),
+            ExtractedInstance::DashedBorder(i) => i.push(instance_buffers),
+            ExtractedInstance::CDashedBorder(i) => i.push(instance_buffers),
         }
     }
 }
@@ -309,6 +348,16 @@ impl From<(RadialGradientInstance, Option<Rect>)> for ExtractedInstance {
             Self::CRadialGradient((instance, clip).into())
         } else {
             Self::RadialGradient(instance)
+        }
+    }
+}
+
+impl From<(DashedBorderInstance, Option<Rect>)> for ExtractedInstance {
+    fn from((instance, clip): (DashedBorderInstance, Option<Rect>)) -> Self {
+        if let Some(clip) = get_clip(clip) {
+            Self::CDashedBorder((instance, clip).into())
+        } else {
+            Self::DashedBorder(instance)
         }
     }
 }

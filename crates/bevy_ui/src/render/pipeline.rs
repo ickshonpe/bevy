@@ -64,6 +64,7 @@ pub enum UiPipelineSpecialization {
     Text,
     LinearGradient,
     RadialGradient,
+    DashedBorder,
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
@@ -88,7 +89,7 @@ impl SpecializedRenderPipeline for UiPipeline {
                     VertexFormat::Float32x2,
                     // @location(1) i_size: vec2<f32>,
                     VertexFormat::Float32x2,
-                    // @location(2) i_uv_border: vec4<f32>,
+                    // @location(2) i_uv: vec4<f32>,
                     VertexFormat::Float32x4,
                     // @location(3) i_color: vec4<f32>,
                     VertexFormat::Float32x4,
@@ -96,6 +97,8 @@ impl SpecializedRenderPipeline for UiPipeline {
                     VertexFormat::Float32x4,
                     // @location(5) i_flags: u32,
                     VertexFormat::Uint32,
+                    // @location(2) i_border: vec4<f32>,
+                    VertexFormat::Float32x4,
                 ]);
             }
             UiPipelineSpecialization::Text => {
@@ -168,6 +171,24 @@ impl SpecializedRenderPipeline for UiPipeline {
                     VertexFormat::Float32,
                     // @location(10) end_color: vec4<f32>,
                     VertexFormat::Float32x4,
+                ]);
+            }
+            UiPipelineSpecialization::DashedBorder => {
+                shader_defs.push("SPECIAL".into());
+                shader_defs.push("DASHED_BORDER".into());
+                formats.extend([
+                    // @location(0) i_location: vec2<f32>,
+                    VertexFormat::Float32x2,
+                    // @location(1) i_size: vec2<f32>,
+                    VertexFormat::Float32x2,
+                    // @location(2) i_line_thickness: f32,
+                    VertexFormat::Float32,
+                    // @location(3) i_color: vec4<f32>,
+                    VertexFormat::Float32x4,
+                    // @location(4) i_radius: vec4<f32>,
+                    VertexFormat::Float32x4,
+                    // @location(5) i_dash_length: f32,
+                    VertexFormat::Float32,
                 ]);
             }
         }

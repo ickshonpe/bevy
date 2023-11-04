@@ -286,6 +286,30 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
                         .slice(..),
                 );
             }
+            super::BatchType::DashedBorder=> {
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .instance_buffers
+                        .dashed_border
+                        .unclipped
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            }
+            super::BatchType::CDashedBorder=> {
+                pass.set_vertex_buffer(
+                    0,
+                    ui_meta
+                        .instance_buffers
+                        .dashed_border
+                        .clipped
+                        .buffer()
+                        .unwrap()
+                        .slice(..),
+                );
+            }
         };
         pass.draw_indexed(0..6, 0, batch.range.clone());
         RenderCommandResult::Success
