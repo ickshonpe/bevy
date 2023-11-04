@@ -98,24 +98,26 @@ fn setup(mut commands: Commands) {
             })
             .id();
         let bordered_node = commands
-            .spawn((NodeBundle {
-                style: Style {
-                    width: Val::Px(50.),
-                    height: Val::Px(50.),
-                    border_radius: BorderRadius::all(Val::Px(10.)),
-                    border: borders[i % borders.len()],
-                    margin: UiRect::all(Val::Px(5.)),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        width: Val::Px(50.),
+                        height: Val::Px(50.),
+                        border_radius: BorderRadius::all(Val::Px(10.)),
+                        border: borders[i % borders.len()],
+                        margin: UiRect::all(Val::Px(5.)),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        ..Default::default()
+                    },
+                    background_color: LinearGradient::simple(0., Color::BLUE, Color::CYAN).into(),
+                    border_color: LinearGradient::simple(0.25 * PI, Color::RED, Color::PURPLE)
+                        .into(),
                     ..Default::default()
                 },
-                background_color: LinearGradient::simple(0., Color::BLUE, Color::CYAN).into(),
-                border_color: LinearGradient::simple(0.25 * PI, Color::RED, Color::PURPLE).into(),
-                ..Default::default()
-            },
-            Outline::new(Val::Px(2.), Val::Px(2.), Color::WHITE),
-            OutlineStyle::Dashed(5.),
-        ))
+                Outline::new(Val::Px(2.), Val::Px(2.), Color::WHITE),
+                OutlineStyle::Dashed(5.),
+            ))
             .add_child(inner_spot)
             .id();
         commands.entity(root).add_child(bordered_node);

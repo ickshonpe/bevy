@@ -286,7 +286,7 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
                         .slice(..),
                 );
             }
-            super::BatchType::DashedBorder=> {
+            super::BatchType::DashedBorder => {
                 pass.set_vertex_buffer(
                     0,
                     ui_meta
@@ -298,7 +298,7 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
                         .slice(..),
                 );
             }
-            super::BatchType::CDashedBorder=> {
+            super::BatchType::CDashedBorder => {
                 pass.set_vertex_buffer(
                     0,
                     ui_meta

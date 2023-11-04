@@ -158,9 +158,9 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         f = fe;
     }
     
-    let color = select(in.color, in.color * sampled_color, is_enabled(in.flags, TEXTURED));
-    let a = mix(0.0, color.a, 1.0 - smoothstep(0.0, f, d));
-    let color_out = vec4(color.rgb, a);   
+    let color_out = select(in.color, in.color * sampled_color, is_enabled(in.flags, TEXTURED));
+    // let a = mix(0.0, color.a, 1.0 - smoothstep(0.0, f, d));
+    // let color_out = vec4(color.rgb, a);   
     
     #ifdef CLIP
         return clip(color_out, in.position, in.clip);
@@ -292,9 +292,9 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         f = fe;
     }
     
-    let color = select(gradient_color, gradient_color * sampled_color, is_enabled(in.flags, TEXTURED));
-    let alpha_out = mix(0.0, gradient_color.a, 1.0 - smoothstep(0.0, f, d));
-    let color_out = vec4(gradient_color.rgb, alpha_out);   
+    let color_out = select(gradient_color, gradient_color * sampled_color, is_enabled(in.flags, TEXTURED));
+    // let alpha_out = mix(0.0, gradient_color.a, 1.0 - smoothstep(0.0, f, d));
+    // let color_out = vec4(gradient_color.rgb, alpha_out);   
 
     #ifdef CLIP
         return clip(color_out, in.position, in.clip);
@@ -425,9 +425,9 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         f = fe;
     }
     
-    let color = select(gradient_color, gradient_color * sampled_color, is_enabled(in.flags, TEXTURED));
-    let alpha_out = mix(0.0, gradient_color.a, 1.0 - smoothstep(0.0, f, d));
-    let color_out = vec4(gradient_color.rgb, alpha_out);   
+    let color_out = select(gradient_color, gradient_color * sampled_color, is_enabled(in.flags, TEXTURED));
+    // let alpha_out = mix(0.0, gradient_color.a, 1.0 - smoothstep(0.0, f, d));
+    // let color_out = vec4(gradient_color.rgb, alpha_out);   
 
     #ifdef CLIP
         return clip(color_out, in.position, in.clip);

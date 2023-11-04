@@ -13,7 +13,7 @@ use crate::{
     prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, Node, UiImage, UiScale,
     UiStack, UiTextureAtlasImage,
 };
-use crate::{resolve_color_stops, Ellipse, Outline, UiColor, OutlineStyle};
+use crate::{resolve_color_stops, Ellipse, Outline, OutlineStyle, UiColor};
 
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
@@ -242,7 +242,6 @@ pub fn extract_atlas_uinodes(
                 uinode.border_radius,
                 uinode.border,
                 clip.map(|clip| clip.clip),
-                
             );
         }
     }
@@ -366,7 +365,7 @@ pub fn extract_borders(
             if !visibility.is_visible() {
                 continue;
             }
-    
+
             let size = uinode.size();
             let position = uinode.position();
             let border = uinode.border;
@@ -433,7 +432,9 @@ pub fn extract_outlines(
     >,
 ) {
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, outline, maybe_outline_style, visibility, clip)) = uinode_query.get(*entity) {
+        if let Ok((uinode, outline, maybe_outline_style, visibility, clip)) =
+            uinode_query.get(*entity)
+        {
             if !visibility.is_visible() {
                 continue;
             }
@@ -442,26 +443,25 @@ pub fn extract_outlines(
                 OutlineStyle::Solid => {
                     extracted_uinodes.push_border(
                         stack_index,
-                        uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
+                        uinode.position()
+                            - Vec2::splat(uinode.outline_offset + uinode.outline_width),
                         uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
                         outline.color,
                         [uinode.outline_width; 4],
                         uinode.border_radius,
                         clip.map(|clip| clip.clip),
                     );
-                },
-                OutlineStyle::Dashed(gap) => {
-                    extracted_uinodes.push_dashed_border(
-                        stack_index, 
-                        uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
-                        uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
-                        outline.color,
-                        uinode.outline_width,
-                        *gap,
-                        uinode.border_radius,
-                        clip.map(|clip| clip.clip),
-                    )
-                },
+                }
+                OutlineStyle::Dashed(gap) => extracted_uinodes.push_dashed_border(
+                    stack_index,
+                    uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
+                    uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
+                    outline.color,
+                    uinode.outline_width,
+                    *gap,
+                    uinode.border_radius,
+                    clip.map(|clip| clip.clip),
+                ),
             }
         }
     }
@@ -1244,7 +1244,6 @@ pub fn queue_uinodes(
                     BatchType::CRadialGradient => clipped_radial_gradient_pipeline,
                     BatchType::DashedBorder => dashed_border_pipeline,
                     BatchType::CDashedBorder => clipped_dashed_border_pipeline,
-                    
                 };
                 transparent_phase.add(TransparentUi {
                     draw_function: draw_ui_function,

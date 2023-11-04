@@ -1734,7 +1734,7 @@ impl Default for BorderColor {
 pub enum OutlineStyle {
     #[default]
     Solid,
-    Dashed(f32)
+    Dashed(f32),
 }
 
 #[derive(Component, Copy, Clone, Default, Debug, Reflect, Serialize, Deserialize)]
