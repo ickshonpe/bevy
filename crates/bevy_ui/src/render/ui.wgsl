@@ -157,8 +157,6 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         d = distance.edge;
         f = fe;
     }
-
-    
     
     let color = select(in.color, in.color * sampled_color, is_enabled(in.flags, TEXTURED));
     let a = mix(0.0, color.a, 1.0 - smoothstep(0.0, f, d));
@@ -169,7 +167,6 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     #else 
         return color_out;
     #endif
-    
 }
 
 #endif
@@ -260,7 +257,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     n.size = in.size;
     n.radius = in.radius;
     n.inset = in.border;
-    let distance = compute_geometry(in.point, n);
+    let distance = compute_geometry_separated(in.point, n);
 
     let gradient_distance = df_line(in.focal_point, in.dir, in.point);
     let t = gradient(gradient_distance, in.start_len, in.end_len);
@@ -825,52 +822,4 @@ fn calculate_perimeter(
         + calculate_quadrant_perimeter(half_size, rs[2])
         + calculate_quadrant_perimeter(half_size, rs[3]);
 }
-
-// // return distance along the perimeter for a quarter edge
-// fn perimeter_distance_in_quadrant(
-//     half_size: vec2<f32>,
-//     r: f32,
-//     p: vec2<f32>,
-// ) {
-//     let run = half_size.x - r;
-//     let rise = half_size.y - r;
-//     if p.x < run {
-//         if p.y < rise {
-//             // origin 
-//             let dh = abs(half_size.x - p.x);
-//             let dv = abs(half_size.y - p.y);
-//             if dh <= dv {
-//                 // closer to top 
-//                p.x
-//             } else {
-//                 //closer to right
-//                 -p.y
-//             }
-//         } else {
-            
-//         }
-//     } else {
-//         if p.y < rise {
-//             p.x
-//         } else {
-//             // arc section
-//             // circle center
-//             let o = vec2(run, rise);
-//             // vector from center to p
-//             let q = p - o;
-//             // normlize q
-//             let n = normalize(q);
-//             return abs(atan2(n.x, n.y)) * r;
-//         }
-//     }
-// }
-
-// // calculate distance along the perimeter from the midpoint of the left side to the point on the perimeter closest to the given point
-// fn calculate_perimeter_distance(
-//     half_size: vec2<f32>,
-//     rs: vec4<f32>,
-//     point: vec2<f32>
-// ) {
-    
-// }
 
