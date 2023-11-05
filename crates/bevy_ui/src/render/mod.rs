@@ -240,9 +240,8 @@ pub fn extract_atlas_uinodes(
                 atlas_rect,
                 color,
                 uinode.border_radius,
-                uinode.border,
+                uinode.border[0],
                 clip.map(|clip| clip.clip),
-                
             );
         }
     }
@@ -300,7 +299,7 @@ pub fn extract_uinodes(
                             Rect::new(0.0, 0.0, 1.0, 1.0),
                             *color,
                             uinode.border_radius,
-                            uinode.border,
+                            uinode.border[0],
                             clip.map(|clip| clip.clip),
                         );
                     }
@@ -379,7 +378,7 @@ pub fn extract_borders(
                             position,
                             size,
                             *color,
-                            border,
+                            uinode.border[0],
                             uinode.border_radius,
                             clip.map(|clip| clip.clip),
                         );
@@ -445,7 +444,7 @@ pub fn extract_outlines(
                         uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
                         uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
                         outline.color,
-                        [uinode.outline_width; 4],
+                        uinode.border[0],
                         uinode.border_radius,
                         clip.map(|clip| clip.clip),
                     );
@@ -678,9 +677,11 @@ impl ExtractedUiNodes {
         uv_rect: Rect,
         color: Color,
         radius: [f32; 4],
-        border: [f32; 4],
+        border: f32,
         clip: Option<Rect>,
     ) {
+        let size = size - border * 2.;
+        let position = position + border;
         let color = color.as_linear_rgba_f32();
         let uv_min = uv_rect.min;
         let uv_size = uv_rect.size();
@@ -699,7 +700,6 @@ impl ExtractedUiNodes {
             color,
             radius,
             flags,
-            border,
         };
         self.uinodes
             .push(ExtractedItem::new(stack_index, image, (i, clip)));
@@ -711,7 +711,7 @@ impl ExtractedUiNodes {
         position: Vec2,
         size: Vec2,
         color: Color,
-        inset: [f32; 4],
+        border: f32,
         radius: [f32; 4],
         clip: Option<Rect>,
     ) {
@@ -720,11 +720,10 @@ impl ExtractedUiNodes {
         let i = NodeInstance {
             location: position.into(),
             size: size.into(),
-            uv: [0., 0., 1., 1.],
+            uv: [border; 4],
             color,
             radius,
             flags,
-            border: inset,
         };
         self.uinodes.push(ExtractedItem::new(
             stack_index,

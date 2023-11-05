@@ -16,7 +16,6 @@ pub struct NodeInstance {
     pub color: [f32; 4],
     pub radius: [f32; 4],
     pub flags: u32,
-    pub border: [f32; 4],
 }
 
 #[repr(C)]

@@ -97,8 +97,6 @@ impl SpecializedRenderPipeline for UiPipeline {
                     VertexFormat::Float32x4,
                     // @location(5) i_flags: u32,
                     VertexFormat::Uint32,
-                    // @location(2) i_border: vec4<f32>,
-                    VertexFormat::Float32x4,
                 ]);
             }
             UiPipelineSpecialization::Text => {

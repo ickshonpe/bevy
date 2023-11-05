@@ -140,25 +140,28 @@ fn vertex(in: VertexInput) -> VertexOutput {
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let sampled_color = textureSample(sprite_texture, sprite_sampler, in.uv);
-    let color = select(in.color, in.color * sampled_color, is_enabled(in.flags, TEXTURED));
+    var n: Node;
+    n.size = in.size;
+    n.radius = in.radius;
+    n.inset = in.border;
     
+
+    let fb = fwidth(distance.border);
+    let fe = fwidth(distance.edge);
+    var f: f32;
     var d: f32;
-    // calculate outer edge distance from sdf
-    d = sd_rounded_box(Box(in.point, in.size), vec4(10., 10., 10., 10.));
-
     if is_enabled(in.flags, BORDER) {
-        // calculate inner distance 
-        let inner_distance = d - in.border;
-
-        // sdf union
-        d = max(d, -inner_distance);
+        d = distance.border;
+        f = fb;
+    } else {
+        d = distance.edge;
+        f = fe;
     }
-
-    let f = fwidth(d);
-
-    let a =  mix(0.0, color.a, 1.0 - smoothstep(0.0, f, d));
-    let color_out = vec4(color.rgb, a);
-
+    
+    let color = select(in.color, in.color * sampled_color, is_enabled(in.flags, TEXTURED));
+    let a = mix(0.0, color.a, 1.0 - smoothstep(0.0, f, d));
+    let color_out = vec4(color.rgb, a);   
+    
     #ifdef CLIP
         return clip(color_out, in.position, in.clip);
     #else 
