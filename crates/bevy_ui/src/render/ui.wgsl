@@ -22,9 +22,15 @@ const BORDER: u32 = 32u;
 const FILL_START: u32 = 64u;
 const FILL_END: u32 = 128u;
 
+fn is_border_enabled(flags: u32) -> bool {
+    return (flags & BORDER) != 0u;
+}
+
 fn is_enabled(flags: u32, mask: u32) -> bool {
     return (flags & mask) != 0u;
 }
+
+// ***********************************************************************************
 
 #ifdef TEXT 
 struct VertexInput {
@@ -80,18 +86,22 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 #endif
 
+
+// ***********************************************************************************
+
 #ifdef NODE
 
 struct VertexInput {
     @builtin(vertex_index) index: u32,
     @location(0) i_location: vec2<f32>,
     @location(1) i_size: vec2<f32>,
-    @location(2) i_uv: vec4<f32>,
-    @location(3) i_color: vec4<f32>,
+    @location(2) i_flags: u32,
+    @location(3) i_border: vec4<f32>,
     @location(4) i_radius: vec4<f32>,
-    @location(5) i_flags: u32,
+    @location(5) i_color: vec4<f32>,
+    @location(6) i_uv: vec4<f32>,
     #ifdef CLIP 
-        @location(6) i_clip: vec4<f32>,
+        @location(7) i_clip: vec4<f32>,
     #endif
 }
 
@@ -101,12 +111,12 @@ struct VertexOutput {
     @location(1) @interpolate(flat) color: vec4<f32>,
     @location(2) @interpolate(flat) flags: u32,
     @location(3) @interpolate(flat) radius: vec4<f32>,
-    @location(5) point: vec2<f32>,
-    @location(7) @interpolate(flat) size: vec2<f32>,
-    @location(8) position: vec2<f32>,
-    @location(9) @interpolate(flat) border: f32,
+    @location(4) point: vec2<f32>,
+    @location(5) @interpolate(flat) size: vec2<f32>,
+    @location(6) position: vec2<f32>,
+    @location(7) @interpolate(flat) border: f32,
     #ifdef CLIP 
-        @location(10) clip: vec4<f32>,
+        @location(8) clip: vec4<f32>,
     #endif
 };
 
@@ -126,7 +136,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.uv = uv_min + uv_size * norm_location;
     out.color = in.i_color;
     out.flags = in.i_flags;
-    out.border = in.i_uv[0];
+    out.border = in.i_border[0];
     out.radius = in.i_radius;
     out.size = in.i_size;
     out.point = in.i_size * (norm_location - 0.4999);
@@ -141,32 +151,25 @@ fn vertex(in: VertexInput) -> VertexOutput {
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let sampled_color = textureSample(sprite_texture, sprite_sampler, in.uv);
     let color = select(in.color, in.color * sampled_color, is_enabled(in.flags, TEXTURED));
+
+    let d = compute_signed_distance_with_uniform_border(in.point, 0.5 * in.size, in.flags, in.border, in.radius);
     
-    var d: f32;
-    // calculate outer edge distance from sdf
-    d = sd_rounded_box(Box(in.point, in.size), vec4(10., 10., 10., 10.));
-
-    if is_enabled(in.flags, BORDER) {
-        // calculate inner distance 
-        let inner_distance = d - in.border;
-
-        // sdf union
-        d = max(d, -inner_distance);
-    }
-
     let f = fwidth(d);
-
-    let a =  mix(0.0, color.a, 1.0 - smoothstep(0.0, f, d));
+    
+    let a = mix(0.0, color.a, 1.0 - smoothstep(0.0, f, d));
     let color_out = vec4(color.rgb, a);
 
-    #ifdef CLIP
+    #ifdef CLIP 
         return clip(color_out, in.position, in.clip);
     #else 
         return color_out;
     #endif
+    
 }
 
 #endif
+
+// ***********************************************************************************
 
 #ifdef LINEAR_GRADIENT
 
@@ -174,9 +177,9 @@ struct VertexInput {
     @builtin(vertex_index) index: u32,
     @location(0) i_location: vec2<f32>,
     @location(1) i_size: vec2<f32>,
-    @location(2) i_uv_border: vec4<f32>,
-    @location(3) i_radius: vec4<f32>,
-    @location(4) i_flags: u32,
+    @location(2) i_flags: u32,
+    @location(3) i_border: vec4<f32>,
+    @location(4) i_radius: vec4<f32>,
     // point on a line perpendicular to the gradient
     // coordinates should be relative to the center of the ui node
     @location(5) focal_point: vec2<f32>,
@@ -198,23 +201,22 @@ struct VertexInput {
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-    @location(1) @interpolate(flat) flags: u32,
-    @location(2) @interpolate(flat) radius: vec4<f32>,
-    @location(3) point: vec2<f32>,
-    @location(4) @interpolate(flat) size: vec2<f32>,
-    @location(5) position: vec2<f32>,
-    @location(6) @interpolate(flat) border: vec4<f32>,
-    @location(7) @interpolate(flat) focal_point: vec2<f32>,
+    @location(0) @interpolate(flat) flags: u32,
+    @location(1) @interpolate(flat) radius: vec4<f32>,
+    @location(2) point: vec2<f32>,
+    @location(3) @interpolate(flat) size: vec2<f32>,
+    @location(4) position: vec2<f32>,
+    @location(5) @interpolate(flat) border: vec4<f32>,
+    @location(6) @interpolate(flat) focal_point: vec2<f32>,
     // unit vector in the direction of the gradient
-    @location(8) @interpolate(flat) dir: vec2<f32>,
-    @location(9) @interpolate(flat) start_color: vec4<f32>,
-    @location(10) @interpolate(flat) start_len: f32,
-    @location(11) @interpolate(flat) end_len: f32,
-    @location(12) @interpolate(flat) end_color: vec4<f32>,
+    @location(7) @interpolate(flat) dir: vec2<f32>,
+    @location(8) @interpolate(flat) start_color: vec4<f32>,
+    @location(9) @interpolate(flat) start_len: f32,
+    @location(10) @interpolate(flat) end_len: f32,
+    @location(11) @interpolate(flat) end_color: vec4<f32>,
     
     #ifdef CLIP 
-        @location(14) clip: vec4<f32>,
+        @location(12) clip: vec4<f32>,
     #endif
 };
 
@@ -229,11 +231,8 @@ fn vertex(in: VertexInput) -> VertexOutput {
     let relative_location = in.i_size * norm_location;
     out.position = in.i_location + relative_location;
     out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
-    let uv_min = in.i_uv_border.xy;
-    let uv_size = in.i_uv_border.zw;
-    out.uv = uv_min + uv_size * norm_location;
     out.flags = in.i_flags;
-    out.border = in.i_uv_border;
+    out.border = in.i_border;
     out.radius = in.i_radius;
     out.size = in.i_size;
     out.point = in.i_size * (norm_location - 0.4999);
@@ -249,16 +248,13 @@ fn vertex(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    let sampled_color = textureSample(sprite_texture, sprite_sampler, in.uv);
-    var n: Node;
-    n.size = in.size;
-    n.radius = in.radius;
-    n.inset = in.border;
-    let distance = compute_geometry_separated(in.point, n);
+    let d = compute_signed_distance_with_uniform_border(in.point, 0.5 * in.size, in.flags, in.border[0], in.radius);
+    let f = fwidth(d);
 
     let gradient_distance = df_line(in.focal_point, in.dir, in.point);
     let t = gradient(gradient_distance, in.start_len, in.end_len);
 
+    
     var gradient_color: vec4<f32>;
 
     if t <= 0.0 {
@@ -277,19 +273,6 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         gradient_color = mix(in.start_color, in.end_color, t);
     }
 
-    let fb = fwidth(distance.border);
-    let fe = fwidth(distance.edge);
-    var f: f32;
-    var d: f32;
-    if is_enabled(in.flags, BORDER) {
-        d = distance.border;
-        f = fb;
-    } else {
-        d = distance.edge;
-        f = fe;
-    }
-    
-    let color = select(gradient_color, gradient_color * sampled_color, is_enabled(in.flags, TEXTURED));
     let alpha_out = mix(0.0, gradient_color.a, 1.0 - smoothstep(0.0, f, d));
     let color_out = vec4(gradient_color.rgb, alpha_out);   
 
@@ -301,6 +284,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 #endif
 
+// ***********************************************************************************
 #ifdef RADIAL_GRADIENT
 
 
@@ -308,9 +292,9 @@ struct VertexInput {
     @builtin(vertex_index) index: u32,
     @location(0) i_location: vec2<f32>,
     @location(1) i_size: vec2<f32>,
-    @location(2) i_uv_border: vec4<f32>,
-    @location(3) i_radius: vec4<f32>,
-    @location(4) i_flags: u32,
+    @location(2) i_flags: u32,
+    @location(3) i_border: vec4<f32>,
+    @location(4) i_radius: vec4<f32>,
     // center of the radial gradient
     @location(5) g_center: vec2<f32>,
     @location(6) g_ratio: f32,
@@ -359,11 +343,8 @@ fn vertex(in: VertexInput) -> VertexOutput {
     let relative_location = in.i_size * norm_location;
     out.position = in.i_location + relative_location;
     out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
-    let uv_min = in.i_uv_border.xy;
-    let uv_size = in.i_uv_border.zw;
-    out.uv = uv_min + uv_size * norm_location;
     out.flags = in.i_flags;
-    out.border = in.i_uv_border;
+    out.border = in.i_border;
     out.radius = in.i_radius;
     out.size = in.i_size;
     out.point = in.i_size * (norm_location - 0.4999);
@@ -379,12 +360,8 @@ fn vertex(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    let sampled_color = textureSample(sprite_texture, sprite_sampler, in.uv);
-    var n: Node;
-    n.size = in.size;
-    n.radius = in.radius;
-    n.inset = in.border;
-    let distance = compute_geometry_separated(in.point, n);
+    let d = compute_signed_distance_with_uniform_border(in.point, 0.5 * in.size, in.flags, in.border[0], in.radius);
+    let f = fwidth(d);
 
     let x = in.point.x;
     let y = in.point.y * in.g_ratio;
@@ -410,19 +387,6 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         gradient_color = mix(in.start_color, in.end_color, t);
     }
         
-    let fb = fwidth(distance.border);
-    let fe = fwidth(distance.edge);
-    var f: f32;
-    var d: f32;
-    if is_enabled(in.flags, BORDER) {
-        d = distance.border;
-        f = fb;
-    } else {
-        d = distance.edge;
-        f = fe;
-    }
-    
-    let color = select(gradient_color, gradient_color * sampled_color, is_enabled(in.flags, TEXTURED));
     let alpha_out = mix(0.0, gradient_color.a, 1.0 - smoothstep(0.0, f, d));
     let color_out = vec4(gradient_color.rgb, alpha_out);   
 
@@ -514,48 +478,48 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 
 #endif
 
-fn compute_geometry_separated(
-    point: vec2<f32>, 
-    n: Node,
-) -> Distance {
-    let box = Box(point, 0.5 * n.size);
-    let inner_box = inset_box(box, n.inset);
-    let external_distance = sd_rounded_box(box, n.radius);
-    let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
-    let i = select_inset(point, n.inset);
-    let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
-    let border_distance = max(external_distance, -internal_distance_2);
-    return Distance(internal_distance_2, border_distance);
-}
+// fn compute_geometry_separated(
+//     point: vec2<f32>, 
+//     n: Node,
+// ) -> Distance {
+//     let box = Box(point, 0.5 * n.size);
+//     let inner_box = inset_box(box, n.inset);
+//     let external_distance = sd_rounded_box(box, n.radius);
+//     let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
+//     let i = select_inset(point, n.inset);
+//     let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
+//     let border_distance = max(external_distance, -internal_distance_2);
+//     return Distance(internal_distance_2, border_distance);
+// }
 
 
-fn compute_geometry(
-    point: vec2<f32>, 
-    n: Node,
-) -> Distance {
-    let box = Box(point, 0.5 * n.size);
-    let inner_box = inset_box(box, n.inset);
-    let external_distance = sd_rounded_box(box, n.radius);
-    let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
-    let i = select_inset(point, n.inset);
-    let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
-    let border_distance = max(external_distance, -internal_distance_2);
-    return Distance(external_distance, border_distance);
-}
+// fn compute_geometry(
+//     point: vec2<f32>, 
+//     n: Node,
+// ) -> Distance {
+//     let box = Box(point, 0.5 * n.size);
+//     let inner_box = inset_box(box, n.inset);
+//     let external_distance = sd_rounded_box(box, n.radius);
+//     let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
+//     let i = select_inset(point, n.inset);
+//     let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
+//     let border_distance = max(external_distance, -internal_distance_2);
+//     return Distance(external_distance, border_distance);
+// }
 
-fn compute_geometry_adjusted(
-    point: vec2<f32>, 
-    n: Node,
-) -> Distance {
-    let box = Box(point, 0.5 * n.size);
-    let inner_box = inset_box(box, n.inset);
-    let external_distance = sd_rounded_box(box, n.radius);
-    let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
-    let i = select_inset(point, n.inset);
-    let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
-    let border_distance = max(external_distance, -internal_distance_2);
-    return Distance(external_distance, border_distance);
-}
+// fn compute_geometry_adjusted(
+//     point: vec2<f32>, 
+//     n: Node,
+// ) -> Distance {
+//     let box = Box(point, 0.5 * n.size);
+//     let inner_box = inset_box(box, n.inset);
+//     let external_distance = sd_rounded_box(box, n.radius);
+//     let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
+//     let i = select_inset(point, n.inset);
+//     let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
+//     let border_distance = max(external_distance, -internal_distance_2);
+//     return Distance(external_distance, border_distance);
+// }
 
 struct Box {
     // center
@@ -570,8 +534,9 @@ fn inset_box(box: Box, inset: vec4<f32>) -> Box {
     return Box(p, s);
 }
 
-fn sd_box(box: Box) -> f32 {
-    let d = abs(box.p) - box.s;
+
+fn sd_box(point: vec2<f32>, half_size: vec2<f32>) -> f32 {
+    let d = abs(point) - half_size;
     return length(max(d, vec2(0.0))) + min(max(d.x, d.y) , 0.0);
 }
 
@@ -596,14 +561,14 @@ fn modulo(x: f32, m: f32) -> f32 {
 // size -> The maximum width and height of the box.
 // corner_radii -> The radius of each rounded corner. Ordered counter clockwise starting top left:
 //                      x = top left, y = top right, z = bottom right, w = bottom left.
-fn sd_rounded_box(b: Box, corner_radii: vec4<f32>) -> f32 {
+fn sd_rounded_box(p: vec2<f32>, s: vec2<f32>, radii: vec4<f32>) -> f32 {
     // if 0.0 < y then select bottom left (w) and bottom right corner radius (z)
     // else select top left (x) and top right corner radius (y)
-    let rs = select(corner_radii.xy, corner_radii.wz, 0.0 < b.p.y);
+    let rs = select(radii.xy, radii.wz, 0.0 < p.y);
     // w and z are swapped so that both pairs are in left to right order, otherwise this second select statement would return the incorrect value for the bottom pair.
-    let radius = select(rs.x, rs.y, 0.0 < b.p.x);
+    let radius = select(rs.x, rs.y, 0.0 < p.x);
     // Vector from the corner closest to the point, to the point
-    let corner_to_point = abs(b.p) - b.s;
+    let corner_to_point = abs(p) - s;
     // Vector from the center of the radius circle to the point 
     let q = corner_to_point + radius;
     // length from center of the radius circle to the point, 0s a component if the point is not within the quadrant of the radius circle that is part of the curved corner.
@@ -612,80 +577,80 @@ fn sd_rounded_box(b: Box, corner_radii: vec4<f32>) -> f32 {
     return l + m - radius;
 }
 
-fn sd_inset_rounded_box(point: vec2<f32>, node: Node) -> f32 {
-    let inset = node.inset;
-    let size = node.size;
-    let radius = node.radius;
-    let inner_size = size - inset.xy - inset.zw;
-    let inner_center = inset.xy + 0.5 * inner_size - 0.5 *size;
-    let inner_point = point - inner_center;
+// fn sd_inset_rounded_box(point: vec2<f32>, node: Node) -> f32 {
+//     let inset = node.inset;
+//     let size = node.size;
+//     let radius = node.radius;
+//     let inner_size = size - inset.xy - inset.zw;
+//     let inner_center = inset.xy + 0.5 * inner_size - 0.5 *size;
+//     let inner_point = point - inner_center;
 
-    var r = radius;
+//     var r = radius;
 
-    // top left corner
-    r.x = r.x - max(inset.x, inset.y);
+//     // top left corner
+//     r.x = r.x - max(inset.x, inset.y);
 
-    // top right corner
-    r.y = r.y - max(inset.z, inset.y);
+//     // top right corner
+//     r.y = r.y - max(inset.z, inset.y);
 
-    // bottom right corner
-    r.z = r.z - max(inset.z, inset.w); 
+//     // bottom right corner
+//     r.z = r.z - max(inset.z, inset.w); 
 
-    // bottom left corner
-    r.w = r.w - max(inset.x, inset.w);
+//     // bottom left corner
+//     r.w = r.w - max(inset.x, inset.w);
 
-    let half_size = inner_size * 0.5;
-    let minimum = min(half_size.x, half_size.y);
+//     let half_size = inner_size * 0.5;
+//     let minimum = min(half_size.x, half_size.y);
     
-    r = min(max(r, vec4(0.0)), vec4<f32>(minimum));
+//     r = min(max(r, vec4(0.0)), vec4<f32>(minimum));
 
-    return sd_rounded_box(Box(inner_point, half_size), r);
-}
+//     return sd_rounded_box(Box(inner_point, half_size), r);
+// }
 
 
-fn sd_inset_rounded_box_clamped_inner_radius(point: vec2<f32>, n: Node) -> f32 {
-    let inner_size = n.size - n.inset.xy - n.inset.zw;
-    let inner_center = n.inset.xy + 0.5 * inner_size - 0.5 * n.size;
-    let inner_point = point - inner_center;
+// fn sd_inset_rounded_box_clamped_inner_radius(point: vec2<f32>, n: Node) -> f32 {
+//     let inner_size = n.size - n.inset.xy - n.inset.zw;
+//     let inner_center = n.inset.xy + 0.5 * inner_size - 0.5 * n.size;
+//     let inner_point = point - inner_center;
 
-    var r = n.radius;
-    let inset = n.inset;
+//     var r = n.radius;
+//     let inset = n.inset;
     
-    if 0. < min(inset.x, inset.y) || inset.x + inset.y <= 0. {
-        // top left corner
-        r.x = r.x - max(inset.x, inset.y);
-    } else {
-        r.x = 0.;
-    }
+//     if 0. < min(inset.x, inset.y) || inset.x + inset.y <= 0. {
+//         // top left corner
+//         r.x = r.x - max(inset.x, inset.y);
+//     } else {
+//         r.x = 0.;
+//     }
 
-    if 0. < min(inset.z, inset.y) || inset.z + inset.y <= 0.{
-        // top right corner
-        r.y = r.y - max(inset.z, inset.y);
-    } else {
-        r.y = 0.;
-    }
+//     if 0. < min(inset.z, inset.y) || inset.z + inset.y <= 0.{
+//         // top right corner
+//         r.y = r.y - max(inset.z, inset.y);
+//     } else {
+//         r.y = 0.;
+//     }
 
-    if 0. < min(inset.z, inset.w) || inset.z + inset.w <= 0. {
-        // bottom right corner
-        r.z = r.z - max(inset.z, inset.w); 
-    } else {
-        r.z = 0.;
-    }
+//     if 0. < min(inset.z, inset.w) || inset.z + inset.w <= 0. {
+//         // bottom right corner
+//         r.z = r.z - max(inset.z, inset.w); 
+//     } else {
+//         r.z = 0.;
+//     }
 
-    if 0. < min(inset.x, inset.w) || inset.x + inset.w <= 0. {
-        // bottom left corner
-        r.w = r.w - max(inset.x, inset.w);
-    } else {
-        r.w = 0.;
-    }
+//     if 0. < min(inset.x, inset.w) || inset.x + inset.w <= 0. {
+//         // bottom left corner
+//         r.w = r.w - max(inset.x, inset.w);
+//     } else {
+//         r.w = 0.;
+//     }
 
-    let half_size = inner_size * 0.5;
-    let minimum = min(half_size.x, half_size.y);
+//     let half_size = inner_size * 0.5;
+//     let minimum = min(half_size.x, half_size.y);
     
-    r = min(max(r, vec4<f32>(0.0)), vec4<f32>(minimum));
+//     r = min(max(r, vec4<f32>(0.0)), vec4<f32>(minimum));
 
-    return sd_rounded_box(Box(inner_point, 0.5 * inner_size), r);
-}
+//     return sd_rounded_box(Box(inner_point, 0.5 * inner_size), r);
+// }
 
 
 
@@ -693,8 +658,8 @@ fn compute_sd_boxes(point: vec2<f32>, n: Node) -> Distance {
     let box = Box(point, 0.5 * n.size);
     let inner_box = inset_box(box, n.inset);
 
-    let external_distance = sd_box(box);
-    let internal_distance = sd_box(inner_box);
+    let external_distance = sd_box(point, 0.5 * n.size);
+    let internal_distance = sd_box(point, 0.5 * n.size);
     let border_distance = max(external_distance, -internal_distance);
     return Distance(external_distance, border_distance);
 }
@@ -721,45 +686,45 @@ struct Node {
     inset: vec4<f32>,
 }
 
-fn compute_rounded_clamped(point: vec2<f32>, n: Node) -> Distance {
-    let box = Box(point, 0.5 * n.size);
-    let inner_box = inset_box(box, n.inset);
-    let external_distance = sd_rounded_box(box, n.radius);
-    let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
-    let border_distance = max(external_distance, -internal_distance);
-    return Distance(external_distance, border_distance);
-}
+// fn compute_rounded_clamped(point: vec2<f32>, n: Node) -> Distance {
+//     let box = Box(point, 0.5 * n.size);
+//     let inner_box = inset_box(box, n.inset);
+//     let external_distance = sd_rounded_box(box, n.radius);
+//     let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
+//     let border_distance = max(external_distance, -internal_distance);
+//     return Distance(external_distance, border_distance);
+// }
 
-fn compute_rounded_clamped_2(point: vec2<f32>, n: Node) -> Distance {
-    let box = Box(point, 0.5 * n.size);
-    let inner_box = inset_box(box, n.inset);
-    let external_distance = sd_rounded_box(box, n.radius);
-    let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
-    let i = select_inset(point, n.inset);
-    let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
-    let border_distance = max(external_distance, -internal_distance_2);
-    return Distance(external_distance, border_distance);
-}
+// fn compute_rounded_clamped_2(point: vec2<f32>, n: Node) -> Distance {
+//     let box = Box(point, 0.5 * n.size);
+//     let inner_box = inset_box(box, n.inset);
+//     let external_distance = sd_rounded_box(box, n.radius);
+//     let internal_distance = sd_inset_rounded_box_clamped_inner_radius(point, n);
+//     let i = select_inset(point, n.inset);
+//     let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
+//     let border_distance = max(external_distance, -internal_distance_2);
+//     return Distance(external_distance, border_distance);
+// }
 
-fn compute_rounded(point: vec2<f32>, n: Node) -> Distance {
-    let box = Box(point, 0.5 * n.size);
-    let inner_box = inset_box(box, n.inset);
-    let external_distance = sd_rounded_box(box, n.radius);
-    let internal_distance = sd_inset_rounded_box(point, n);
-    let border_distance = max(external_distance, -internal_distance);
-    return Distance(external_distance, border_distance);
-}
+// fn compute_rounded(point: vec2<f32>, n: Node) -> Distance {
+//     let box = Box(point, 0.5 * n.size);
+//     let inner_box = inset_box(box, n.inset);
+//     let external_distance = sd_rounded_box(box, n.radius);
+//     let internal_distance = sd_inset_rounded_box(point, n);
+//     let border_distance = max(external_distance, -internal_distance);
+//     return Distance(external_distance, border_distance);
+// }
 
-fn compute_rounded_2(point: vec2<f32>, n: Node) -> Distance {
-    let box = Box(point, 0.5 * n.size);
-    let inner_box = inset_box(box, n.inset);
-    let external_distance = sd_rounded_box(box, n.radius);
-    let internal_distance = sd_inset_rounded_box(point, n);
-    let i = select_inset(point, n.inset);
-    let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
-    let border_distance = max(external_distance, -internal_distance_2);
-    return Distance(external_distance, border_distance);
-}
+// fn compute_rounded_2(point: vec2<f32>, n: Node) -> Distance {
+//     let box = Box(point, 0.5 * n.size);
+//     let inner_box = inset_box(box, n.inset);
+//     let external_distance = sd_rounded_box(box, n.radius);
+//     let internal_distance = sd_inset_rounded_box(point, n);
+//     let i = select_inset(point, n.inset);
+//     let internal_distance_2 = max(external_distance + min(i.x, i.y), internal_distance);
+//     let border_distance = max(external_distance, -internal_distance_2);
+//     return Distance(external_distance, border_distance);
+// }
 
 fn g(d: f32) -> f32 {
     let d = abs(d);
@@ -820,3 +785,30 @@ fn calculate_perimeter(
         + calculate_quadrant_perimeter(half_size, rs[3]);
 }
 
+fn sd_box_uniform_border(point: vec2<f32>, half_size: vec2<f32>, border: f32) -> f32 {
+    let exterior = sd_box(point, half_size);
+    let interior = exterior + border;
+    return max(exterior, -interior);
+}
+
+fn sd_rounded_box_uniform_border(point: vec2<f32>, half_size: vec2<f32>, corner_radii: vec4<f32>, border: f32) -> f32 {
+    let exterior = sd_rounded_box(point, half_size, corner_radii);
+    let interior = exterior + border;
+    return max(exterior, -interior);
+}
+
+fn sd_rounded_box_interior(point: vec2<f32>, half_size: vec2<f32>, corner_radii: vec4<f32>, border: f32) -> f32 {
+    let exterior = sd_rounded_box(point, half_size, corner_radii);
+    let interior = exterior + border;
+    return interior;
+}
+
+fn compute_signed_distance_with_uniform_border(point: vec2<f32>, half_size: vec2<f32>, flags: u32, border: f32, radius: vec4<f32>) -> f32 {
+    var d: f32;
+    if is_border_enabled(flags) {        
+        d = sd_rounded_box_uniform_border(point, half_size, radius, border);
+    } else {
+        d = sd_rounded_box_interior(point, half_size, radius, border);
+    }
+    return d;
+}

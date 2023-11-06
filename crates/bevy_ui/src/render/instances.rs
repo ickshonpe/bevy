@@ -12,10 +12,11 @@ use crate::rect_to_f32_4;
 pub struct NodeInstance {
     pub location: [f32; 2],
     pub size: [f32; 2],
-    pub uv: [f32; 4],
-    pub color: [f32; 4],
-    pub radius: [f32; 4],
     pub flags: u32,
+    pub border: [f32; 4],
+    pub radius: [f32; 4],
+    pub color: [f32; 4],
+    pub uv: [f32; 4],
 }
 
 #[repr(C)]
@@ -33,9 +34,9 @@ pub struct TextInstance {
 pub struct LinearGradientInstance {
     pub location: [f32; 2],
     pub size: [f32; 2],
-    pub uv_border: [f32; 4],
-    pub radius: [f32; 4],
     pub flags: u32,
+    pub border: [f32; 4],
+    pub radius: [f32; 4],
     pub focal_point: [f32; 2],
     pub angle: f32,
     pub start_color: [f32; 4],
@@ -49,9 +50,9 @@ pub struct LinearGradientInstance {
 pub struct RadialGradientInstance {
     pub location: [f32; 2],
     pub size: [f32; 2],
-    pub uv_border: [f32; 4],
-    pub radius: [f32; 4],
     pub flags: u32,
+    pub border: [f32; 4],
+    pub radius: [f32; 4],
     pub start_point: [f32; 2],
     pub ratio: f32,
     pub start_color: [f32; 4],
