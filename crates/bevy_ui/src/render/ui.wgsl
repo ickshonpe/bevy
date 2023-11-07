@@ -463,44 +463,54 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let half_size = 0.5 * in.size;
     let d = compute_signed_distance_with_uniform_border(in.point, 0.5 * in.size, BORDER, in.line_thickness, in.radius);
     let f = fwidth(d);
+
+    let i = quadrant_index(in.point);
     
     var a = mix(0.0, in.color.a, 1.0 - smoothstep(0.0, f, d));
 
     var p = abs(in.point);
     var s = half_size;
-    var r: f32;
 
     var t: f32 = 0.;
-    
-    if in.point.x < 0. {
-        if in.point.y < 0. {
-            r = in.radius[0];
-        } else {
-            t = 3. * (s.x + s.y) - max((2. + PI / 2.) * in.radius[0], in.line_thickness) - max((2. + PI / 2.) * in.radius[1], in.line_thickness) - max((2. + PI / 2.) * in.radius[2], in.line_thickness);
-            r = in.radius[3];
-        }
-    } else {
-        if in.point.y < 0. {
-            t = s.x + s.y - max((2. + PI / 2.) * in.radius[0], in.line_thickness);
 
-            r = in.radius[1];
+    for(var j = 0; j < i; j++) {
+        let r = in.radius[j];
+        if r <= 0. {
+            t += s.x + s.y - 2. * r - in.line_thickness;
         } else {
-            t = 2. * (s.x + s.y) - max((2. + PI / 2.) * in.radius[0], in.line_thickness) - max((2. + PI / 2.) * in.radius[1], in.line_thickness);
-            r = in.radius[2];
+            t += s.x + s.y - 2. * r + PI / 2. * r;
         }
     }
+    
+    // if in.point.x < 0. {
+    //     if in.point.y < 0. {
+    //         r = in.radius[0];
+    //     } else {
+    //         t = 3. * (s.x + s.y) - max((2. + PI / 2.) * in.radius[0], in.line_thickness) - max((2. + PI / 2.) * in.radius[1], in.line_thickness) - max((2. + PI / 2.) * in.radius[2], in.line_thickness);
+    //         r = in.radius[3];
+    //     }
+    // } else {
+    //     if in.point.y < 0. {
+    //         t = s.x + s.y - max((2. + PI / 2.) * in.radius[0], in.line_thickness);
 
-    if (in.point.x < 0. && in.point.y < 0.) || (in.point.x > 0. && in.point.y > 0.) {
+    //         r = in.radius[1];
+    //     } else {
+    //         t = 2. * (s.x + s.y) - max((2. + PI / 2.) * in.radius[0], in.line_thickness) - max((2. + PI / 2.) * in.radius[1], in.line_thickness);
+    //         r = in.radius[2];
+    //     }
+    // }
+
+    if i == 0 || i == 2 {
         p = p.yx;
         s = s.yx;
     }
 
-    t = t + rounded_border_quarter_distance_fn(
+    t += rounded_border_quarter_distance_fn(
         p.x,
         p.y,
         s.x,
         s.y,
-        r,
+        in.radius[i],
         in.line_thickness
     );
 
@@ -590,7 +600,29 @@ struct Distance {
     border: f32
 }
 
-fn find_quadrant(angle: f32) -> i32 {
+fn quadrant_index(p: vec2<f32>) -> i32 {
+    if p.x < 0. {
+        // left
+        if p.y < 0. {
+            // top left
+            return 0;
+        } else {
+            // bottom left
+            return 3;
+        }
+    } else {
+        // right
+        if p.y < 0. {
+            // top right
+            return 1;
+        } else {
+            // bottom right
+            return 2;
+        }
+    }
+}
+
+fn angle_quadrant(angle: f32) -> i32 {
     let reduced = modulo(angle, 2.0 * PI) ;
     return i32(reduced * 2.0 / PI);
 }
