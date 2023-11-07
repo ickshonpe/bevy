@@ -465,7 +465,7 @@ pub fn extract_outlines(
                     } else {
                         10.
                     };
-                    let bl = if let Val::Px(bl) = *dash_length {
+                    let bl = if let Val::Px(bl) = *break_length {
                         bl
                     } else {
                         dl
