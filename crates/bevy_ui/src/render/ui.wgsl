@@ -1026,7 +1026,7 @@ fn rounded_border_quarter_distance_fn(
 
     if qx < x && qy < y {
         // within arc area
-        let t = max(x - qx, r);
+        let t = min(x - qx, r);
         let l = r * acos(t / r);
 
         return qx + l;
