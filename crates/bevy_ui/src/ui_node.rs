@@ -1731,10 +1731,13 @@ impl Default for BorderColor {
 
 #[derive(Component, Copy, Clone, Default, Debug, Reflect, Serialize, Deserialize)]
 #[reflect(Component, Default, Serialize, Deserialize)]
+/// Set the style of an outline
 pub enum OutlineStyle {
+    /// The outline is a solid line
     #[default]
     Solid,
-    Dashed(f32),
+    /// The outline is a dashed line
+    Dashed { dash_length: Val, break_length: Val },
 }
 
 #[derive(Component, Copy, Clone, Default, Debug, Reflect, Serialize, Deserialize)]

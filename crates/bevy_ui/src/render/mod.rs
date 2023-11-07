@@ -13,7 +13,7 @@ use crate::{
     prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, Node, UiImage, UiScale,
     UiStack, UiTextureAtlasImage,
 };
-use crate::{resolve_color_stops, Ellipse, Outline, OutlineStyle, UiColor};
+use crate::{resolve_color_stops, Ellipse, Outline, OutlineStyle, UiColor, Val};
 
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
@@ -239,8 +239,8 @@ pub fn extract_atlas_uinodes(
                 Some(image),
                 atlas_rect,
                 color,
-                uinode.border_radius,
                 uinode.border,
+                uinode.border_radius,
                 clip.map(|clip| clip.clip),
             );
         }
@@ -298,8 +298,8 @@ pub fn extract_uinodes(
                             image,
                             Rect::new(0.0, 0.0, 1.0, 1.0),
                             *color,
-                            uinode.border_radius,
                             uinode.border,
+                            uinode.border_radius,
                             clip.map(|clip| clip.clip),
                         );
                     }
@@ -310,8 +310,7 @@ pub fn extract_uinodes(
                             stack_index,
                             uinode.position,
                             uinode.size(),
-                            image,
-                            Rect::new(0.0, 0.0, 1.0, 1.0),
+                            uinode.border,
                             uinode.border_radius,
                             start_point,
                             l.angle,
@@ -326,8 +325,7 @@ pub fn extract_uinodes(
                             stack_index,
                             uinode.position,
                             uinode.size(),
-                            image,
-                            Rect::new(0.0, 0.0, 1.0, 1.0),
+                            uinode.border(),
                             uinode.border_radius,
                             ellipse,
                             &stops,
@@ -378,7 +376,7 @@ pub fn extract_borders(
                             position,
                             size,
                             *color,
-                            border,
+                            uinode.border,
                             uinode.border_radius,
                             clip.map(|clip| clip.clip),
                         );
@@ -448,20 +446,49 @@ pub fn extract_outlines(
                         uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
                         outline.color,
                         [uinode.outline_width; 4],
-                        uinode.border_radius,
+                        uinode.border_radius.map(|r| {
+                            if r <= 0. {
+                                0.
+                            } else {
+                                r + uinode.outline_offset + uinode.outline_width
+                            }
+                        }),
                         clip.map(|clip| clip.clip),
                     );
                 }
-                OutlineStyle::Dashed(gap) => extracted_uinodes.push_dashed_border(
-                    stack_index,
-                    uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
-                    uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
-                    outline.color,
-                    uinode.outline_width,
-                    *gap,
-                    uinode.border_radius,
-                    clip.map(|clip| clip.clip),
-                ),
+                OutlineStyle::Dashed {
+                    dash_length,
+                    break_length,
+                } => {
+                    let dl = if let Val::Px(dl) = *dash_length {
+                        dl
+                    } else {
+                        10.
+                    };
+                    let bl = if let Val::Px(bl) = *dash_length {
+                        bl
+                    } else {
+                        dl
+                    };
+                    extracted_uinodes.push_dashed_border(
+                        stack_index,
+                        uinode.position()
+                            - Vec2::splat(uinode.outline_offset + uinode.outline_width),
+                        uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
+                        outline.color,
+                        uinode.outline_width,
+                        dl,
+                        bl,
+                        uinode.border_radius.map(|r| {
+                            if r <= 0. {
+                                0.
+                            } else {
+                                r + uinode.outline_offset + uinode.outline_width
+                            }
+                        }),
+                        clip.map(|clip| clip.clip),
+                    )
+                }
             }
         }
     }
@@ -677,8 +704,8 @@ impl ExtractedUiNodes {
         image: Option<Handle<Image>>,
         uv_rect: Rect,
         color: Color,
-        radius: [f32; 4],
         border: [f32; 4],
+        radius: [f32; 4],
         clip: Option<Rect>,
     ) {
         let color = color.as_linear_rgba_f32();
@@ -690,6 +717,7 @@ impl ExtractedUiNodes {
         } else {
             UNTEXTURED_QUAD
         };
+
         let image = image.unwrap_or(DEFAULT_IMAGE_HANDLE.typed());
 
         let i = NodeInstance {
@@ -697,9 +725,9 @@ impl ExtractedUiNodes {
             size: size.into(),
             uv: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
             color,
+            border,
             radius,
             flags,
-            border,
         };
         self.uinodes
             .push(ExtractedItem::new(stack_index, image, (i, clip)));
@@ -711,20 +739,23 @@ impl ExtractedUiNodes {
         position: Vec2,
         size: Vec2,
         color: Color,
-        inset: [f32; 4],
+        border: [f32; 4],
         radius: [f32; 4],
         clip: Option<Rect>,
     ) {
+        if border.iter().all(|thickness| *thickness <= 0.) {
+            return;
+        }
         let color = color.as_linear_rgba_f32();
         let flags = UNTEXTURED_QUAD | BORDERED;
         let i = NodeInstance {
             location: position.into(),
             size: size.into(),
             uv: [0., 0., 1., 1.],
+            border,
             color,
             radius,
             flags,
-            border: inset,
         };
         self.uinodes.push(ExtractedItem::new(
             stack_index,
@@ -740,7 +771,8 @@ impl ExtractedUiNodes {
         size: Vec2,
         color: Color,
         line_thickness: f32,
-        gap_length: f32,
+        dash_length: f32,
+        break_length: f32,
         radius: [f32; 4],
         clip: Option<Rect>,
     ) {
@@ -750,8 +782,9 @@ impl ExtractedUiNodes {
             size: size.into(),
             color,
             radius,
-            line_thickness,
-            gap_length,
+            width: line_thickness,
+            dash_length,
+            break_length,
         };
         self.uinodes.push(ExtractedItem::new(
             stack_index,
@@ -765,13 +798,16 @@ impl ExtractedUiNodes {
         stack_index: usize,
         position: Vec2,
         size: Vec2,
-        inset: [f32; 4],
+        border: [f32; 4],
         radius: [f32; 4],
         start_point: Vec2,
         angle: f32,
         stops: &[(Color, f32)],
         clip: Option<Rect>,
     ) {
+        if border.iter().all(|thickness| *thickness <= 0.) {
+            return;
+        }
         for i in 0..stops.len() - 1 {
             let start = &stops[i];
             let end = &stops[i + 1];
@@ -788,7 +824,7 @@ impl ExtractedUiNodes {
             let i = LinearGradientInstance {
                 location: position.into(),
                 size: size.into(),
-                uv_border: inset,
+                border,
                 radius,
                 flags,
                 focal_point: start_point.into(),
@@ -811,12 +847,15 @@ impl ExtractedUiNodes {
         stack_index: usize,
         position: Vec2,
         size: Vec2,
-        inset: [f32; 4],
+        border: [f32; 4],
         radius: [f32; 4],
         ellipse: Ellipse,
         stops: &[(Color, f32)],
         clip: Option<Rect>,
     ) {
+        if border.iter().all(|thickness| *thickness <= 0.) {
+            return;
+        }
         let start_point: Vec2 = (ellipse.center - position - 0.5 * size).into();
         let ratio = ellipse.extents.x / ellipse.extents.y;
 
@@ -836,7 +875,7 @@ impl ExtractedUiNodes {
             let i = RadialGradientInstance {
                 location: position.into(),
                 size: size.into(),
-                uv_border: inset,
+                border,
                 radius,
                 flags,
                 ratio,
@@ -859,24 +898,15 @@ impl ExtractedUiNodes {
         stack_index: usize,
         position: Vec2,
         size: Vec2,
-        image: Option<Handle<Image>>,
-        uv_rect: Rect,
+        border: [f32; 4],
         radius: [f32; 4],
         start_point: Vec2,
         angle: f32,
         stops: &[(Color, f32)],
         clip: Option<Rect>,
     ) {
-        let uv_min = uv_rect.min;
-        let uv_size = uv_rect.size();
-
-        let tflag = if image.is_some() {
-            TEXTURED_QUAD //| FILL_START | FILL_END
-        } else {
-            UNTEXTURED_QUAD //| FILL_START | FILL_END
-        };
-
-        let image = image.unwrap_or(DEFAULT_IMAGE_HANDLE.typed());
+        let tflag = UNTEXTURED_QUAD;
+        let image = DEFAULT_IMAGE_HANDLE.typed();
 
         for i in 0..stops.len() - 1 {
             let start = &stops[i];
@@ -893,7 +923,7 @@ impl ExtractedUiNodes {
             let i = LinearGradientInstance {
                 location: position.into(),
                 size: size.into(),
-                uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
+                border,
                 radius,
                 flags,
                 focal_point: start_point.into(),
@@ -913,23 +943,14 @@ impl ExtractedUiNodes {
         stack_index: usize,
         position: Vec2,
         size: Vec2,
-        image: Option<Handle<Image>>,
-        uv_rect: Rect,
+        border: [f32; 4],
         radius: [f32; 4],
         ellipse: Ellipse,
         stops: &[(Color, f32)],
         clip: Option<Rect>,
     ) {
-        let tflag = if image.is_some() {
-            TEXTURED_QUAD
-        } else {
-            UNTEXTURED_QUAD
-        };
+        let tflag = UNTEXTURED_QUAD;
 
-        let uv_min = uv_rect.min;
-        let uv_size = uv_rect.size();
-
-        let image = image.unwrap_or(DEFAULT_IMAGE_HANDLE.typed());
         let start_point = (ellipse.center - position - 0.5 * size).into();
         let ratio = ellipse.extents.x / ellipse.extents.y;
         for i in 0..stops.len() - 1 {
@@ -947,9 +968,9 @@ impl ExtractedUiNodes {
             let i = RadialGradientInstance {
                 location: position.into(),
                 size: size.into(),
-                uv_border: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
-                radius,
                 flags,
+                border,
+                radius,
                 start_point,
                 ratio,
                 start_color: start.0.as_linear_rgba_f32(),
@@ -957,8 +978,11 @@ impl ExtractedUiNodes {
                 end_len: end.1,
                 end_color: end.0.as_linear_rgba_f32(),
             };
-            self.uinodes
-                .push(ExtractedItem::new(stack_index, image.clone(), (i, clip)));
+            self.uinodes.push(ExtractedItem::new(
+                stack_index,
+                DEFAULT_IMAGE_HANDLE.typed(),
+                (i, clip),
+            ));
         }
     }
 }
