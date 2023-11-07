@@ -22,6 +22,8 @@ const BORDER: u32 = 32u;
 const FILL_START: u32 = 64u;
 const FILL_END: u32 = 128u;
 
+const PADDING: f32 = 5.;
+
 fn is_border_enabled(flags: u32) -> bool {
     return (flags & BORDER) != 0u;
 }
@@ -123,23 +125,27 @@ struct VertexOutput {
 
 @vertex
 fn vertex(in: VertexInput) -> VertexOutput {
+    let padding = select(PADDING, 0., is_enabled(in.i_flags, TEXTURED));
+    let location = in.i_location - padding;
     var out: VertexOutput;
     let half_size = 0.5 * in.i_size;
     let norm_x = f32(in.index & 1u);
     let norm_y = f32((in.index & 2u) >> 1u);
     let norm_location = vec2(norm_x, norm_y);
-    let relative_location = in.i_size * norm_location;
-    out.position = in.i_location + relative_location;
-    out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
+    //let relative_location = in.i_size * norm_location;
+    let relative_location = (in.i_size + 2. * padding) * norm_location;
+    out.position = location + relative_location;
+    out.clip_position = view.view_proj * vec4(location + relative_location, 0., 1.);
     let uv_min = in.i_uv.xy;
     let uv_size = in.i_uv.zw;
-    out.uv = uv_min + uv_size * norm_location;
+    let uv_padding = uv_size * (vec2(padding, padding) / in.i_size);
+    out.uv = uv_min - uv_padding + (2. * uv_padding + uv_size) * norm_location;
     out.color = in.i_color;
     out.flags = in.i_flags;
     out.border = in.i_border[0];
     out.radius = in.i_radius;
     out.size = in.i_size;
-    out.point = in.i_size * (norm_location - 0.4999);
+    out.point = (padding + in.i_size) * (norm_location - 0.4999);
 
     #ifdef CLIP 
         out.clip = in.i_clip;
@@ -155,6 +161,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let d = compute_signed_distance_with_uniform_border(in.point, 0.5 * in.size, in.flags, in.border, in.radius);
     
     let f = fwidth(d);
+
     
     let a = mix(0.0, color.a, 1.0 - smoothstep(0.0, f, d));
     let color_out = vec4(color.rgb, a);
