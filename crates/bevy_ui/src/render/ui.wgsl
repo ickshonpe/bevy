@@ -145,7 +145,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.border = in.i_border[0];
     out.radius = in.i_radius;
     out.size = in.i_size;
-    out.point = (padding + in.i_size) * (norm_location - 0.4999);
+    out.point = (2. * padding + in.i_size) * (norm_location - 0.4999);
 
     #ifdef CLIP 
         out.clip = in.i_clip;
