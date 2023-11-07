@@ -462,72 +462,57 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let d = compute_signed_distance_with_uniform_border(in.point, 0.5 * in.size, BORDER, in.line_thickness, in.radius);
     let f = fwidth(d);
     
-    
     let a = mix(0.0, in.color.a, 1.0 - smoothstep(0.0, f, d));
 
-    //let p = calculate_distance_around_edge(in.point, 0.5 * in.size, in.radius);
-    var c: vec4<f32> = vec4(0., 0., 0., a);
-    // if in.point.y < 0. || 30. < in.point.y {
-    var p: f32 = 0.;
-    if in.point.y < 0. {
-        if in.point.x < 0. {
-            p = top_left_distance(
-                abs(in.point.x),
-                abs(in.point.y),
-                0.5 * in.size,
-                in.radius[0]
-            );
-        }
+    var c: vec3<f32> = vec3(0., 0., 0.);
 
-        if in.point.x >= 0. {
-            p = 
-                //calculate_quadrant_perimeter(half_size, in.radius[0])
-                60. + 20. * PI * 0.5
-                + top_right_distance(
-                    abs(in.point.x),
-                    abs(in.point.y),
-                    0.5 * in.size,
-                    in.radius[1]
-                );
+    var p = abs(in.point);
+    var s = half_size;
+    var r: f32;
+
+    var t: f32 = 0.;
+    
+    if in.point.x < 0. {
+        if in.point.y < 0. {
+            r = in.radius[0];
+        } else {
+            t = 3. * (s.x + s.y) - max((2. + PI / 2.) * in.radius[0], in.line_thickness) - max((2. + PI / 2.) * in.radius[1], in.line_thickness) - max((2. + PI / 2.) * in.radius[2], in.line_thickness);
+            r = in.radius[3];
         }
     } else {
-        if in.point.x < 0. {
-            c = vec4(1., 0., 0., 0.8);
-        } else if in.point.x < 30. {
-               c = vec4(0., 1., 0., 0.8);
-        } else if 30. < in.point.x {
-            c = vec4(0., 0., 1., 0.8);
+        if in.point.y < 0. {
+            t = s.x + s.y - max((2. + PI / 2.) * in.radius[0], in.line_thickness);
+
+            r = in.radius[1];
+        } else {
+            t = 2. * (s.x + s.y) - max((2. + PI / 2.) * in.radius[0], in.line_thickness) - max((2. + PI / 2.) * in.radius[1], in.line_thickness);
+            r = in.radius[2];
         }
     }
 
-    let arc = 20. * PI * 0.5;
-
-    if p > 0. {
-        c = vec4(1., 1., 1., a);
+    if (in.point.x < 0. && in.point.y < 0.) || (in.point.x > 0. && in.point.y > 0.) {
+        p = p.yx;
+        s = s.yx;
     }
 
-    if p > 30. && p < 30. + arc {
-        c = vec4(1., 0., 0., a);
+    t = t + rounded_border_quarter_distance_fn(
+        p.x,
+        p.y,
+        s.x,
+        s.y,
+        r,
+        in.line_thickness
+    );
+
+
+
+    let m = modulo(t, 60.);
+    if m < 30. {
+        c = vec3(1., 1., 1.);
     }
 
-    if p > (30. + arc) && p < (60. + arc)  {
-        c = vec4(1., 1., 0., a);
-    }
+    let color_out = vec4(c, a);
 
-    if p > 60. + arc && p < 80. + arc {
-        c = vec4(0., 1., 0., a);
-    }
-
-    if p > 90. + arc && p < 90. + 2. * arc {
-        c = vec4(0., 0., 1., a);
-    }
-
-    // if p > (30. + 30. + 30. + 20. * PI * 0.5) {
-    //     c = vec4(0., 0., 1., a);
-    // }
-
-    let color_out = c;
-    
     #ifdef CLIP
         return clip(color_out, in.position, in.clip);
     #else 
