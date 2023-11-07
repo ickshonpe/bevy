@@ -163,7 +163,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let f = fwidth(d);
 
     
-    let a = mix(0.0, color.a, 1.0 - smoothstep(0.0, f, d));
+    let a = mix(0.0, color.a, 1.0 - smoothstep(0.0, 3. * f, d));
     let color_out = vec4(color.rgb, a);
 
     #ifdef CLIP 
@@ -395,7 +395,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         gradient_color = mix(in.start_color, in.end_color, t);
     }
         
-    let alpha_out = mix(0.0, gradient_color.a, 1.0 - smoothstep(0.0, f, d));
+    let alpha_out = mix(0.0, gradient_color.a, 1.0 - smoothstep(0.0, 3. * f, d));
     let color_out = vec4(gradient_color.rgb, alpha_out);   
 
     #ifdef CLIP
@@ -475,7 +475,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let d = compute_signed_distance_with_uniform_border(in.point, 0.5 * in.size, BORDER, in.line_thickness, in.radius);
     let f = fwidth(d);
     let i = quadrant_index(in.point);
-    var a = mix(0.0, in.color.a, 1.0 - smoothstep(0.0, f, d));
+    var a = mix(0.0, in.color.a, 1.0 - smoothstep(0.0, 3. * f, d));
     var p = abs(in.point);
     var s = half_size;
     var t: f32 = 0.;
