@@ -230,19 +230,19 @@ struct VertexOutput {
 @vertex
 fn vertex(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    
+    let location = in.i_location - PADDING;
     let half_size = 0.5 * in.i_size;
     let norm_x = f32(in.index & 1u);
     let norm_y = f32((in.index & 2u) >> 1u);
     let norm_location = vec2(norm_x, norm_y);
-    let relative_location = in.i_size * norm_location;
-    out.position = in.i_location + relative_location;
-    out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
+    let relative_location = (2. * PADDING + in.i_size) * norm_location;
+    out.position = location + relative_location;
+    out.clip_position = view.view_proj * vec4(location + relative_location, 0., 1.);
     out.flags = in.i_flags;
     out.border = in.i_border;
     out.radius = in.i_radius;
     out.size = in.i_size;
-    out.point = in.i_size * (norm_location - 0.4999);
+    out.point = (2. * PADDING + in.i_size) * (norm_location - 0.4999);
     out.focal_point = in.focal_point;
     out.dir = gradient_dir(in.angle);
     out.start_color = in.start_color;
@@ -343,19 +343,19 @@ struct VertexOutput {
 @vertex
 fn vertex(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    
+    let location = in.i_location - PADDING;
     let half_size = 0.5 * in.i_size;
     let norm_x = f32(in.index & 1u);
     let norm_y = f32((in.index & 2u) >> 1u);
     let norm_location = vec2(norm_x, norm_y);
-    let relative_location = in.i_size * norm_location;
-    out.position = in.i_location + relative_location;
-    out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
+    let relative_location = (2. * PADDING + in.i_size) * norm_location;
+    out.position = location + relative_location;
+    out.clip_position = view.view_proj * vec4(location + relative_location, 0., 1.);
     out.flags = in.i_flags;
     out.border = in.i_border;
     out.radius = in.i_radius;
     out.size = in.i_size;
-    out.point = in.i_size * (norm_location - 0.4999);
+    out.point = (2. * PADDING + in.i_size) * (norm_location - 0.4999);
     out.g_center = in.g_center;
     out.start_color = in.start_color;
     out.start_len = in.start_len;
@@ -445,18 +445,19 @@ struct VertexOutput {
 @vertex
 fn vertex(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
+    let location = in.i_location - PADDING;
     let half_size = 0.5 * in.i_size;
     let norm_x = f32(in.index & 1u);
     let norm_y = f32((in.index & 2u) >> 1u);
     let norm_location = vec2(norm_x, norm_y);
-    let relative_location = in.i_size * norm_location;
+    let relative_location = (2. * PADDING + in.i_size) * norm_location;
 
-    out.clip_position = view.view_proj * vec4(in.i_location + relative_location, 0., 1.);
+    out.clip_position = view.view_proj * vec4(location + relative_location, 0., 1.);
     out.color = in.i_color;
     out.radius = in.i_radius;
-    out.point = in.i_size * (norm_location - 0.4999);
+    out.point = (2. * PADDING + in.i_size) * (norm_location - 0.4999);
     out.size = in.i_size;
-    out.position = in.i_location + relative_location;
+    out.position = location + relative_location;
     out.line_thickness = in.i_line_thickness;
     out.dash_length = in.i_dash_length;
     out.break_length = in.i_break_length;
@@ -472,16 +473,11 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let half_size = 0.5 * in.size;
     let d = compute_signed_distance_with_uniform_border(in.point, 0.5 * in.size, BORDER, in.line_thickness, in.radius);
     let f = fwidth(d);
-
     let i = quadrant_index(in.point);
-    
     var a = mix(0.0, in.color.a, 1.0 - smoothstep(0.0, f, d));
-
     var p = abs(in.point);
     var s = half_size;
-
     var t: f32 = 0.;
-
     for(var j = 0; j < i; j++) {
         let r = in.radius[j];
         if r <= 0. {
@@ -490,12 +486,10 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
             t += s.x + s.y - 2. * r + PI / 2. * r;
         }
     }
-
     if i == 0 || i == 2 {
         p = p.yx;
         s = s.yx;
     }
-
     t += rounded_border_quarter_distance_fn(
         p.x,
         p.y,
@@ -504,12 +498,10 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         in.radius[i],
         in.line_thickness
     );
-
     let m = modulo(t, in.dash_length + in.break_length);
     if in.break_length < m {
        a = 0.;
     }
-
     let color_out = vec4(in.color.rgb, a);
 
     #ifdef CLIP
