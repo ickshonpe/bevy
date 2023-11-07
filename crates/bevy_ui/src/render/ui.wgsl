@@ -412,8 +412,9 @@ struct VertexInput {
     @location(3) i_color: vec4<f32>,
     @location(4) i_radius: vec4<f32>,
     @location(5) i_dash_length: f32,
+    @location(6) i_break_length: f32,
     #ifdef CLIP 
-        @location(6) i_clip: vec4<f32>,
+        @location(7) i_clip: vec4<f32>,
     #endif
 }
 
@@ -427,6 +428,7 @@ struct VertexOutput {
     @location(5) @interpolate(flat) line_thickness: f32,
     @location(6) @interpolate(flat) quadrant_lengths: vec4<f32>,
     @location(7) @interpolate(flat) dash_length: f32,
+    @location(8) @interpolate(flat) break_length: f32,
     #ifdef CLIP 
         @location(10) clip: vec4<f32>,
     #endif
@@ -449,8 +451,8 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.size = in.i_size;
     out.position = in.i_location + relative_location;
     out.line_thickness = in.i_line_thickness;
-    
     out.dash_length = in.i_dash_length;
+    out.break_length = in.i_break_length;
 
     #ifdef CLIP 
         out.clip = in.i_clip;
@@ -496,8 +498,8 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         in.line_thickness
     );
 
-    let m = modulo(t, 60.);
-    if m < 30. {
+    let m = modulo(t, in.dash_length + in.break_length);
+    if in.break_length < m {
        a = 0.;
     }
 
@@ -515,28 +517,9 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 
 // ***********************************************************************************
 
-struct Box {
-    // center
-    p: vec2<f32>,
-    // half size
-    s: vec2<f32>,
-}
-
-fn inset_box(box: Box, inset: vec4<f32>) -> Box {
-    let p = box.p + 0.5 * (-inset.xy + inset.zw);
-    let s = box.s - 0.5 * (inset.xy + inset.zw);
-    return Box(p, s);
-}
-
-
 fn sd_box(point: vec2<f32>, half_size: vec2<f32>) -> f32 {
     let d = abs(point) - half_size;
     return length(max(d, vec2(0.0))) + min(max(d.x, d.y) , 0.0);
-}
-
-struct Distance {
-    edge: f32,
-    border: f32
 }
 
 fn quadrant_index(p: vec2<f32>) -> i32 {
@@ -593,55 +576,6 @@ fn sd_rounded_box(p: vec2<f32>, s: vec2<f32>, radii: vec4<f32>) -> f32 {
     return l + m - radius;
 }
 
-fn compute_sd_boxes(point: vec2<f32>, n: Node) -> Distance {
-    let box = Box(point, 0.5 * n.size);
-    let inner_box = inset_box(box, n.inset);
-
-    let external_distance = sd_box(point, 0.5 * n.size);
-    let internal_distance = sd_box(point, 0.5 * n.size);
-    let border_distance = max(external_distance, -internal_distance);
-    return Distance(external_distance, border_distance);
-}
-
-fn select_inset(p: vec2<f32>, inset: vec4<f32>) -> vec2<f32> {
-    if p.x < 0. {
-        if p.y < 0. {
-            return inset.xy;
-        } else {
-            return inset.xw;
-        }
-    } else {
-        if p.y < 0. {
-            return inset.zy;
-        } else {
-            return inset.zw;
-        }
-    }
-}
-
-struct Node {
-    size: vec2<f32>,
-    radius: vec4<f32>,
-    inset: vec4<f32>,
-}
-
-fn g(d: f32) -> f32 {
-    let d = abs(d);
-    return exp(-0.028 * d);
-}
-
-fn smooth_normalize(distance: f32, min_val: f32, max_val: f32) -> f32 {
-    let t = clamp((distance - min_val) / (max_val - min_val), 0.0, 1.0);
-    return t * t * (3.0 - 2.0 * t);
-}
-
-fn apply_gradient(f: vec2<f32>, dir: vec2<f32>, point: vec2<f32>, len: f32, sampled_color: vec4<f32>, sc: vec4<f32>, ec: vec4<f32>) -> vec4<f32> {
-    let d = df_line(f, dir, point);
-    let s = d / len;
-    let c = mix(sc, ec, s);
-    return  c * sampled_color;
-}
-
 // return the distance of point `p` from the line defined by point `o` and direction `dir`
 // returned value is always positive
 fn df_line(o: vec2<f32>, dir: vec2<f32>, p: vec2<f32>) -> f32 {
@@ -660,7 +594,6 @@ fn gradient(p: f32, start: f32, end:f32) -> f32 {
     return (p - start) / len;
 }
 
-
 fn sd_box_uniform_border(point: vec2<f32>, half_size: vec2<f32>, border: f32) -> f32 {
     let exterior = sd_box(point, half_size);
     let interior = exterior + border;
@@ -671,12 +604,6 @@ fn sd_rounded_box_uniform_border(point: vec2<f32>, half_size: vec2<f32>, corner_
     let exterior = sd_rounded_box(point, half_size, corner_radii);
     let interior = exterior + border;
     return max(exterior, -interior);
-}
-
-fn sd_rounded_box_uniform_border_anular(point: vec2<f32>, half_size: vec2<f32>, cs: vec4<f32>, border: f32) -> f32 {
-    let s = border * 0.5;
-    let rs = vec4(cs[0] - s, cs[1] - s, cs[2] - s, cs[3] - s);
-    return abs(sd_rounded_box(point, half_size - s, rs)) - s;
 }
 
 fn sd_rounded_box_interior(point: vec2<f32>, half_size: vec2<f32>, corner_radii: vec4<f32>, border: f32) -> f32 {
@@ -693,12 +620,6 @@ fn compute_signed_distance_with_uniform_border(point: vec2<f32>, half_size: vec2
         d = sd_rounded_box_interior(point, half_size, radius, border);
     }
     return d;
-}
-
-fn sd_outline(point: vec2<f32>, half_size: vec2<f32>, radius: vec4<f32>, offset: f32, thickness: f32) -> f32 {
-    let interior = sd_rounded_box(point, half_size, radius) - offset;
-    let exterior = interior - thickness;
-    return max(exterior, -interior);
 }
 
 fn rounded_border_quarter_distance_fn(

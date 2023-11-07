@@ -189,6 +189,8 @@ impl SpecializedRenderPipeline for UiPipeline {
                     VertexFormat::Float32x4,
                     // @location(5) i_dash_length: f32,
                     VertexFormat::Float32,
+                    // @location(6) i_break_length: f32,
+                    VertexFormat::Float32,
                 ]);
             }
         }

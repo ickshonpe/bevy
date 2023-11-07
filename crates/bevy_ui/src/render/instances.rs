@@ -66,12 +66,12 @@ pub struct RadialGradientInstance {
 pub struct DashedBorderInstance {
     pub location: [f32; 2],
     pub size: [f32; 2],
-    pub line_thickness: f32,
+    pub width: f32,
     pub color: [f32; 4],
     pub radius: [f32; 4],
-    pub gap_length: f32,
+    pub dash_length: f32,
+    pub break_length: f32,
 }
-
 
 #[repr(C)]
 #[derive(Copy, Clone, Zeroable, Debug)]

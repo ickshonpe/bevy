@@ -13,7 +13,7 @@ use crate::{
     prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, Node, UiImage, UiScale,
     UiStack, UiTextureAtlasImage,
 };
-use crate::{resolve_color_stops, Ellipse, Outline, UiColor, OutlineStyle};
+use crate::{resolve_color_stops, Ellipse, Outline, UiColor, OutlineStyle, Val};
 
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
@@ -447,14 +447,25 @@ pub fn extract_outlines(
                         clip.map(|clip| clip.clip),
                     );
                 },
-                OutlineStyle::Dashed(gap) => {
+                OutlineStyle::Dashed { dash_length, break_length } => {
+                    let dl = if let Val::Px(dl) = *dash_length {
+                        dl
+                    } else {
+                        10.
+                    };
+                    let bl = if let Val::Px(bl) = *dash_length {
+                        bl
+                    } else {
+                        dl
+                    };
                     extracted_uinodes.push_dashed_border(
                         stack_index, 
                         uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
                         uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
                         outline.color,
                         uinode.outline_width,
-                        *gap,
+                        dl,
+                        bl,
                         uinode.border_radius.map(|r| if r <= 0. { 0. } else { r + uinode.outline_offset + uinode.outline_width }),
                         clip.map(|clip| clip.clip),
                     )
@@ -741,7 +752,8 @@ impl ExtractedUiNodes {
         size: Vec2,
         color: Color,
         line_thickness: f32,
-        gap_length: f32,
+        dash_length: f32,
+        break_length: f32,
         radius: [f32; 4],
         clip: Option<Rect>,
     ) {
@@ -751,8 +763,9 @@ impl ExtractedUiNodes {
             size: size.into(),
             color,
             radius,
-            line_thickness,
-            gap_length,
+            width: line_thickness,
+            dash_length,
+            break_length,
         };
         self.uinodes.push(ExtractedItem::new(
             stack_index,
