@@ -1737,10 +1737,7 @@ pub enum OutlineStyle {
     #[default]
     Solid,
     /// The outline is a dashed line
-    Dashed { 
-        dash_length: Val,
-        break_length: Val,
-    }
+    Dashed { dash_length: Val, break_length: Val },
 }
 
 #[derive(Component, Copy, Clone, Default, Debug, Reflect, Serialize, Deserialize)]

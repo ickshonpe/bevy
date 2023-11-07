@@ -459,6 +459,7 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.size = in.i_size;
     out.position = location + relative_location;
     out.line_thickness = in.i_line_thickness;
+
     out.dash_length = in.i_dash_length;
     out.break_length = in.i_break_length;
 
@@ -666,4 +667,17 @@ fn rounded_border_quarter_distance_fn(
     let t =  max(ty - y, 0.);
     
     return qx + l + t;
+}
+
+fn compute_rounded_box_perimeter_length(s: vec2<f32>, thickness: f32, radius: vec4<f32>) -> f32 {
+    var t: f32 = 0.;
+    for(var j = 0; j < 4; j++) {
+        let r = radius[j];
+        if r <= 0. {
+            t = t + s.x + s.y - 2. * r - thickness;
+        } else {
+            t = t + s.x + s.y - 2. * r + PI / 2. * r;
+        }
+    }
+    return t;
 }

@@ -287,7 +287,6 @@ impl ExtractedInstance {
             ExtractedInstance::CRadialGradient(_) => BatchType::CRadialGradient,
             ExtractedInstance::DashedBorder(_) => BatchType::DashedBorder,
             ExtractedInstance::CDashedBorder(_) => BatchType::CDashedBorder,
-            
         }
     }
 

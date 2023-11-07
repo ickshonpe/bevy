@@ -13,7 +13,7 @@ use crate::{
     prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, Node, UiImage, UiScale,
     UiStack, UiTextureAtlasImage,
 };
-use crate::{resolve_color_stops, Ellipse, Outline, UiColor, OutlineStyle, Val};
+use crate::{resolve_color_stops, Ellipse, Outline, OutlineStyle, UiColor, Val};
 
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, Assets, Handle, HandleUntyped};
@@ -363,7 +363,7 @@ pub fn extract_borders(
             if !visibility.is_visible() {
                 continue;
             }
-    
+
             let size = uinode.size();
             let position = uinode.position();
             let border = uinode.border;
@@ -430,24 +430,36 @@ pub fn extract_outlines(
     >,
 ) {
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok((uinode, outline, maybe_outline_style, visibility, clip)) = uinode_query.get(*entity) {
+        if let Ok((uinode, outline, maybe_outline_style, visibility, clip)) =
+            uinode_query.get(*entity)
+        {
             if !visibility.is_visible() {
                 continue;
             }
-    
+
             match maybe_outline_style.unwrap_or(&OutlineStyle::Solid) {
                 OutlineStyle::Solid => {
                     extracted_uinodes.push_border(
                         stack_index,
-                        uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
+                        uinode.position()
+                            - Vec2::splat(uinode.outline_offset + uinode.outline_width),
                         uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
                         outline.color,
                         [uinode.outline_width; 4],
-                        uinode.border_radius.map(|r| if r <= 0. { 0. } else { r + uinode.outline_offset + uinode.outline_width }),
+                        uinode.border_radius.map(|r| {
+                            if r <= 0. {
+                                0.
+                            } else {
+                                r + uinode.outline_offset + uinode.outline_width
+                            }
+                        }),
                         clip.map(|clip| clip.clip),
                     );
-                },
-                OutlineStyle::Dashed { dash_length, break_length } => {
+                }
+                OutlineStyle::Dashed {
+                    dash_length,
+                    break_length,
+                } => {
                     let dl = if let Val::Px(dl) = *dash_length {
                         dl
                     } else {
@@ -459,17 +471,24 @@ pub fn extract_outlines(
                         dl
                     };
                     extracted_uinodes.push_dashed_border(
-                        stack_index, 
-                        uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
+                        stack_index,
+                        uinode.position()
+                            - Vec2::splat(uinode.outline_offset + uinode.outline_width),
                         uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
                         outline.color,
                         uinode.outline_width,
                         dl,
                         bl,
-                        uinode.border_radius.map(|r| if r <= 0. { 0. } else { r + uinode.outline_offset + uinode.outline_width }),
+                        uinode.border_radius.map(|r| {
+                            if r <= 0. {
+                                0.
+                            } else {
+                                r + uinode.outline_offset + uinode.outline_width
+                            }
+                        }),
                         clip.map(|clip| clip.clip),
                     )
-                },
+                }
             }
         }
     }
@@ -959,8 +978,11 @@ impl ExtractedUiNodes {
                 end_len: end.1,
                 end_color: end.0.as_linear_rgba_f32(),
             };
-            self.uinodes
-                .push(ExtractedItem::new(stack_index, DEFAULT_IMAGE_HANDLE.typed(), (i, clip)));
+            self.uinodes.push(ExtractedItem::new(
+                stack_index,
+                DEFAULT_IMAGE_HANDLE.typed(),
+                (i, clip),
+            ));
         }
     }
 }
@@ -1246,7 +1268,6 @@ pub fn queue_uinodes(
                     BatchType::CRadialGradient => clipped_radial_gradient_pipeline,
                     BatchType::DashedBorder => dashed_border_pipeline,
                     BatchType::CDashedBorder => clipped_dashed_border_pipeline,
-                    
                 };
                 transparent_phase.add(TransparentUi {
                     draw_function: draw_ui_function,
