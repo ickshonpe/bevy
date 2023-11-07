@@ -458,20 +458,80 @@ fn vertex(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    let box = Box(in.point, 0.5 * in.size);
-    let d = sd_rounded_box(box, in.radius);
-    if 0. < d {
-        return vec4(0.);
+    let half_size = 0.5 * in.size;
+    let d = compute_signed_distance_with_uniform_border(in.point, 0.5 * in.size, BORDER, in.line_thickness, in.radius);
+    let f = fwidth(d);
+    
+    
+    let a = mix(0.0, in.color.a, 1.0 - smoothstep(0.0, f, d));
+
+    //let p = calculate_distance_around_edge(in.point, 0.5 * in.size, in.radius);
+    var c: vec4<f32> = vec4(0., 0., 0., a);
+    // if in.point.y < 0. || 30. < in.point.y {
+    var p: f32 = 0.;
+    if in.point.y < 0. {
+        if in.point.x < 0. {
+            p = top_left_distance(
+                abs(in.point.x),
+                abs(in.point.y),
+                0.5 * in.size,
+                in.radius[0]
+            );
+        }
+
+        if in.point.x >= 0. {
+            p = 
+                //calculate_quadrant_perimeter(half_size, in.radius[0])
+                60. + 20. * PI * 0.5
+                + top_right_distance(
+                    abs(in.point.x),
+                    abs(in.point.y),
+                    0.5 * in.size,
+                    in.radius[1]
+                );
+        }
+    } else {
+        if in.point.x < 0. {
+            c = vec4(1., 0., 0., 0.8);
+        } else if in.point.x < 30. {
+               c = vec4(0., 1., 0., 0.8);
+        } else if 30. < in.point.x {
+            c = vec4(0., 0., 1., 0.8);
+        }
     }
 
-    if d < -in.line_thickness {
-        return vec4(0.);
+    let arc = 20. * PI * 0.5;
+
+    if p > 0. {
+        c = vec4(1., 1., 1., a);
     }
+
+    if p > 30. && p < 30. + arc {
+        c = vec4(1., 0., 0., a);
+    }
+
+    if p > (30. + arc) && p < (60. + arc)  {
+        c = vec4(1., 1., 0., a);
+    }
+
+    if p > 60. + arc && p < 80. + arc {
+        c = vec4(0., 1., 0., a);
+    }
+
+    if p > 90. + arc && p < 90. + 2. * arc {
+        c = vec4(0., 0., 1., a);
+    }
+
+    // if p > (30. + 30. + 30. + 20. * PI * 0.5) {
+    //     c = vec4(0., 0., 1., a);
+    // }
+
+    let color_out = c;
     
     #ifdef CLIP
-        return clip(in.color, in.position, in.clip);
+        return clip(color_out, in.position, in.clip);
     #else 
-        return in.color;
+        return color_out;
     #endif
     
 }
@@ -557,9 +617,9 @@ fn modulo(x: f32, m: f32) -> f32 {
 // The returned value is the shortest distance from the given point to the boundary of the rounded box.
 // Negative values indicate that the point is inside the rounded box, positive values that the point is outside, and zero is exactly on the boundary.
 // arguments
-// point -> The function will return the distance from this point to the closest point on the boundary.
-// size -> The maximum width and height of the box.
-// corner_radii -> The radius of each rounded corner. Ordered counter clockwise starting top left:
+// p -> The function will return the distance from this point to the closest point on the boundary.
+// s -> half size of the box.
+// radii -> The radius of each rounded corner. Ordered counter clockwise starting top left:
 //                      x = top left, y = top right, z = bottom right, w = bottom left.
 fn sd_rounded_box(p: vec2<f32>, s: vec2<f32>, radii: vec4<f32>) -> f32 {
     // if 0.0 < y then select bottom left (w) and bottom right corner radius (z)
@@ -761,29 +821,6 @@ fn gradient(p: f32, start: f32, end:f32) -> f32 {
     return (p - start) / len;
 }
 
-// calculate the length along the edge of this quadrant
-// r should be clamped to min of half_size's components
-fn calculate_quadrant_perimeter(
-    half_size: vec2<f32>,
-    r: f32,
-) -> f32 {
-    let h = half_size.x - r;
-    let v = half_size.y - r;
-    let arc_length = r * PI / 2.;
-    return h + v + arc_length;
-}
-
-// returns the perimeter of a rounded UI node rect
-fn calculate_perimeter(
-    half_size: vec2<f32>,
-    rs: vec4<f32>
-) -> f32 {
-    return
-        calculate_quadrant_perimeter(half_size, rs[0])
-        + calculate_quadrant_perimeter(half_size, rs[1])
-        + calculate_quadrant_perimeter(half_size, rs[2])
-        + calculate_quadrant_perimeter(half_size, rs[3]);
-}
 
 fn sd_box_uniform_border(point: vec2<f32>, half_size: vec2<f32>, border: f32) -> f32 {
     let exterior = sd_box(point, half_size);
@@ -795,6 +832,12 @@ fn sd_rounded_box_uniform_border(point: vec2<f32>, half_size: vec2<f32>, corner_
     let exterior = sd_rounded_box(point, half_size, corner_radii);
     let interior = exterior + border;
     return max(exterior, -interior);
+}
+
+fn sd_rounded_box_uniform_border_anular(point: vec2<f32>, half_size: vec2<f32>, cs: vec4<f32>, border: f32) -> f32 {
+    let s = border * 0.5;
+    let rs = vec4(cs[0] - s, cs[1] - s, cs[2] - s, cs[3] - s);
+    return abs(sd_rounded_box(point, half_size - s, rs)) - s;
 }
 
 fn sd_rounded_box_interior(point: vec2<f32>, half_size: vec2<f32>, corner_radii: vec4<f32>, border: f32) -> f32 {
@@ -811,4 +854,213 @@ fn compute_signed_distance_with_uniform_border(point: vec2<f32>, half_size: vec2
         d = sd_rounded_box_interior(point, half_size, radius, border);
     }
     return d;
+}
+
+fn sd_outline(point: vec2<f32>, half_size: vec2<f32>, radius: vec4<f32>, offset: f32, thickness: f32) -> f32 {
+    let interior = sd_rounded_box(point, half_size, radius) - offset;
+    let exterior = interior - thickness;
+    return max(exterior, -interior);
+}
+
+// calculate the length along the edge of this quadrant
+// r should be clamped to min of half_size's components
+fn calculate_quadrant_perimeter(
+    half_size: vec2<f32>,
+    r: f32,
+) -> f32 {
+    let h = half_size.x - r;
+    let v = half_size.y - r;
+    let arc_length = r * PI / 2.;
+    return h + v + arc_length;
+}
+
+fn arc_distance(
+    radius: f32,
+    normal: vec2<f32>,
+) -> f32 {
+    return abs(atan2(normal.y, normal.x)) * radius;
+}
+
+// returns the perimeter of a rounded UI node rect
+fn calculate_perimeter(
+    half_size: vec2<f32>,
+    rs: vec4<f32>
+) -> f32 {
+    return
+        calculate_quadrant_perimeter(half_size, rs[0])
+        + calculate_quadrant_perimeter(half_size, rs[1])
+        + calculate_quadrant_perimeter(half_size, rs[2])
+        + calculate_quadrant_perimeter(half_size, rs[3]);
+}
+
+fn calculate_distance_around_edge(
+    p: vec2<f32>,
+    s: vec2<f32>,
+    r: vec4<f32>,
+) -> f32 {
+    var quadrant: i32;
+    if p.x < 0. {
+        if p.y < 0. {
+            quadrant = 0;
+        } else {
+            quadrant = 3;
+        }
+    } else {
+        if p.y < 0. {
+            quadrant = 1;
+        } else {
+            quadrant = 2;
+        }
+    }
+
+  
+
+    var x = abs(p.y);
+    var y = abs(p.y);
+
+
+    switch quadrant {
+        case 0: {
+            // top left
+
+            return top_left_distance(p.x, p.y, s, r[0]);
+
+        }
+        case 1: {
+            return 0.;
+            
+        }
+        case 2: {
+            return 0.;
+            
+        }
+        default: {
+            return 0.;
+        }
+    }
+}
+
+
+fn top_left_distance(
+    x: f32,
+    y: f32,
+    s: vec2<f32>,
+    r: f32,
+) -> f32 {
+    let q = s - r;
+    if q.x < x {
+        if q.y < y {
+            // arc section
+            let p = vec2(x, y) - q;
+            let n = normalize(p);
+            let a = arc_distance(r, n);
+            return q.y + a;
+        } else {
+            // side section
+            return y;
+        }
+    } else if q.y < y {
+        // top section
+        let a = r * 0.5 * PI;
+        let run = abs(x - q.x);
+        return q.y + a + run;
+    } else {
+        // mid section
+        let h = q.x - x;
+        let v = q.y - y;
+        if h < v {
+            // closer to side
+            return y;
+        } else {
+            // closer to top
+            let a = r * 0.5 * PI;
+            let run = abs(x - q.x);
+            return q.y + a + run;
+        }
+    }
+
+}
+
+
+
+fn top_right_distance(
+    x: f32,
+    y: f32,
+    s: vec2<f32>,
+    r: f32,
+) -> f32 {
+    let q = s - r;
+    if q.x < x {
+        if q.y < y {
+            // arc section
+            let p = vec2(x, y) - q;
+            let n = normalize(p);
+            let a = r * (PI / 4.) - arc_distance(r, n);
+            return q.x + a;
+        } else {
+            // side section
+            let a = r * 0.5 * PI;
+            return q.y + a + abs(y - q.y);
+        }
+    } else if q.y < y {
+        // top section
+        return x;
+    } else {
+        // mid section
+        let h = q.x - x;
+        let v = q.y - y;
+        if h < v {
+            // closer to side
+            let a = r * 0.5 * PI;
+            return q.y + a + abs(y - q.y);
+        } else {
+            // closer to top
+            return x;
+        }
+    }
+}
+
+
+fn rounded_border_quarter_distance_fn(
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    r: f32,
+    b: f32,
+) -> f32 {
+    // center of arc
+    let qx = w - r;
+    let qy = h - r;
+
+    // distance from right
+    let sx = w - x;
+    
+    // distance from top
+    let sy = h - y;
+
+    if qx < x && qy < y {
+        // within arc area
+        let t = max(x - qx, r);
+        let l = r * acos(t / r);
+
+        return qx + l;
+    }
+
+    if sy <= sx // closer to top
+    || sy <= b  // within top border
+    {
+        return x;
+    }
+
+    // must be closer to side edge
+
+    // full arc length
+    let l = r * PI / 2.;
+
+    let ty = min(h - b, qy);
+
+    let t =  max(ty - y, 0.);
+    
+    return qx + l + t;
 }

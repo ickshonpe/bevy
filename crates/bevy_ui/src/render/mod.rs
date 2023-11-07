@@ -434,7 +434,7 @@ pub fn extract_outlines(
             if !visibility.is_visible() {
                 continue;
             }
-
+    
             match maybe_outline_style.unwrap_or(&OutlineStyle::Solid) {
                 OutlineStyle::Solid => {
                     extracted_uinodes.push_border(
@@ -442,8 +442,8 @@ pub fn extract_outlines(
                         uinode.position() - Vec2::splat(uinode.outline_offset + uinode.outline_width),
                         uinode.size() + 2. * (uinode.outline_width + uinode.outline_offset),
                         outline.color,
-                        uinode.border,
-                        uinode.border_radius,
+                        [uinode.outline_width; 4],
+                        uinode.border_radius.map(|r| if r <= 0. { 0. } else { r + uinode.outline_offset + uinode.outline_width }),
                         clip.map(|clip| clip.clip),
                     );
                 },
@@ -455,7 +455,7 @@ pub fn extract_outlines(
                         outline.color,
                         uinode.outline_width,
                         *gap,
-                        uinode.border_radius,
+                        uinode.border_radius.map(|r| if r <= 0. { 0. } else { r + uinode.outline_offset + uinode.outline_width }),
                         clip.map(|clip| clip.clip),
                     )
                 },
