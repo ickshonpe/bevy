@@ -982,6 +982,8 @@ fn top_right_distance(
             let n = normalize(p);
             let a = r * (PI / 4.) - arc_distance(r, n);
             return q.x + a;
+
+            
         } else {
             // side section
             let a = r * 0.5 * PI;
@@ -1026,10 +1028,13 @@ fn rounded_border_quarter_distance_fn(
 
     if qx < x && qy < y {
         // within arc area
-        let t = min(x - qx, r);
-        let l = r * acos(t / r);
 
-        return qx + l;
+        // create a normalized vector pointing from qx,qy towards x,y 
+        // this vector is pointing towards the point on the arc we want to measure the distance to
+        let n = normalize(vec2<f32>(x - qx, y - qy));
+        let a = abs(atan2(n.x, n.y)) * r;
+    
+        return qx + a;
     }
 
     if sy <= sx // closer to top
