@@ -603,14 +603,22 @@ fn sd_box_uniform_border(point: vec2<f32>, half_size: vec2<f32>, border: f32) ->
 
 fn sd_rounded_box_uniform_border(point: vec2<f32>, half_size: vec2<f32>, corner_radii: vec4<f32>, border: f32) -> f32 {
     let exterior = sd_rounded_box(point, half_size, corner_radii);
-    let interior = exterior + border;
+    let interior = sd_rounded_box_interior(point, half_size, corner_radii, border);
     return max(exterior, -interior);
 }
 
-fn sd_rounded_box_interior(point: vec2<f32>, half_size: vec2<f32>, corner_radii: vec4<f32>, border: f32) -> f32 {
-    let exterior = sd_rounded_box(point, half_size, corner_radii);
-    let interior = exterior + border;
-    return interior;
+fn clamp_interior_radius(rs: vec4<f32>, border: f32) -> vec4<f32> {
+    return vec4(
+        max(rs[0] - border, 0.),
+        max(rs[1] - border, 0.),
+        max(rs[2] - border, 0.),
+        max(rs[3] - border, 0.),
+    );
+}
+
+fn sd_rounded_box_interior(point: vec2<f32>, half_size: vec2<f32>, cs: vec4<f32>, border: f32) -> f32 {
+    let rs = clamp_interior_radius(cs, border);
+    return sd_rounded_box(point, half_size - border, rs);    
 }
 
 fn compute_signed_distance_with_uniform_border(point: vec2<f32>, half_size: vec2<f32>, flags: u32, border: f32, radius: vec4<f32>) -> f32 {
