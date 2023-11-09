@@ -74,9 +74,9 @@ fn relative_cursor_position_system(
             "unknown".to_string()
         };
 
-    output.sections[0].style.color = if relative_cursor_position.mouse_over() {
-        Color::rgb(0.1, 0.9, 0.1)
-    } else {
-        Color::rgb(0.9, 0.1, 0.1)
-    };
+    // output.sections[0].style.color = if relative_cursor_position.mouse_over() {
+    //     Color::rgb(0.1, 0.9, 0.1)
+    // } else {
+    //     Color::rgb(0.9, 0.1, 0.1)
+    // };
 }
