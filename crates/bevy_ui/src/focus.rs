@@ -9,7 +9,7 @@ use bevy_ecs::{
     system::{Local, Query, Res},
 };
 use bevy_input::{mouse::MouseButton, touch::Touches, Input};
-use bevy_math::{Vec2, Rect};
+use bevy_math::{Rect, Vec2};
 use bevy_reflect::{Reflect, ReflectDeserialize, ReflectSerialize};
 use bevy_render::{camera::NormalizedRenderTarget, prelude::Camera, view::ComputedVisibility};
 use bevy_transform::components::GlobalTransform;
@@ -62,8 +62,6 @@ impl Default for Interaction {
 /// It can be used alongside interaction to get the position of the press.
 #[derive(
     Component,
-    Deref,
-    DerefMut,
     Copy,
     Clone,
     Default,
@@ -75,8 +73,18 @@ impl Default for Interaction {
 )]
 #[reflect(Component, Serialize, Deserialize, PartialEq)]
 pub struct RelativeCursorPosition {
+    pub normalized_visible_node_rect: Rect,
     /// Cursor position relative to size and position of the Node.
     pub normalized: Option<Vec2>,
+}
+
+impl RelativeCursorPosition {
+    /// A helper function to check if the mouse is over the node
+    pub fn mouse_over(&self) -> bool {
+        self.normalized
+            .map(|position| self.normalized_visible_node_rect.contains(position))
+            .unwrap_or(false)
+    }
 }
 
 /// Describes whether the node should block interactions with lower nodes
@@ -146,7 +154,7 @@ pub fn ui_focus_system(
     let mouse_released =
         mouse_button_input.just_released(MouseButton::Left) || touches_input.any_just_released();
     if mouse_released {
-        for node in node_query.iter_mut() {
+        for node in &mut node_query {
             if let Some(mut interaction) = node.interaction {
                 if *interaction == Interaction::Pressed {
                     *interaction = Interaction::None;
@@ -210,7 +218,10 @@ pub fn ui_focus_system(
                 let node_rect = node.node.logical_rect(node.global_transform);
 
                 // Intersect with the calculated clip rect to find the bounds of the visible region of the node
-                let visible_rect = node.calculated_clip.map(|clip| clip.clip).unwrap_or(node_rect);
+                let visible_rect = node
+                    .calculated_clip
+                    .map(|clip| node_rect.intersect(clip.clip))
+                    .unwrap_or(node_rect);
 
                 // The mouse position relative to the node
                 // (0., 0.) is the top-left corner, (1., 1.) is the bottom-right corner
@@ -221,10 +232,11 @@ pub fn ui_focus_system(
                 // If the current cursor position is within the bounds of the node's visible area, consider it for
                 // clicking
                 let relative_cursor_position_component = RelativeCursorPosition {
+                    normalized_visible_node_rect: visible_rect.normalize(node_rect),
                     normalized: relative_cursor_position,
                 };
 
-                let contains_cursor = cursor_position.map(|cursor_position| visible_rect.contains(cursor_position)).unwrap_or(false);
+                let contains_cursor = relative_cursor_position_component.mouse_over();
 
                 // Save the relative cursor position to the correct component
                 if let Some(mut node_relative_cursor_position_component) =
