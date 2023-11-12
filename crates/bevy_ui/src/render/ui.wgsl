@@ -571,10 +571,15 @@ fn sd_rounded_box(p: vec2<f32>, s: vec2<f32>, radii: vec4<f32>) -> f32 {
     let corner_to_point = abs(p) - s;
     // Vector from the center of the radius circle to the point 
     let q = corner_to_point + radius;
+
+    var d = 0.;
+    if 0. < q.x && 0. < q.y {
+        d = 0.25;
+    }
     // length from center of the radius circle to the point, 0s a component if the point is not within the quadrant of the radius circle that is part of the curved corner.
     let l = length(max(q, vec2(0.0)));
     let m = min(max(q.x, q.y), 0.0);
-    return l + m - radius;
+    return l + m - radius + d;
 }
 
 // return the distance of point `p` from the line defined by point `o` and direction `dir`
