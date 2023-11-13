@@ -60,17 +60,7 @@ impl Default for Interaction {
 /// A None value means that the cursor position is unknown.
 ///
 /// It can be used alongside interaction to get the position of the press.
-#[derive(
-    Component,
-    Copy,
-    Clone,
-    Default,
-    PartialEq,
-    Debug,
-    Reflect,
-    Serialize,
-    Deserialize,
-)]
+#[derive(Component, Copy, Clone, Default, PartialEq, Debug, Reflect, Serialize, Deserialize)]
 #[reflect(Component, Serialize, Deserialize, PartialEq)]
 pub struct RelativeCursorPosition {
     pub normalized_visible_node_rect: Rect,

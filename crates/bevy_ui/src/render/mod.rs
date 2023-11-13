@@ -593,7 +593,7 @@ pub fn extract_text_uinodes(
             viewport_size * ui_scale.scale as f32,
         )
     };
-    
+
     let inverse_scale_factor = (scale_factor as f32).recip();
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
@@ -603,7 +603,8 @@ pub fn extract_text_uinodes(
                 continue;
             }
 
-            let node_position = (uinode.position() * scale_factor as f32).round() / scale_factor as f32;
+            let node_position =
+                (uinode.position() * scale_factor as f32).round() / scale_factor as f32;
 
             let mut color = Color::WHITE;
             let mut current_section = usize::MAX;
