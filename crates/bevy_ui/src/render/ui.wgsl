@@ -23,7 +23,7 @@ const FILL_START: u32 = 64u;
 const FILL_END: u32 = 128u;
 
 const PADDING: f32 = 5.;
-const F: f32 = 1.5;
+const F: f32 = 1.;
 
 fn is_border_enabled(flags: u32) -> bool {
     return (flags & BORDER) != 0u;
