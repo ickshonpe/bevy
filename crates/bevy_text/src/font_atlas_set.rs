@@ -14,7 +14,7 @@ type FontSizeKey = FloatOrd;
 #[derive(TypeUuid, TypePath)]
 #[uuid = "73ba778b-b6b5-4f45-982d-d21b6b86ace2"]
 pub struct FontAtlasSet {
-    font_atlases: HashMap<FontSizeKey, Vec<FontAtlas>>,
+    pub font_atlases: HashMap<FontSizeKey, Vec<FontAtlas>>,
 }
 
 #[derive(Debug, Clone)]
