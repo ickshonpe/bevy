@@ -34,6 +34,7 @@ pub struct Node {
     pub(crate) border: [f32; 4],
     pub(crate) border_radius: [f32; 4],
     pub(crate) position: Vec2,
+    pub(crate) stack_index: u32,
 }
 
 impl Node {
@@ -119,6 +120,11 @@ impl Node {
     pub fn border(&self) -> [f32; 4] {
         self.border
     }
+
+    #[inline]
+    pub fn stack_index(&self) -> u32 {
+        self.stack_index
+    }
 }
 
 impl Node {
@@ -130,6 +136,7 @@ impl Node {
         border: [0.; 4],
         border_radius: [0.; 4],
         position: Vec2::ZERO,
+        stack_index: 0,
     };
 }
 
