@@ -49,6 +49,7 @@ pub fn ui_stack_system(
             &mut global_context,
             None,
             &mut total_entry_count,
+            &update_query
         );
     }
 
@@ -74,6 +75,7 @@ fn insert_context_hierarchy(
     global_context: &mut StackingContext,
     parent_context: Option<&mut StackingContext>,
     total_entry_count: &mut usize,
+    update_query: &Query<&mut Node>,
 ) {
     let mut new_context = StackingContext::default();
 
@@ -83,14 +85,17 @@ fn insert_context_hierarchy(
         new_context.entries.reserve_exact(children.len());
 
         for entity in children {
-            insert_context_hierarchy(
-                zindex_query,
-                children_query,
-                *entity,
-                global_context,
-                Some(&mut new_context),
-                total_entry_count,
-            );
+            if update_query.contains(*entity) {
+                insert_context_hierarchy(
+                    zindex_query,
+                    children_query,
+                    *entity,
+                    global_context,
+                    Some(&mut new_context),
+                    total_entry_count,
+                    update_query,
+                );
+            }
         }
     }
 
