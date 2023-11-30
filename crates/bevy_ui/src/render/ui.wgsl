@@ -472,31 +472,25 @@ fn vertex(in: VertexInput) -> VertexOutput {
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let half_size = 0.5 * in.size;
-    let d = compute_signed_distance_with_uniform_border(in.point, 0.5 * in.size, BORDER, in.line_thickness, in.radius);
+    let d = compute_signed_distance_with_uniform_border(in.point, half_size, BORDER, in.line_thickness, in.radius);
     let i = quadrant_index(in.point);
     var a = mix(0.0, in.color.a, 1.0 - smoothstep(0.0, F, d));
     var p = abs(in.point);
     var s = half_size;
     var t: f32 = 0.;
     for(var j = 0; j < i; j++) {
-        let r = in.radius[j];
-        if r <= 0. {
-            t = t + s.x + s.y;
-        } else {
-            t = t + s.x + s.y + (0.5 * PI - 2.) * r;
-        }
+        t += calculate_quarter_perimeter(s, in.radius[j]);
     }
     if i == 0 || i == 2 {
         p = p.yx;
         s = s.yx;
     }
-    t += rounded_border_quarter_distance_fn(
+    t += rounded_border_quarter_distance(
         p.x,
         p.y,
         s.x,
         s.y,
         in.radius[i],
-        //in.line_thickness
     );
     let m = modulo(t, in.dash_length + in.break_length);
     if in.break_length < m {
@@ -621,7 +615,7 @@ fn compute_signed_distance_with_uniform_border(point: vec2<f32>, half_size: vec2
     return d;
 }
 
-fn rounded_border_quarter_distance_fn(
+fn rounded_border_quarter_distance(
     x: f32,
     y: f32,
     w: f32,
@@ -669,12 +663,7 @@ fn calculate_quarter_perimeter(s: vec2<f32>, r: f32) -> f32 {
 fn compute_rounded_box_perimeter(s: vec2<f32>, radius: vec4<f32>) -> f32 {
     var t: f32 = 0.;
     for(var j = 0; j < 4; j++) {
-        let r = radius[j];
-        if r <= 0. {
-            t = t + s.x + s.y;
-        } else {
-            t = t + s.x + s.y + (0.5 * PI - 2.) * r;
-        }
+        t += calculate_quarter_perimeter(s, radius[j]);
     }
     return t;
 }
