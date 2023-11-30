@@ -481,9 +481,9 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     for(var j = 0; j < i; j++) {
         let r = in.radius[j];
         if r <= 0. {
-            t += s.x + s.y - 2. * r - in.line_thickness;
+            t = t + s.x + s.y;
         } else {
-            t += s.x + s.y - 2. * r + PI / 2. * r;
+            t = t + s.x + s.y + (0.5 * PI - 2.) * r;
         }
     }
     if i == 0 || i == 2 {
@@ -496,7 +496,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         s.x,
         s.y,
         in.radius[i],
-        in.line_thickness
+        //in.line_thickness
     );
     let m = modulo(t, in.dash_length + in.break_length);
     if in.break_length < m {
@@ -627,17 +627,10 @@ fn rounded_border_quarter_distance_fn(
     w: f32,
     h: f32,
     r: f32,
-    b: f32,
 ) -> f32 {
     // center of arc
     let qx = w - r;
     let qy = h - r;
-
-    // distance from right
-    let sx = w - x;
-    
-    // distance from top
-    let sy = h - y;
 
     if qx < x && qy < y {
         // within arc area
@@ -650,22 +643,27 @@ fn rounded_border_quarter_distance_fn(
         return qx + a;
     }
 
-    if sy <= sx // closer to top
-    || sy <= b  // within top border
-    {
+    // distance from right
+    let sx = w - x;
+    
+    // distance from top
+    let sy = h - y;
+
+    if sy <= sx {
         return x;
     }
 
     // must be closer to side edge
-
     // full arc length
     let l = r * PI / 2.;
-
-    let ty = min(h - b, qy);
-
+    let ty = min(h, qy);
     let t =  max(ty - y, 0.);
-    
     return qx + l + t;
+}
+
+// All input values should be positive
+fn calculate_quarter_perimeter(s: vec2<f32>, r: f32) -> f32 {
+    return s.x + s.y + (0.5 * PI - 2.) * r;
 }
 
 fn compute_rounded_box_perimeter(s: vec2<f32>, radius: vec4<f32>) -> f32 {
@@ -675,7 +673,7 @@ fn compute_rounded_box_perimeter(s: vec2<f32>, radius: vec4<f32>) -> f32 {
         if r <= 0. {
             t = t + s.x + s.y;
         } else {
-            t = t + s.x + s.y + (PI - 2.) * r;
+            t = t + s.x + s.y + (0.5 * PI - 2.) * r;
         }
     }
     return t;
