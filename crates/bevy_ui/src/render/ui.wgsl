@@ -453,8 +453,15 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.position = location + relative_location;
     out.line_thickness = in.i_line_thickness;
 
-    out.dash_length = in.i_dash_length;
-    out.break_length = in.i_break_length;
+    let perimeter = compute_rounded_box_perimeter(0.5 * in.i_size, in.i_radius);
+    let segment_length = in.i_dash_length + in.i_break_length;
+    let num_segments = floor(perimeter / segment_length);
+    let adjusted_segment_length = perimeter / num_segments;
+    let adjusted_dash = adjusted_segment_length * in.i_dash_length / segment_length;
+    let adjusted_break = adjusted_segment_length * in.i_break_length / segment_length;
+
+    out.dash_length = adjusted_dash;
+    out.break_length = adjusted_break;
 
     #ifdef CLIP 
         out.clip = in.i_clip;
@@ -661,14 +668,14 @@ fn rounded_border_quarter_distance_fn(
     return qx + l + t;
 }
 
-fn compute_rounded_box_perimeter_length(s: vec2<f32>, thickness: f32, radius: vec4<f32>) -> f32 {
+fn compute_rounded_box_perimeter(s: vec2<f32>, radius: vec4<f32>) -> f32 {
     var t: f32 = 0.;
     for(var j = 0; j < 4; j++) {
         let r = radius[j];
         if r <= 0. {
-            t = t + s.x + s.y - 2. * r - thickness;
+            t = t + s.x + s.y;
         } else {
-            t = t + s.x + s.y - 2. * r + PI / 2. * r;
+            t = t + s.x + s.y + (PI - 2.) * r;
         }
     }
     return t;

@@ -117,8 +117,8 @@ fn setup(mut commands: Commands) {
                 },
                 Outline::new(Val::Px(2.), Val::Px(2.), Color::WHITE),
                 OutlineStyle::Dashed {
-                    dash_length: Val::Px(4.),
-                    break_length: Val::Px(2.),
+                    dash_length: Val::Px(10.),
+                    break_length: Val::Px(10.),
                 },
             ))
             .add_child(inner_spot)

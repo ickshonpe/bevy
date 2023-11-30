@@ -1957,6 +1957,17 @@ category = "UI (User Interface)"
 wasm = true
 
 [[example]]
+name = "dashed_outlines"
+path = "examples/ui/dashed_outlines.rs"
+doc-scrape-examples = true
+
+[package.metadata.example.dashed_outlines]
+name = "Dashed Outlines"
+description = "Demonstrates how to create a node with a dashed outline"
+category = "UI (User Interface)"
+wasm = true
+
+[[example]]
 name = "button"
 path = "examples/ui/button.rs"
 doc-scrape-examples = true
