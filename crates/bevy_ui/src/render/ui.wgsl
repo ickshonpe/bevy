@@ -364,11 +364,8 @@ fn vertex(in: VertexInput) -> VertexOutput {
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let d = compute_signed_distance_with_uniform_border(in.point, 0.5 * in.size, in.flags, in.border[0], in.radius);
-    let x = in.point.x;
-    let y = in.point.y * in.g_ratio;
-    let p = vec2<f32>(x, y);
-    let gradient_distance = distance(in.g_center, p);
-    let t = gradient(gradient_distance, in.start_len, in.end_len);
+    let r = length((in.g_center - in.point) * vec2<f32>(1., in.g_ratio));
+    let t = gradient(r, in.start_len, in.end_len);
 
     var gradient_color: vec4<f32>;
 
