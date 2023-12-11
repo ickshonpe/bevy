@@ -619,25 +619,26 @@ pub fn extract_text_uinodes(
                     color = text.sections[*section_index].style.color.as_rgba_linear();
                     current_section = *section_index;
                 }
-                let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+                
+                if let Some(atlas) = texture_atlases.get(&atlas_info.texture_atlas) {
+                    let mut uv_rect = atlas.textures[atlas_info.glyph_index];
+                    let scaled_glyph_size = uv_rect.size() * inverse_scale_factor;
+                    let scaled_glyph_position = *glyph_position * inverse_scale_factor;
+                    uv_rect.min /= atlas.size;
+                    uv_rect.max /= atlas.size;
 
-                let mut uv_rect = atlas.textures[atlas_info.glyph_index];
-                let scaled_glyph_size = uv_rect.size() * inverse_scale_factor;
-                let scaled_glyph_position = *glyph_position * inverse_scale_factor;
-                uv_rect.min /= atlas.size;
-                uv_rect.max /= atlas.size;
+                    let position = node_position + scaled_glyph_position - 0.5 * scaled_glyph_size;
 
-                let position = node_position + scaled_glyph_position - 0.5 * scaled_glyph_size;
-
-                extracted_uinodes.push_glyph(
-                    stack_index,
-                    position,
-                    scaled_glyph_size,
-                    atlas.texture.clone(),
-                    color,
-                    clip.map(|clip| clip.clip),
-                    uv_rect,
-                );
+                    extracted_uinodes.push_glyph(
+                        stack_index,
+                        position,
+                        scaled_glyph_size,
+                        atlas.texture.clone(),
+                        color,
+                        clip.map(|clip| clip.clip),
+                        uv_rect,
+                    );
+                }
             }
         }
     }
