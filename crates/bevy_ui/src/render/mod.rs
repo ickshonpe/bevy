@@ -274,7 +274,7 @@ pub fn extract_uinodes(
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, color, maybe_image, visibility, clip)) = uinode_query.get(*entity) {
-            if !visibility.is_visible() {
+            if !visibility.is_visible() || uinode.size().x <= 0. || uinode.size().y <= 0. {
                 continue;
             }
 
@@ -360,7 +360,7 @@ pub fn extract_borders(
 
     for (stack_index, entity) in ui_stack.uinodes.iter().enumerate() {
         if let Ok((uinode, border_color, visibility, clip)) = uinode_query.get(*entity) {
-            if !visibility.is_visible() {
+            if !visibility.is_visible() || uinode.size().x <= 0. || uinode.size().y <= 0. {
                 continue;
             }
 
