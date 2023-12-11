@@ -619,7 +619,7 @@ pub fn extract_text_uinodes(
                     color = text.sections[*section_index].style.color.as_rgba_linear();
                     current_section = *section_index;
                 }
-                
+
                 if let Some(atlas) = texture_atlases.get(&atlas_info.texture_atlas) {
                     let mut uv_rect = atlas.textures[atlas_info.glyph_index];
                     let scaled_glyph_size = uv_rect.size() * inverse_scale_factor;

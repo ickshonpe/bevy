@@ -49,7 +49,7 @@ pub fn ui_stack_system(
             &mut global_context,
             None,
             &mut total_entry_count,
-            &update_query
+            &update_query,
         );
     }
 
