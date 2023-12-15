@@ -2415,7 +2415,7 @@ impl RadialGradient {
                 let x_sides = [(center.x - r.min.x).abs(), (center.x - r.max.x).abs()];
                 let w = w.resolve(x_sides, r.width(), viewport_size);
                 let y_sides = [(center.y - r.min.y).abs(), (center.y - r.max.y).abs()];
-                let h = h.resolve(y_sides, r.width(), viewport_size);
+                let h = h.resolve(y_sides, r.height(), viewport_size);
                 vec2(w, h)
             }
         };
