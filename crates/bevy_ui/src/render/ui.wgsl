@@ -247,6 +247,10 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.start_len = in.start_len;
     out.end_len = in.end_len;
     out.end_color = in.end_color;
+
+    #ifdef CLIP 
+        out.clip = in.i_clip;
+    #endif
     
     return out;
 }
@@ -357,6 +361,10 @@ fn vertex(in: VertexInput) -> VertexOutput {
     out.end_len = in.end_len;
     out.end_color = in.end_color;
     out.g_ratio = in.g_ratio;
+
+    #ifdef CLIP 
+        out.clip = in.i_clip;
+    #endif
     
     return out;
 }
