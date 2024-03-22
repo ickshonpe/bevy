@@ -4,13 +4,13 @@
 
 use bevy_asset::{AssetEvent, Assets};
 use bevy_ecs::prelude::*;
-use bevy_math::{Rect, Vec2};
-use bevy_render::texture::Image;
+use bevy_math::{Rect, Vec2, Vec3Swizzles};
+use bevy_render::{color::Color, texture::Image};
 use bevy_sprite::{ImageScaleMode, TextureSlice};
 use bevy_transform::prelude::*;
 use bevy_utils::HashSet;
 
-use crate::{BackgroundColor, CalculatedClip, ExtractedUiNode, Node, UiImage};
+use crate::{extracted_nodes::ExtractedUiNodes, BackgroundColor, CalculatedClip, Node, UiImage};
 
 /// Component storing texture slices for image nodes entities with a tiled or sliced  [`ImageScaleMode`]
 ///
@@ -33,13 +33,15 @@ impl ComputedTextureSlices {
     #[must_use]
     pub(crate) fn extract_ui_nodes<'a>(
         &'a self,
+        mut commands: Commands,
         transform: &'a GlobalTransform,
         node: &'a Node,
         background_color: &'a BackgroundColor,
         image: &'a UiImage,
         clip: Option<&'a CalculatedClip>,
         camera_entity: Entity,
-    ) -> impl ExactSizeIterator<Item = ExtractedUiNode> + 'a {
+        extracted_uinodes: &mut ExtractedUiNodes,
+    ) {
         let mut flip = Vec2::new(1.0, -1.0);
         let [mut flip_x, mut flip_y] = [false; 2];
         if image.flip_x {
@@ -50,7 +52,7 @@ impl ComputedTextureSlices {
             flip.y *= -1.0;
             flip_y = true;
         }
-        self.slices.iter().map(move |slice| {
+        for slice in self.slices.iter() {
             let offset = (slice.offset * flip).extend(0.0);
             let transform = transform.mul_transform(Transform::from_translation(offset));
             let scale = slice.draw_size / slice.texture_rect.size();
@@ -58,19 +60,26 @@ impl ComputedTextureSlices {
             rect.min *= scale;
             rect.max *= scale;
             let atlas_size = Some(self.image_size * scale);
-            ExtractedUiNode {
-                stack_index: node.stack_index,
-                color: background_color.0,
-                transform: transform.compute_matrix(),
-                rect,
+            let color = match background_color.0 {
+                crate::UiColor::Color(color) => color,
+                _ => Color::WHITE,
+            };
+            extracted_uinodes.push_node(
+                commands.spawn_empty().id(),
+                node.stack_index as usize,
+                transform.translation().xy(),
+                slice.draw_size,
+                Some(image.texture.id()),
+                slice.texture_rect,
+                color,
+                [0.; 4],
+                [0.; 4],
+                clip.map(|clip| clip.clip),
                 flip_x,
                 flip_y,
-                image: image.texture.id(),
-                atlas_size,
-                clip: clip.map(|clip| clip.clip),
                 camera_entity,
-            }
-        })
+            );
+        }
     }
 }
 

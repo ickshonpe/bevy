@@ -30,6 +30,7 @@ pub struct ExtractedItem {
     pub stack_index: u32,
     pub image: AssetId<Image>,
     pub instance: ExtractedInstance,
+    pub camera_entity: Entity,
 }
 
 impl ExtractedItem {
@@ -37,11 +38,13 @@ impl ExtractedItem {
         stack_index: usize,
         image: AssetId<Image>,
         instance: impl Into<ExtractedInstance>,
+        camera_entity: Entity,
     ) -> Self {
         Self {
             stack_index: stack_index as u32,
             image,
             instance: instance.into(),
+            camera_entity,
         }
     }
 }
@@ -69,7 +72,7 @@ impl ExtractedUiNodes {
             uv_size,
             color,
         };
-        self.push(entity, ExtractedItem::new(stack_index, image, (i, clip)));
+        self.push(entity, ExtractedItem::new(stack_index, image, (i, clip), camera_entity));
     }
 
     pub fn push_node(
@@ -118,7 +121,7 @@ impl ExtractedUiNodes {
             radius,
             flags,
         };
-        self.push(entity, ExtractedItem::new(stack_index, image, (i, clip)));
+        self.push(entity, ExtractedItem::new(stack_index, image, (i, clip), camera_entity));
     }
 
     pub fn push_border(
@@ -149,7 +152,7 @@ camera_entity: Entity,
         };
         self.push(
             entity,
-            ExtractedItem::new(stack_index, AssetId::default(), (i, clip)),
+            ExtractedItem::new(stack_index, AssetId::default(), (i, clip), camera_entity),
         );
     }
 
@@ -179,7 +182,7 @@ camera_entity: Entity,
         };
         self.push(
             entity,
-            ExtractedItem::new(stack_index, AssetId::default(), (i, clip)),
+            ExtractedItem::new(stack_index, AssetId::default(), (i, clip), camera_entity),
         );
     }
 
@@ -228,7 +231,7 @@ camera_entity: Entity,
             };
             self.push(
                 commands.spawn_empty().id(),
-                ExtractedItem::new(stack_index, AssetId::default(), (i, clip)),
+                ExtractedItem::new(stack_index, AssetId::default(), (i, clip), camera_entity),
             );
         }
     }
@@ -280,7 +283,7 @@ camera_entity: Entity,
             };
             self.push(
                 commands.spawn_empty().id(),
-                ExtractedItem::new(stack_index, AssetId::default(), (i, clip)),
+                ExtractedItem::new(stack_index, AssetId::default(), (i, clip), camera_entity),
             );
         }
     }
@@ -329,7 +332,7 @@ camera_entity: Entity,
             };
             self.push(
                 commands.spawn_empty().id(),
-                ExtractedItem::new(stack_index, image.clone(), (i, clip)),
+                ExtractedItem::new(stack_index, image.clone(), (i, clip), camera_entity),
             );
         }
     }
@@ -378,7 +381,7 @@ camera_entity: Entity,
             };
             self.push(
                 commands.spawn_empty().id(),
-                ExtractedItem::new(stack_index, AssetId::default(), (i, clip)),
+                ExtractedItem::new(stack_index, AssetId::default(), (i, clip), camera_entity),
             );
         }
     }
@@ -406,7 +409,7 @@ camera_entity: Entity,
         };
         self.push(
             commands.spawn_empty().id(),
-            ExtractedItem::new(stack_index, AssetId::default(), (i, clip)),
+            ExtractedItem::new(stack_index, AssetId::default(), (i, clip), camera_entity),
         );
     }
 }

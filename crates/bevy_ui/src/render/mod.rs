@@ -13,7 +13,7 @@ use bevy_render::{
     render_phase::PhaseItem, render_resource::BindGroupEntries, view::ViewVisibility,
     ExtractSchedule, Render,
 };
-use bevy_sprite::{SpriteAssetEvents, TextureAtlas};
+use bevy_sprite::{SpriteAssetEvents};
 pub use pipeline::*;
 pub use render_pass::*;
 pub use ui_material_pipeline::*;
@@ -111,9 +111,9 @@ pub fn build_ui_render(app: &mut App) {
                 extract_uinodes
                     .in_set(RenderUiSystem::ExtractNode)
                     .after(RenderUiSystem::ExtractShadow),
-                extract_atlas_uinodes
-                    .in_set(RenderUiSystem::ExtractAtlasNode)
-                    .after(RenderUiSystem::ExtractNode),
+                // extract_atlas_uinodes
+                //     .in_set(RenderUiSystem::ExtractAtlasNode)
+                //     .after(RenderUiSystem::ExtractNode),
                 #[cfg(feature = "bevy_text")]
                 extract_text_uinodes
                     .in_set(RenderUiSystem::ExtractText)
@@ -166,102 +166,102 @@ fn get_ui_graph(render_app: &mut App) -> RenderGraph {
 }
 
 
-pub fn extract_atlas_uinodes(
-    mut extracted_uinodes: ResMut<ExtractedUiNodes>,
-    images: Extract<Res<Assets<Image>>>,
-    texture_atlases: Extract<Res<Assets<TextureAtlas>>>,
-    default_ui_camera: Extract<DefaultUiCamera>,
-    uinode_query: Extract<
-        Query<
-            (
-                Entity,
-                &Node,
-                &GlobalTransform,
-                &BackgroundColor,
-                &ViewVisibility,
-                Option<&CalculatedClip>,
-                &Handle<TextureAtlas>,
-                &UiTextureAtlasImage,
-                Option<&TargetCamera>,
-            ),
-            Without<UiImage>,
-        >,
-    >,
-) {
-    for (
-        entity,
-        uinode,
-        _transform,
-        color,
-        view_visibility,
-        clip,
-        texture_atlas_handle,
-        atlas_image,
-        camera
-    ) in uinode_query.iter()
-    {
-        // Skip invisible and completely transparent nodes
-        if !view_visibility.get() || color.0.is_fully_transparent() {
-            continue;
-        }
+// pub fn extract_atlas_uinodes(
+//     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
+//     images: Extract<Res<Assets<Image>>>,
+//     texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
+//     default_ui_camera: Extract<DefaultUiCamera>,
+//     uinode_query: Extract<
+//         Query<
+//             (
+//                 Entity,
+//                 &Node,
+//                 &GlobalTransform,
+//                 &BackgroundColor,
+//                 &ViewVisibility,
+//                 Option<&CalculatedClip>,
+//                 &Handle<TextureAtlasLayout>,
+//                 &UiTextureAtlasImage,
+//                 Option<&TargetCamera>,
+//             ),
+//             Without<UiImage>,
+//         >,
+//     >,
+// ) {
+//     for (
+//         entity,
+//         uinode,
+//         _transform,
+//         color,
+//         view_visibility,
+//         clip,
+//         texture_atlas_handle,
+//         atlas_image,
+//         camera
+//     ) in uinode_query.iter()
+//     {
+//         // Skip invisible and completely transparent nodes
+//         if !view_visibility.get() || color.0.is_fully_transparent() {
+//             continue;
+//         }
 
-        let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera.get())
-        else {
-            continue;
-        };
+//         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera.get())
+//         else {
+//             continue;
+//         };
 
-        let (mut atlas_rect, atlas_size, image) =
-            if let Some(texture_atlas) = texture_atlases.get(texture_atlas_handle) {
-                let atlas_rect = *texture_atlas
-                    .textures
-                    .get(atlas_image.index)
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "Atlas index {:?} does not exist for texture atlas handle {:?}.",
-                            atlas_image.index,
-                            texture_atlas_handle.id(),
-                        )
-                    });
-                (
-                    atlas_rect,
-                    texture_atlas.size,
-                    texture_atlas.texture.clone(),
-                )
-            } else {
-                // Atlas not present in assets resource (should this warn the user?)
-                continue;
-            };
+//         let (mut atlas_rect, atlas_size, image) =
+//             if let Some(texture_atlas) = texture_atlases.get(texture_atlas_handle) {
+//                 let atlas_rect = *texture_atlas
+//                     .textures
+//                     .get(atlas_image.index)
+//                     .unwrap_or_else(|| {
+//                         panic!(
+//                             "Atlas index {:?} does not exist for texture atlas handle {:?}.",
+//                             atlas_image.index,
+//                             texture_atlas_handle.id(),
+//                         )
+//                     });
+//                 (
+//                     atlas_rect,
+//                     texture_atlas.size,
+//                     texture_atlas.texture.clone(),
+//                 )
+//             } else {
+//                 // Atlas not present in assets resource (should this warn the user?)
+//                 continue;
+//             };
 
-        // Skip loading images
-        if !images.contains(&image) {
-            continue;
-        }
+//         // Skip loading images
+//         if !images.contains(&image) {
+//             continue;
+//         }
 
-        atlas_rect.min /= atlas_size;
-        atlas_rect.max /= atlas_size;
+//         atlas_rect.min /= atlas_size;
+//         atlas_rect.max /= atlas_size;
 
-        let color = match &color.0 {
-            UiColor::Color(color) => *color,
-            _ => Color::NONE,
-        };
+//         let color = match &color.0 {
+//             UiColor::Color(color) => *color,
+//             _ => Color::NONE,
+//         };
 
-        extracted_uinodes.push_node(
-            entity,
-            uinode.stack_index as usize,
-            uinode.position.into(),
-            uinode.size().into(),
-            Some(image.id()),
-            atlas_rect,
-            color,
-            uinode.border,
-            uinode.border_radius,
-            clip.map(|clip| clip.clip),
-            false, 
-            false,
-            camera_entity,
-        );
-    }
-}
+//         extracted_uinodes.push_node(
+//             entity,
+//             uinode.stack_index as usize,
+//             uinode.position.into(),
+//             uinode.size().into(),
+//             Some(image.id()),
+//             atlas_rect,
+//             color,
+//             uinode.border,
+//             uinode.border_radius,
+//             clip.map(|clip| clip.clip),
+//             false, 
+//             false,
+//             camera_entity,
+//         );
+//     }
+// }
 
 // #[derive(Resource, Default)]
 // pub struct ExtractedUiNodes {
@@ -398,7 +398,7 @@ pub fn extract_uinode_outlines(
 ) {
     let image = AssetId::<Image>::default();
     
-    for (uinode, global_transform, outline, maybe_outline_style, view_visibility, maybe_clip, camera) in &uinode_query {
+    for (uinode, outline, maybe_outline_style, view_visibility, maybe_clip, camera) in &uinode_query {
         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera.get())
         else {
             continue;
@@ -772,7 +772,7 @@ pub fn extract_text_uinodes(
                     uinode.stack_index as usize,
                     position,
                     scaled_glyph_size,
-                    atlas.texture.id(),
+                    atlas_info.texture.id(),
                     color,
                     clip.map(|clip| clip.clip),
                     uv_rect,

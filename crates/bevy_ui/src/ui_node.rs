@@ -1827,13 +1827,6 @@ impl Default for BackgroundColor {
     }
 }
 
-impl From<Color> for BackgroundColor {
-    fn from(color: Color) -> Self {
-        Self(UiColor::Color(color))
-    }
-}
-
-
 /// The atlas sprite to be used in a UI Texture Atlas Node
 #[derive(Component, Clone, Debug, Reflect, Default)]
 #[reflect(Component, Default)]
