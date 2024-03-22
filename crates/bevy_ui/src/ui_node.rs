@@ -2543,7 +2543,7 @@ pub enum RadialGradientShape {
     derive(serde::Serialize, serde::Deserialize),
     reflect(Serialize, Deserialize)
 )]
-pub struct Ellipse {
+pub struct EllipseShape {
     /// The center of the ellipse
     pub center: Vec2,
     /// The distances from the center of the ellipse to its edge, along its horizontal and vertical axes respectively.
@@ -2590,7 +2590,7 @@ impl RadialGradient {
     }
 
     /// Resolve the shape and position of the gradient
-    pub fn resolve_geometry(&self, r: Rect, viewport_size: Vec2) -> Ellipse {
+    pub fn resolve_geometry(&self, r: Rect, viewport_size: Vec2) -> EllipseShape {
         let center = self.center.resolve(r, viewport_size);
 
         fn closest(p: f32, a: f32, b: f32) -> f32 {
@@ -2648,7 +2648,7 @@ impl RadialGradient {
                 vec2(w, h)
             }
         };
-        Ellipse { center, extents }
+        EllipseShape { center, extents }
     }
 }
 
