@@ -13,7 +13,7 @@ use bevy_render::{
     render_phase::PhaseItem, render_resource::BindGroupEntries, view::ViewVisibility,
     ExtractSchedule, Render,
 };
-use bevy_sprite::{SpriteAssetEvents};
+use bevy_sprite::SpriteAssetEvents;
 pub use pipeline::*;
 pub use render_pass::*;
 pub use ui_material_pipeline::*;
@@ -299,8 +299,6 @@ pub fn extract_uinode_borders(
         >,
     >,
 ) {
-    let image = AssetId::<Image>::default();
-
     for (uinode, border_color, view_visibility, clip, camera) in &uinode_query {
         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera.get())
         else {
@@ -395,9 +393,7 @@ pub fn extract_uinode_outlines(
             Option<&TargetCamera>,
         )>,
     >,
-) {
-    let image = AssetId::<Image>::default();
-    
+) { 
     for (uinode, outline, maybe_outline_style, view_visibility, maybe_clip, camera) in &uinode_query {
         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera.get())
         else {
