@@ -17,7 +17,7 @@ use super::UNTEXTURED_QUAD;
 
 #[derive(Resource, Default)]
 pub struct ExtractedUiNodes {
-    pub uinodes: EntityHashMap<Entity, ExtractedItem>,
+    pub uinodes: EntityHashMap<ExtractedItem>,
 }
 
 impl ExtractedUiNodes {
@@ -57,6 +57,7 @@ impl ExtractedUiNodes {
         color: Color,
         clip: Option<Rect>,
         uv_rect: Rect,
+        camera_entity: Entity,  
     ) {
         let color = color.as_linear_rgba_f32();
         let uv_min = uv_rect.min.into();
@@ -83,10 +84,22 @@ impl ExtractedUiNodes {
         border: [f32; 4],
         radius: [f32; 4],
         clip: Option<Rect>,
+        flip_x: bool,
+        flip_y: bool,
+        camera_entity: Entity,
     ) {
         let color = color.as_linear_rgba_f32();
-        let uv_min = uv_rect.min;
-        let uv_size = uv_rect.size();
+        let (uv_x, uv_w) = if flip_x {
+            (uv_rect.max.x, -uv_rect.size().x)
+        } else {
+            (uv_rect.min.x, uv_rect.size().x)
+        };
+
+        let (uv_y, uv_h) = if flip_y {
+            (uv_rect.max.y, -uv_rect.size().y)
+        } else {
+            (uv_rect.min.y, uv_rect.size().y)
+        };
 
         let flags = if image.is_some() {
             TEXTURED_QUAD
@@ -99,7 +112,7 @@ impl ExtractedUiNodes {
         let i = NodeInstance {
             location: position.into(),
             size: size.into(),
-            uv: [uv_min.x, uv_min.y, uv_size.x, uv_size.y],
+            uv: [uv_x, uv_y, uv_w, uv_h],
             color,
             border,
             radius,
@@ -118,6 +131,7 @@ impl ExtractedUiNodes {
         border: [f32; 4],
         radius: [f32; 4],
         clip: Option<Rect>,
+camera_entity: Entity,
     ) {
         if border.iter().all(|thickness| *thickness <= 0.) {
             return;
@@ -151,6 +165,7 @@ impl ExtractedUiNodes {
         break_length: f32,
         radius: [f32; 4],
         clip: Option<Rect>,
+camera_entity: Entity,
     ) {
         let color = color.as_linear_rgba_f32();
         let i = DashedBorderInstance {
@@ -180,6 +195,7 @@ impl ExtractedUiNodes {
         angle: f32,
         stops: &[(Color, f32)],
         clip: Option<Rect>,
+        camera_entity: Entity,
     ) {
         if border.iter().all(|thickness| *thickness <= 0.) {
             return;
@@ -228,6 +244,7 @@ impl ExtractedUiNodes {
         ellipse: Ellipse,
         stops: &[(Color, f32)],
         clip: Option<Rect>,
+camera_entity: Entity,
     ) {
         if border.iter().all(|thickness| *thickness <= 0.) {
             return;
@@ -280,6 +297,7 @@ impl ExtractedUiNodes {
         angle: f32,
         stops: &[(Color, f32)],
         clip: Option<Rect>,
+camera_entity: Entity,
     ) {
         let tflag = UNTEXTURED_QUAD;
         let image = AssetId::default();
@@ -327,6 +345,7 @@ impl ExtractedUiNodes {
         ellipse: Ellipse,
         stops: &[(Color, f32)],
         clip: Option<Rect>,
+camera_entity: Entity,
     ) {
         let tflag = UNTEXTURED_QUAD;
         let start_point = (ellipse.center - position - 0.5 * size).into();
@@ -362,6 +381,33 @@ impl ExtractedUiNodes {
                 ExtractedItem::new(stack_index, AssetId::default(), (i, clip)),
             );
         }
+    }
+
+    pub fn push_shadow(
+        &mut self,
+        commands: &mut Commands,
+        stack_index: usize,
+        position: Vec2,
+        size: Vec2,
+        radius: [f32; 4],
+        blur_radius: f32,
+        color: Color,
+        clip: Option<Rect>,
+        camera_entity: Entity,
+    ) {
+        let color = color.as_linear_rgba_f32();
+
+        let i = ShadowInstance {
+            location: position.into(),
+            size: size.into(),
+            radius,
+            color,
+            blur_radius,
+        };
+        self.push(
+            commands.spawn_empty().id(),
+            ExtractedItem::new(stack_index, AssetId::default(), (i, clip)),
+        );
     }
 }
 

@@ -17,7 +17,6 @@ use std::{
 };
 use bevy_utils::{smallvec::SmallVec, warn_once};
 use bevy_window::{PrimaryWindow, WindowRef};
-use std::num::{NonZeroI16, NonZeroU16};
 use thiserror::Error;
 
 /// Base component for a UI node, which also provides the computed size of the node.
@@ -1830,7 +1829,7 @@ impl Default for BackgroundColor {
 
 impl From<Color> for BackgroundColor {
     fn from(color: Color) -> Self {
-        Self(color)
+        Self(UiColor::Color(color))
     }
 }
 
@@ -2658,6 +2657,26 @@ impl RadialGradient {
         };
         Ellipse { center, extents }
     }
+}
+
+#[derive(Clone, PartialEq, Debug, Reflect, Component, Default)]
+#[reflect(PartialEq)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
+pub struct BoxShadow {
+    /// The shadow's color
+    pub color: Color,
+    /// Offset increasing to the right and down
+    pub offset: Vec2,
+    /// Difference in size from occluding uninode
+    pub spread_radius: Vec2,
+    /// Blurriness of the shadow
+    pub blur_radius: f32,
+    /// Hack until elliptical border radius implemented
+    pub border_radius_override: Option<[f32; 4]>,
 }
 
 #[cfg(test)]

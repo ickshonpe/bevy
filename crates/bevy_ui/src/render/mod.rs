@@ -4,8 +4,9 @@ mod pipeline;
 mod render_pass;
 mod ui_material_pipeline;
 
-use bevy_core_pipeline::core_2d::graph::{Labels2d, SubGraph2d};
-use bevy_core_pipeline::core_3d::graph::{Labels3d, SubGraph3d};
+
+use bevy_core_pipeline::core_2d::graph::{Core2d, Node2d};
+use bevy_core_pipeline::core_3d::graph::{Core3d, Node3d};
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
 use bevy_hierarchy::Parent;
 use bevy_render::{
@@ -19,15 +20,15 @@ pub use ui_material_pipeline::*;
 
 use crate::extracted_nodes::ExtractedUiNodes;
 use crate::{
-    prelude::UiCameraConfig, BackgroundColor, BorderColor, CalculatedClip, ContentSize, Node,
+    BackgroundColor, BorderColor, CalculatedClip, ContentSize, Node,
     UiImage, UiScale, UiTextureAtlasImage, Val
 };
-use crate::graph::{LabelsUi, SubGraphUi};
+use crate::graph::{NodeUi, SubGraphUi};
 use crate::{
-    texture_slice::ComputedTextureSlices, BackgroundColor, BorderColor, CalculatedClip,
-    ContentSize, DefaultUiCamera, Node, Outline, Style, TargetCamera, UiImage, UiScale, Val,
+    texture_slice::ComputedTextureSlices, 
+    DefaultUiCamera, Outline, TargetCamera,
 };
-use crate::{resolve_color_stops, BoxShadow, Outline, OutlineStyle, UiColor};
+use crate::{resolve_color_stops, BoxShadow, OutlineStyle, UiColor};
 
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, AssetId, Assets, Handle};
@@ -55,7 +56,7 @@ use bevy_utils::{FloatOrd, HashMap};
 use bytemuck::{Pod, Zeroable};
 use std::ops::Range;
 
-use self::instances::{BatchType, ExtractedInstance, UiInstanceBuffers};
+use self::instances::{BatchType, ExtractedInstance, InstanceCounters, UiInstanceBuffers};
 
 pub mod node {
 /// no longer needed?
@@ -69,7 +70,7 @@ pub mod graph {
     pub struct SubGraphUi;
 
     #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
-    pub enum LabelsUi {
+    pub enum NodeUi {
         UiPass,
     }
 }
@@ -142,27 +143,27 @@ pub fn build_ui_render(app: &mut App) {
     let ui_graph_3d = get_ui_graph(render_app);
     let mut graph = render_app.world.resource_mut::<RenderGraph>();
 
-    if let Some(graph_2d) = graph.get_sub_graph_mut(SubGraph2d) {
+    if let Some(graph_2d) = graph.get_sub_graph_mut(Core2d) {
         graph_2d.add_sub_graph(SubGraphUi, ui_graph_2d);
-        graph_2d.add_node(LabelsUi::UiPass, RunGraphOnViewNode::new(SubGraphUi));
-        graph_2d.add_node_edge(Labels2d::MainPass, LabelsUi::UiPass);
-        graph_2d.add_node_edge(Labels2d::EndMainPassPostProcessing, LabelsUi::UiPass);
-        graph_2d.add_node_edge(LabelsUi::UiPass, Labels2d::Upscaling);
+        graph_2d.add_node(NodeUi::UiPass, RunGraphOnViewNode::new(SubGraphUi));
+        graph_2d.add_node_edge(Node2d::MainPass, NodeUi::UiPass);
+        graph_2d.add_node_edge(Node2d::EndMainPassPostProcessing, NodeUi::UiPass);
+        graph_2d.add_node_edge(NodeUi::UiPass, Node2d::Upscaling);
     }
 
-    if let Some(graph_3d) = graph.get_sub_graph_mut(SubGraph3d) {
+    if let Some(graph_3d) = graph.get_sub_graph_mut(Core3d) {
         graph_3d.add_sub_graph(SubGraphUi, ui_graph_3d);
-        graph_3d.add_node(LabelsUi::UiPass, RunGraphOnViewNode::new(SubGraphUi));
-        graph_3d.add_node_edge(Labels3d::EndMainPass, LabelsUi::UiPass);
-        graph_3d.add_node_edge(Labels3d::EndMainPassPostProcessing, LabelsUi::UiPass);
-        graph_3d.add_node_edge(LabelsUi::UiPass, Labels3d::Upscaling);
+        graph_3d.add_node(NodeUi::UiPass, RunGraphOnViewNode::new(SubGraphUi));
+        graph_3d.add_node_edge(Node3d::EndMainPass, NodeUi::UiPass);
+        graph_3d.add_node_edge(Node3d::EndMainPassPostProcessing, NodeUi::UiPass);
+        graph_3d.add_node_edge(NodeUi::UiPass, Node3d::Upscaling);
     }
 }
 
 fn get_ui_graph(render_app: &mut App) -> RenderGraph {
     let ui_pass_node = UiPassNode::new(&mut render_app.world);
     let mut ui_graph = RenderGraph::default();
-    ui_graph.add_node(LabelsUi::UiPass, ui_pass_node);
+    ui_graph.add_node(NodeUi::UiPass, ui_pass_node);
     ui_graph
 }
 
@@ -203,6 +204,11 @@ pub fn extract_atlas_uinodes(
         if !view_visibility.get() || color.0.is_fully_transparent() {
             continue;
         }
+
+        let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera.get())
+        else {
+            continue;
+        };
 
         let (mut atlas_rect, atlas_size, image) =
             if let Some(texture_atlas) = texture_atlases.get(texture_atlas_handle) {
@@ -250,17 +256,17 @@ pub fn extract_atlas_uinodes(
             uinode.border,
             uinode.border_radius,
             clip.map(|clip| clip.clip),
-        false, 
+            false, 
             false,
-            camera_entity: Entity,
-);
+            camera_entity,
+        );
     }
 }
 
-#[derive(Resource, Default)]
-pub struct ExtractedUiNodes {
-    pub uinodes: EntityHashMap<ExtractedUiNode>,
-}
+// #[derive(Resource, Default)]
+// pub struct ExtractedUiNodes {
+//     pub uinodes: EntityHashMap<ExtractedUiNode>,
+// }
 
 pub(crate) fn resolve_border_thickness(value: Val, parent_width: f32, viewport_size: Vec2) -> f32 {
     match value {
@@ -310,7 +316,7 @@ pub fn extract_uinode_borders(
             continue;
         }
 
-let ui_logical_viewport_size = camera_query
+let viewport_size = camera_query
             .get(camera_entity)
             .ok()
             .and_then(|(_, c)| c.logical_viewport_size())
@@ -335,6 +341,7 @@ let ui_logical_viewport_size = camera_query
                     uinode.border,
                     uinode.border_radius,
                     clip.map(|clip| clip.clip),
+                    camera_entity
                 );
             }
             UiColor::LinearGradient(l) => {
@@ -351,6 +358,7 @@ let ui_logical_viewport_size = camera_query
                     l.angle,
                     &stops,
                     clip.map(|clip| clip.clip),
+                    camera_entity
                 );
             }
             UiColor::RadialGradient(r) => {
@@ -366,6 +374,7 @@ let ui_logical_viewport_size = camera_query
                     ellipse,
                     &stops,
                     clip.map(|clip| clip.clip),
+                    camera_entity
                 );
             }
         }
@@ -389,7 +398,7 @@ pub fn extract_uinode_outlines(
 ) {
     let image = AssetId::<Image>::default();
     
-    for (node, global_transform, outline, maybe_outline_style, view_visibility, maybe_clip, camera) in &uinode_query {
+    for (uinode, global_transform, outline, maybe_outline_style, view_visibility, maybe_clip, camera) in &uinode_query {
         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera.get())
         else {
             continue;
@@ -404,14 +413,6 @@ pub fn extract_uinode_outlines(
         }
         let entity = commands.spawn_empty().id();
 
-let ui_logical_viewport_size = camera_query
-            .get(camera_entity)
-            .ok()
-            .and_then(|(_, c)| c.logical_viewport_size())
-            .unwrap_or(Vec2::ZERO)
-            // The logical window resolution returned by `Window` only takes into account the window scale factor and not `UiScale`,
-            // so we have to divide by `UiScale` to get the size of the UI viewport.
-            / ui_scale.0;
 
         match maybe_outline_style.unwrap_or(&OutlineStyle::Solid) {
             OutlineStyle::Solid => {
@@ -430,8 +431,7 @@ let ui_logical_viewport_size = camera_query
                         }
                     }),
                     maybe_clip.map(|clip| clip.clip),
-                        camera_entity,
-                    },
+                    camera_entity,
                 );
             }
             OutlineStyle::Dashed {
@@ -465,7 +465,7 @@ let ui_logical_viewport_size = camera_query
                         }
                     }),
                     maybe_clip.map(|clip| clip.clip),
-camera_entity,
+                    camera_entity,
                 )
             }
         }
@@ -492,7 +492,7 @@ Option<&TargetCamera>,
     >,
 ) {
     
-    for (_, uinode, color, maybe_image, view_visibility, clip, target_camera) in &uinode_query {
+    for (_, uinode, color, maybe_image, view_visibility, clip, camera) in &uinode_query {
 
         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera.get())
         else {
@@ -508,14 +508,14 @@ Option<&TargetCamera>,
             continue;
         }
 
-        if let Some((image, slices)) = maybe_image.zip(slices) {
-            extracted_uinodes.uinodes.extend(
-                slices
-                    .extract_ui_nodes(transform, uinode, color, image, clip, camera_entity)
-                    .map(|e| (commands.spawn_empty().id(), e)),
-            );
-            continue;
-        }
+        // if let Some((image, slices)) = maybe_image.zip(slices) {
+        //     extracted_uinodes.uinodes.extend(
+        //         slices
+        //             .extract_ui_nodes(transform, uinode, color, image, clip, camera_entity)
+        //             .map(|e| (commands.spawn_empty().id(), e)),
+        //     );
+        //     continue;
+        // }
 
         let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
             (image.texture.id(), image.flip_x, image.flip_y)
@@ -530,13 +530,13 @@ Option<&TargetCamera>,
                     uinode.stack_index as usize,
                     uinode.position,
                     uinode.size(),
-                    image,
+                    Some(image),
                     Rect::new(0.0, 0.0, 1.0, 1.0),
                     *color,
                     uinode.border,
                     uinode.border_radius,
                     clip.map(|clip| clip.clip),
-flip_x,
+                    flip_x,
                     flip_y,
                     camera_entity
                 );
@@ -556,7 +556,7 @@ flip_x,
                     l.angle,
                     &stops,
                     clip.map(|clip| clip.clip),
-camera_entity
+                    camera_entity
                 );
             }
             UiColor::RadialGradient(r) => {
@@ -585,7 +585,7 @@ fn extract_shadows(
     default_ui_camera: Extract<DefaultUiCamera>,  
     uinode_query: Extract<Query<(&Node, &BoxShadow, &ViewVisibility, Option<&CalculatedClip>, Option<&TargetCamera>,)>>,
 ) {
-    for (uinode, shadow, view_visibility, clip) in uinode_query.iter() {
+    for (uinode, shadow, view_visibility, clip, camera) in uinode_query.iter() {
         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera.get())
         else {
                     continue;
@@ -614,7 +614,7 @@ fn extract_shadows(
             shadow.blur_radius,
             shadow.color,
             clip.map(|clip| clip.clip),
-                camera_entity
+            camera_entity
         );
     }
 }
@@ -714,9 +714,6 @@ pub fn extract_text_uinodes(
         )>,
     >,
 ) {
-
-    let inverse_scale_factor = scale_factor.recip();
-
     for (_entity, uinode, _global_transform, text, text_layout_info, view_visibility, clip, camera) in
         uinode_query.iter()
     {
@@ -728,14 +725,14 @@ pub fn extract_text_uinodes(
         if !view_visibility.get() || uinode.size().x == 0. || uinode.size().y == 0. {
             continue;
         }
-        let node_position = (uinode.position() * scale_factor as f32).round() / scale_factor as f32;
         let scale_factor = camera_query
-            .get(camera_entity)
-            .ok()
-            .and_then(|(_, c)| c.target_scaling_factor())
-            .unwrap_or(1.0)
-            * ui_scale.0;
+        .get(camera_entity)
+        .ok()
+        .and_then(|(_, c)| c.target_scaling_factor())
+        .unwrap_or(1.0)
+        * ui_scale.0;
         let inverse_scale_factor = scale_factor.recip();
+        let node_position = (uinode.position() * scale_factor as f32).round() / scale_factor as f32;
 
         let mut color = Color::WHITE;
         let mut current_section = usize::MAX;
@@ -768,10 +765,9 @@ pub fn extract_text_uinodes(
                     color,
                     clip.map(|clip| clip.clip),
                     uv_rect,
-                                    camera_entity,
-                },
-            );
-}
+                    camera_entity,
+                );
+            }
         }
     }
 }
@@ -988,6 +984,9 @@ pub fn queue_uinodes(
                 ExtractedInstance::CLinearGradient(..) => clipped_linear_gradient_pipeline,
                 ExtractedInstance::CRadialGradient(..) => clipped_radial_gradient_pipeline,
                 ExtractedInstance::CDashedBorder(..) => clipped_dashed_border_pipeline,
+                ExtractedInstance::Shadow(_) => shadow_pipeline,
+                ExtractedInstance::CShadow(_) => clipped_shadow_pipeline,
+                
             };
             transparent_phase.add(TransparentUi {
                 batch_type: extracted_uinode.instance.get_type(),
