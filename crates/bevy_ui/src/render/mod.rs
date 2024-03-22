@@ -861,144 +861,143 @@ pub fn queue_uinodes(
     
 // <<<<<<< HEAD
 
-    //     for (view, mut transparent_phase) in &mut views {
-        //         let node_pipeline = pipelines.specialize(
-// =======
-    for (entity, extracted_uinode) in extracted_uinodes.uinodes.iter() {
-        let Ok((view, mut transparent_phase)) = views.get_mut(extracted_uinode.camera_entity)
-        else {
-            continue;
-        };
-
-        let node_pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &ui_pipeline,
-            UiPipelineKey {
-                hdr: view.hdr,
-                clip: false,
-                specialization: UiPipelineSpecialization::Node,
-            },
-        );
-
-        let clipped_node_pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &ui_pipeline,
-            UiPipelineKey {
-                hdr: view.hdr,
-                clip: true,
-                specialization: UiPipelineSpecialization::Node,
-            },
-        );
-        let text_pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &ui_pipeline,
-            UiPipelineKey {
-                hdr: view.hdr,
-                clip: false,
-                specialization: UiPipelineSpecialization::Text,
-            },
-        );
-        let clipped_text_pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &ui_pipeline,
-            UiPipelineKey {
-                hdr: view.hdr,
-                clip: true,
-                specialization: UiPipelineSpecialization::Text,
-            },
-        );
-        let linear_gradient_pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &ui_pipeline,
-            UiPipelineKey {
-                hdr: view.hdr,
-                clip: false,
-                specialization: UiPipelineSpecialization::LinearGradient,
-            },
-        );
-        let clipped_linear_gradient_pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &ui_pipeline,
-            UiPipelineKey {
-                hdr: view.hdr,
-                clip: true,
-                specialization: UiPipelineSpecialization::LinearGradient,
-            },
-        );
-
-        let radial_gradient_pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &ui_pipeline,
-            UiPipelineKey {
-                hdr: view.hdr,
-                clip: false,
-                specialization: UiPipelineSpecialization::RadialGradient,
-            },
-        );
-        let clipped_radial_gradient_pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &ui_pipeline,
-            UiPipelineKey {
-                hdr: view.hdr,
-                clip: true,
-                specialization: UiPipelineSpecialization::RadialGradient,
-            },
-        );
-        let dashed_border_pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &ui_pipeline,
-            UiPipelineKey {
-                hdr: view.hdr,
-                clip: false,
-                specialization: UiPipelineSpecialization::DashedBorder,
-            },
-        );
-        let clipped_dashed_border_pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &ui_pipeline,
-            UiPipelineKey {
-                hdr: view.hdr,
-                clip: true,
-                specialization: UiPipelineSpecialization::DashedBorder,
-            },
-        );
-
-        let shadow_pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &ui_pipeline,
-            UiPipelineKey {
-                hdr: view.hdr,
-                clip: false,
-                specialization: UiPipelineSpecialization::Shadow,
-            },
-        );
-
-        let clipped_shadow_pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &ui_pipeline,
-            UiPipelineKey {
-                hdr: view.hdr,
-                clip: true,
-                specialization: UiPipelineSpecialization::Shadow,
-            },
-        );
-
-        
-            let pipeline = match extracted_uinode.instance {
-                ExtractedInstance::Node(..) => node_pipeline,
-                ExtractedInstance::Text(..) => text_pipeline,
-                ExtractedInstance::LinearGradient(..) => linear_gradient_pipeline,
-                ExtractedInstance::RadialGradient(..) => radial_gradient_pipeline,
-                ExtractedInstance::DashedBorder(..) => dashed_border_pipeline,
-                ExtractedInstance::CNode(..) => clipped_node_pipeline,
-                ExtractedInstance::CText(..) => clipped_text_pipeline,
-                ExtractedInstance::CLinearGradient(..) => clipped_linear_gradient_pipeline,
-                ExtractedInstance::CRadialGradient(..) => clipped_radial_gradient_pipeline,
-                ExtractedInstance::CDashedBorder(..) => clipped_dashed_border_pipeline,
-                ExtractedInstance::Shadow(_) => shadow_pipeline,
-                ExtractedInstance::CShadow(_) => clipped_shadow_pipeline,
-                
+//     for (view, mut transparent_phase) in &mut views {
+    //         let node_pipeline = pipelines.specialize(
+        // =======
+        for (entity, extracted_uinode) in extracted_uinodes.uinodes.iter() {
+            let Ok((view, mut transparent_phase)) = views.get_mut(extracted_uinode.camera_entity)
+            else {
+                continue;
             };
+        let pipeline = match extracted_uinode.instance {
+            ExtractedInstance::Node(..) => 
+                pipelines.specialize(
+                    &pipeline_cache,
+                    &ui_pipeline,
+                    UiPipelineKey {
+                        hdr: view.hdr,
+                        clip: false,
+                        specialization: UiPipelineSpecialization::Node,
+                    },
+                ),
+            ExtractedInstance::Text(..) => 
+                pipelines.specialize(
+                    &pipeline_cache,
+                    &ui_pipeline,
+                    UiPipelineKey {
+                        hdr: view.hdr,
+                        clip: false,
+                        specialization: UiPipelineSpecialization::Text,
+                    },
+                ),
+            ExtractedInstance::LinearGradient(..) => 
+                pipelines.specialize(
+                    &pipeline_cache,
+                    &ui_pipeline,
+                    UiPipelineKey {
+                        hdr: view.hdr,
+                        clip: false,
+                        specialization: UiPipelineSpecialization::LinearGradient,
+                    },
+                ),
+            ExtractedInstance::RadialGradient(..) => 
+                pipelines.specialize(
+                    &pipeline_cache,
+                    &ui_pipeline,
+                    UiPipelineKey {
+                        hdr: view.hdr,
+                        clip: false,
+                        specialization: UiPipelineSpecialization::RadialGradient,
+                    },
+                ),
+            ExtractedInstance::DashedBorder(..) => 
+                pipelines.specialize(
+                    &pipeline_cache,
+                    &ui_pipeline,
+                    UiPipelineKey {
+                        hdr: view.hdr,
+                        clip: false,
+                        specialization: UiPipelineSpecialization::DashedBorder,
+                    },
+                ),
+            ExtractedInstance::CNode(..) => 
+                pipelines.specialize(
+                    &pipeline_cache,
+                    &ui_pipeline,
+                    UiPipelineKey {
+                        hdr: view.hdr,
+                        clip: true,
+                        specialization: UiPipelineSpecialization::Node,
+                    },
+                ),
+            ExtractedInstance::CText(..) => 
+                pipelines.specialize(
+                    &pipeline_cache,
+                    &ui_pipeline,
+                    UiPipelineKey {
+                        hdr: view.hdr,
+                        clip: true,
+                        specialization: UiPipelineSpecialization::Text,
+                    },
+                ),
+            ExtractedInstance::CLinearGradient(..) => 
+                pipelines.specialize(
+                    &pipeline_cache,
+                    &ui_pipeline,
+                    UiPipelineKey {
+                        hdr: view.hdr,
+                        clip: true,
+                        specialization: UiPipelineSpecialization::LinearGradient,
+                    },
+                ),
+
+                ExtractedInstance::CRadialGradient(..) => 
+                pipelines.specialize(
+                    &pipeline_cache,
+                    &ui_pipeline,
+                    UiPipelineKey {
+                        hdr: view.hdr,
+                        clip: true,
+                        specialization: UiPipelineSpecialization::RadialGradient,
+                    },
+                ),
+
+                ExtractedInstance::CDashedBorder(..) => 
+                pipelines.specialize(
+                    &pipeline_cache,
+                    &ui_pipeline,
+                    UiPipelineKey {
+                        hdr: view.hdr,
+                        clip: true,
+                        specialization: UiPipelineSpecialization::DashedBorder,
+                    },
+                ),
+
+                ExtractedInstance::Shadow(_) =>
+                pipelines.specialize(
+                    &pipeline_cache,
+                    &ui_pipeline,
+                    UiPipelineKey {
+                        hdr: view.hdr,
+                        clip: false,
+                        specialization: UiPipelineSpecialization::Shadow,
+                    },
+                ),
+
+                ExtractedInstance::CShadow(_) => 
+                pipelines.specialize(
+                    &pipeline_cache,
+                    &ui_pipeline,
+                    UiPipelineKey {
+                        hdr: view.hdr,
+                        clip: true,
+                        specialization: UiPipelineSpecialization::Shadow,
+                    },
+                ),
+
+            };
+
+       
             transparent_phase.add(TransparentUi {
                 batch_type: extracted_uinode.instance.get_type(),
                 draw_function,
@@ -1012,21 +1011,6 @@ pub fn queue_uinodes(
                 batch_range: 0..0,
                 dynamic_offset: None,
             });
-        
-// =======
-        //         transparent_phase.add(TransparentUi {
-            //             draw_function,
-            //             pipeline,
-            //             entity: *entity,
-            //             sort_key: (
-                //                 FloatOrd(extracted_uinode.stack_index as f32),
-                //                 entity.index(),
-            //             ),
-            //             // batch_range will be calculated in prepare_uinodes
-            //             batch_range: 0..0,
-            //             dynamic_offset: None,
-        //         });
-// >>>>>>> main
     }
 }
 

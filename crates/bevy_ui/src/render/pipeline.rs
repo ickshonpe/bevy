@@ -182,7 +182,7 @@ impl SpecializedRenderPipeline for UiPipeline {
                     VertexFormat::Float32,
                 ]);
             }
-UiPipelineSpecialization::Shadow => {
+        UiPipelineSpecialization::Shadow => {
                 shader_defs.push("SPECIAL".into());
                 shader_defs.push("SHADOW".into());
                 formats.extend([
