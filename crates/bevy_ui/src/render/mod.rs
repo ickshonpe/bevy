@@ -8,7 +8,7 @@ mod ui_material_pipeline;
 use bevy_core_pipeline::core_2d::graph::{Core2d, Node2d};
 use bevy_core_pipeline::core_3d::graph::{Core3d, Node3d};
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
-use bevy_hierarchy::Parent;
+
 use bevy_render::{
     render_phase::PhaseItem, render_resource::BindGroupEntries, view::ViewVisibility,
     ExtractSchedule, Render,
@@ -25,7 +25,6 @@ use crate::{
 };
 use crate::graph::{NodeUi, SubGraphUi};
 use crate::{
-    texture_slice::ComputedTextureSlices, 
     DefaultUiCamera, Outline, TargetCamera,
 };
 use crate::{resolve_color_stops, BoxShadow, OutlineStyle, UiColor};
@@ -34,8 +33,7 @@ use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, AssetEvent, AssetId, Assets, Handle};
 use bevy_ecs::entity::EntityHashMap;
 use bevy_ecs::prelude::*;
-use bevy_math::vec2;
-use bevy_math::{Mat4, Rect, URect, UVec4, Vec2, Vec3, Vec4Swizzles};
+use bevy_math::{Mat4, Rect, URect, UVec4, Vec2, Vec3};
 use bevy_render::{
     camera::Camera,
     color::Color,
@@ -172,6 +170,7 @@ pub fn extract_atlas_uinodes(
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
     images: Extract<Res<Assets<Image>>>,
     texture_atlases: Extract<Res<Assets<TextureAtlas>>>,
+    default_ui_camera: Extract<DefaultUiCamera>,
     uinode_query: Extract<
         Query<
             (
@@ -198,6 +197,7 @@ pub fn extract_atlas_uinodes(
         clip,
         texture_atlas_handle,
         atlas_image,
+        camera
     ) in uinode_query.iter()
     {
         // Skip invisible and completely transparent nodes
@@ -316,7 +316,7 @@ pub fn extract_uinode_borders(
             continue;
         }
 
-let viewport_size = camera_query
+        let viewport_size = camera_query
             .get(camera_entity)
             .ok()
             .and_then(|(_, c)| c.logical_viewport_size())
@@ -475,7 +475,9 @@ pub fn extract_uinode_outlines(
 pub fn extract_uinodes(
     mut commands: Commands,
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
-default_ui_camera: Extract<DefaultUiCamera>,
+    default_ui_camera: Extract<DefaultUiCamera>,
+    camera_query: Extract<Query<(Entity, &Camera)>>,
+    ui_scale: Extract<Res<UiScale>>,
     uinode_query: Extract<
         Query<
             (
@@ -516,6 +518,15 @@ Option<&TargetCamera>,
         //     );
         //     continue;
         // }
+
+        let viewport_size = camera_query
+            .get(camera_entity)
+            .ok()
+            .and_then(|(_, c)| c.logical_viewport_size())
+            .unwrap_or(Vec2::ZERO)
+            // The logical window resolution returned by `Window` only takes into account the window scale factor and not `UiScale`,
+            // so we have to divide by `UiScale` to get the size of the UI viewport.
+            / ui_scale.0;
 
         let (image, flip_x, flip_y) = if let Some(image) = maybe_image {
             (image.texture.id(), image.flip_x, image.flip_y)
