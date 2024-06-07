@@ -1,11 +1,7 @@
 use std::ops::Range;
 
 use super::{UiBatch, UiImageBindGroups, UiMeta};
-<<<<<<< HEAD
-use crate::{instances::BatchType, prelude::UiCameraConfig, DefaultCameraView};
-=======
-use crate::DefaultCameraView;
->>>>>>> main
+use crate::{instances::BatchType, DefaultCameraView};
 use bevy_ecs::{
     prelude::*,
     system::{lifetimeless::*, SystemParamItem},
@@ -14,13 +10,7 @@ use bevy_render::{
     camera::ExtractedCamera,
     render_graph::*,
     render_phase::*,
-<<<<<<< HEAD
-    render_resource::{
-        CachedRenderPipelineId, IndexFormat, LoadOp, Operations, RenderPassDescriptor, StoreOp,
-    },
-=======
-    render_resource::{CachedRenderPipelineId, RenderPassDescriptor},
->>>>>>> main
+    render_resource::{CachedRenderPipelineId, IndexFormat, RenderPassDescriptor},
     renderer::*,
     view::*,
 };
@@ -221,7 +211,10 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
         ui_meta: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
-<<<<<<< HEAD
+        let Some(batch) = batch else {
+            return RenderCommandResult::Failure;
+        };
+
         let ui_meta = ui_meta.into_inner();
         pass.set_index_buffer(
             ui_meta.index_buffer.buffer().unwrap().slice(..),
@@ -371,14 +364,10 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
             ),
         };
         pass.draw_indexed(0..6, 0, batch.range.clone());
-=======
-        let Some(batch) = batch else {
-            return RenderCommandResult::Failure;
-        };
 
-        pass.set_vertex_buffer(0, ui_meta.into_inner().vertices.buffer().unwrap().slice(..));
-        pass.draw(batch.range.clone(), 0..1);
->>>>>>> main
+        //         pass.set_vertex_buffer(0, ui_meta.into_inner().vertices.buffer().unwrap().slice(..));
+        //         pass.draw(batch.range.clone(), 0..1);
+        // >>>>>>> release-0.13.1
         RenderCommandResult::Success
     }
 }

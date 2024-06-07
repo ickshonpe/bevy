@@ -17,7 +17,7 @@ use super::UNTEXTURED_QUAD;
 
 #[derive(Resource, Default)]
 pub struct ExtractedUiNodes {
-    pub uinodes: EntityHashMap<Entity, ExtractedItem>,
+    pub uinodes: EntityHashMap<ExtractedItem>,
 }
 
 impl ExtractedUiNodes {
@@ -30,6 +30,7 @@ pub struct ExtractedItem {
     pub stack_index: u32,
     pub image: AssetId<Image>,
     pub instance: ExtractedInstance,
+    pub camera_entity: Entity,
 }
 
 impl ExtractedItem {
@@ -37,11 +38,13 @@ impl ExtractedItem {
         stack_index: usize,
         image: AssetId<Image>,
         instance: impl Into<ExtractedInstance>,
+        camera_entity: Entity,
     ) -> Self {
         Self {
             stack_index: stack_index as u32,
             image,
             instance: instance.into(),
+            camera_entity,
         }
     }
 }
@@ -57,6 +60,7 @@ impl ExtractedUiNodes {
         color: Color,
         clip: Option<Rect>,
         uv_rect: Rect,
+        camera_entity: Entity,
     ) {
         let color = color.as_linear_rgba_f32();
         let uv_min = uv_rect.min.into();
@@ -68,7 +72,10 @@ impl ExtractedUiNodes {
             uv_size,
             color,
         };
-        self.push(entity, ExtractedItem::new(stack_index, image, (i, clip)));
+        self.push(
+            entity,
+            ExtractedItem::new(stack_index, image, (i, clip), camera_entity),
+        );
     }
 
     pub fn push_node(
@@ -85,6 +92,7 @@ impl ExtractedUiNodes {
         clip: Option<Rect>,
         flip_x: bool,
         flip_y: bool,
+        camera_entity: Entity,
     ) {
         let color = color.as_linear_rgba_f32();
         let (uv_x, uv_w) = if flip_x {
@@ -116,7 +124,10 @@ impl ExtractedUiNodes {
             radius,
             flags,
         };
-        self.push(entity, ExtractedItem::new(stack_index, image, (i, clip)));
+        self.push(
+            entity,
+            ExtractedItem::new(stack_index, image, (i, clip), camera_entity),
+        );
     }
 
     pub fn push_border(
@@ -129,6 +140,7 @@ impl ExtractedUiNodes {
         border: [f32; 4],
         radius: [f32; 4],
         clip: Option<Rect>,
+        camera_entity: Entity,
     ) {
         if border.iter().all(|thickness| *thickness <= 0.) {
             return;
@@ -146,7 +158,7 @@ impl ExtractedUiNodes {
         };
         self.push(
             entity,
-            ExtractedItem::new(stack_index, AssetId::default(), (i, clip)),
+            ExtractedItem::new(stack_index, AssetId::default(), (i, clip), camera_entity),
         );
     }
 
@@ -162,6 +174,7 @@ impl ExtractedUiNodes {
         break_length: f32,
         radius: [f32; 4],
         clip: Option<Rect>,
+        camera_entity: Entity,
     ) {
         let color = color.as_linear_rgba_f32();
         let i = DashedBorderInstance {
@@ -175,7 +188,7 @@ impl ExtractedUiNodes {
         };
         self.push(
             entity,
-            ExtractedItem::new(stack_index, AssetId::default(), (i, clip)),
+            ExtractedItem::new(stack_index, AssetId::default(), (i, clip), camera_entity),
         );
     }
 
@@ -191,6 +204,7 @@ impl ExtractedUiNodes {
         angle: f32,
         stops: &[(Color, f32)],
         clip: Option<Rect>,
+        camera_entity: Entity,
     ) {
         if border.iter().all(|thickness| *thickness <= 0.) {
             return;
@@ -223,7 +237,7 @@ impl ExtractedUiNodes {
             };
             self.push(
                 commands.spawn_empty().id(),
-                ExtractedItem::new(stack_index, AssetId::default(), (i, clip)),
+                ExtractedItem::new(stack_index, AssetId::default(), (i, clip), camera_entity),
             );
         }
     }
@@ -236,9 +250,10 @@ impl ExtractedUiNodes {
         size: Vec2,
         border: [f32; 4],
         radius: [f32; 4],
-        ellipse: Ellipse,
+        ellipse: EllipseShape,
         stops: &[(Color, f32)],
         clip: Option<Rect>,
+        camera_entity: Entity,
     ) {
         if border.iter().all(|thickness| *thickness <= 0.) {
             return;
@@ -274,7 +289,7 @@ impl ExtractedUiNodes {
             };
             self.push(
                 commands.spawn_empty().id(),
-                ExtractedItem::new(stack_index, AssetId::default(), (i, clip)),
+                ExtractedItem::new(stack_index, AssetId::default(), (i, clip), camera_entity),
             );
         }
     }
@@ -291,6 +306,7 @@ impl ExtractedUiNodes {
         angle: f32,
         stops: &[(Color, f32)],
         clip: Option<Rect>,
+        camera_entity: Entity,
     ) {
         let tflag = UNTEXTURED_QUAD;
         let image = AssetId::default();
@@ -322,7 +338,7 @@ impl ExtractedUiNodes {
             };
             self.push(
                 commands.spawn_empty().id(),
-                ExtractedItem::new(stack_index, image.clone(), (i, clip)),
+                ExtractedItem::new(stack_index, image.clone(), (i, clip), camera_entity),
             );
         }
     }
@@ -335,9 +351,10 @@ impl ExtractedUiNodes {
         size: Vec2,
         border: [f32; 4],
         radius: [f32; 4],
-        ellipse: Ellipse,
+        ellipse: EllipseShape,
         stops: &[(Color, f32)],
         clip: Option<Rect>,
+        camera_entity: Entity,
     ) {
         let tflag = UNTEXTURED_QUAD;
         let start_point = (ellipse.center - position - 0.5 * size).into();
@@ -370,7 +387,7 @@ impl ExtractedUiNodes {
             };
             self.push(
                 commands.spawn_empty().id(),
-                ExtractedItem::new(stack_index, AssetId::default(), (i, clip)),
+                ExtractedItem::new(stack_index, AssetId::default(), (i, clip), camera_entity),
             );
         }
     }
@@ -385,6 +402,7 @@ impl ExtractedUiNodes {
         blur_radius: f32,
         color: Color,
         clip: Option<Rect>,
+        camera_entity: Entity,
     ) {
         let color = color.as_linear_rgba_f32();
 
@@ -397,7 +415,7 @@ impl ExtractedUiNodes {
         };
         self.push(
             commands.spawn_empty().id(),
-            ExtractedItem::new(stack_index, AssetId::default(), (i, clip)),
+            ExtractedItem::new(stack_index, AssetId::default(), (i, clip), camera_entity),
         );
     }
 }

@@ -341,8 +341,6 @@ pub struct FilteredAccess<T: SparseSetIndex> {
     // An array of filter sets to express `With` or `Without` clauses in disjunctive normal form, for example: `Or<(With<A>, With<B>)>`.
     // Filters like `(With<A>, Or<(With<B>, Without<C>)>` are expanded into `Or<((With<A>, With<B>), (With<A>, Without<C>))>`.
     pub(crate) filter_sets: Vec<AccessFilters<T>>,
-    // Values that are not accessed, but whose presence in an archetype affect query results.
-    archetypal_accesses: FixedBitSet,
 }
 
 impl<T: SparseSetIndex> Default for FilteredAccess<T> {
@@ -351,7 +349,6 @@ impl<T: SparseSetIndex> Default for FilteredAccess<T> {
             access: Access::default(),
             required: FixedBitSet::default(),
             filter_sets: vec![AccessFilters::default()],
-            archetypal_accesses: FixedBitSet::new(),
         }
     }
 }
@@ -389,18 +386,6 @@ impl<T: SparseSetIndex> FilteredAccess<T> {
         self.access.add_write(index.clone());
         self.add_required(index.clone());
         self.and_with(index);
-    }
-
-    /// Adds an archetypal (inderect) access to the element given by `index`.
-    pub fn add_archetypal(&mut self, index: T) {
-        self.archetypal_accesses.grow(index.sparse_set_index() + 1);
-        self.archetypal_accesses.insert(index.sparse_set_index());
-    }
-
-    /// Returns true if this has an archetypal (indirect) access to the element given by `index`.
-    /// This is an element that is not accessed, but whose presence in an archetype affects a query result.
-    pub fn has_archetypal(&self, index: T) -> bool {
-        self.archetypal_accesses.contains(index.sparse_set_index())
     }
 
     fn add_required(&mut self, index: T) {
@@ -537,11 +522,6 @@ impl<T: SparseSetIndex> FilteredAccess<T> {
         self.filter_sets
             .iter()
             .flat_map(|f| f.without.ones().map(T::get_sparse_set_index))
-    }
-
-    /// Returns the components whose presence in an archetype affects query results.
-    pub fn get_archetypal(&self) -> impl Iterator<Item = T> + '_ {
-        self.archetypal_accesses.ones().map(T::get_sparse_set_index)
     }
 }
 

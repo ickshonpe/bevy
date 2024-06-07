@@ -1,12 +1,8 @@
 use crate::{UiRect, Val};
 use bevy_asset::Handle;
-<<<<<<< HEAD
-use bevy_ecs::{prelude::Component, reflect::ReflectComponent};
-use bevy_math::{vec2, Rect, Vec2};
-=======
+
 use bevy_ecs::{prelude::*, system::SystemParam};
-use bevy_math::{Rect, Vec2};
->>>>>>> main
+use bevy_math::{vec2, Rect, Vec2};
 use bevy_reflect::prelude::*;
 use bevy_render::{
     camera::{Camera, RenderTarget},
@@ -14,18 +10,13 @@ use bevy_render::{
     texture::Image,
 };
 use bevy_transform::prelude::GlobalTransform;
-<<<<<<< HEAD
 use bevy_utils::FloatOrd;
-use smallvec::SmallVec;
+use bevy_utils::{smallvec::SmallVec, warn_once};
+use bevy_window::{PrimaryWindow, WindowRef};
 use std::{
     f32::consts::{FRAC_PI_2, PI},
     num::{NonZeroI16, NonZeroU16},
 };
-=======
-use bevy_utils::{smallvec::SmallVec, warn_once};
-use bevy_window::{PrimaryWindow, WindowRef};
-use std::num::{NonZeroI16, NonZeroU16};
->>>>>>> main
 use thiserror::Error;
 
 /// Base component for a UI node, which also provides the computed size of the node.
@@ -95,7 +86,7 @@ impl Node {
     /// Returns the logical pixel coordinates of the UI node, based on its [`GlobalTransform`].
     #[inline]
     pub fn logical_rect(&self, transform: &GlobalTransform) -> Rect {
-        Rect::from_center_size(transform.translation().truncate(), self.size())
+        Rect::from_center_size(transform.translation().truncate(), self.size().max(Vec2::ZERO))
     }
 
     /// Returns the logical pixel coordinates of the UI node.
@@ -1090,6 +1081,14 @@ impl Overflow {
         }
     }
 
+    /// Ignore inherited clipping on both axes
+    pub const fn reset() -> Self {
+        Self {
+            x: OverflowAxis::Reset,
+            y: OverflowAxis::Reset,
+        }
+    }
+
     /// Overflow is visible on both axes
     pub const fn is_visible(&self) -> bool {
         self.x.is_visible() && self.y.is_visible()
@@ -1115,6 +1114,8 @@ pub enum OverflowAxis {
     Visible,
     /// Hide overflowing items.
     Clip,
+    /// Ignore clipping inherited from the parent node
+    Reset,
 }
 
 impl OverflowAxis {
@@ -1122,7 +1123,7 @@ impl OverflowAxis {
 
     /// Overflow is visible on this axis
     pub const fn is_visible(&self) -> bool {
-        matches!(self, Self::Visible)
+        matches!(self, Self::Visible | Self::Reset)
     }
 }
 
@@ -1141,6 +1142,8 @@ impl Default for OverflowAxis {
     reflect(Serialize, Deserialize)
 )]
 pub enum PositionType {
+    /// Independent of other nodes, positioned at origin.
+    Fixed,
     /// Relative to all other nodes with the [`PositionType::Relative`] value.
     Relative,
     /// Independent of all other nodes, but relative to its parent node.
@@ -1808,18 +1811,13 @@ pub enum GridPlacementError {
 ///
 /// This serves as the "fill" color.
 /// When combined with [`UiImage`], tints the provided texture.
-<<<<<<< HEAD
 #[derive(Component, Clone, Debug, Reflect)]
-=======
-#[derive(Component, Copy, Clone, Debug, Reflect)]
->>>>>>> main
 #[reflect(Component, Default)]
 #[cfg_attr(
     feature = "serialize",
     derive(serde::Serialize, serde::Deserialize),
     reflect(Serialize, Deserialize)
 )]
-<<<<<<< HEAD
 pub struct BackgroundColor(pub UiColor);
 
 impl<T> From<T> for BackgroundColor
@@ -1830,9 +1828,6 @@ where
         Self(value.into())
     }
 }
-=======
-pub struct BackgroundColor(pub Color);
->>>>>>> main
 
 impl BackgroundColor {
     pub const DEFAULT: Self = Self(UiColor::Color(Color::WHITE));
@@ -1844,7 +1839,6 @@ impl Default for BackgroundColor {
     }
 }
 
-<<<<<<< HEAD
 /// The atlas sprite to be used in a UI Texture Atlas Node
 #[derive(Component, Clone, Debug, Reflect, Default)]
 #[reflect(Component, Default)]
@@ -1859,31 +1853,16 @@ pub struct UiTextureAtlasImage {
 
 #[derive(Clone, Component, PartialEq, Debug, Reflect)]
 #[reflect(PartialEq, Component, Default)]
-=======
-impl From<Color> for BackgroundColor {
-    fn from(color: Color) -> Self {
-        Self(color)
-    }
-}
-
-/// The border color of the UI node.
-#[derive(Component, Copy, Clone, Debug, Reflect)]
-#[reflect(Component, Default)]
->>>>>>> main
 #[cfg_attr(
     feature = "serialize",
     derive(serde::Serialize, serde::Deserialize),
     reflect(Serialize, Deserialize)
 )]
-<<<<<<< HEAD
 pub enum UiColor {
     Color(Color),
     LinearGradient(LinearGradient),
     RadialGradient(RadialGradient),
 }
-=======
-pub struct BorderColor(pub Color);
->>>>>>> main
 
 impl From<Color> for UiColor {
     fn from(value: Color) -> Self {
@@ -1956,7 +1935,6 @@ impl Default for BorderColor {
     derive(serde::Serialize, serde::Deserialize),
     reflect(Serialize, Deserialize)
 )]
-<<<<<<< HEAD
 /// Set the style of an outline
 pub enum OutlineStyle {
     /// The outline is a solid line
@@ -1973,8 +1951,6 @@ pub enum OutlineStyle {
     derive(serde::Serialize, serde::Deserialize),
     reflect(Serialize, Deserialize)
 )]
-=======
->>>>>>> main
 /// The [`Outline`] component adds an outline outside the edge of a UI node.
 /// Outlines do not take up space in the layout.
 ///
@@ -2579,7 +2555,7 @@ pub enum RadialGradientShape {
     derive(serde::Serialize, serde::Deserialize),
     reflect(Serialize, Deserialize)
 )]
-pub struct Ellipse {
+pub struct EllipseShape {
     /// The center of the ellipse
     pub center: Vec2,
     /// The distances from the center of the ellipse to its edge, along its horizontal and vertical axes respectively.
@@ -2626,7 +2602,7 @@ impl RadialGradient {
     }
 
     /// Resolve the shape and position of the gradient
-    pub fn resolve_geometry(&self, r: Rect, viewport_size: Vec2) -> Ellipse {
+    pub fn resolve_geometry(&self, r: Rect, viewport_size: Vec2) -> EllipseShape {
         let center = self.center.resolve(r, viewport_size);
 
         fn closest(p: f32, a: f32, b: f32) -> f32 {
@@ -2684,7 +2660,7 @@ impl RadialGradient {
                 vec2(w, h)
             }
         };
-        Ellipse { center, extents }
+        EllipseShape { center, extents }
     }
 }
 

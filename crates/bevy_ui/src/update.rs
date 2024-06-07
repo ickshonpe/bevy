@@ -48,6 +48,18 @@ fn update_clipping(
         maybe_inherited_clip = Some(Rect::default());
     }
 
+    let maybe_inherited_clip = maybe_inherited_clip.map(|mut clip| {
+        if style.overflow.x == OverflowAxis::Reset {
+            clip.min.x = -f32::INFINITY;
+            clip.max.x = f32::INFINITY;
+        }
+        if style.overflow.y == OverflowAxis::Reset {
+            clip.min.y = -f32::INFINITY;
+            clip.max.y = f32::INFINITY;
+        }
+        clip
+    });
+
     // Update this node's CalculatedClip component
     if let Some(mut calculated_clip) = maybe_calculated_clip {
         if let Some(inherited_clip) = maybe_inherited_clip {
@@ -155,7 +167,9 @@ fn update_children_target_camera(
 
     for &child in children {
         // Skip if the child has already been updated or update is not needed
-        if updated_entities.contains(&child) || camera_to_set == node_query.get(child).unwrap() {
+        if updated_entities.contains(&child)
+            || camera_to_set == node_query.get(child).ok().flatten()
+        {
             continue;
         }
 

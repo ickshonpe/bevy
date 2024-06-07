@@ -4,9 +4,9 @@
 use std::f32::consts::PI;
 
 use bevy::{
-    pbr::CascadeShadowConfigBuilder,
+    pbr::{light_consts, CascadeShadowConfigBuilder},
     prelude::*,
-    render::camera::{ExposureSettings, PhysicalCameraParameters},
+    render::camera::{Exposure, PhysicalCameraParameters},
 };
 
 fn main() {
@@ -14,8 +14,8 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .insert_resource(Parameters(PhysicalCameraParameters {
             aperture_f_stops: 1.0,
-            shutter_speed_s: 1.0 / 15.0,
-            sensitivity_iso: 400.0,
+            shutter_speed_s: 1.0 / 125.0,
+            sensitivity_iso: 100.0,
         }))
         .add_systems(Startup, setup)
         .add_systems(Update, (update_exposure, movement, animate_light_direction))
@@ -132,7 +132,7 @@ fn setup(
             // transform: Transform::from_xyz(5.0, 8.0, 2.0),
             transform: Transform::from_xyz(1.0, 2.0, 0.0),
             point_light: PointLight {
-                intensity: 4000.0, // lumens - roughly a 300W non-halogen incandescent bulb
+                intensity: 100_000.0,
                 color: Color::RED,
                 shadows_enabled: true,
                 ..default()
@@ -157,7 +157,7 @@ fn setup(
             transform: Transform::from_xyz(-1.0, 2.0, 0.0)
                 .looking_at(Vec3::new(-1.0, 0.0, 0.0), Vec3::Z),
             spot_light: SpotLight {
-                intensity: 4000.0, // lumens - roughly a 300W non-halogen incandescent bulb
+                intensity: 100_000.0,
                 color: Color::GREEN,
                 shadows_enabled: true,
                 inner_angle: 0.6,
@@ -185,7 +185,7 @@ fn setup(
             // transform: Transform::from_xyz(5.0, 8.0, 2.0),
             transform: Transform::from_xyz(0.0, 4.0, 0.0),
             point_light: PointLight {
-                intensity: 4000.0, // lumens - roughly a 300W non-halogen incandescent bulb
+                intensity: 100_000.0,
                 color: Color::BLUE,
                 shadows_enabled: true,
                 ..default()
@@ -207,7 +207,7 @@ fn setup(
     // directional 'sun' light
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
-            illuminance: 100.0,
+            illuminance: light_consts::lux::OVERCAST_DAY,
             shadows_enabled: true,
             ..default()
         },
@@ -268,19 +268,17 @@ fn setup(
     );
 
     // camera
-    commands.spawn((
-        Camera3dBundle {
-            transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
-            ..default()
-        },
-        ExposureSettings::from_physical_camera(**parameters),
-    ));
+    commands.spawn(Camera3dBundle {
+        transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        exposure: Exposure::from_physical_camera(**parameters),
+        ..default()
+    });
 }
 
 fn update_exposure(
     key_input: Res<ButtonInput<KeyCode>>,
     mut parameters: ResMut<Parameters>,
-    mut query: Query<&mut ExposureSettings>,
+    mut exposure: Query<&mut Exposure>,
     mut text: Query<&mut Text>,
 ) {
     // TODO: Clamp values to a reasonable range
@@ -311,7 +309,7 @@ fn update_exposure(
     );
     text.sections[2].value = format!("Sensitivity: ISO {:.0}\n", parameters.sensitivity_iso);
 
-    *query.single_mut() = ExposureSettings::from_physical_camera(**parameters);
+    *exposure.single_mut() = Exposure::from_physical_camera(**parameters);
 }
 
 fn animate_light_direction(

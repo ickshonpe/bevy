@@ -15,6 +15,11 @@ fn clip(color: vec4<f32>, position: vec2<f32>, clip: vec4<f32>) -> vec4<f32> {
     return color;
 }
 
+fn antialias(distance: f32, current_alpha: f32) -> f32 {
+    // we want to antialias when the distance value is between -0.5 and 0.5
+    return mix(0.0, current_alpha, 1.0 - smoothstep(0.0, 1.0, distance + 0.5));
+}
+
 const TEXTURED = 1u;
 const BOX_SHADOW = 2u;
 const DISABLE_AA = 4u;
@@ -161,7 +166,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let d = compute_signed_distance_with_uniform_border(in.point, 0.5 * in.size, in.flags, in.border, in.radius);
     
-    let a = mix(0.0, color.a, 1.0 - smoothstep(0.0, F, d));
+    let a = antialias(d, color.a);
     let color_out = vec4(color.rgb, a);
 
     #ifdef CLIP 
@@ -279,7 +284,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         gradient_color = mix(in.start_color, in.end_color, t);
     }
 
-    let alpha_out = mix(0.0, gradient_color.a, 1.0 - smoothstep(0.0, F, d));
+    let alpha_out = antialias(d, gradient_color.a);
     let color_out = vec4(gradient_color.rgb, alpha_out);   
 
     #ifdef CLIP
@@ -393,7 +398,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         gradient_color = mix(in.start_color, in.end_color, t);
     }
         
-    let alpha_out = mix(0.0, gradient_color.a, 1.0 - smoothstep(0.0, F, d));
+    let alpha_out = antialias(d, gradient_color.a);
     let color_out = vec4(gradient_color.rgb, alpha_out);   
 
     #ifdef CLIP
@@ -479,7 +484,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let half_size = 0.5 * in.size;
     let d = compute_signed_distance_with_uniform_border(in.point, half_size, BORDER, in.line_thickness, in.radius);
     let i = quadrant_index(in.point);
-    var a = mix(0.0, in.color.a, 1.0 - smoothstep(0.0, F, d));
+    var a = antialias(d, in.color.a);
     var p = abs(in.point);
     var s = half_size;
     var t: f32 = 0.;

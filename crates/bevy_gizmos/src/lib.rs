@@ -98,6 +98,7 @@ impl Plugin for GizmoPlugin {
         load_internal_asset!(app, LINE_SHADER_HANDLE, "lines.wgsl", Shader::from_wgsl);
 
         app.register_type::<GizmoConfig>()
+            .register_type::<GizmoConfigStore>()
             .add_plugins(UniformComponentPlugin::<LineGizmoUniform>::default())
             .init_asset::<LineGizmo>()
             .add_plugins(RenderAssetPlugin::<LineGizmo>::default())
@@ -183,16 +184,16 @@ impl AppGizmoBuilder for App {
         group: T,
         config: GizmoConfig,
     ) -> &mut Self {
+        self.world
+            .get_resource_or_insert_with::<GizmoConfigStore>(Default::default)
+            .insert(config, group);
+
         if self.world.contains_resource::<GizmoStorage<T>>() {
             return self;
         }
 
         self.init_resource::<GizmoStorage<T>>()
             .add_systems(Last, update_gizmo_meshes::<T>);
-
-        self.world
-            .get_resource_or_insert_with::<GizmoConfigStore>(Default::default)
-            .insert(config, group);
 
         let Ok(render_app) = self.get_sub_app_mut(RenderApp) else {
             return self;

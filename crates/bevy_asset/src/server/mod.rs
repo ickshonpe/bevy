@@ -26,6 +26,7 @@ use futures_lite::StreamExt;
 use info::*;
 use loaders::*;
 use parking_lot::RwLock;
+use std::future::Future;
 use std::path::PathBuf;
 use std::{any::TypeId, path::Path, sync::Arc};
 use thiserror::Error;
@@ -587,7 +588,6 @@ impl AssetServer {
     pub fn add<A: Asset>(&self, asset: A) -> Handle<A> {
         self.load_asset(LoadedAsset::new_with_dependencies(asset, None))
     }
-
     pub(crate) fn load_asset<A: Asset>(&self, asset: impl Into<LoadedAsset<A>>) -> Handle<A> {
         let loaded_asset: LoadedAsset<A> = asset.into();
         let erased_loaded_asset: ErasedLoadedAsset = loaded_asset.into();
@@ -622,6 +622,46 @@ impl AssetServer {
             loaded_asset,
         });
         handle
+    }
+
+    /// Queues a new asset to be tracked by the [`AssetServer`] and returns a [`Handle`] to it. This can be used to track
+    /// dependencies of assets created at runtime.
+    ///
+    /// After the asset has been fully loaded by the [`AssetServer`], it will show up in the relevant [`Assets`] storage.
+    #[must_use = "not using the returned strong handle may result in the unexpected release of the asset"]
+    pub fn add_async<A: Asset>(&self, future: impl AddAsyncFuture<A>) -> Handle<A> {
+        let handle = self
+            .data
+            .infos
+            .write()
+            .create_loading_handle_untyped(std::any::TypeId::of::<A>(), std::any::type_name::<A>());
+        let id = handle.id();
+
+        let event_sender = self.data.asset_event_sender.clone();
+
+        IoTaskPool::get()
+            .spawn(async move {
+                match future.await {
+                    Ok(asset) => {
+                        let loaded_asset = LoadedAsset::new_with_dependencies(asset, None).into();
+                        event_sender
+                            .send(InternalAssetEvent::Loaded { id, loaded_asset })
+                            .unwrap();
+                    }
+                    Err(error) => {
+                        event_sender
+                            .send(InternalAssetEvent::Failed {
+                                id,
+                                path: Default::default(),
+                                error,
+                            })
+                            .unwrap();
+                    }
+                }
+            })
+            .detach();
+
+        handle.typed_debug_checked()
     }
 
     /// Loads all assets from the specified folder recursively. The [`LoadedFolder`] asset (when it loads) will
@@ -1033,6 +1073,20 @@ impl AssetServer {
     }
 }
 
+/// A future that can be used with [`AssetServer::add_async`].
+#[cfg(not(target_arch = "wasm32"))]
+pub trait AddAsyncFuture<A>: Future<Output = Result<A, AssetLoadError>> + Send + 'static {}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<A, F: Future<Output = Result<A, AssetLoadError>> + Send + 'static> AddAsyncFuture<A> for F {}
+
+/// A future that can be used with [`AssetServer::add_async`].
+#[cfg(target_arch = "wasm32")]
+pub trait AddAsyncFuture<A>: Future<Output = Result<A, AssetLoadError>> + 'static {}
+
+#[cfg(target_arch = "wasm32")]
+impl<A, F: Future<Output = Result<A, AssetLoadError>> + 'static> AddAsyncFuture<A> for F {}
+
 /// A system that manages internal [`AssetServer`] events, such as finalizing asset loads.
 pub fn handle_internal_asset_events(world: &mut World) {
     world.resource_scope(|world, server: Mut<AssetServer>| {
@@ -1267,6 +1321,15 @@ pub enum AssetLoadError {
         label: String,
         all_labels: Vec<String>,
     },
+    #[error(transparent)]
+    Other(Arc<dyn std::error::Error + Send + Sync + 'static>),
+}
+
+impl AssetLoadError {
+    pub fn from_error<E: std::error::Error + Send + Sync + 'static>(error: E) -> Self {
+        let inner = Arc::new(error);
+        Self::Other(inner)
+    }
 }
 
 /// An error that occurs when an [`AssetLoader`] is not registered for a given extension.

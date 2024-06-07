@@ -136,7 +136,7 @@ impl Plugin for UiPlugin {
             .register_type::<UiColor>()
             .register_type::<RelativePosition>()
             .register_type::<RelativePositionAxis>()
-            .register_type::<Ellipse>()
+            .register_type::<EllipseShape>()
             .add_systems(
                 PreUpdate,
                 ui_focus_system.in_set(UiSystem::Focus).after(InputSystem),
@@ -152,17 +152,21 @@ impl Plugin for UiPlugin {
                 ui_layout_system
                     .in_set(UiSystem::Layout)
                     .before(TransformSystem::TransformPropagate),
-                resolve_outlines_system
-                    .in_set(UiSystem::Outlines)
-                    .after(UiSystem::Layout)
-                    // clipping doesn't care about outlines
-                    .ambiguous_with(update_clipping_system)
-                    .in_set(AmbiguousWithTextSystem),
+                resolve_border_and_outlines_system
+                    .in_set(UiSystem::Borders)
+                    .after(UiSystem::Layout),
+                //ui_stack_system.in_set(UiSystem::Stack),
+
+                // resolve_outlines_system
+                //     .in_set(UiSystem::Outlines)
+                //     .after(UiSystem::Layout)
+                //     // clipping doesn't care about outlines
+                //     .ambiguous_with(update_clipping_system)
+                //     .in_set(AmbiguousWithTextSystem),
                 ui_stack_system
                     .in_set(UiSystem::Stack)
                     // the systems don't care about stack index
                     .ambiguous_with(update_clipping_system)
-                    .ambiguous_with(resolve_outlines_system)
                     .ambiguous_with(ui_layout_system)
                     .in_set(AmbiguousWithTextSystem),
                 update_clipping_system.after(TransformSystem::TransformPropagate),

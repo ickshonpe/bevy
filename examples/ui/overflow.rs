@@ -105,7 +105,28 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                         offset: Val::Px(2.),
                                         color: Color::NONE,
                                     },
-                                ));
+                                ))
+                                .with_children(|parent| {
+                                    parent.spawn(
+                                        ImageBundle {
+                                            image: UiImage::new(image.clone()),
+                                            style: Style {  
+                                                position_type: PositionType::Absolute,
+                                                left: Val::Px(75.),
+                                                top: Val::Px(75.),
+                                                overflow: Overflow::reset(),
+                                                min_width: Val::Px(100.),
+                                                min_height: Val::Px(100.),
+                                                max_width: Val::Px(100.),
+                                                max_height: Val::Px(100.),
+                                            ..Default::default()
+                                        },
+                                        background_color: Color::WHITE.into(),
+
+                                        ..Default::default()
+                                    });
+                                        
+                                });
                             });
                     });
             }

@@ -1,3 +1,4 @@
+use bevy_render::render_resource::AsBindGroupShaderType;
 use taffy::style_helpers;
 
 use crate::{
@@ -75,11 +76,15 @@ pub fn from_style(context: &LayoutContext, style: &Style) -> taffy::style::Style
         justify_self: style.justify_self.into(),
         align_content: style.align_content.into(),
         justify_content: style.justify_content.into(),
-        inset: taffy::prelude::Rect {
-            left: style.left.into_length_percentage_auto(context),
-            right: style.right.into_length_percentage_auto(context),
-            top: style.top.into_length_percentage_auto(context),
-            bottom: style.bottom.into_length_percentage_auto(context),
+        inset: if style.position_type == PositionType::Fixed {
+            taffy::prelude::Rect::auto()
+        } else {
+            taffy::prelude::Rect {
+                left: style.left.into_length_percentage_auto(context),
+                right: style.right.into_length_percentage_auto(context),
+                top: style.top.into_length_percentage_auto(context),
+                bottom: style.bottom.into_length_percentage_auto(context),
+            }
         },
         margin: style
             .margin
@@ -250,6 +255,7 @@ impl From<FlexDirection> for taffy::style::FlexDirection {
 impl From<PositionType> for taffy::style::Position {
     fn from(value: PositionType) -> Self {
         match value {
+            PositionType::Fixed => taffy::style::Position::Absolute,
             PositionType::Relative => taffy::style::Position::Relative,
             PositionType::Absolute => taffy::style::Position::Absolute,
         }
