@@ -3,9 +3,10 @@
 // A more centralized solution should be investigated in the future
 
 use bevy_asset::{AssetEvent, Assets};
+use bevy_color::Color;
 use bevy_ecs::prelude::*;
 use bevy_math::{Rect, Vec2, Vec3Swizzles};
-use bevy_render::{color::Color, texture::Image};
+use bevy_render::texture::Image;
 use bevy_sprite::{ImageScaleMode, TextureSlice};
 use bevy_transform::prelude::*;
 use bevy_utils::HashSet;
@@ -59,7 +60,6 @@ impl ComputedTextureSlices {
             let mut rect = slice.texture_rect;
             rect.min *= scale;
             rect.max *= scale;
-            let atlas_size = Some(self.image_size * scale);
             let color = match background_color.0 {
                 crate::UiColor::Color(color) => color,
                 _ => Color::WHITE,

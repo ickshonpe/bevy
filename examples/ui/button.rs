@@ -1,7 +1,7 @@
 //! This example illustrates how to create a button that changes color and text based on its
 //! interaction state.
 
-use bevy::{prelude::*, winit::WinitSettings};
+use bevy::{color::palettes::basic::*, prelude::*, winit::WinitSettings};
 
 fn main() {
     App::new()
@@ -13,27 +13,23 @@ fn main() {
         .run();
 }
 
-const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
-const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
-const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
+const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
+const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
+const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
 
 fn button_system(
     mut interaction_query: Query<
-        (
-            &Interaction,
-            &mut BackgroundColor,
-            &mut BorderColor,
-            &Children,
-        ),
+        (&Interaction, &mut UiImage, &mut BorderColor, &Children),
         (Changed<Interaction>, With<Button>),
     >,
     mut text_query: Query<&mut Text>,
 ) {
-    for (interaction, mut color, mut border_color, children) in &mut interaction_query {
+    for (interaction, mut image, mut border_color, children) in &mut interaction_query {
         let mut text = text_query.get_mut(children[0]).unwrap();
         match *interaction {
             Interaction::Pressed => {
                 text.sections[0].value = "Press".to_string();
+<<<<<<< HEAD
                 *color = PRESSED_BUTTON.into();
                 border_color.0 = Color::RED.into();
             }
@@ -46,6 +42,20 @@ fn button_system(
                 text.sections[0].value = "Button".to_string();
                 *color = NORMAL_BUTTON.into();
                 border_color.0 = Color::BLACK.into();
+=======
+                image.color = PRESSED_BUTTON;
+                border_color.0 = RED.into();
+            }
+            Interaction::Hovered => {
+                text.sections[0].value = "Hover".to_string();
+                image.color = HOVERED_BUTTON;
+                border_color.0 = Color::WHITE;
+            }
+            Interaction::None => {
+                text.sections[0].value = "Button".to_string();
+                image.color = NORMAL_BUTTON;
+                border_color.0 = Color::BLACK;
+>>>>>>> origin/main
             }
         }
     }
@@ -78,8 +88,14 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                         align_items: AlignItems::Center,
                         ..default()
                     },
+<<<<<<< HEAD
                     border_color: Color::BLACK.into(),
                     background_color: NORMAL_BUTTON.into(),
+=======
+                    border_color: BorderColor(Color::BLACK),
+                    border_radius: BorderRadius::MAX,
+                    image: UiImage::default().with_color(NORMAL_BUTTON),
+>>>>>>> origin/main
                     ..default()
                 })
                 .with_children(|parent| {
@@ -88,7 +104,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                         TextStyle {
                             font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                             font_size: 40.0,
-                            color: Color::rgb(0.9, 0.9, 0.9),
+                            color: Color::srgb(0.9, 0.9, 0.9),
                         },
                     ));
                 });

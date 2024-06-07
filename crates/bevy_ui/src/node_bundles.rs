@@ -5,14 +5,12 @@ use crate::widget::TextFlags;
 use crate::{
     widget::{Button, UiImageSize},
     BackgroundColor, BorderColor, ContentSize, FocusPolicy, Interaction, Node, Style, UiColor,
-    UiImage, UiMaterial, UiTextureAtlasImage, ZIndex,
+    UiImage, UiMaterial, ZIndex,
 };
 use bevy_asset::Handle;
+use bevy_color::Color;
 use bevy_ecs::bundle::Bundle;
-use bevy_render::{
-    prelude::Color,
-    view::{InheritedVisibility, ViewVisibility, Visibility},
-};
+use bevy_render::view::{InheritedVisibility, ViewVisibility, Visibility};
 use bevy_sprite::TextureAtlas;
 #[cfg(feature = "bevy_text")]
 use bevy_text::{BreakLineOn, JustifyText, Text, TextLayoutInfo, TextSection, TextStyle};
@@ -60,8 +58,8 @@ impl Default for NodeBundle {
     fn default() -> Self {
         NodeBundle {
             // Transparent background
-            background_color: Color::NONE.into(),
-            border_color: Color::NONE.into(),
+            background_color: Color::linear_rgba(0.0, 0.0, 0.0, 0.0).into(),
+            border_color: Color::linear_rgba(0.0, 0.0, 0.0, 0.0).into(),
             node: Default::default(),
             style: Default::default(),
             focus_policy: Default::default(),
@@ -227,7 +225,7 @@ impl Default for TextBundle {
             view_visibility: Default::default(),
             z_index: Default::default(),
             // Transparent background
-            background_color: BackgroundColor(UiColor::Color(Color::NONE)),
+            background_color: BackgroundColor(UiColor::Color(Color::linear_rgba(0.0, 0.0, 0.0, 0.0))),
         }
     }
 }

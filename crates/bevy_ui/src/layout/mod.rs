@@ -15,7 +15,7 @@ use bevy_ecs::{
     world::Ref,
 };
 use bevy_hierarchy::{Children, Parent};
-use bevy_log::warn;
+use bevy_utils::tracing::warn;
 use bevy_math::{UVec2, Vec2, Vec4, Vec4Swizzles};
 
 use bevy_render::camera::{Camera, NormalizedRenderTarget};

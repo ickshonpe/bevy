@@ -2,8 +2,25 @@
 
 use std::f32::consts::*;
 
+<<<<<<< HEAD
 use bevy::{pbr::NotShadowCaster, prelude::*};
 use rand::{rngs::StdRng, Rng, SeedableRng};
+=======
+use bevy::{
+    color::palettes::basic::{MAROON, RED},
+    pbr::NotShadowCaster,
+    prelude::*,
+};
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaCha8Rng;
+
+const INSTRUCTIONS: &str = "\
+Controls
+--------
+Horizontal Movement: WASD
+Vertical Movement: Space and Shift
+Rotate Camera: Left and Right Arrows";
+>>>>>>> origin/main
 
 const INSTRUCTIONS: &str = "\
 Controls
@@ -44,9 +61,16 @@ fn setup(
     ));
 
     // cubes
-    let mut rng = StdRng::seed_from_u64(19878367467713);
+
+    // We're seeding the PRNG here to make this example deterministic for testing purposes.
+    // This isn't strictly required in practical use unless you need your app to be deterministic.
+    let mut rng = ChaCha8Rng::seed_from_u64(19878367467713);
     let cube_mesh = meshes.add(Cuboid::new(0.5, 0.5, 0.5));
+<<<<<<< HEAD
     let blue = materials.add(Color::rgb_u8(124, 144, 255));
+=======
+    let blue = materials.add(Color::srgb_u8(124, 144, 255));
+>>>>>>> origin/main
 
     commands.spawn_batch(
         std::iter::repeat_with(move || {
@@ -70,13 +94,13 @@ fn setup(
     let sphere_mesh = meshes.add(Sphere::new(0.05).mesh().uv(32, 18));
     let sphere_mesh_direction = meshes.add(Sphere::new(0.1).mesh().uv(32, 18));
     let red_emissive = materials.add(StandardMaterial {
-        base_color: Color::RED,
-        emissive: Color::rgba_linear(100.0, 0.0, 0.0, 0.0),
+        base_color: RED.into(),
+        emissive: Color::linear_rgba(100.0, 0.0, 0.0, 0.0),
         ..default()
     });
     let maroon_emissive = materials.add(StandardMaterial {
-        base_color: Color::MAROON,
-        emissive: Color::rgba_linear(50.0, 0.0, 0.0, 0.0),
+        base_color: MAROON.into(),
+        emissive: Color::linear_rgba(50.0, 0.0, 0.0, 0.0),
         ..default()
     });
 

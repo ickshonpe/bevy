@@ -6,17 +6,18 @@ use bevy_math::{vec2, Rect, Vec2};
 use bevy_reflect::prelude::*;
 use bevy_render::{
     camera::{Camera, RenderTarget},
-    color::Color,
     texture::Image,
 };
+use bevy_color::{Alpha, Color};
 use bevy_transform::prelude::GlobalTransform;
-use bevy_utils::FloatOrd;
-use bevy_utils::{smallvec::SmallVec, warn_once};
+use bevy_utils::warn_once;
 use bevy_window::{PrimaryWindow, WindowRef};
 use std::{
     f32::consts::{FRAC_PI_2, PI},
     num::{NonZeroI16, NonZeroU16},
 };
+use smallvec::SmallVec;
+use bevy_math::FloatOrd;
 use thiserror::Error;
 
 /// Base component for a UI node, which also provides the computed size of the node.
@@ -1647,6 +1648,7 @@ impl GridPlacement {
     pub const DEFAULT: Self = Self {
         start: None,
         // SAFETY: This is trivially safe as 1 is non-zero.
+        #[allow(unsafe_code)]
         span: Some(unsafe { NonZeroU16::new_unchecked(1) }),
         end: None,
     };
@@ -1887,7 +1889,7 @@ impl UiColor {
     /// Always returns true for gradient values.
     pub fn is_fully_transparent(&self) -> bool {
         match self {
-            Self::Color(color) => color.a() <= 0.,
+            Self::Color(color) => color.alpha() <= 0.,
             _ => false,
         }
     }
@@ -2417,7 +2419,7 @@ impl LinearGradient {
     }
 
     pub fn is_visible(&self) -> bool {
-        self.stops.iter().all(|stop| stop.color.a() == 0.)
+        self.stops.iter().all(|stop| stop.color.alpha() == 0.)
     }
 
     /// find start point and total length of gradient
@@ -2586,7 +2588,7 @@ impl RadialGradient {
     }
 
     pub fn is_visible(&self) -> bool {
-        self.stops.iter().all(|stop| stop.color.a() == 0.)
+        self.stops.iter().all(|stop| stop.color.alpha() == 0.)
     }
 
     pub fn new(
@@ -2686,8 +2688,9 @@ pub struct BoxShadow {
 
 #[cfg(test)]
 mod tests {
+    use bevy_color::LinearRgba;
     use bevy_math::Vec2;
-    use bevy_render::color::Color;
+    use bevy_color::Color;
 
     use crate::resolve_color_stops;
     use crate::ColorStop;
@@ -2745,15 +2748,15 @@ mod tests {
                 point: Val::Auto,
             },
             ColorStop {
-                color: Color::RED,
+                color: LinearRgba::RED.into(),
                 point: Val::Auto,
             },
             ColorStop {
-                color: Color::GREEN,
+                color: LinearRgba::GREEN.into(),
                 point: Val::Auto,
             },
             ColorStop {
-                color: Color::YELLOW,
+                color: Color::linear_rgb(1.0, 1.0, 0.0),
                 point: Val::Auto,
             },
             ColorStop {
@@ -2787,10 +2790,10 @@ mod tests {
                 center,
                 shape: RadialGradientShape::Circle(RadialGradientExtent::ClosestSide),
                 stops: vec![
-                    Color::ORANGE_RED.into(),
-                    (Color::RED, Val::Percent(30.)).into(),
-                    (Color::YELLOW, Val::Percent(60.)).into(),
-                    (Color::MAROON, Val::Percent(80.)).into(),
+                    Color::linear_rgb(1.0, 0.27, 0.0).into(),
+                    (LinearRgba::RED.into(), Val::Percent(30.)).into(),
+                    (Color::linear_rgb(1.0, 1.0, 0.0), Val::Percent(60.)).into(),
+                    (Color::linear_rgb(0.5, 0.0, 0.0), Val::Percent(80.)).into(),
                     (Color::NONE, Val::Percent(81.)).into(),
                 ],
             };
@@ -2817,10 +2820,10 @@ mod tests {
                 center,
                 shape: RadialGradientShape::Circle(RadialGradientExtent::ClosestSide),
                 stops: vec![
-                    Color::ORANGE_RED.into(),
-                    (Color::RED, Val::Percent(30.)).into(),
-                    (Color::YELLOW, Val::Percent(60.)).into(),
-                    (Color::MAROON, Val::Percent(80.)).into(),
+                    Color::linear_rgb(1.0, 0.27, 0.0).into(),
+                    (LinearRgba::RED.into(), Val::Percent(30.)).into(),
+                    (Color::linear_rgb(1.0, 1.0, 0.0), Val::Percent(60.)).into(),
+                    (Color::linear_rgb(0.5, 0.0, 0.0), Val::Percent(80.)).into(),
                     (Color::NONE, Val::Percent(81.)).into(),
                 ],
             };

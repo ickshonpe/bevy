@@ -1,4 +1,3 @@
-use bevy_render::render_resource::AsBindGroupShaderType;
 use taffy::style_helpers;
 
 use crate::{

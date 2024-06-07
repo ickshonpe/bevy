@@ -2,7 +2,7 @@ use bevy_ecs::system::Resource;
 use bevy_math::Rect;
 use bevy_math::Vec2;
 use bevy_math::Vec4;
-use bevy_render::color::Color;
+use bevy_color::Color;
 use bevy_render::texture::Image;
 
 use super::*;
@@ -62,7 +62,7 @@ impl ExtractedUiNodes {
         uv_rect: Rect,
         camera_entity: Entity,
     ) {
-        let color = color.as_linear_rgba_f32();
+        let color = color.linear().to_f32_array();
         let uv_min = uv_rect.min.into();
         let uv_size = uv_rect.size().into();
         let i = TextInstance {
@@ -94,7 +94,7 @@ impl ExtractedUiNodes {
         flip_y: bool,
         camera_entity: Entity,
     ) {
-        let color = color.as_linear_rgba_f32();
+        let color = color.linear().to_f32_array();
         let (uv_x, uv_w) = if flip_x {
             (uv_rect.max.x, -uv_rect.size().x)
         } else {
@@ -145,7 +145,7 @@ impl ExtractedUiNodes {
         if border.iter().all(|thickness| *thickness <= 0.) {
             return;
         }
-        let color = color.as_linear_rgba_f32();
+        let color = color.linear().to_f32_array();
         let flags = UNTEXTURED_QUAD | BORDERED;
         let i = NodeInstance {
             location: position.into(),
@@ -176,7 +176,7 @@ impl ExtractedUiNodes {
         clip: Option<Rect>,
         camera_entity: Entity,
     ) {
-        let color = color.as_linear_rgba_f32();
+        let color = color.linear().to_f32_array();
         let i = DashedBorderInstance {
             location: position.into(),
             size: size.into(),
@@ -230,10 +230,10 @@ impl ExtractedUiNodes {
                 flags,
                 focal_point: start_point.into(),
                 angle,
-                start_color: start.0.as_linear_rgba_f32(),
+                start_color: start.0.linear().to_f32_array(),
                 start_len: start.1,
                 end_len: end.1,
-                end_color: end.0.as_linear_rgba_f32(),
+                end_color: end.0.linear().to_f32_array(),
             };
             self.push(
                 commands.spawn_empty().id(),
@@ -282,10 +282,10 @@ impl ExtractedUiNodes {
                 flags,
                 ratio,
                 start_point: start_point.into(),
-                start_color: start.0.as_linear_rgba_f32(),
+                start_color: start.0.linear().to_f32_array(),
                 start_len: start.1,
                 end_len: end.1,
-                end_color: end.0.as_linear_rgba_f32(),
+                end_color: end.0.linear().to_f32_array(),
             };
             self.push(
                 commands.spawn_empty().id(),
@@ -331,10 +331,10 @@ impl ExtractedUiNodes {
                 flags,
                 focal_point: start_point.into(),
                 angle,
-                start_color: start.0.as_linear_rgba_f32(),
+                start_color: start.0.linear().to_f32_array(),
                 start_len: start.1,
                 end_len: end.1,
-                end_color: end.0.as_linear_rgba_f32(),
+                end_color: end.0.linear().to_f32_array(),
             };
             self.push(
                 commands.spawn_empty().id(),
@@ -380,10 +380,10 @@ impl ExtractedUiNodes {
                 radius,
                 start_point,
                 ratio,
-                start_color: start.0.as_linear_rgba_f32(),
+                start_color: start.0.linear().to_f32_array(),
                 start_len: start.1,
                 end_len: end.1,
-                end_color: end.0.as_linear_rgba_f32(),
+                end_color: end.0.linear().to_f32_array(),
             };
             self.push(
                 commands.spawn_empty().id(),
@@ -404,7 +404,7 @@ impl ExtractedUiNodes {
         clip: Option<Rect>,
         camera_entity: Entity,
     ) {
-        let color = color.as_linear_rgba_f32();
+        let color = color.linear().to_f32_array();
 
         let i = ShadowInstance {
             location: position.into(),

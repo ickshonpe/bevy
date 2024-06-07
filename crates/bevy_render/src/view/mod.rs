@@ -55,7 +55,7 @@ impl Plugin for ViewPlugin {
             // NOTE: windows.is_changed() handles cases where a window was resized
             .add_plugins((ExtractResourcePlugin::<Msaa>::default(), VisibilityPlugin));
 
-        if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
+        if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app.init_resource::<ViewUniforms>().add_systems(
                 Render,
                 (
@@ -90,7 +90,7 @@ impl Plugin for ViewPlugin {
 #[derive(
     Resource, Default, Clone, Copy, ExtractResource, Reflect, PartialEq, PartialOrd, Debug,
 )]
-#[reflect(Resource)]
+#[reflect(Resource, Default)]
 pub enum Msaa {
     Off = 1,
     Sample2 = 2,
@@ -560,9 +560,11 @@ pub fn prepare_view_targets(
                         (a, b, sampled, main_texture)
                     });
 
+                let converted_clear_color = clear_color.map(|color| color.into());
+
                 let main_textures = MainTargetTextures {
-                    a: ColorAttachment::new(a.clone(), sampled.clone(), clear_color),
-                    b: ColorAttachment::new(b.clone(), sampled.clone(), clear_color),
+                    a: ColorAttachment::new(a.clone(), sampled.clone(), converted_clear_color),
+                    b: ColorAttachment::new(b.clone(), sampled.clone(), converted_clear_color),
                     main_texture: main_texture.clone(),
                 };
 

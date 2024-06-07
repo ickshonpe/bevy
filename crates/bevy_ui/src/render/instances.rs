@@ -102,6 +102,7 @@ where
     }
 }
 
+#[allow(unsafe_code)]
 unsafe impl<I> Pod for ClippedInstance<I> where I: Clone + Copy + Pod + Zeroable + std::fmt::Debug {}
 
 pub struct UiInstanceBuffer<I>

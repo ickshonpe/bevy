@@ -24,6 +24,10 @@ fn setup(
     let shapes = [
         Mesh2dHandle(meshes.add(Circle { radius: 50.0 })),
         Mesh2dHandle(meshes.add(Ellipse::new(25.0, 50.0))),
+<<<<<<< HEAD
+=======
+        Mesh2dHandle(meshes.add(Annulus::new(25.0, 50.0))),
+>>>>>>> origin/main
         Mesh2dHandle(meshes.add(Capsule2d::new(25.0, 50.0))),
         Mesh2dHandle(meshes.add(Rectangle::new(50.0, 100.0))),
         Mesh2dHandle(meshes.add(RegularPolygon::new(50.0, 6))),
@@ -43,7 +47,11 @@ fn setup(
             mesh: shape,
             material: materials.add(color),
             transform: Transform::from_xyz(
+<<<<<<< HEAD
                 // Distribute shapes from -X_EXTENT to +X_EXTENT.
+=======
+                // Distribute shapes from -X_EXTENT/2 to +X_EXTENT/2.
+>>>>>>> origin/main
                 -X_EXTENT / 2. + i as f32 / (num_shapes - 1) as f32 * X_EXTENT,
                 0.0,
                 0.0,

@@ -126,7 +126,7 @@ impl Plugin for LightmapPlugin {
     }
 
     fn finish(&self, app: &mut App) {
-        let Ok(render_app) = app.get_sub_app_mut(RenderApp) else {
+        let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
             return;
         };
 
@@ -159,7 +159,7 @@ fn extract_lightmaps(
             || !render_mesh_instances
                 .get(&entity)
                 .and_then(|mesh_instance| meshes.get(mesh_instance.mesh_asset_id))
-                .is_some_and(|mesh| mesh.layout.contains(Mesh::ATTRIBUTE_UV_1.id))
+                .is_some_and(|mesh| mesh.layout.0.contains(Mesh::ATTRIBUTE_UV_1.id))
         {
             continue;
         }
