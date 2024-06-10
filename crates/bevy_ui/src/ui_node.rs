@@ -8,7 +8,7 @@ use bevy_render::{
     camera::{Camera, RenderTarget},
     texture::Image,
 };
-use bevy_color::{Alpha, Color};
+use bevy_color::{Alpha, Color, LinearRgba, Srgba};
 use bevy_transform::prelude::GlobalTransform;
 use bevy_utils::warn_once;
 use bevy_window::{PrimaryWindow, WindowRef};
@@ -1872,6 +1872,18 @@ impl From<Color> for UiColor {
     }
 }
 
+impl From<LinearRgba> for UiColor {
+    fn from(value: LinearRgba) -> Self {
+        Color::from(value).into()
+    }
+}
+
+impl From<Srgba> for UiColor {
+    fn from(value: Srgba) -> Self {
+        Color::from(value).into()
+    }
+}
+
 impl From<LinearGradient> for UiColor {
     fn from(value: LinearGradient) -> Self {
         Self::LinearGradient(value)
@@ -2323,6 +2335,31 @@ impl From<(Color, Val)> for ColorStop {
         Self { color, point: val }
     }
 }
+
+impl From<LinearRgba> for ColorStop {
+    fn from(color: LinearRgba) -> Self {
+        Color::from(color).into()
+    }
+}
+
+impl From<(LinearRgba, Val)> for ColorStop {
+    fn from((color, val): (LinearRgba, Val)) -> Self {
+        (Color::from(color), val).into()
+    }
+}
+
+impl From<Srgba> for ColorStop {
+    fn from(color: Srgba) -> Self {
+        Color::from(color).into()
+    }
+}
+
+impl From<(Srgba, Val)> for ColorStop {
+    fn from((color, val): (Srgba, Val)) -> Self {
+        (Color::from(color), val).into()
+    }
+}
+
 
 pub fn resolve_color_stops(
     stops: &[ColorStop],
@@ -2791,7 +2828,7 @@ mod tests {
                 shape: RadialGradientShape::Circle(RadialGradientExtent::ClosestSide),
                 stops: vec![
                     Color::linear_rgb(1.0, 0.27, 0.0).into(),
-                    (LinearRgba::RED.into(), Val::Percent(30.)).into(),
+                    (LinearRgba::RED, Val::Percent(30.)).into(),
                     (Color::linear_rgb(1.0, 1.0, 0.0), Val::Percent(60.)).into(),
                     (Color::linear_rgb(0.5, 0.0, 0.0), Val::Percent(80.)).into(),
                     (Color::NONE, Val::Percent(81.)).into(),
@@ -2821,7 +2858,7 @@ mod tests {
                 shape: RadialGradientShape::Circle(RadialGradientExtent::ClosestSide),
                 stops: vec![
                     Color::linear_rgb(1.0, 0.27, 0.0).into(),
-                    (LinearRgba::RED.into(), Val::Percent(30.)).into(),
+                    (LinearRgba::RED, Val::Percent(30.)).into(),
                     (Color::linear_rgb(1.0, 1.0, 0.0), Val::Percent(60.)).into(),
                     (Color::linear_rgb(0.5, 0.0, 0.0), Val::Percent(80.)).into(),
                     (Color::NONE, Val::Percent(81.)).into(),
