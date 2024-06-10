@@ -1,10 +1,14 @@
 use crate::{Material2d, Material2dPlugin, MaterialMesh2dBundle};
 use bevy_app::{App, Plugin};
 use bevy_asset::{load_internal_asset, Asset, AssetApp, Assets, Handle};
-use bevy_color::{Color, LinearRgba};
+use bevy_color::{Color, ColorToComponents, LinearRgba};
 use bevy_math::Vec4;
 use bevy_reflect::prelude::*;
-use bevy_render::{render_asset::RenderAssets, render_resource::*, texture::Image};
+use bevy_render::{
+    render_asset::RenderAssets,
+    render_resource::*,
+    texture::{GpuImage, Image},
+};
 
 pub const COLOR_MATERIAL_SHADER_HANDLE: Handle<Shader> =
     Handle::weak_from_u128(3253086872234592509);
@@ -92,7 +96,7 @@ pub struct ColorMaterialUniform {
 }
 
 impl AsBindGroupShaderType<ColorMaterialUniform> for ColorMaterial {
-    fn as_bind_group_shader_type(&self, _images: &RenderAssets<Image>) -> ColorMaterialUniform {
+    fn as_bind_group_shader_type(&self, _images: &RenderAssets<GpuImage>) -> ColorMaterialUniform {
         let mut flags = ColorMaterialFlags::NONE;
         if self.texture.is_some() {
             flags |= ColorMaterialFlags::TEXTURE;
