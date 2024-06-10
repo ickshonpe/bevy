@@ -25,7 +25,7 @@ use bevy_transform::prelude::{GlobalTransform, Transform};
 pub struct NodeBundle {
     /// Describes the logical size of the node
     pub node: Node,
-    /// Styles which control the layout (size and position) of the node and it's children
+    /// Styles which control the layout (size and position) of the node and its children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
     /// The background color, which serves as a "fill" for this node
@@ -83,7 +83,7 @@ impl Default for NodeBundle {
 pub struct ImageBundle {
     /// Describes the logical size of the node
     pub node: Node,
-    /// Styles which control the layout (size and position) of the node and it's children
+    /// Styles which control the layout (size and position) of the node and its children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
     /// The calculated size based on the given image
@@ -126,7 +126,7 @@ pub struct ImageBundle {
 pub struct AtlasImageBundle {
     /// Describes the logical size of the node
     pub node: Node,
-    /// Styles which control the layout (size and position) of the node and it's children
+    /// Styles which control the layout (size and position) of the node and its children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
     /// The calculated size based on the given image
@@ -173,7 +173,7 @@ pub struct AtlasImageBundle {
 pub struct TextBundle {
     /// Describes the logical size of the node
     pub node: Node,
-    /// Styles which control the layout (size and position) of the node and it's children
+    /// Styles which control the layout (size and position) of the node and its children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
     /// Contains the text of the node
@@ -300,7 +300,7 @@ pub struct ButtonBundle {
     pub node: Node,
     /// Marker component that signals this node is a button
     pub button: Button,
-    /// Styles which control the layout (size and position) of the node and it's children
+    /// Styles which control the layout (size and position) of the node and its children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
     /// Describes whether and how the button has been interacted with by the input
@@ -363,7 +363,7 @@ impl Default for ButtonBundle {
 pub struct MaterialNodeBundle<M: UiMaterial> {
     /// Describes the logical size of the node
     pub node: Node,
-    /// Styles which control the layout (size and position) of the node and it's children
+    /// Styles which control the layout (size and position) of the node and its children
     /// In some cases these styles also affect how the node drawn/painted.
     pub style: Style,
     /// The [`UiMaterial`] used to render the node.

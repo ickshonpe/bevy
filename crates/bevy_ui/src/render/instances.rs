@@ -1,6 +1,6 @@
 use bevy_math::Rect;
 use bevy_render::{
-    render_resource::{BufferUsages, BufferVec},
+    render_resource::{BufferUsages, RawBufferVec},
     renderer::{RenderDevice, RenderQueue},
 };
 use bytemuck::{Pod, Zeroable};
@@ -109,8 +109,8 @@ pub struct UiInstanceBuffer<I>
 where
     I: Copy + Clone + Pod + Zeroable + std::fmt::Debug,
 {
-    pub clipped: BufferVec<ClippedInstance<I>>,
-    pub unclipped: BufferVec<I>,
+    pub clipped: RawBufferVec<ClippedInstance<I>>,
+    pub unclipped: RawBufferVec<I>,
 }
 
 impl<I> UiInstanceBuffer<I>
@@ -136,8 +136,8 @@ where
 {
     fn default() -> Self {
         Self {
-            clipped: BufferVec::<ClippedInstance<I>>::new(BufferUsages::VERTEX),
-            unclipped: BufferVec::<I>::new(BufferUsages::VERTEX),
+            clipped: RawBufferVec::<ClippedInstance<I>>::new(BufferUsages::VERTEX),
+            unclipped: RawBufferVec::<I>::new(BufferUsages::VERTEX),
         }
     }
 }
