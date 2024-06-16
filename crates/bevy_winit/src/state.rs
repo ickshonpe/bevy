@@ -6,6 +6,8 @@ use bevy_ecs::event::{EventWriter, ManualEventReader};
 use bevy_ecs::prelude::*;
 use bevy_ecs::system::SystemState;
 use bevy_ecs::world::FromWorld;
+use bevy_input::keyboard::{Key, KeyCode, KeyboardInput};
+use bevy_input::ButtonState;
 use bevy_input::{
     gestures::*,
     keyboard::KeyboardFocusLost,
@@ -19,9 +21,10 @@ use bevy_utils::Instant;
 use std::marker::PhantomData;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
-use winit::event;
+use winit::event::{self, Modifiers};
 use winit::event::{DeviceEvent, DeviceId, StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::keyboard::ModifiersKeyState;
 use winit::window::WindowId;
 
 #[allow(deprecated)]
@@ -115,6 +118,7 @@ impl<T: Event> WinitAppRunnerState<T> {
             winit_events: Vec::new(),
             _marker: PhantomData,
             event_writer_system_state,
+            keyboard_modifiers: Modifiers::default(),
         }
     }
 
@@ -279,7 +283,7 @@ impl<T: Event> ApplicationHandler<T> for WinitAppRunnerState<T> {
 
                 for (key_code, key, f) in checks {
                     let new = f(mods);
-                    let old = f(runner_state.keyboard_modifiers);
+                    let old = f(self.keyboard_modifiers);
 
                     if new != old {
                         self.winit_events.send(KeyboardInput {
@@ -295,7 +299,7 @@ impl<T: Event> ApplicationHandler<T> for WinitAppRunnerState<T> {
                     }
                 }
 
-                runner_state.keyboard_modifiers = mods;
+                self.keyboard_modifiers = mods;
             }
             WindowEvent::CursorMoved { position, .. } => {
                 let physical_position = DVec2::new(position.x, position.y);

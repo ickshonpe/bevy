@@ -853,11 +853,11 @@ pub fn prepare_view_targets(
         let (a, b, sampled, main_texture) = textures
             .entry((camera.target.clone(), view.hdr))
             .or_insert_with(|| {
-                        let usage = if view.hdr {
-                            texture_usage.0 | TextureUsages::STORAGE_BINDING
-                        } else {
-                            texture_usage.0
-                        };
+                let usage = if view.hdr {
+                    texture_usage.0 | TextureUsages::STORAGE_BINDING
+                } else {
+                    texture_usage.0
+                };
                 let descriptor = TextureDescriptor {
                     label: None,
                     size,

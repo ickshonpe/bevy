@@ -19,7 +19,10 @@ use crate::{
 };
 use bevy_ecs::prelude::*;
 use bevy_tasks::IoTaskPool;
-use bevy_utils::{tracing::{error, info}, ConditionalSendFuture};
+use bevy_utils::{
+    tracing::{error, info},
+    ConditionalSendFuture,
+};
 use bevy_utils::{CowArc, HashSet};
 use crossbeam_channel::{Receiver, Sender};
 use futures_lite::StreamExt;
@@ -716,7 +719,10 @@ impl AssetServer {
     ///
     /// After the asset has been fully loaded by the [`AssetServer`], it will show up in the relevant [`Assets`] storage.
     #[must_use = "not using the returned strong handle may result in the unexpected release of the asset"]
-    pub fn add_async<A: Asset, E: std::error::Error + Send + Sync + 'static>(&self, future: impl ConditionalSendFuture<Output = Result<A, E>> + 'static) -> Handle<A> {
+    pub fn add_async<A: Asset, E: std::error::Error + Send + Sync + 'static>(
+        &self,
+        future: impl ConditionalSendFuture<Output = Result<A, E>> + 'static,
+    ) -> Handle<A> {
         let handle = self
             .data
             .infos
