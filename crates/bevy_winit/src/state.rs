@@ -69,7 +69,7 @@ struct WinitAppRunnerState<T: Event> {
     previous_lifecycle: AppLifecycle,
     /// Winit events to send
     winit_events: Vec<WinitEvent>,
-    
+
     #[cfg(target_os = "macos")]
     /// State of the keyboard modifiers.
     keyboard_modifiers: Modifiers,
@@ -254,8 +254,7 @@ impl<T: Event> ApplicationHandler<T> for WinitAppRunnerState<T> {
             #[cfg(target_os = "macos")]
             WindowEvent::ModifiersChanged(mods) => {
                 // Check if the state of any modifier key has changed.
-                let checks: [(KeyCode, Key, &mut dyn FnMut(Modifiers) -> ModifiersKeyState);
-                    8] = [
+                let checks: [(KeyCode, Key, &mut dyn FnMut(Modifiers) -> ModifiersKeyState); 8] = [
                     (KeyCode::SuperLeft, Key::Super, &mut |mods| {
                         mods.lsuper_state()
                     }),
@@ -283,7 +282,7 @@ impl<T: Event> ApplicationHandler<T> for WinitAppRunnerState<T> {
                     let old = f(runner_state.keyboard_modifiers);
 
                     if new != old {
-                        self.winit_events(KeyboardInput {
+                        self.winit_events.send(KeyboardInput {
                             key_code,
                             logical_key: key,
                             state: if new == ModifiersKeyState::Pressed {

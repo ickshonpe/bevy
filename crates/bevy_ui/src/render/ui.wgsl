@@ -17,8 +17,8 @@ fn clip(color: vec4<f32>, position: vec2<f32>, clip: vec4<f32>) -> vec4<f32> {
 }
 
 fn antialias(distance: f32, current_alpha: f32) -> f32 {
-    // we want to antialias when the distance value is between -0.5 and 0.5
-    return mix(0.0, current_alpha, 1.0 - smoothstep(0.0, 1.0, distance + 0.5));
+    // we want to antialias when the distance value is between -0.25 and 0.25
+    return mix(0.0, current_alpha, 1.0 - smoothstep(0.0, 1.0, 2.0 * distance + 0.5));
 }
 
 const TEXTURED = 1u;
