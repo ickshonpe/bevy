@@ -209,7 +209,7 @@ pub fn update_text2d_layout(
                         .map(|glyph| FloatOrd(glyph.position.x - 0.5 * glyph.size.x))
                         .min() {
                         for glyph in info.glyphs.iter_mut() {
-                            glyph.position -= min_x.0;
+                            glyph.position.x -= min_x.0;
                         }
                     }
 
