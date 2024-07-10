@@ -181,7 +181,6 @@ pub(crate) fn changed_windows(
     mut window_resized: EventWriter<WindowResized>,
 ) {
     for (entity, mut window, mut cache) in &mut changed_windows {
-        println!("window change detected");
         let Some(winit_window) = winit_windows.get_window(entity) else {
             continue;
         };
@@ -224,6 +223,7 @@ pub(crate) fn changed_windows(
         }
 
         if window.resolution != cache.window.resolution {
+            println!("window resolution change detected");
             let mut physical_size = PhysicalSize::new(
                 window.resolution.physical_width(),
                 window.resolution.physical_height(),
