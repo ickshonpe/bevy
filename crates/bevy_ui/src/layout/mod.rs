@@ -109,11 +109,14 @@ pub fn ui_layout_system(
         target_camera.map(TargetCamera::entity).or(default_camera)
     };
 
+    let n = resize_events.len();
+    if 0 < n {
+        println!("recieved {n} window resized events");
+    }
     let resized_windows: HashSet<Entity> = resize_events.read().map(|event| {
         event.window
     }).collect();
 
-    println!("recieved {} window resized events", resized_windows.len());
     let calculate_camera_layout_info = |camera: &Camera| {
         let size = camera.physical_viewport_size().unwrap_or(UVec2::ZERO);
         let scale_factor = camera.target_scaling_factor().unwrap_or(1.0);
