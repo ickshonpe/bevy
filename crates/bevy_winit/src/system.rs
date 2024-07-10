@@ -262,7 +262,9 @@ pub(crate) fn changed_windows(
             }
 
             if physical_size != cached_physical_size {
+                println!("window size changed outer");
                 if let Some(new_physical_size) = winit_window.request_inner_size(physical_size) {
+                    println!("window size changed inner");
                     react_to_resize(entity, &mut window, new_physical_size, &mut window_resized);
                 }
             }
