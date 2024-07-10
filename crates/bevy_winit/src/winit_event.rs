@@ -144,6 +144,7 @@ impl From<WindowOccluded> for WinitEvent {
 }
 impl From<WindowResized> for WinitEvent {
     fn from(e: WindowResized) -> Self {
+        println!("From Window resized WinitEvent");
         Self::WindowResized(e)
     }
 }
