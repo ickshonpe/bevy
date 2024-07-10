@@ -450,6 +450,7 @@ impl<T: Event> ApplicationHandler<T> for WinitAppRunnerState<T> {
             }
         }
 
+        println!("self.lifecyle == {:?}", self.lifecycle);
         if self.lifecycle == AppLifecycle::WillResume {
             self.lifecycle = AppLifecycle::Running;
             // Trigger the update to enter the running state
