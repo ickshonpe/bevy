@@ -143,7 +143,7 @@ pub fn ui_layout_system(
                     .entry(camera_entity)
                     .or_insert_with(|| calculate_camera_layout_info(camera));
                 if layout_info.resized {
-                    println!("window resize detected");
+                    println!("UI window resize detected");
                 }
                 layout_info.root_nodes.push(entity);
             }
