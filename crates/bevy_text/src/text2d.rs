@@ -15,7 +15,7 @@ use bevy_ecs::{
     reflect::ReflectComponent,
     system::{Commands, Local, Query, Res, ResMut},
 };
-use bevy_math::Vec2;
+use bevy_math::{FloatOrd, Vec2};
 use bevy_reflect::Reflect;
 use bevy_render::{
     primitives::Aabb,
