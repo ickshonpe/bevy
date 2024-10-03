@@ -40,44 +40,48 @@ fn spawn(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     commands.spawn(Camera2dBundle::default());
 
-    let text_block = TextBlock {
-        justify: JustifyText::Center,
-        linebreak: LineBreak::AnyCharacter,
-        ..Default::default()
-    };
-
     let make_spans = |i| {
         [
             (
-                Text2d::new("text".repeat(i)),
+                "text".repeat(i),
                 TextStyle {
                     font: asset_server.load("fonts/FiraMono-Medium.ttf"),
                     font_size: (4 + i % 10) as f32,
                     color: BLUE.into(),
+                    ..Default::default()
                 },
-                text_block.clone(),
             ),
             (
-                Text2d::new("pipeline".repeat(i)),
+                "pipeline".repeat(i),
                 TextStyle {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                     font_size: (4 + i % 11) as f32,
                     color: YELLOW.into(),
                 },
-                text_block.clone(),
             ),
         ]
     };
 
     let [t1, p1] = make_spans(1);
-    commands.spawn(t1).with_children(|parent| {
-        parent.spawn(p1);
-        for i in 2..=50 {
-            let [t, p] = make_spans(i);
-            parent.spawn(t);
-            parent.spawn(p);
-        }
-    });
+    commands
+        .spawn((
+            Text2d::new(t1.0),
+            t1.1,
+            TextBlock {
+                justify: JustifyText::Center,
+                linebreak: LineBreak::AnyCharacter,
+                ..Default::default()
+            },
+            TextBounds::default(),
+        ))
+        .with_children(|parent| {
+            parent.spawn((TextSpan2d(p1.0), p1.1));
+            for i in 2..=50 {
+                let [t, p] = make_spans(i);
+                parent.spawn((TextSpan2d(t.0), t.1));
+                parent.spawn((TextSpan2d(p.0), p.1));
+            }
+        });
 }
 
 // changing the bounds of the text will cause a recomputation
