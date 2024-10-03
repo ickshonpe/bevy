@@ -94,8 +94,8 @@ fn setup(mut commands: Commands) {
     ));
 }
 
-fn force_text_recomputation(mut text_query: Query<&mut TextSpan>) {
-    for mut text in &mut text_query {
-        text.set_changed();
+fn force_text_recomputation(mut text_query: Query<&mut TextBlock>) {
+    for mut block in &mut text_query {
+        block.set_changed();
     }
 }
