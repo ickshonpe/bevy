@@ -365,10 +365,10 @@ with UI components as a child of an entity without UI components, your UI layout
             }
 
             let taffy_rect_to_border_rect = |rect: taffy::Rect<f32>| BorderRect {
-                left: rect.left * inverse_target_scale_factor,
-                right: rect.right * inverse_target_scale_factor,
-                top: rect.top * inverse_target_scale_factor,
-                bottom: rect.bottom * inverse_target_scale_factor,
+                left: approx_round_ties_up(rect.left * inverse_target_scale_factor),
+                right: approx_round_ties_up(rect.right * inverse_target_scale_factor),
+                top: approx_round_ties_up(rect.top * inverse_target_scale_factor),
+                bottom: approx_round_ties_up(rect.bottom * inverse_target_scale_factor),
             };
 
             node.bypass_change_detection().border = taffy_rect_to_border_rect(layout.border);
