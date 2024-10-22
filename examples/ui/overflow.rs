@@ -86,8 +86,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                     Interaction::default(),
                                     Outline {
                                         width: Val::Px(2.),
-                                        offset: Val::Px(2.),
+                                        //offset: Val::Px(2.),
                                         color: Color::NONE,
+                                        ..Default::default()
                                     },
                                 ));
                             });

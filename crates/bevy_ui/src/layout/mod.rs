@@ -344,19 +344,20 @@ with UI components as a child of an entity without UI components, your UI layout
                 return;
             };
 
-            let layout_size =
-                inverse_target_scale_factor * Vec2::new(layout.size.width, layout.size.height);
-            let layout_location =
-                inverse_target_scale_factor * Vec2::new(layout.location.x, layout.location.y);
+            let output_size =
+                approx_round_layout_coords(Vec2::new(layout.size.width, layout.size.height));
+            let output_location =
+                approx_round_layout_coords(Vec2::new(layout.location.x, layout.location.y));
+
+            let layout_size = inverse_target_scale_factor * output_size;
+            let layout_location = inverse_target_scale_factor * output_location;
 
             absolute_location += layout_location;
 
-            let rounded_size = approx_round_layout_coords(absolute_location + layout_size)
-                - approx_round_layout_coords(absolute_location);
+            let rounded_size = layout_size;
 
             let rounded_location =
-                approx_round_layout_coords(layout_location - parent_scroll_position)
-                    + 0.5 * (rounded_size - parent_size);
+                layout_location - parent_scroll_position + 0.5 * (rounded_size - parent_size);
 
             // only trigger change detection when the new values are different
             if node.calculated_size != rounded_size || node.unrounded_size != layout_size {
@@ -365,10 +366,10 @@ with UI components as a child of an entity without UI components, your UI layout
             }
 
             let taffy_rect_to_border_rect = |rect: taffy::Rect<f32>| BorderRect {
-                left: approx_round_ties_up(rect.left * inverse_target_scale_factor),
-                right: approx_round_ties_up(rect.right * inverse_target_scale_factor),
-                top: approx_round_ties_up(rect.top * inverse_target_scale_factor),
-                bottom: approx_round_ties_up(rect.bottom * inverse_target_scale_factor),
+                left: approx_round_ties_up(rect.left) * inverse_target_scale_factor,
+                right: approx_round_ties_up(rect.right) * inverse_target_scale_factor,
+                top: approx_round_ties_up(rect.top) * inverse_target_scale_factor,
+                bottom: approx_round_ties_up(rect.bottom) * inverse_target_scale_factor,
             };
 
             node.bypass_change_detection().border = taffy_rect_to_border_rect(layout.border);
@@ -423,10 +424,10 @@ with UI components as a child of an entity without UI components, your UI layout
                 })
                 .unwrap_or_default();
 
-            let round_content_size = approx_round_layout_coords(
-                Vec2::new(layout.content_size.width, layout.content_size.height)
-                    * inverse_target_scale_factor,
-            );
+            let round_content_size = approx_round_layout_coords(Vec2::new(
+                layout.content_size.width,
+                layout.content_size.height,
+            )) * inverse_target_scale_factor;
             let max_possible_offset = (round_content_size - rounded_size).max(Vec2::ZERO);
             let clamped_scroll_position = scroll_position.clamp(Vec2::ZERO, max_possible_offset);
 
