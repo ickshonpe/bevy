@@ -2451,6 +2451,86 @@ impl Default for BoxShadow {
     }
 }
 
+#[derive(Component, Default, Clone, Debug, Reflect)]
+#[reflect(Component, Default)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
+pub struct BoxShadows {
+    /// Shadows drawn according to their order in the Vec, back to front
+    shadows: Vec<ShadowStyle>,
+}
+
+// #[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq, Reflect)]
+// #[reflect(Component, Default, Debug, PartialEq)]
+
+#[derive(Copy, Clone, Debug, PartialEq, Reflect)]
+pub enum ShadowStyle {
+    /// Shadow drawn beneath a UI node.
+    /// Position and size relative to the corresponding UI node.
+    Drop {
+        /// The shadow's color
+        color: Color,
+        /// Horizontal offset
+        x_offset: Val,
+        /// Vertical offset
+        y_offset: Val,
+        /// How much the shadow should spread outward.
+        ///
+        /// Negative values will make the shadow shrink inwards.
+        /// Percentage values are based on the width of the UI node.
+        spread_radius: Val,
+        /// Blurriness of the shadow
+        blur_radius: Val,
+    },
+    /// Shadow drawn beneath its corresponding UI node.
+    /// Position is relative to its `Node` but with independent size and radius.
+    DropFree {
+        /// The shadow's color
+        color: Color,
+        /// Horizontal offset
+        x_offset: Val,
+        /// Vertical offset
+        y_offset: Val,
+        /// Shadow width,
+        width: Val,
+        /// Shadow height
+        height: Val,
+        /// radius of the corners
+        radius: BorderRadius,
+        /// Blurriness of the shadow
+        blur_radius: Val,
+    },
+    /// Inner shadow drawn inside the node's padding box, starting at the border-padding edge.
+    Inner {
+        /// Horizontal offset.
+        /// Negative values move the shadow to the left, positive to the right.
+        x_offset: Val,
+        /// Vertical offset.
+        /// Negative values move the shadow to the left, positive to the right.
+        y_offset: Val,
+        /// Controls the size of the shadow. Positive values increase the size of the shadow,
+        /// covering more of the padding box.
+        spread_radius: Val,
+        /// Blurriness of the shadow
+        blur_radius: Val,
+    },
+}
+
+impl Default for ShadowStyle {
+    fn default() -> Self {
+        Self::Drop {
+            color: Color::BLACK,
+            x_offset: Val::Percent(20.),
+            y_offset: Val::Percent(20.),
+            spread_radius: Val::ZERO,
+            blur_radius: Val::Percent(10.),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::GridPlacement;
