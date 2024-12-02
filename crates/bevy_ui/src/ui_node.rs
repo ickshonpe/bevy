@@ -6,7 +6,7 @@ use bevy_math::{vec4, Mat4, Rect, Vec2, Vec4Swizzles};
 use bevy_reflect::prelude::*;
 use bevy_render::{
     camera::{Camera, RenderTarget},
-    view::Visibility,
+    view::{NoFrustumCulling, Visibility},
 };
 use bevy_sprite::BorderRect;
 use bevy_transform::components::Transform;
@@ -310,7 +310,8 @@ impl From<&Vec2> for ScrollPosition {
     FocusPolicy,
     ScrollPosition,
     Visibility,
-    ZIndex
+    ZIndex,
+    NoFrustumCulling
 )]
 #[reflect(Component, Default, PartialEq, Debug)]
 #[cfg_attr(
