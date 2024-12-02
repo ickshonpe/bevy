@@ -30,8 +30,6 @@ pub struct NodeBundle {
     pub background_color: BackgroundColor,
     /// The color of the Node's border
     pub border_color: BorderColor,
-    /// The border radius of the node
-    pub border_radius: BorderRadius,
     /// Whether this node should block interaction with lower nodes
     pub focus_policy: FocusPolicy,
     /// The scroll position of the node,
@@ -76,8 +74,6 @@ pub struct ImageBundle {
     pub image: ImageNode,
     /// The color of the background that will fill the containing node.
     pub background_color: BackgroundColor,
-    /// The border radius of the node
-    pub border_radius: BorderRadius,
     /// The size of the image in pixels
     ///
     /// This component is set automatically
@@ -123,8 +119,6 @@ pub struct ButtonBundle {
     pub focus_policy: FocusPolicy,
     /// The color of the Node's border
     pub border_color: BorderColor,
-    /// The border radius of the node
-    pub border_radius: BorderRadius,
     /// The image of the node
     pub image: ImageNode,
     /// The background color that will fill the containing node
@@ -157,7 +151,6 @@ impl Default for ButtonBundle {
             interaction: Default::default(),
             focus_policy: FocusPolicy::Block,
             border_color: Default::default(),
-            border_radius: Default::default(),
             image: Default::default(),
             background_color: Default::default(),
             transform: Default::default(),

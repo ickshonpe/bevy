@@ -74,10 +74,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                         justify_content: JustifyContent::Center,
                         // vertically center child text
                         align_items: AlignItems::Center,
+                        border_radius: BorderRadius::MAX,
                         ..default()
                     },
                     BorderColor(Color::BLACK),
-                    BorderRadius::MAX,
                     BackgroundColor(NORMAL_BUTTON),
                 ))
                 .with_child((

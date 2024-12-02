@@ -302,7 +302,6 @@ impl From<&Vec2> for ScrollPosition {
     ComputedNode,
     BackgroundColor,
     BorderColor,
-    BorderRadius,
     FocusPolicy,
     ScrollPosition,
     Transform,
@@ -507,6 +506,16 @@ pub struct Node {
     /// <https://developer.mozilla.org/en-US/docs/Web/CSS/border-width>
     pub border: UiRect,
 
+    /// Sets the rounding for a node's outer border corner. If a given radius exceeds half
+    /// the length of the smallest dimension between the node's height or width, the radius will
+    /// calculated as half the smallest dimension.
+    ///
+    /// Elliptical nodes are not supported yet. Percentage values are based on the node's smallest
+    /// dimension, either width or height.
+    ///
+    /// <https://developer.mozilla.org/en-US/docs/Web/CSS/border-radius>
+    pub border_radius: BorderRadius,
+
     /// Whether a Flexbox container should be a row or a column. This property has no effect on Grid nodes.
     ///
     /// <https://developer.mozilla.org/en-US/docs/Web/CSS/flex-direction>
@@ -607,6 +616,7 @@ impl Node {
         margin: UiRect::DEFAULT,
         padding: UiRect::DEFAULT,
         border: UiRect::DEFAULT,
+        border_radius: BorderRadius::ZERO,
         flex_grow: 0.0,
         flex_shrink: 1.0,
         flex_basis: Val::Auto,
@@ -2107,26 +2117,26 @@ pub struct GlobalZIndex(pub i32);
 ///             width: Val::Px(100.),
 ///             height: Val::Px(100.),
 ///             border: UiRect::all(Val::Px(2.)),
+///             border_radius: BorderRadius::new(
+///                 // top left
+///                 Val::Px(10.),
+///                 // top right
+///                 Val::Px(20.),
+///                 // bottom right
+///                 Val::Px(30.),
+///                 // bottom left
+///                 Val::Px(40.),
+///             ),
 ///             ..Default::default()
 ///         },
 ///         BackgroundColor(BLUE.into()),
-///         BorderRadius::new(
-///             // top left
-///             Val::Px(10.),
-///             // top right
-///             Val::Px(20.),
-///             // bottom right
-///             Val::Px(30.),
-///             // bottom left
-///             Val::Px(40.),
-///         ),
 ///     ));
 /// }
 /// ```
 ///
 /// <https://developer.mozilla.org/en-US/docs/Web/CSS/border-radius>
-#[derive(Component, Copy, Clone, Debug, PartialEq, Reflect)]
-#[reflect(Component, PartialEq, Default, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Reflect)]
+#[reflect(PartialEq, Default, Debug)]
 #[cfg_attr(
     feature = "serialize",
     derive(serde::Serialize, serde::Deserialize),

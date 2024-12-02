@@ -178,9 +178,9 @@ fn setup(mut commands: Commands) {
                 Node {
                     width: Val::Px(10.),
                     height: Val::Px(10.),
+                    border_radius: BorderRadius::MAX,
                     ..default()
                 },
-                BorderRadius::MAX,
                 BackgroundColor(YELLOW.into()),
             ))
             .id();
@@ -201,11 +201,11 @@ fn setup(mut commands: Commands) {
                     margin: UiRect::all(Val::Px(20.)),
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,
+                    border_radius,
                     ..default()
                 },
                 BackgroundColor(MAROON.into()),
                 BorderColor(RED.into()),
-                border_radius,
                 Outline {
                     width: Val::Px(6.),
                     offset: Val::Px(6.),

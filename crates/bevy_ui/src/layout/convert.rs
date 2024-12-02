@@ -509,6 +509,7 @@ mod tests {
             ],
             grid_column: GridPlacement::start(4),
             grid_row: GridPlacement::span(3),
+            border_radius: crate::BorderRadius::ZERO,
         };
         let viewport_values = LayoutContext::new(1.0, bevy_math::Vec2::new(800., 600.));
         let taffy_style = from_node(&node, &viewport_values, false);

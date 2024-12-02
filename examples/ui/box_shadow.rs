@@ -200,10 +200,10 @@ fn setup(mut commands: Commands) {
                     width: Val::Px(40.),
                     height: Val::Px(40.),
                     border: UiRect::all(Val::Px(4.)),
+                    border_radius: BorderRadius::all(Val::Px(20.)),
                     ..default()
                 },
                 BorderColor(LIGHT_SKY_BLUE.into()),
-                BorderRadius::all(Val::Px(20.)),
                 BackgroundColor(DEEP_SKY_BLUE.into()),
                 BoxShadow(vec![
                     ShadowStyle {
@@ -251,10 +251,10 @@ fn box_shadow_node_bundle(
             width: Val::Px(size.x),
             height: Val::Px(size.y),
             border: UiRect::all(Val::Px(4.)),
+            border_radius,
             ..default()
         },
         BorderColor(LIGHT_SKY_BLUE.into()),
-        border_radius,
         BackgroundColor(DEEP_SKY_BLUE.into()),
         BoxShadow::new(
             Color::BLACK.with_alpha(0.8),

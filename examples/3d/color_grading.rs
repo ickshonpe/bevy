@@ -250,10 +250,10 @@ fn add_button_for_value(
                 align_items: AlignItems::Center,
                 padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
                 margin: UiRect::right(Val::Px(12.0)),
+                border_radius: BorderRadius::MAX,
                 ..default()
             },
             BorderColor(Color::WHITE),
-            BorderRadius::MAX,
             BackgroundColor(Color::BLACK),
         ))
         .insert(ColorGradingOptionWidget {

@@ -1,6 +1,6 @@
 use crate::{
     experimental::{UiChildren, UiRootNodes},
-    BorderRadius, ComputedNode, ContentSize, DefaultUiCamera, Display, Node, Outline, OverflowAxis,
+    ComputedNode, ContentSize, DefaultUiCamera, Display, Node, Outline, OverflowAxis,
     ScrollPosition, TargetCamera, UiScale, Val,
 };
 use bevy_ecs::{
@@ -128,7 +128,6 @@ pub fn ui_layout_system(
         &mut ComputedNode,
         &mut Transform,
         &Node,
-        Option<&BorderRadius>,
         Option<&Outline>,
         Option<&ScrollPosition>,
     )>,
@@ -325,7 +324,6 @@ with UI components as a child of an entity without UI components, your UI layout
             &mut ComputedNode,
             &mut Transform,
             &Node,
-            Option<&BorderRadius>,
             Option<&Outline>,
             Option<&ScrollPosition>,
         )>,
@@ -334,14 +332,8 @@ with UI components as a child of an entity without UI components, your UI layout
         parent_size: Vec2,
         parent_scroll_position: Vec2,
     ) {
-        if let Ok((
-            mut node,
-            mut transform,
-            style,
-            maybe_border_radius,
-            maybe_outline,
-            maybe_scroll_position,
-        )) = node_transform_query.get_mut(entity)
+        if let Ok((mut node, mut transform, style, maybe_outline, maybe_scroll_position)) =
+            node_transform_query.get_mut(entity)
         {
             let Ok((layout, unrounded_size)) = ui_surface.get_layout(entity) else {
                 return;
@@ -377,14 +369,12 @@ with UI components as a child of an entity without UI components, your UI layout
 
             let viewport_size = root_size.unwrap_or(node.size);
 
-            if let Some(border_radius) = maybe_border_radius {
-                // We don't trigger change detection for changes to border radius
-                node.bypass_change_detection().border_radius = border_radius.resolve(
-                    node.size,
-                    viewport_size,
-                    inverse_target_scale_factor.recip(),
-                );
-            }
+            // We don't trigger change detection for changes to border radius
+            node.bypass_change_detection().border_radius = style.border_radius.resolve(
+                node.size,
+                viewport_size,
+                inverse_target_scale_factor.recip(),
+            );
 
             if let Some(outline) = maybe_outline {
                 // don't trigger change detection when only outlines are changed
