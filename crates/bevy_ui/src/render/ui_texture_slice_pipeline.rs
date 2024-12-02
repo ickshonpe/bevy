@@ -27,7 +27,6 @@ use bevy_render::{
 use bevy_sprite::{
     SliceScaleMode, SpriteAssetEvents, SpriteImageMode, TextureAtlasLayout, TextureSlicer,
 };
-use bevy_transform::prelude::GlobalTransform;
 use bevy_utils::HashMap;
 use binding_types::{sampler, texture_2d};
 use bytemuck::{Pod, Zeroable};
@@ -255,7 +254,6 @@ pub fn extract_ui_texture_slices(
         Query<(
             Entity,
             &ComputedNode,
-            &GlobalTransform,
             &ViewVisibility,
             Option<&CalculatedClip>,
             Option<&TargetCamera>,
@@ -264,7 +262,7 @@ pub fn extract_ui_texture_slices(
     >,
     mapping: Extract<Query<RenderEntity>>,
 ) {
-    for (entity, uinode, transform, view_visibility, clip, camera, image) in &slicers_query {
+    for (entity, uinode, view_visibility, clip, camera, image) in &slicers_query {
         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera.get())
         else {
             continue;
@@ -319,7 +317,7 @@ pub fn extract_ui_texture_slices(
             commands.spawn(TemporaryRenderEntity).id(),
             ExtractedUiTextureSlice {
                 stack_index: uinode.stack_index,
-                transform: transform.compute_matrix(),
+                transform: uinode.transform,
                 color: image.color.into(),
                 rect: Rect {
                     min: Vec2::ZERO,

@@ -31,7 +31,6 @@ use bevy_render::{
     view::*,
     Extract, ExtractSchedule, Render, RenderSet,
 };
-use bevy_transform::prelude::GlobalTransform;
 use bytemuck::{Pod, Zeroable};
 
 use super::{stack_z_offsets, QUAD_INDICES, QUAD_VERTEX_POSITIONS};
@@ -242,7 +241,6 @@ pub fn extract_shadows(
         Query<(
             Entity,
             &ComputedNode,
-            &GlobalTransform,
             &ViewVisibility,
             &BoxShadow,
             Option<&CalculatedClip>,
@@ -251,8 +249,7 @@ pub fn extract_shadows(
     >,
     mapping: Extract<Query<RenderEntity>>,
 ) {
-    for (entity, uinode, transform, view_visibility, box_shadow, clip, camera) in &box_shadow_query
-    {
+    for (entity, uinode, view_visibility, box_shadow, clip, camera) in &box_shadow_query {
         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera.get())
         else {
             continue;
@@ -320,8 +317,7 @@ pub fn extract_shadows(
                 commands.spawn(TemporaryRenderEntity).id(),
                 ExtractedBoxShadow {
                     stack_index: uinode.stack_index,
-                    transform: transform.compute_matrix()
-                        * Mat4::from_translation(offset.extend(0.)),
+                    transform: uinode.transform * Mat4::from_translation(offset.extend(0.)),
                     color: drop_shadow.color.into(),
                     rect: Rect {
                         min: Vec2::ZERO,

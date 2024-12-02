@@ -25,7 +25,6 @@ use bevy_render::{
     view::*,
     Extract, ExtractSchedule, Render, RenderSet,
 };
-use bevy_transform::prelude::GlobalTransform;
 use bytemuck::{Pod, Zeroable};
 
 pub const UI_MATERIAL_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(10074188772096983955);
@@ -367,7 +366,6 @@ pub fn extract_ui_material_nodes<M: UiMaterial>(
         Query<(
             Entity,
             &ComputedNode,
-            &GlobalTransform,
             &MaterialNode<M>,
             &ViewVisibility,
             Option<&CalculatedClip>,
@@ -379,7 +377,7 @@ pub fn extract_ui_material_nodes<M: UiMaterial>(
     // If there is only one camera, we use it as default
     let default_single_camera = default_ui_camera.get();
 
-    for (entity, uinode, transform, handle, view_visibility, clip, camera) in uinode_query.iter() {
+    for (entity, uinode, handle, view_visibility, clip, camera) in uinode_query.iter() {
         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_single_camera) else {
             continue;
         };
@@ -409,7 +407,7 @@ pub fn extract_ui_material_nodes<M: UiMaterial>(
             commands.spawn(TemporaryRenderEntity).id(),
             ExtractedUiMaterialNode {
                 stack_index: uinode.stack_index,
-                transform: transform.compute_matrix(),
+                transform: uinode.transform,
                 material: handle.id(),
                 rect: Rect {
                     min: Vec2::ZERO,

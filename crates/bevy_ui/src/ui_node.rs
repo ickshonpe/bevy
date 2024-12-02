@@ -2,7 +2,7 @@ use crate::{FocusPolicy, UiRect, Val};
 use bevy_color::Color;
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{prelude::*, system::SystemParam};
-use bevy_math::{vec4, Rect, Vec2, Vec4Swizzles};
+use bevy_math::{vec4, Affine3A, Mat4, Rect, Vec2, Vec4Swizzles};
 use bevy_reflect::prelude::*;
 use bevy_render::{
     camera::{Camera, RenderTarget},
@@ -62,6 +62,9 @@ pub struct ComputedNode {
     ///
     /// Automatically calculated by [`super::layout::ui_layout_system`].
     pub(crate) inverse_scale_factor: f32,
+
+    /// Automatically calculated by [`super::layout::ui_layout_system`].
+    pub(crate) transform: Mat4,
 }
 
 impl ComputedNode {
@@ -221,6 +224,7 @@ impl ComputedNode {
         border: BorderRect::ZERO,
         padding: BorderRect::ZERO,
         inverse_scale_factor: 1.,
+        transform: Mat4::IDENTITY,
     };
 }
 
@@ -305,7 +309,6 @@ impl From<&Vec2> for ScrollPosition {
     BorderRadius,
     FocusPolicy,
     ScrollPosition,
-    Transform,
     Visibility,
     ZIndex
 )]
@@ -586,6 +589,9 @@ pub struct Node {
     ///
     /// <https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column>
     pub grid_column: GridPlacement,
+
+    /// Rotate, scale, skew, or translate an element.
+    pub transform: Transform,
 }
 
 impl Node {
@@ -628,6 +634,7 @@ impl Node {
         grid_auto_columns: Vec::new(),
         grid_column: GridPlacement::DEFAULT,
         grid_row: GridPlacement::DEFAULT,
+        transform: Transform::IDENTITY,
     };
 }
 

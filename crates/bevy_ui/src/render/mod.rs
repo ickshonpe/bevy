@@ -41,10 +41,10 @@ use bevy_render::{
 };
 use bevy_sprite::TextureAtlasLayout;
 use bevy_sprite::{BorderRect, SpriteAssetEvents};
+use bevy_transform::components::GlobalTransform;
 
 use crate::{Display, Node};
 use bevy_text::{ComputedTextBlock, PositionedGlyph, TextColor, TextLayoutInfo};
-use bevy_transform::components::GlobalTransform;
 use bevy_utils::HashMap;
 use box_shadow::BoxShadowPlugin;
 use bytemuck::{Pod, Zeroable};
@@ -250,7 +250,6 @@ pub fn extract_uinode_background_colors(
         Query<(
             Entity,
             &ComputedNode,
-            &GlobalTransform,
             &ViewVisibility,
             Option<&CalculatedClip>,
             Option<&TargetCamera>,
@@ -259,9 +258,7 @@ pub fn extract_uinode_background_colors(
     >,
     mapping: Extract<Query<RenderEntity>>,
 ) {
-    for (entity, uinode, transform, view_visibility, clip, camera, background_color) in
-        &uinode_query
-    {
+    for (entity, uinode, view_visibility, clip, camera, background_color) in &uinode_query {
         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera.get())
         else {
             continue;
@@ -290,7 +287,7 @@ pub fn extract_uinode_background_colors(
                 camera_entity: render_camera_entity,
                 item: ExtractedUiItem::Node {
                     atlas_scaling: None,
-                    transform: transform.compute_matrix(),
+                    transform: uinode.transform,
                     flip_x: false,
                     flip_y: false,
                     border: uinode.border(),
@@ -313,7 +310,6 @@ pub fn extract_uinode_images(
         Query<(
             Entity,
             &ComputedNode,
-            &GlobalTransform,
             &ViewVisibility,
             Option<&CalculatedClip>,
             Option<&TargetCamera>,
@@ -322,7 +318,7 @@ pub fn extract_uinode_images(
     >,
     mapping: Extract<Query<RenderEntity>>,
 ) {
-    for (entity, uinode, transform, view_visibility, clip, camera, image) in &uinode_query {
+    for (entity, uinode, view_visibility, clip, camera, image) in &uinode_query {
         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera.get())
         else {
             continue;
@@ -381,7 +377,7 @@ pub fn extract_uinode_images(
                 camera_entity: render_camera_entity,
                 item: ExtractedUiItem::Node {
                     atlas_scaling,
-                    transform: transform.compute_matrix(),
+                    transform: uinode.transform,
                     flip_x: image.flip_x,
                     flip_y: image.flip_y,
                     border: uinode.border,
@@ -403,7 +399,6 @@ pub fn extract_uinode_borders(
             Entity,
             &Node,
             &ComputedNode,
-            &GlobalTransform,
             &ViewVisibility,
             Option<&CalculatedClip>,
             Option<&TargetCamera>,
@@ -420,7 +415,6 @@ pub fn extract_uinode_borders(
         entity,
         node,
         computed_node,
-        global_transform,
         view_visibility,
         maybe_clip,
         maybe_camera,
@@ -461,7 +455,7 @@ pub fn extract_uinode_borders(
                         camera_entity: render_camera_entity,
                         item: ExtractedUiItem::Node {
                             atlas_scaling: None,
-                            transform: global_transform.compute_matrix(),
+                            transform: computed_node.transform,
                             flip_x: false,
                             flip_y: false,
                             border: computed_node.border(),
@@ -498,7 +492,7 @@ pub fn extract_uinode_borders(
                     clip: parent_clip.map(|clip| clip.clip),
                     camera_entity: render_camera_entity,
                     item: ExtractedUiItem::Node {
-                        transform: global_transform.compute_matrix(),
+                        transform: computed_node.transform,
                         atlas_scaling: None,
                         flip_x: false,
                         flip_y: false,
@@ -615,7 +609,6 @@ pub fn extract_text_sections(
         Query<(
             Entity,
             &ComputedNode,
-            &GlobalTransform,
             &ViewVisibility,
             Option<&CalculatedClip>,
             Option<&TargetCamera>,
@@ -630,16 +623,8 @@ pub fn extract_text_sections(
     let mut end = 1;
 
     let default_ui_camera = default_ui_camera.get();
-    for (
-        entity,
-        uinode,
-        global_transform,
-        view_visibility,
-        clip,
-        camera,
-        computed_block,
-        text_layout_info,
-    ) in &uinode_query
+    for (entity, uinode, view_visibility, clip, camera, computed_block, text_layout_info) in
+        &uinode_query
     {
         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera) else {
             continue;
@@ -659,9 +644,8 @@ pub fn extract_text_sections(
         //      (The transform translates to the center of the node but the text coordinates are relative to the node's top left corner)
         // * Round the position to the nearest physical pixel
 
-        let mut transform = global_transform.affine()
-            * bevy_math::Affine3A::from_translation((-0.5 * uinode.size()).extend(0.));
-        transform.translation = transform.translation.round();
+        let transform =
+            Mat4::from_translation((-0.5 * uinode.size()).extend(0.)) * uinode.transform;
 
         let mut color = LinearRgba::WHITE;
         let mut current_span = usize::MAX;
