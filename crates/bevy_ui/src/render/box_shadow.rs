@@ -263,8 +263,7 @@ pub fn extract_shadows(
         };
 
         // Skip if no visable shadows
-        if !view_visibility.get() || box_shadow.is_empty() || uinode.size().cmpeq(Vec2::ZERO).any()
-        {
+        if !view_visibility.get() || box_shadow.is_empty() || uinode.is_empty() {
             continue;
         }
 
