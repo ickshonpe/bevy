@@ -262,8 +262,9 @@ pub fn extract_shadows(
             continue;
         };
 
-        // Skip invisible images
-        if !view_visibility.get() || box_shadow.is_empty() || uinode.is_empty() {
+        // Skip if no visable shadows
+        if !view_visibility.get() || box_shadow.is_empty() || uinode.size().cmpeq(Vec2::ZERO).any()
+        {
             continue;
         }
 
