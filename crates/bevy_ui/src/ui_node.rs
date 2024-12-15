@@ -1798,7 +1798,7 @@ impl GridPlacement {
     };
 
     /// Place the grid item automatically (letting the `span` default to `1`).
-    pub fn auto() -> Self {
+    pub const fn auto() -> Self {
         Self::DEFAULT
     }
 
@@ -1909,18 +1909,30 @@ impl GridPlacement {
     }
 
     /// Returns the grid line at which the item should start, or `None` if not set.
-    pub fn get_start(self) -> Option<i16> {
-        self.start.map(NonZero::<i16>::get)
+    pub const fn get_start(self) -> Option<i16> {
+        if let Some(non_zero) = self.start {
+            Some(non_zero.get())
+        } else {
+            None
+        }
     }
 
     /// Returns the grid line at which the item should end, or `None` if not set.
-    pub fn get_end(self) -> Option<i16> {
-        self.end.map(NonZero::<i16>::get)
+    pub const fn get_end(self) -> Option<i16> {
+        if let Some(non_zero) = self.end {
+            Some(non_zero.get())
+        } else {
+            None
+        }
     }
 
     /// Returns span for this grid item, or `None` if not set.
-    pub fn get_span(self) -> Option<u16> {
-        self.span.map(NonZero::<u16>::get)
+    pub const fn get_span(self) -> Option<u16> {
+        if let Some(non_zero) = self.span {
+            Some(non_zero.get())
+        } else {
+            None
+        }
     }
 }
 
