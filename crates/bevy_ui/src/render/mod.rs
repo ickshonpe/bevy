@@ -22,7 +22,7 @@ use bevy_ecs::entity::{EntityHashMap, EntityHashSet};
 use bevy_ecs::prelude::*;
 use bevy_image::Image;
 use bevy_math::{FloatOrd, Mat4, Rect, UVec4, Vec2, Vec3, Vec3Swizzles, Vec4Swizzles};
-use bevy_render::render_phase::ViewSortedRenderPhases;
+use bevy_render::render_phase::{SortedRenderPhase, ViewSortedRenderPhases};
 use bevy_render::sync_world::MainEntity;
 use bevy_render::texture::TRANSPARENT_IMAGE_HANDLE;
 use bevy_render::{
@@ -268,20 +268,27 @@ pub fn extract_uinode_background_colors(
     mapping: Extract<Query<RenderEntity>>,
 ) {
     let default_camera_entity = default_ui_camera.get();
+    let mut current_camera_entity = Entity::PLACEHOLDER;
+    let mut render_camera_entity = Entity::PLACEHOLDER;
+
     for (entity, uinode, transform, view_visibility, clip, camera, background_color) in
         &uinode_query
     {
+        // Skip invisible backgrounds
+        if !view_visibility.get() || background_color.0.is_fully_transparent() {
+            continue;
+        }
+
         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_camera_entity) else {
             continue;
         };
 
-        let Ok(render_camera_entity) = mapping.get(camera_entity) else {
-            continue;
-        };
-
-        // Skip invisible backgrounds
-        if !view_visibility.get() || background_color.0.is_fully_transparent() {
-            continue;
+        if current_camera_entity != camera_entity {
+            let Ok(new_render_camera_entity) = mapping.get(camera_entity) else {
+                continue;
+            };
+            render_camera_entity = new_render_camera_entity;
+            current_camera_entity = camera_entity;
         }
 
         extracted_uinodes.uinodes.insert(
@@ -331,15 +338,10 @@ pub fn extract_uinode_images(
     mapping: Extract<Query<RenderEntity>>,
 ) {
     let default_camera_entity = default_ui_camera.get();
+    let mut current_camera_entity = Entity::PLACEHOLDER;
+    let mut render_camera_entity = Entity::PLACEHOLDER;
+
     for (entity, uinode, transform, view_visibility, clip, camera, image) in &uinode_query {
-        let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_camera_entity) else {
-            continue;
-        };
-
-        let Ok(render_camera_entity) = mapping.get(camera_entity) else {
-            continue;
-        };
-
         // Skip invisible images
         if !view_visibility.get()
             || image.color.is_fully_transparent()
@@ -347,6 +349,18 @@ pub fn extract_uinode_images(
             || image.image_mode.uses_slices()
         {
             continue;
+        }
+
+        let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_camera_entity) else {
+            continue;
+        };
+
+        if current_camera_entity != camera_entity {
+            let Ok(new_render_camera_entity) = mapping.get(camera_entity) else {
+                continue;
+            };
+            render_camera_entity = new_render_camera_entity;
+            current_camera_entity = camera_entity;
         }
 
         let atlas_rect = image
@@ -424,6 +438,9 @@ pub fn extract_uinode_borders(
 ) {
     let image = AssetId::<Image>::default();
     let default_camera_entity = default_ui_camera.get();
+    let mut current_camera_entity = Entity::PLACEHOLDER;
+    let mut render_camera_entity = Entity::PLACEHOLDER;
+
     for (
         entity,
         node,
@@ -435,6 +452,11 @@ pub fn extract_uinode_borders(
         (maybe_border_color, maybe_outline),
     ) in &uinode_query
     {
+        // Skip invisible borders and removed nodes
+        if !view_visibility.get() || node.display == Display::None {
+            continue;
+        }
+
         let Some(camera_entity) = maybe_camera
             .map(TargetCamera::entity)
             .or(default_camera_entity)
@@ -442,13 +464,12 @@ pub fn extract_uinode_borders(
             continue;
         };
 
-        let Ok(render_camera_entity) = mapping.get(camera_entity) else {
-            continue;
-        };
-
-        // Skip invisible borders and removed nodes
-        if !view_visibility.get() || node.display == Display::None {
-            continue;
+        if current_camera_entity != camera_entity {
+            let Ok(new_render_camera_entity) = mapping.get(camera_entity) else {
+                continue;
+            };
+            render_camera_entity = new_render_camera_entity;
+            current_camera_entity = camera_entity;
         }
 
         // Don't extract borders with zero width along all edges
@@ -632,12 +653,15 @@ pub fn extract_text_sections(
         )>,
     >,
     text_styles: Extract<Query<&TextColor>>,
-    mapping: Extract<Query<&RenderEntity>>,
+    mapping: Extract<Query<RenderEntity>>,
 ) {
     let mut start = 0;
     let mut end = 1;
 
     let default_ui_camera = default_ui_camera.get();
+    let mut current_camera_entity = Entity::PLACEHOLDER;
+    let mut render_camera_entity = Entity::PLACEHOLDER;
+
     for (
         entity,
         uinode,
@@ -649,18 +673,22 @@ pub fn extract_text_sections(
         text_layout_info,
     ) in &uinode_query
     {
-        let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera) else {
-            continue;
-        };
-
         // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
         if !view_visibility.get() || uinode.is_empty() {
             continue;
         }
 
-        let Ok(&render_camera_entity) = mapping.get(camera_entity) else {
+        let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera) else {
             continue;
         };
+
+        if current_camera_entity != camera_entity {
+            let Ok(new_render_camera_entity) = mapping.get(camera_entity) else {
+                continue;
+            };
+            render_camera_entity = new_render_camera_entity;
+            current_camera_entity = camera_entity;
+        }
 
         let transform = global_transform.affine()
             * bevy_math::Affine3A::from_translation((-0.5 * uinode.size()).extend(0.));
@@ -713,7 +741,7 @@ pub fn extract_text_sections(
                         color,
                         image: atlas_info.texture.id(),
                         clip: clip.map(|clip| clip.clip),
-                        camera_entity: render_camera_entity.id(),
+                        camera_entity: render_camera_entity,
                         rect,
                         item: ExtractedUiItem::Glyphs { range: start..end },
                         main_entity: entity.into(),
@@ -801,15 +829,38 @@ pub fn queue_uinodes(
     draw_functions: Res<DrawFunctions<TransparentUi>>,
 ) {
     let draw_function = draw_functions.read().id::<DrawUi>();
-    for (entity, extracted_uinode) in extracted_uinodes.uinodes.iter() {
-        let Ok((view_entity, view, ui_anti_alias)) = views.get(extracted_uinode.camera_entity)
-        else {
-            continue;
-        };
 
-        let Some(transparent_phase) = transparent_render_phases.get_mut(&view_entity) else {
-            continue;
-        };
+    let mut camera_entity = Entity::PLACEHOLDER;
+    let mut view = &ExtractedView {
+        clip_from_view: Mat4::ZERO,
+        world_from_view: GlobalTransform::default(),
+        clip_from_world: None,
+        hdr: false,
+        viewport: UVec4::ZERO,
+        color_grading: Default::default(),
+    };
+    let mut transparent_phase = None;
+    let mut ui_anti_alias = None;
+
+    for (entity, extracted_uinode) in extracted_uinodes.uinodes.iter() {
+        if camera_entity != extracted_uinode.camera_entity {
+            camera_entity = extracted_uinode.camera_entity;
+            let Ok((view_entity, new_view, new_ui_anti_alias)) =
+                views.get(extracted_uinode.camera_entity)
+            else {
+                continue;
+            };
+
+            view = new_view;
+            transparent_phase = None;
+            let Some(new_transparent_phase) = transparent_render_phases.get_mut(&view_entity)
+            else {
+                continue;
+            };
+
+            ui_anti_alias = new_ui_anti_alias;
+            transparent_phase = Some(new_transparent_phase);
+        }
 
         let pipeline = pipelines.specialize(
             &pipeline_cache,
@@ -819,7 +870,7 @@ pub fn queue_uinodes(
                 anti_alias: matches!(ui_anti_alias, None | Some(UiAntiAlias::On)),
             },
         );
-        transparent_phase.add(TransparentUi {
+        transparent_phase.as_mut().unwrap().add(TransparentUi {
             draw_function,
             pipeline,
             entity: (*entity, extracted_uinode.main_entity),

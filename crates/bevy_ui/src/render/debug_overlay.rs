@@ -77,19 +77,25 @@ pub fn extract_debug_overlay(
     }
 
     let default_camera_entity = default_ui_camera.get();
+    let mut current_camera_entity = Entity::PLACEHOLDER;
+    let mut render_camera_entity = Entity::PLACEHOLDER;
 
     for (entity, uinode, visibility, maybe_clip, transform, camera) in &uinode_query {
         if !debug_options.show_hidden && !visibility.get() {
             continue;
         }
 
-        let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_camera_entity) else {
+        let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera) else {
             continue;
         };
 
-        let Ok(render_camera_entity) = mapping.get(camera_entity) else {
-            continue;
-        };
+        if current_camera_entity != camera_entity {
+            let Ok(new_render_camera_entity) = mapping.get(camera_entity) else {
+                continue;
+            };
+            render_camera_entity = new_render_camera_entity;
+            current_camera_entity = camera_entity;
+        }
 
         // Extract a border box to display an outline for every UI Node in the layout
         extracted_uinodes.uinodes.insert(

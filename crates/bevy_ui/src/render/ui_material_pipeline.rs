@@ -377,20 +377,26 @@ pub fn extract_ui_material_nodes<M: UiMaterial>(
     render_entity_lookup: Extract<Query<RenderEntity>>,
 ) {
     // If there is only one camera, we use it as default
-    let default_single_camera = default_ui_camera.get();
+    let default_ui_camera = default_ui_camera.get();
+    let mut current_camera_entity = Entity::PLACEHOLDER;
+    let mut render_camera_entity = Entity::PLACEHOLDER;
 
     for (entity, uinode, transform, handle, view_visibility, clip, camera) in uinode_query.iter() {
-        let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_single_camera) else {
-            continue;
-        };
-
-        let Ok(camera_entity) = render_entity_lookup.get(camera_entity) else {
-            continue;
-        };
-
         // skip invisible nodes
         if !view_visibility.get() {
             continue;
+        }
+
+        let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera) else {
+            continue;
+        };
+
+        if current_camera_entity != camera_entity {
+            let Ok(new_render_camera_entity) = render_entity_lookup.get(camera_entity) else {
+                continue;
+            };
+            render_camera_entity = new_render_camera_entity;
+            current_camera_entity = camera_entity;
         }
 
         // Skip loading materials
@@ -417,7 +423,7 @@ pub fn extract_ui_material_nodes<M: UiMaterial>(
                 },
                 border,
                 clip: clip.map(|clip| clip.clip),
-                camera_entity,
+                camera_entity: render_camera_entity,
                 main_entity: entity.into(),
             },
         );

@@ -264,16 +264,22 @@ pub fn extract_ui_texture_slices(
     >,
     mapping: Extract<Query<RenderEntity>>,
 ) {
-    let default_camera_entity = default_ui_camera.get();
+    let default_ui_camera = default_ui_camera.get();
+    let mut current_camera_entity = Entity::PLACEHOLDER;
+    let mut render_camera_entity = Entity::PLACEHOLDER;
 
     for (entity, uinode, transform, view_visibility, clip, camera, image) in &slicers_query {
-        let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_camera_entity) else {
+        let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_ui_camera) else {
             continue;
         };
 
-        let Ok(camera_entity) = mapping.get(camera_entity) else {
-            continue;
-        };
+        if current_camera_entity != camera_entity {
+            let Ok(new_render_camera_entity) = mapping.get(camera_entity) else {
+                continue;
+            };
+            render_camera_entity = new_render_camera_entity;
+            current_camera_entity = camera_entity;
+        }
 
         let image_scale_mode = match image.image_mode.clone() {
             widget::NodeImageMode::Sliced(texture_slicer) => {
@@ -328,7 +334,7 @@ pub fn extract_ui_texture_slices(
                 },
                 clip: clip.map(|clip| clip.clip),
                 image: image.image.id(),
-                camera_entity,
+                camera_entity: render_camera_entity,
                 image_scale_mode,
                 atlas_rect,
                 flip_x: image.flip_x,

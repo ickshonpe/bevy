@@ -252,20 +252,26 @@ pub fn extract_shadows(
     mapping: Extract<Query<RenderEntity>>,
 ) {
     let default_camera_entity = default_ui_camera.get();
+    let mut current_camera_entity = Entity::PLACEHOLDER;
+    let mut render_camera_entity = Entity::PLACEHOLDER;
 
     for (entity, uinode, transform, view_visibility, box_shadow, clip, camera) in &box_shadow_query
     {
+        // Skip if no visible shadows
+        if !view_visibility.get() || box_shadow.is_empty() || uinode.is_empty() {
+            continue;
+        }
+
         let Some(camera_entity) = camera.map(TargetCamera::entity).or(default_camera_entity) else {
             continue;
         };
 
-        let Ok(camera_entity) = mapping.get(camera_entity) else {
-            continue;
-        };
-
-        // Skip if no visible shadows
-        if !view_visibility.get() || box_shadow.is_empty() || uinode.is_empty() {
-            continue;
+        if current_camera_entity != camera_entity {
+            let Ok(new_render_camera_entity) = mapping.get(camera_entity) else {
+                continue;
+            };
+            render_camera_entity = new_render_camera_entity;
+            current_camera_entity = camera_entity;
         }
 
         let ui_physical_viewport_size = camera_query
@@ -326,7 +332,7 @@ pub fn extract_shadows(
                     color: drop_shadow.color.into(),
                     bounds: shadow_size + 6. * blur_radius,
                     clip: clip.map(|clip| clip.clip),
-                    camera_entity,
+                    camera_entity: render_camera_entity,
                     radius,
                     blur_radius,
                     size: shadow_size,
