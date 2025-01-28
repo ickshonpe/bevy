@@ -7,8 +7,12 @@ fn main() {
         // By default, a primary window gets spawned by `WindowPlugin`, contained in `DefaultPlugins`
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup_scene)
+        .add_systems(Update, swap_cameras)
         .run();
 }
+
+#[derive(Component)]
+pub struct Marker;
 
 fn setup_scene(mut commands: Commands, asset_server: Res<AssetServer>) {
     // add entities to the world
@@ -66,4 +70,38 @@ fn setup_scene(mut commands: Commands, asset_server: Res<AssetServer>) {
         node,
         UiTargetCamera(second_window_camera),
     ));
+
+    commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                align_items: AlignItems::End,
+                justify_content: JustifyContent::End,
+                ..Default::default()
+            },
+            UiTargetCamera(second_window_camera),
+            Marker,
+        ))
+        .with_child(Text::new("Hello"));
+}
+
+fn swap_cameras(
+    mut t: Local<f32>,
+    time: Res<Time>,
+    cameras: Query<Entity, With<Camera>>,
+    mut target: Query<&mut UiTargetCamera, With<Marker>>,
+) {
+    *t += time.delta_secs();
+
+    if 1. < *t {
+        *t = 0.;
+        let mut target_camera = target.single_mut();
+        for camera in cameras.iter() {
+            if target_camera.0 != camera {
+                target_camera.0 = camera;
+                break;
+            }
+        }
+    }
 }
