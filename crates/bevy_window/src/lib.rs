@@ -1,30 +1,56 @@
-#![allow(clippy::type_complexity)]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![doc(
+    html_logo_url = "https://bevyengine.org/assets/icon.png",
+    html_favicon_url = "https://bevyengine.org/assets/icon.png"
+)]
+#![no_std]
 
-#[warn(missing_docs)]
-mod cursor;
+//! `bevy_window` provides a platform-agnostic interface for windowing in Bevy.
+//!
+//! This crate contains types for window management and events,
+//! used by windowing implementors such as `bevy_winit`.
+//! The [`WindowPlugin`] sets up some global window-related parameters and
+//! is part of the [`DefaultPlugins`](https://docs.rs/bevy/latest/bevy/struct.DefaultPlugins.html).
+
+#[cfg(feature = "std")]
+extern crate std;
+
+extern crate alloc;
+
+use alloc::sync::Arc;
+
+use bevy_platform_support::sync::Mutex;
+
 mod event;
+mod monitor;
 mod raw_handle;
 mod system;
+mod system_cursor;
 mod window;
 
 pub use crate::raw_handle::*;
 
-pub use cursor::*;
+#[cfg(target_os = "android")]
+pub use android_activity;
+
 pub use event::*;
+pub use monitor::*;
 pub use system::*;
+pub use system_cursor::*;
 pub use window::*;
 
+/// The windowing prelude.
+///
+/// This includes the most common types in this crate, re-exported for your convenience.
 pub mod prelude {
     #[doc(hidden)]
     pub use crate::{
-        CursorEntered, CursorIcon, CursorLeft, CursorMoved, FileDragAndDrop, Ime, MonitorSelection,
-        ReceivedCharacter, Window, WindowMoved, WindowPlugin, WindowPosition,
-        WindowResizeConstraints,
+        CursorEntered, CursorLeft, CursorMoved, FileDragAndDrop, Ime, MonitorSelection, Window,
+        WindowMoved, WindowPlugin, WindowPosition, WindowResizeConstraints,
     };
 }
 
 use bevy_app::prelude::*;
-use std::path::PathBuf;
 
 impl Default for WindowPlugin {
     fn default() -> Self {
@@ -73,8 +99,10 @@ pub struct WindowPlugin {
 impl Plugin for WindowPlugin {
     fn build(&self, app: &mut App) {
         // User convenience events
-        app.add_event::<WindowResized>()
+        app.add_event::<WindowEvent>()
+            .add_event::<WindowResized>()
             .add_event::<WindowCreated>()
+            .add_event::<WindowClosing>()
             .add_event::<WindowClosed>()
             .add_event::<WindowCloseRequested>()
             .add_event::<WindowDestroyed>()
@@ -82,19 +110,21 @@ impl Plugin for WindowPlugin {
             .add_event::<CursorMoved>()
             .add_event::<CursorEntered>()
             .add_event::<CursorLeft>()
-            .add_event::<ReceivedCharacter>()
             .add_event::<Ime>()
             .add_event::<WindowFocused>()
+            .add_event::<WindowOccluded>()
             .add_event::<WindowScaleFactorChanged>()
             .add_event::<WindowBackendScaleFactorChanged>()
             .add_event::<FileDragAndDrop>()
             .add_event::<WindowMoved>()
-            .add_event::<WindowThemeChanged>();
+            .add_event::<WindowThemeChanged>()
+            .add_event::<AppLifecycle>();
 
         if let Some(primary_window) = &self.primary_window {
-            app.world
-                .spawn(primary_window.clone())
-                .insert(PrimaryWindow);
+            app.world_mut().spawn(primary_window.clone()).insert((
+                PrimaryWindow,
+                RawHandleWrapperHolder(Arc::new(Mutex::new(None))),
+            ));
         }
 
         match self.exit_condition {
@@ -113,42 +143,31 @@ impl Plugin for WindowPlugin {
         }
 
         // Register event types
-        app.register_type::<WindowResized>()
+        #[cfg(feature = "bevy_reflect")]
+        app.register_type::<WindowEvent>()
+            .register_type::<WindowResized>()
             .register_type::<RequestRedraw>()
             .register_type::<WindowCreated>()
             .register_type::<WindowCloseRequested>()
+            .register_type::<WindowClosing>()
             .register_type::<WindowClosed>()
             .register_type::<CursorMoved>()
             .register_type::<CursorEntered>()
             .register_type::<CursorLeft>()
-            .register_type::<ReceivedCharacter>()
             .register_type::<WindowFocused>()
+            .register_type::<WindowOccluded>()
             .register_type::<WindowScaleFactorChanged>()
             .register_type::<WindowBackendScaleFactorChanged>()
             .register_type::<FileDragAndDrop>()
             .register_type::<WindowMoved>()
-            .register_type::<WindowThemeChanged>();
+            .register_type::<WindowThemeChanged>()
+            .register_type::<AppLifecycle>()
+            .register_type::<Monitor>();
 
         // Register window descriptor and related types
+        #[cfg(feature = "bevy_reflect")]
         app.register_type::<Window>()
-            .register_type::<PrimaryWindow>()
-            .register_type::<Cursor>()
-            .register_type::<CursorIcon>()
-            .register_type::<CursorGrabMode>()
-            .register_type::<CompositeAlphaMode>()
-            .register_type::<WindowResolution>()
-            .register_type::<WindowPosition>()
-            .register_type::<WindowMode>()
-            .register_type::<WindowLevel>()
-            .register_type::<PresentMode>()
-            .register_type::<InternalWindowState>()
-            .register_type::<MonitorSelection>()
-            .register_type::<WindowResizeConstraints>()
-            .register_type::<WindowTheme>()
-            .register_type::<EnabledButtons>();
-
-        // Register `PathBuf` as it's used by `FileDragAndDrop`
-        app.register_type::<PathBuf>();
+            .register_type::<PrimaryWindow>();
     }
 }
 
@@ -171,3 +190,9 @@ pub enum ExitCondition {
     /// surprise your users.
     DontExit,
 }
+
+/// [`AndroidApp`] provides an interface to query the application state as well as monitor events
+/// (for example lifecycle and input events).
+#[cfg(target_os = "android")]
+pub static ANDROID_APP: std::sync::OnceLock<android_activity::AndroidApp> =
+    std::sync::OnceLock::new();
