@@ -713,7 +713,6 @@ pub fn extract_text_sections(
     camera_map: Extract<UiCameraMap>,
 ) {
     let mut start = extracted_uinodes.glyphs.len();
-    let mut end = start + 1;
 
     let mut camera_mapper = camera_map.get_mapper();
     for (
@@ -742,58 +741,48 @@ pub fn extract_text_sections(
         let mut color = LinearRgba::WHITE;
         let mut current_span = usize::MAX;
 
-        for (
-            i,
-            PositionedGlyph {
+        for glyph_batch in text_layout_info.glyph_batches.iter() {
+            let atlas = texture_atlases.get(&glyph_batch.texture_atlas).unwrap();
+            for PositionedGlyph {
                 position,
-                atlas_info,
+                atlas_location,
                 span_index,
                 ..
-            },
-        ) in text_layout_info.glyphs.iter().enumerate()
-        {
-            if *span_index != current_span {
-                color = text_styles
-                    .get(
-                        computed_block
-                            .entities()
-                            .get(*span_index)
-                            .map(|t| t.entity)
-                            .unwrap_or(Entity::PLACEHOLDER),
-                    )
-                    .map(|text_color| LinearRgba::from(text_color.0))
-                    .unwrap_or_default();
-                current_span = *span_index;
-            }
+            } in &text_layout_info.glyphs[glyph_batch.range.clone()]
+            {
+                if *span_index != current_span {
+                    color = text_styles
+                        .get(
+                            computed_block
+                                .entities()
+                                .get(*span_index)
+                                .map(|t| t.entity)
+                                .unwrap_or(Entity::PLACEHOLDER),
+                        )
+                        .map(|text_color| LinearRgba::from(text_color.0))
+                        .unwrap_or_default();
+                    current_span = *span_index;
+                }
 
-            let rect = texture_atlases
-                .get(&atlas_info.texture_atlas)
-                .unwrap()
-                .textures[atlas_info.location.glyph_index]
-                .as_rect();
-            extracted_uinodes.glyphs.push(ExtractedGlyph {
-                transform: transform * Mat4::from_translation(position.extend(0.)),
-                rect,
-            });
-
-            if text_layout_info.glyphs.get(i + 1).is_none_or(|info| {
-                info.span_index != current_span || info.atlas_info.texture != atlas_info.texture
-            }) {
-                extracted_uinodes.uinodes.push(ExtractedUiNode {
-                    render_entity: commands.spawn(TemporaryRenderEntity).id(),
-                    stack_index: uinode.stack_index,
-                    color,
-                    image: atlas_info.texture.id(),
-                    clip: clip.map(|clip| clip.clip),
-                    extracted_camera_entity,
+                let rect = atlas.textures[atlas_info.location.glyph_index].as_rect();
+                extracted_uinodes.glyphs.push(ExtractedGlyph {
+                    transform: transform * Mat4::from_translation(position.extend(0.)),
                     rect,
-                    item: ExtractedUiItem::Glyphs { range: start..end },
-                    main_entity: entity.into(),
                 });
-                start = end;
             }
-
-            end += 1;
+            let end = start + glyph_batch.range.len();
+            extracted_uinodes.uinodes.push(ExtractedUiNode {
+                render_entity: commands.spawn(TemporaryRenderEntity).id(),
+                stack_index: uinode.stack_index,
+                color,
+                image: glyph_batch.texture.id(),
+                clip: clip.map(|clip| clip.clip),
+                extracted_camera_entity,
+                rect,
+                item: ExtractedUiItem::Glyphs { range: start..end },
+                main_entity: entity.into(),
+            });
+            start = end;
         }
     }
 }
@@ -855,7 +844,7 @@ pub fn extract_text_shadows(
             i,
             PositionedGlyph {
                 position,
-                atlas_info,
+                atlas_location: atlas_info,
                 span_index,
                 ..
             },
@@ -876,7 +865,7 @@ pub fn extract_text_shadows(
             });
 
             if text_layout_info.glyphs.get(i + 1).is_none_or(|info| {
-                info.span_index != current_span || info.atlas_info.texture != atlas_info.texture
+                info.span_index != current_span || info.atlas_location.texture != atlas_info.texture
             }) {
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     render_entity: commands.spawn(TemporaryRenderEntity).id(),

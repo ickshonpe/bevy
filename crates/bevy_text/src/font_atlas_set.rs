@@ -9,7 +9,7 @@ use bevy_render::{
     render_resource::{Extent3d, TextureDimension, TextureFormat},
 };
 
-use crate::{error::TextError, Font, FontAtlas, FontSmoothing, GlyphAtlasInfo};
+use crate::{error::TextError, Font, FontAtlas, FontSmoothing, PositionedGlyphBatch};
 
 /// A map of font faces to their corresponding [`FontAtlasSet`]s.
 #[derive(Debug, Default, Resource)]
@@ -100,7 +100,7 @@ impl FontAtlasSet {
         swash_cache: &mut cosmic_text::SwashCache,
         layout_glyph: &cosmic_text::LayoutGlyph,
         font_smoothing: FontSmoothing,
-    ) -> Result<GlyphAtlasInfo, TextError> {
+    ) -> Result<PositionGlyphBatch, TextError> {
         let physical_glyph = layout_glyph.physical((0., 0.), 1.0);
 
         let font_atlases = self
@@ -171,14 +171,14 @@ impl FontAtlasSet {
         &mut self,
         cache_key: cosmic_text::CacheKey,
         font_smoothing: FontSmoothing,
-    ) -> Option<GlyphAtlasInfo> {
+    ) -> Option<PositionedGlyphBatch> {
         self.font_atlases
             .get(&FontAtlasKey(cache_key.font_size_bits, font_smoothing))
             .and_then(|font_atlases| {
                 font_atlases.iter().find_map(|atlas| {
                     atlas
                         .get_glyph_index(cache_key)
-                        .map(|location| GlyphAtlasInfo {
+                        .map(|location| PositionedGlyphBatch {
                             location,
                             texture_atlas: atlas.texture_atlas.clone_weak(),
                             texture: atlas.texture.clone_weak(),

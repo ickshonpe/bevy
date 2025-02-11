@@ -182,46 +182,50 @@ pub fn extract_text2d_sprite(
             *global_transform * GlobalTransform::from_translation(bottom_left.extend(0.)) * scaling;
         let mut color = LinearRgba::WHITE;
         let mut current_span = usize::MAX;
-        for PositionedGlyph {
-            position,
-            atlas_info,
-            span_index,
-            ..
-        } in &text_layout_info.glyphs
-        {
-            if *span_index != current_span {
-                color = text_styles
-                    .get(
-                        computed_block
-                            .entities()
-                            .get(*span_index)
-                            .map(|t| t.entity)
-                            .unwrap_or(Entity::PLACEHOLDER),
-                    )
-                    .map(|(_, text_color)| LinearRgba::from(text_color.0))
-                    .unwrap_or_default();
-                current_span = *span_index;
-            }
-            let atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
 
-            extracted_sprites.sprites.insert(
-                (
-                    commands.spawn(TemporaryRenderEntity).id(),
-                    original_entity.into(),
-                ),
-                ExtractedSprite {
-                    transform: transform * GlobalTransform::from_translation(position.extend(0.)),
-                    color,
-                    rect: Some(atlas.textures[atlas_info.location.glyph_index].as_rect()),
-                    custom_size: None,
-                    image_handle_id: atlas_info.texture.id(),
-                    flip_x: false,
-                    flip_y: false,
-                    anchor: Anchor::Center.as_vec(),
-                    original_entity: Some(original_entity),
-                    scaling_mode: None,
-                },
-            );
+        for glyph_batch in text_layout_info.glyph_batches.iter() {
+            let atlas = texture_atlases.get(&glyph_batch.texture_atlas).unwrap();
+            for PositionedGlyph {
+                position,
+                atlas_location,
+                span_index,
+                ..
+            } in &text_layout_info.glyphs[glyph_batch.range.clone()]
+            {
+                if *span_index != current_span {
+                    color = text_styles
+                        .get(
+                            computed_block
+                                .entities()
+                                .get(*span_index)
+                                .map(|t| t.entity)
+                                .unwrap_or(Entity::PLACEHOLDER),
+                        )
+                        .map(|(_, text_color)| LinearRgba::from(text_color.0))
+                        .unwrap_or_default();
+                    current_span = *span_index;
+                }
+
+                extracted_sprites.sprites.insert(
+                    (
+                        commands.spawn(TemporaryRenderEntity).id(),
+                        original_entity.into(),
+                    ),
+                    ExtractedSprite {
+                        transform: transform
+                            * GlobalTransform::from_translation(position.extend(0.)),
+                        color,
+                        rect: Some(atlas.textures[atlas_location.glyph_index].as_rect()),
+                        custom_size: None,
+                        image_handle_id: glyph_batch.texture.id(),
+                        flip_x: false,
+                        flip_y: false,
+                        anchor: Anchor::Center.as_vec(),
+                        original_entity: Some(original_entity),
+                        scaling_mode: None,
+                    },
+                );
+            }
         }
     }
 }

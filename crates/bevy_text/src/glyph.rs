@@ -1,5 +1,7 @@
 //! This module exports types related to rendering glyphs.
 
+use core::ops::Range;
+
 use bevy_asset::Handle;
 use bevy_image::prelude::*;
 use bevy_math::{IVec2, Vec2};
@@ -16,8 +18,6 @@ pub struct PositionedGlyph {
     pub position: Vec2,
     /// The width and height of the glyph in logical pixels.
     pub size: Vec2,
-    /// Information about the glyph's atlas.
-    pub atlas_info: GlyphAtlasInfo,
     /// The index of the glyph in the [`ComputedTextBlock`](crate::ComputedTextBlock)'s tracked spans.
     pub span_index: usize,
     /// TODO: In order to do text editing, we need access to the size of glyphs and their index in the associated String.
@@ -25,15 +25,22 @@ pub struct PositionedGlyph {
     /// Without this, it's only possible in texts where each glyph is one byte. Cosmic text has methods for this
     /// cosmic-texts [hit detection](https://pop-os.github.io/cosmic-text/cosmic_text/struct.Buffer.html#method.hit)
     byte_index: usize,
+    /// Location and offset of a glyph within the texture atlas.
+    pub atlas_location: GlyphAtlasLocation,
 }
 
 impl PositionedGlyph {
     /// Creates a new [`PositionedGlyph`]
-    pub fn new(position: Vec2, size: Vec2, atlas_info: GlyphAtlasInfo, span_index: usize) -> Self {
+    pub fn new(
+        position: Vec2,
+        size: Vec2,
+        atlas_info: GlyphAtlasLocation,
+        span_index: usize,
+    ) -> Self {
         Self {
             position,
             size,
-            atlas_info,
+            atlas_location: atlas_info,
             span_index,
             byte_index: 0,
         }
@@ -47,7 +54,7 @@ impl PositionedGlyph {
 ///
 /// Used in [`PositionedGlyph`] and [`FontAtlasSet`](crate::FontAtlasSet).
 #[derive(Debug, Clone, Reflect)]
-pub struct GlyphAtlasInfo {
+pub struct PositionedGlyphBatch {
     /// A handle to the [`Image`] data for the texture atlas this glyph was placed in.
     ///
     /// A (weak) clone of the handle held by the [`FontAtlas`](crate::FontAtlas).
@@ -56,8 +63,7 @@ pub struct GlyphAtlasInfo {
     ///
     /// A (weak) clone of the handle held by the [`FontAtlas`](crate::FontAtlas).
     pub texture_atlas: Handle<TextureAtlasLayout>,
-    /// Location and offset of a glyph within the texture atlas.
-    pub location: GlyphAtlasLocation,
+    pub range: Range<usize>,
 }
 
 /// The location of a glyph in an atlas,

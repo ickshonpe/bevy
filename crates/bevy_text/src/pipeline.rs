@@ -17,7 +17,8 @@ use cosmic_text::{Attrs, Buffer, Family, Metrics, Shaping, Wrap};
 
 use crate::{
     error::TextError, ComputedTextBlock, Font, FontAtlasSets, FontSmoothing, JustifyText,
-    LineBreak, PositionedGlyph, TextBounds, TextEntity, TextFont, TextLayout, YAxisOrientation,
+    LineBreak, PositionedGlyph, PositionedGlyphBatch, TextBounds, TextEntity, TextFont, TextLayout,
+    YAxisOrientation,
 };
 
 /// A wrapper resource around a [`cosmic_text::FontSystem`]
@@ -408,6 +409,8 @@ impl TextPipeline {
 #[derive(Component, Clone, Default, Debug, Reflect)]
 #[reflect(Component, Default, Debug)]
 pub struct TextLayoutInfo {
+    /// Batches of glyphs sharing the same atlas texture
+    pub glyph_batches: Vec<PositionedGlyphBatch>,
     /// Scaled and positioned glyphs in screenspace
     pub glyphs: Vec<PositionedGlyph>,
     /// The glyphs resulting size
