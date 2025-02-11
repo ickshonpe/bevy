@@ -198,7 +198,6 @@ fn get_ui_graph(render_app: &mut SubApp) -> RenderGraph {
 
 pub struct ExtractedUiNode {
     pub stack_index: u32,
-    pub color: LinearRgba,
     pub rect: Rect,
     pub image: AssetId<Image>,
     pub clip: Option<Rect>,
@@ -230,6 +229,7 @@ pub enum ExtractedUiItem {
         border: BorderRect,
         node_type: NodeType,
         transform: Mat4,
+        color: LinearRgba,
     },
     /// A contiguous sequence of text glyphs from the same section
     Glyphs {
@@ -240,6 +240,7 @@ pub enum ExtractedUiItem {
 
 pub struct ExtractedGlyph {
     pub transform: Mat4,
+    pub color: LinearRgba,
     pub rect: Rect,
 }
 
@@ -359,7 +360,6 @@ pub fn extract_uinode_background_colors(
         extracted_uinodes.uinodes.push(ExtractedUiNode {
             render_entity: commands.spawn(TemporaryRenderEntity).id(),
             stack_index: uinode.stack_index,
-            color: background_color.0.into(),
             rect: Rect {
                 min: Vec2::ZERO,
                 max: uinode.size,
@@ -368,6 +368,7 @@ pub fn extract_uinode_background_colors(
             image: AssetId::default(),
             extracted_camera_entity,
             item: ExtractedUiItem::Node {
+                color: background_color.0.into(),
                 atlas_scaling: None,
                 transform: transform.compute_matrix(),
                 flip_x: false,
@@ -446,12 +447,12 @@ pub fn extract_uinode_images(
         extracted_uinodes.uinodes.push(ExtractedUiNode {
             render_entity: commands.spawn(TemporaryRenderEntity).id(),
             stack_index: uinode.stack_index,
-            color: image.color.into(),
             rect,
             clip: clip.map(|clip| clip.clip),
             image: image.image.id(),
             extracted_camera_entity,
             item: ExtractedUiItem::Node {
+                color: image.color.into(),
                 atlas_scaling,
                 transform: transform.compute_matrix(),
                 flip_x: image.flip_x,
@@ -511,7 +512,6 @@ pub fn extract_uinode_borders(
             {
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     stack_index: computed_node.stack_index,
-                    color: border_color.0.into(),
                     rect: Rect {
                         max: computed_node.size(),
                         ..Default::default()
@@ -520,6 +520,7 @@ pub fn extract_uinode_borders(
                     clip: maybe_clip.map(|clip| clip.clip),
                     extracted_camera_entity,
                     item: ExtractedUiItem::Node {
+                        color: border_color.0.into(),
                         atlas_scaling: None,
                         transform: global_transform.compute_matrix(),
                         flip_x: false,
@@ -544,7 +545,6 @@ pub fn extract_uinode_borders(
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 render_entity: commands.spawn(TemporaryRenderEntity).id(),
                 stack_index: computed_node.stack_index,
-                color: outline.color.into(),
                 rect: Rect {
                     max: outline_size,
                     ..Default::default()
@@ -553,6 +553,7 @@ pub fn extract_uinode_borders(
                 clip: maybe_clip.map(|clip| clip.clip),
                 extracted_camera_entity,
                 item: ExtractedUiItem::Node {
+                    color: outline.color.into(),
                     transform: global_transform.compute_matrix(),
                     atlas_scaling: None,
                     flip_x: false,
@@ -774,15 +775,17 @@ pub fn extract_text_sections(
             extracted_uinodes.glyphs.push(ExtractedGlyph {
                 transform: transform * Mat4::from_translation(position.extend(0.)),
                 rect,
+                color,
             });
 
-            if text_layout_info.glyphs.get(i + 1).is_none_or(|info| {
-                info.span_index != current_span || info.atlas_info.texture != atlas_info.texture
-            }) {
+            if text_layout_info
+                .glyphs
+                .get(i + 1)
+                .is_none_or(|info| info.atlas_info.texture != atlas_info.texture)
+            {
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     render_entity: commands.spawn(TemporaryRenderEntity).id(),
                     stack_index: uinode.stack_index,
-                    color,
                     image: atlas_info.texture.id(),
                     clip: clip.map(|clip| clip.clip),
                     extracted_camera_entity,
@@ -873,6 +876,7 @@ pub fn extract_text_shadows(
             extracted_uinodes.glyphs.push(ExtractedGlyph {
                 transform: transform * Mat4::from_translation(position.extend(0.)),
                 rect,
+                color: shadow.color.into(),
             });
 
             if text_layout_info.glyphs.get(i + 1).is_none_or(|info| {
@@ -881,7 +885,6 @@ pub fn extract_text_shadows(
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     render_entity: commands.spawn(TemporaryRenderEntity).id(),
                     stack_index: uinode.stack_index,
-                    color: shadow.color.into(),
                     image: atlas_info.texture.id(),
                     clip: clip.map(|clip| clip.clip),
                     extracted_camera_entity,
@@ -1144,6 +1147,7 @@ pub fn prepare_uinodes(
                             border,
                             node_type,
                             transform,
+                            color,
                         } => {
                             let mut flags = if extracted_uinode.image != AssetId::default() {
                                 shader_flags::TEXTURED
@@ -1262,7 +1266,7 @@ pub fn prepare_uinodes(
                                 .map(|pos| pos / atlas_extent)
                             };
 
-                            let color = extracted_uinode.color.to_f32_array();
+                            let color = color.to_f32_array();
                             if *node_type == NodeType::Border {
                                 flags |= shader_flags::BORDER;
                             }
@@ -1299,8 +1303,8 @@ pub fn prepare_uinodes(
 
                             let atlas_extent = image.size_2d().as_vec2();
 
-                            let color = extracted_uinode.color.to_f32_array();
                             for glyph in &extracted_uinodes.glyphs[range.clone()] {
+                                let color = glyph.color.to_f32_array();
                                 let glyph_rect = glyph.rect;
                                 let size = glyph.rect.size();
 
