@@ -63,6 +63,7 @@ pub struct PositionedGlyphBatch {
     ///
     /// A (weak) clone of the handle held by the [`FontAtlas`](crate::FontAtlas).
     pub texture_atlas: Handle<TextureAtlasLayout>,
+    /// The range of `PositionedGlyph`s in this batch
     pub range: Range<usize>,
 }
 

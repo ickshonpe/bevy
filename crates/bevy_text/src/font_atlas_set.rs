@@ -1,4 +1,4 @@
-use bevy_asset::{Asset, AssetEvent, AssetId, Assets};
+use bevy_asset::{Asset, AssetEvent, AssetId, Assets, Handle};
 use bevy_ecs::{event::EventReader, resource::Resource, system::ResMut};
 use bevy_image::prelude::*;
 use bevy_math::{IVec2, UVec2};
@@ -9,7 +9,7 @@ use bevy_render::{
     render_resource::{Extent3d, TextureDimension, TextureFormat},
 };
 
-use crate::{error::TextError, Font, FontAtlas, FontSmoothing, PositionedGlyphBatch};
+use crate::{error::TextError, Font, FontAtlas, FontSmoothing, GlyphAtlasLocation};
 
 /// A map of font faces to their corresponding [`FontAtlasSet`]s.
 #[derive(Debug, Default, Resource)]
@@ -100,7 +100,14 @@ impl FontAtlasSet {
         swash_cache: &mut cosmic_text::SwashCache,
         layout_glyph: &cosmic_text::LayoutGlyph,
         font_smoothing: FontSmoothing,
-    ) -> Result<PositionGlyphBatch, TextError> {
+    ) -> Result<
+        (
+            GlyphAtlasLocation,
+            Handle<Image>,
+            Handle<TextureAtlasLayout>,
+        ),
+        TextError,
+    > {
         let physical_glyph = layout_glyph.physical((0., 0.), 1.0);
 
         let font_atlases = self
@@ -171,18 +178,22 @@ impl FontAtlasSet {
         &mut self,
         cache_key: cosmic_text::CacheKey,
         font_smoothing: FontSmoothing,
-    ) -> Option<PositionedGlyphBatch> {
+    ) -> Option<(
+        GlyphAtlasLocation,
+        Handle<Image>,
+        Handle<TextureAtlasLayout>,
+    )> {
         self.font_atlases
             .get(&FontAtlasKey(cache_key.font_size_bits, font_smoothing))
             .and_then(|font_atlases| {
                 font_atlases.iter().find_map(|atlas| {
-                    atlas
-                        .get_glyph_index(cache_key)
-                        .map(|location| PositionedGlyphBatch {
+                    atlas.get_glyph_index(cache_key).map(|location| {
+                        (
                             location,
-                            texture_atlas: atlas.texture_atlas.clone_weak(),
-                            texture: atlas.texture.clone_weak(),
-                        })
+                            atlas.texture.clone_weak(),
+                            atlas.texture_atlas.clone_weak(),
+                        )
+                    })
                 })
             })
     }

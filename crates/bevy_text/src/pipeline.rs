@@ -233,6 +233,7 @@ impl TextPipeline {
         font_system: &mut CosmicFontSystem,
         swash_cache: &mut SwashCache,
     ) -> Result<(), TextError> {
+        layout_info.glyph_batches.clear();
         layout_info.glyphs.clear();
         layout_info.size = Default::default();
 
@@ -297,7 +298,7 @@ impl TextPipeline {
 
                 let physical_glyph = layout_glyph.physical((0., 0.), 1.);
 
-                let atlas_info = font_atlas_set
+                let (atlas_location, atlas_texture, atlas_layout) = font_atlas_set
                     .get_glyph_atlas_info(physical_glyph.cache_key, font_smoothing)
                     .map(Ok)
                     .unwrap_or_else(|| {
@@ -311,11 +312,28 @@ impl TextPipeline {
                         )
                     })?;
 
-                let texture_atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
-                let location = atlas_info.location;
-                let glyph_rect = texture_atlas.textures[location.glyph_index];
-                let left = location.offset.x as f32;
-                let top = location.offset.y as f32;
+                let texture_atlas = texture_atlases.get(&atlas_layout).unwrap();
+
+                if let Some(batch) = layout_info.glyph_batches.last() {
+                    if batch.texture != atlas_texture {
+                        let start = batch.range.end;
+                        layout_info.glyph_batches.push(PositionedGlyphBatch {
+                            texture: atlas_texture,
+                            texture_atlas: atlas_layout,
+                            range: start..start,
+                        });
+                    }
+                } else {
+                    layout_info.glyph_batches.push(PositionedGlyphBatch {
+                        texture: atlas_texture,
+                        texture_atlas: atlas_layout,
+                        range: 0..0,
+                    });
+                }
+
+                let glyph_rect = texture_atlas.textures[atlas_location.glyph_index];
+                let left = atlas_location.offset.x as f32;
+                let top = atlas_location.offset.y as f32;
                 let glyph_size = UVec2::new(glyph_rect.width(), glyph_rect.height());
 
                 // offset by half the size because the origin is center
@@ -330,9 +348,14 @@ impl TextPipeline {
 
                 // TODO: recreate the byte index, that keeps track of where a cursor is,
                 // when glyphs are not limited to single byte representation, relevant for #1319
-                let pos_glyph =
-                    PositionedGlyph::new(position, glyph_size.as_vec2(), atlas_info, span_index);
+                let pos_glyph = PositionedGlyph::new(
+                    position,
+                    glyph_size.as_vec2(),
+                    atlas_location,
+                    span_index,
+                );
                 layout_info.glyphs.push(pos_glyph);
+                layout_info.glyph_batches.last_mut().unwrap().range.end += 1;
                 Ok(())
             });
 
