@@ -340,10 +340,7 @@ pub fn extract_uinode_background_colors(
             &BackgroundColor,
         )>,
     >,
-    camera_map: Extract<UiCameraMap>,
 ) {
-    let mut camera_mapper = camera_map.get_mapper();
-
     for (entity, uinode, transform, inherited_visibility, clip, camera, background_color) in
         &uinode_query
     {
@@ -355,7 +352,7 @@ pub fn extract_uinode_background_colors(
             continue;
         }
 
-        let Some(extracted_camera_entity) = camera_mapper.map(camera) else {
+        let Some(extracted_camera_entity) = camera.camera() else {
             continue;
         };
 
@@ -403,9 +400,7 @@ pub fn extract_uinode_images(
             &ImageNode,
         )>,
     >,
-    camera_map: Extract<UiCameraMap>,
 ) {
-    let mut camera_mapper = camera_map.get_mapper();
     for (entity, uinode, transform, inherited_visibility, clip, camera, image) in &uinode_query {
         // Skip invisible images
         if !inherited_visibility.get()
@@ -417,7 +412,7 @@ pub fn extract_uinode_images(
             continue;
         }
 
-        let Some(extracted_camera_entity) = camera_mapper.map(camera) else {
+        let Some(extracted_camera_entity) = camera.camera() else {
             continue;
         };
 
@@ -491,10 +486,8 @@ pub fn extract_uinode_borders(
             AnyOf<(&BorderColor, &Outline)>,
         )>,
     >,
-    camera_map: Extract<UiCameraMap>,
 ) {
     let image = AssetId::<Image>::default();
-    let mut camera_mapper = camera_map.get_mapper();
 
     for (
         entity,
@@ -512,7 +505,7 @@ pub fn extract_uinode_borders(
             continue;
         }
 
-        let Some(extracted_camera_entity) = camera_mapper.map(camera) else {
+        let Some(extracted_camera_entity) = camera.camera() else {
             continue;
         };
 
@@ -732,12 +725,9 @@ pub fn extract_text_sections(
         )>,
     >,
     text_styles: Extract<Query<&TextColor>>,
-    camera_map: Extract<UiCameraMap>,
 ) {
     let mut start = extracted_ui_items.glyphs.len();
     let mut end = start + 1;
-
-    let mut camera_mapper = camera_map.get_mapper();
 
     let ExtractedUiNodes {
         camera_to_items,
@@ -760,7 +750,7 @@ pub fn extract_text_sections(
             continue;
         }
 
-        let Some(extracted_camera_entity) = camera_mapper.map(camera) else {
+        let Some(extracted_camera_entity) = camera.camera() else {
             continue;
         };
 
@@ -996,9 +986,14 @@ pub fn queue_uinodes(
     camera_views: Query<&ExtractedView>,
     pipeline_cache: Res<PipelineCache>,
     draw_functions: Res<DrawFunctions<TransparentUi>>,
+    ui_camera_views: Res<UiCameraViews>,
 ) {
     let draw_function = draw_functions.read().id::<DrawUi>();
     for (extracted_camera_entity, extracted_uinodes) in extracted_ui_items.camera_to_items.iter() {
+        let Some(extracted_camera_entity) = ui_camera_views.0.get(extracted_camera_entity) else {
+            continue;
+        };
+
         let Ok((default_camera_view, ui_anti_alias)) =
             render_views.get_mut(*extracted_camera_entity)
         else {
@@ -1097,10 +1092,10 @@ pub fn prepare_uinodes(
             let mut batch_item_index = 0;
             let mut batch_image_handle = AssetId::invalid();
 
-            let main_camera_entity = *retained_view_entity.main_entity;
-            let extracted_camera = ui_camera_views.0.get(&main_camera_entity).unwrap();
+            let main_camera_entity = &*retained_view_entity.main_entity;
+            let extracted_camera = ui_camera_views.0.get(main_camera_entity).unwrap();
 
-            let Some(extracted_uinodes) = camera_to_items.get(extracted_camera) else {
+            let Some(extracted_uinodes) = camera_to_items.get(main_camera_entity) else {
                 println!("camera not found!");
                 continue;
             };
