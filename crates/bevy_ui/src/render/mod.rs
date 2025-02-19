@@ -1009,8 +1009,6 @@ pub fn queue_uinodes(
         };
 
         for (index, extracted_uinode) in extracted_uinodes.iter().enumerate() {
-            let entity = extracted_uinode.render_entity;
-
             let pipeline = pipelines.specialize(
                 &pipeline_cache,
                 &ui_pipeline,
@@ -1022,10 +1020,10 @@ pub fn queue_uinodes(
             transparent_phase.add(TransparentUi {
                 draw_function,
                 pipeline,
-                entity: (entity, extracted_uinode.main_entity),
+                entity: (extracted_uinode.render_entity, extracted_uinode.main_entity),
                 sort_key: (
                     FloatOrd(extracted_uinode.stack_index as f32 + stack_z_offsets::NODE),
-                    entity.index(),
+                    extracted_uinode.render_entity.index(),
                 ),
                 index,
                 // batch_range will be calculated in prepare_uinodes
