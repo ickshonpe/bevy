@@ -1055,7 +1055,6 @@ pub fn prepare_uinodes(
     mut phases: ResMut<ViewSortedRenderPhases<TransparentUi>>,
     events: Res<SpriteAssetEvents>,
     mut previous_len: Local<usize>,
-    ui_camera_views: Res<UiCameraViews>,
 ) {
     // If an image has changed, the GpuImage has (probably) changed
     for event in &events.images {
@@ -1095,7 +1094,6 @@ pub fn prepare_uinodes(
             let mut batch_image_handle = AssetId::invalid();
 
             let main_camera_entity = &*retained_view_entity.main_entity;
-            let extracted_camera = ui_camera_views.0.get(main_camera_entity).unwrap();
 
             let Some(extracted_uinodes) = camera_to_items.get(main_camera_entity) else {
                 continue;
