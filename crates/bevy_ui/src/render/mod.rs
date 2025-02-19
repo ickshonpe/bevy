@@ -989,23 +989,26 @@ pub fn queue_uinodes(
     ui_camera_views: Res<UiCameraViews>,
 ) {
     let draw_function = draw_functions.read().id::<DrawUi>();
-    for (extracted_camera_entity, extracted_uinodes) in extracted_ui_items.camera_to_items.iter() {
-        let Some(extracted_camera_entity) = ui_camera_views.0.get(extracted_camera_entity) else {
-            continue;
-        };
-
-        let Ok((default_camera_view, ui_anti_alias)) =
-            render_views.get_mut(*extracted_camera_entity)
+    for (main_camera_entity, extracted_uinodes) in extracted_ui_items.camera_to_items.iter() {
+        let Some((view, ui_anti_alias)) = ui_camera_views
+            .0
+            .get(main_camera_entity)
+            .and_then(|extracted_camera_entity| render_views.get_mut(*extracted_camera_entity).ok())
+            .and_then(|(ui_camera_view, ui_anti_alias)| {
+                camera_views
+                    .get(ui_camera_view.0)
+                    .ok()
+                    .map(|view| (view, ui_anti_alias))
+            })
         else {
             continue;
         };
-        let Ok(view) = camera_views.get(default_camera_view.0) else {
-            continue;
-        };
+
         let Some(transparent_phase) = transparent_render_phases.get_mut(&view.retained_view_entity)
         else {
             continue;
         };
+
         for (index, extracted_uinode) in extracted_uinodes.iter().enumerate() {
             let entity = extracted_uinode.render_entity;
 
@@ -1096,7 +1099,6 @@ pub fn prepare_uinodes(
             let extracted_camera = ui_camera_views.0.get(main_camera_entity).unwrap();
 
             let Some(extracted_uinodes) = camera_to_items.get(main_camera_entity) else {
-                println!("camera not found!");
                 continue;
             };
 
