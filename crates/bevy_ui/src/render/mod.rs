@@ -125,6 +125,7 @@ pub fn build_ui_render(app: &mut App) {
         .init_resource::<UiMeta>()
         .init_resource::<ExtractedUiNodes>()
         .allow_ambiguous_resource::<ExtractedUiNodes>()
+        .init_resource::<UiCameraViews>()
         .init_resource::<DrawFunctions<TransparentUi>>()
         .init_resource::<ViewSortedRenderPhases<TransparentUi>>()
         .add_render_command::<TransparentUi, DrawUi>()
@@ -617,6 +618,9 @@ pub struct UiCameraView(pub Entity);
 #[derive(Component)]
 pub struct UiViewTarget(pub Entity);
 
+#[derive(Resource, Default)]
+pub struct UiCameraViews(pub EntityHashMap<Entity>);
+
 /// Extracts all UI elements associated with a camera into the render world.
 pub fn extract_ui_camera_view(
     mut commands: Commands,
@@ -634,6 +638,7 @@ pub fn extract_ui_camera_view(
         >,
     >,
     mut live_entities: Local<HashSet<RetainedViewEntity>>,
+    mut ui_camera_views: ResMut<UiCameraViews>,
 ) {
     live_entities.clear();
 
@@ -697,6 +702,10 @@ pub fn extract_ui_camera_view(
             if let Some(shadow_samples) = shadow_samples {
                 entity_commands.insert(*shadow_samples);
             }
+
+            ui_camera_views
+                .0
+                .insert(main_entity.into(), render_entity.into());
             transparent_render_phases.insert_or_clear(retained_view_entity);
 
             live_entities.insert(retained_view_entity);
@@ -1048,8 +1057,8 @@ pub fn prepare_uinodes(
     gpu_images: Res<RenderAssets<GpuImage>>,
     mut phases: ResMut<ViewSortedRenderPhases<TransparentUi>>,
     events: Res<SpriteAssetEvents>,
-    ui_view_target: Query<&UiViewTarget>,
     mut previous_len: Local<usize>,
+    ui_camera_views: Res<UiCameraViews>,
 ) {
     // If an image has changed, the GpuImage has (probably) changed
     for event in &events.images {
@@ -1088,11 +1097,18 @@ pub fn prepare_uinodes(
             let mut batch_item_index = 0;
             let mut batch_image_handle = AssetId::invalid();
 
+            let main_camera_entity = *retained_view_entity.main_entity;
+            let extracted_camera = ui_camera_views.0.get(&main_camera_entity).unwrap();
+
+            let Some(extracted_uinodes) = camera_to_items.get(extracted_camera) else {
+                println!("camera not found!");
+                continue;
+            };
+
             for item_index in 0..ui_phase.items.len() {
                 let item = &mut ui_phase.items[item_index];
 
                 if let Some(extracted_uinode) = extracted_uinodes
-                    .uinodes
                     .get(item.index)
                     .filter(|n| item.entity() == n.render_entity)
                 {
@@ -1103,8 +1119,6 @@ pub fn prepare_uinodes(
                         || (batch_image_handle != AssetId::default()
                             && extracted_uinode.image != AssetId::default()
                             && batch_image_handle != extracted_uinode.image)
-                        || existing_batch.as_ref().map(|(_, b)| b.camera)
-                            != Some(extracted_uinode.extracted_camera_entity)
                     {
                         if let Some(gpu_image) = gpu_images.get(extracted_uinode.image) {
                             batch_item_index = item_index;
@@ -1113,7 +1127,7 @@ pub fn prepare_uinodes(
                             let new_batch = UiBatch {
                                 range: vertices_index..vertices_index,
                                 image: extracted_uinode.image,
-                                camera: extracted_uinode.extracted_camera_entity,
+                                camera: *extracted_camera,
                             };
 
                             batches.push((item.entity(), new_batch));
@@ -1325,7 +1339,7 @@ pub fn prepare_uinodes(
                             let atlas_extent = image.size_2d().as_vec2();
 
                             let color = extracted_uinode.color.to_f32_array();
-                            for glyph in &extracted_uinodes.glyphs[range.clone()] {
+                            for glyph in &glyphs[range.clone()] {
                                 let glyph_rect = glyph.rect;
                                 let size = glyph.rect.size();
 
