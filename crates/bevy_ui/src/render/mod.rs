@@ -965,7 +965,6 @@ pub(crate) const QUAD_INDICES: [usize; 6] = [0, 2, 3, 0, 1, 2];
 pub struct UiBatch {
     pub range: Range<u32>,
     pub image: AssetId<Image>,
-    pub camera: Entity,
 }
 
 /// The values here should match the values for the constants in `ui.wgsl`
@@ -1124,7 +1123,6 @@ pub fn prepare_uinodes(
                             let new_batch = UiBatch {
                                 range: vertices_index..vertices_index,
                                 image: extracted_uinode.image,
-                                camera: *extracted_camera,
                             };
 
                             batches.push((item.entity(), new_batch));
