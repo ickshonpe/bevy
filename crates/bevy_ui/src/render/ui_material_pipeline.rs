@@ -673,6 +673,7 @@ pub fn queue_ui_material_nodes<M: UiMaterial>(
             extra_index: PhaseItemExtraIndex::None,
             index,
             indexed: false,
+            batch_id: Entity::PLACEHOLDER,
         });
     }
 }

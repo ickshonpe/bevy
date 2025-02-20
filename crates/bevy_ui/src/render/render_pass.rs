@@ -1,4 +1,5 @@
 use core::ops::Range;
+use std::any::TypeId;
 
 use super::{ImageNodeBindGroups, UiBatch, UiMeta, UiViewTarget};
 use crate::UiCameraView;
@@ -114,6 +115,7 @@ pub struct TransparentUi {
     pub extra_index: PhaseItemExtraIndex,
     pub index: usize,
     pub indexed: bool,
+    pub batch_id: Entity,
 }
 
 impl PhaseItem for TransparentUi {

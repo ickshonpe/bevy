@@ -242,10 +242,21 @@ pub struct ExtractedGlyph {
     pub rect: Rect,
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct ExtractedUiNodes {
+    batch_id: Entity,
     camera_to_items: EntityHashMap<Vec<ExtractedUiNode>>,
     pub glyphs: Vec<ExtractedGlyph>,
+}
+
+impl FromWorld for ExtractedUiNodes {
+    fn from_world(world: &mut World) -> Self {
+        ExtractedUiNodes {
+            batch_id: world.spawn_empty().id(),
+            camera_to_items: EntityHashMap::default(),
+            glyphs: Vec::new(),
+        }
+    }
 }
 
 impl ExtractedUiNodes {
@@ -731,6 +742,7 @@ pub fn extract_text_sections(
     let ExtractedUiNodes {
         camera_to_items,
         glyphs,
+        ..
     } = &mut (*extracted_ui_items);
 
     for (
@@ -834,6 +846,7 @@ pub fn extract_text_shadows(
     let ExtractedUiNodes {
         camera_to_items,
         glyphs,
+        ..
     } = &mut (*extracted_ui_items);
 
     for (
@@ -1022,6 +1035,7 @@ pub fn queue_uinodes(
                 batch_range: 0..0,
                 extra_index: PhaseItemExtraIndex::None,
                 indexed: true,
+                batch_id: extracted_ui_items.batch_id,
             });
         }
     }
@@ -1077,6 +1091,7 @@ pub fn prepare_uinodes(
         let ExtractedUiNodes {
             camera_to_items,
             glyphs,
+            batch_id,
         } = &mut *extracted_uinodes;
 
         for (retained_view_entity, ui_phase) in phases.iter_mut() {
@@ -1092,10 +1107,11 @@ pub fn prepare_uinodes(
             for item_index in 0..ui_phase.items.len() {
                 let item = &mut ui_phase.items[item_index];
 
-                if let Some(extracted_uinode) = extracted_uinodes
-                    .get(item.index)
-                    .filter(|n| item.entity() == n.render_entity)
-                {
+                if item.batch_id != *batch_id {
+                    continue;
+                }
+
+                if let Some(extracted_uinode) = extracted_uinodes.get(item.index) {
                     let mut existing_batch = batches.last_mut();
 
                     if batch_image_handle == AssetId::invalid()

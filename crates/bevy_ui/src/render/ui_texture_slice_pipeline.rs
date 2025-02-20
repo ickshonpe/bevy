@@ -380,6 +380,7 @@ pub fn queue_ui_slices(
             extra_index: PhaseItemExtraIndex::None,
             index,
             indexed: true,
+            batch_id: Entity::PLACEHOLDER,
         });
     }
 }

@@ -373,6 +373,7 @@ pub fn queue_shadows(
             extra_index: PhaseItemExtraIndex::None,
             index,
             indexed: true,
+            batch_id: Entity::PLACEHOLDER,
         });
     }
 }
