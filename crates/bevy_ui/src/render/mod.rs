@@ -149,7 +149,7 @@ pub fn build_ui_render(app: &mut App) {
                 extract_ui_camera_view.in_set(RenderUiSystem::ExtractCameraViews),
                 extract_uinode_background_colors.in_set(RenderUiSystem::ExtractBackgrounds),
                 extract_uinode_images.in_set(RenderUiSystem::ExtractImages),
-                extract_uinode_borders.in_set(RenderUiSystem::ExtractBorders),
+                //extract_uinode_borders.in_set(RenderUiSystem::ExtractBorders),
                 extract_text_shadows.in_set(RenderUiSystem::ExtractTextShadows),
                 extract_text_sections.in_set(RenderUiSystem::ExtractText),
                 #[cfg(feature = "bevy_ui_debug")]
@@ -339,19 +339,35 @@ pub fn extract_uinode_background_colors(
     uinode_query: Extract<
         Query<(
             &ComputedNode,
+            &Node,
             &GlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,
             &ComputedNodeTarget,
             &BackgroundColor,
+            Option<&BorderColor>,
+            Option<&Outline>,
         )>,
     >,
 ) {
-    for (uinode, transform, inherited_visibility, clip, camera, background_color) in &uinode_query {
+    let mut current_camera = Entity::PLACEHOLDER;
+    let mut items = &mut Vec::new();
+    for (
+        computed_node,
+        style,
+        transform,
+        inherited_visibility,
+        clip,
+        camera,
+        background_color,
+        border_color,
+        outline,
+    ) in &uinode_query
+    {
         // Skip invisible backgrounds
         if !inherited_visibility.get()
             || background_color.0.is_fully_transparent()
-            || uinode.is_empty()
+            || style.display == Display::None
         {
             continue;
         }
@@ -360,30 +376,88 @@ pub fn extract_uinode_background_colors(
             continue;
         };
 
-        let items = extracted_ui_items
-            .camera_to_items
-            .entry(extracted_camera_entity)
-            .or_insert_with(|| Vec::default());
+        if extracted_camera_entity != current_camera {
+            current_camera = extracted_camera_entity;
+            items = extracted_ui_items
+                .camera_to_items
+                .entry(extracted_camera_entity)
+                .or_insert_with(|| Vec::default());
+        }
 
-        items.push(ExtractedUiNode {
-            stack_index: uinode.stack_index,
-            color: background_color.0.into(),
-            rect: Rect {
-                min: Vec2::ZERO,
-                max: uinode.size,
-            },
-            clip: clip.map(|clip| clip.clip),
-            image: AssetId::default(),
-            item: ExtractedUiItem::Node {
-                atlas_scaling: None,
-                transform: transform.compute_matrix(),
-                flip_x: false,
-                flip_y: false,
-                border: uinode.border(),
-                border_radius: uinode.border_radius(),
-                node_type: NodeType::Rect,
-            },
-        });
+        if !computed_node.is_empty() {
+            if !background_color.0.is_fully_transparent() {
+                items.push(ExtractedUiNode {
+                    stack_index: computed_node.stack_index,
+                    color: background_color.0.into(),
+                    rect: Rect {
+                        min: Vec2::ZERO,
+                        max: computed_node.size,
+                    },
+                    clip: clip.map(|clip| clip.clip),
+                    image: AssetId::default(),
+                    item: ExtractedUiItem::Node {
+                        atlas_scaling: None,
+                        transform: transform.compute_matrix(),
+                        flip_x: false,
+                        flip_y: false,
+                        border: computed_node.border(),
+                        border_radius: computed_node.border_radius(),
+                        node_type: NodeType::Rect,
+                    },
+                });
+            }
+
+            if computed_node.border() != BorderRect::ZERO {
+                if let Some(border_color) = border_color.filter(|bc| !bc.0.is_fully_transparent()) {
+                    items.push(ExtractedUiNode {
+                        stack_index: computed_node.stack_index,
+                        color: border_color.0.into(),
+                        rect: Rect {
+                            max: computed_node.size(),
+                            ..Default::default()
+                        },
+                        image: AssetId::default(),
+                        clip: clip.map(|clip| clip.clip),
+                        item: ExtractedUiItem::Node {
+                            atlas_scaling: None,
+                            transform: transform.compute_matrix(),
+                            flip_x: false,
+                            flip_y: false,
+                            border: computed_node.border(),
+                            border_radius: computed_node.border_radius(),
+                            node_type: NodeType::Border,
+                        },
+                    });
+                }
+            }
+        }
+
+        if computed_node.outline_width() <= 0. {
+            continue;
+        }
+
+        if let Some(outline) = outline.filter(|outline| !outline.color.is_fully_transparent()) {
+            let outline_size = computed_node.outlined_node_size();
+            items.push(ExtractedUiNode {
+                stack_index: computed_node.stack_index,
+                color: outline.color.into(),
+                rect: Rect {
+                    max: outline_size,
+                    ..Default::default()
+                },
+                image: AssetId::default(),
+                clip: clip.map(|clip| clip.clip),
+                item: ExtractedUiItem::Node {
+                    transform: transform.compute_matrix(),
+                    atlas_scaling: None,
+                    flip_x: false,
+                    flip_y: false,
+                    border: BorderRect::all(computed_node.outline_width()),
+                    border_radius: computed_node.outline_radius(),
+                    node_type: NodeType::Border,
+                },
+            });
+        }
     }
 }
 
@@ -466,102 +540,6 @@ pub fn extract_uinode_images(
                 node_type: NodeType::Rect,
             },
         });
-    }
-}
-
-pub fn extract_uinode_borders(
-    mut extracted_ui_items: ResMut<ExtractedUiNodes>,
-    uinode_query: Extract<
-        Query<(
-            &Node,
-            &ComputedNode,
-            &GlobalTransform,
-            &InheritedVisibility,
-            Option<&CalculatedClip>,
-            &ComputedNodeTarget,
-            AnyOf<(&BorderColor, &Outline)>,
-        )>,
-    >,
-) {
-    let image = AssetId::<Image>::default();
-
-    for (
-        node,
-        computed_node,
-        global_transform,
-        inherited_visibility,
-        maybe_clip,
-        camera,
-        (maybe_border_color, maybe_outline),
-    ) in &uinode_query
-    {
-        // Skip invisible borders and removed nodes
-        if !inherited_visibility.get() || node.display == Display::None {
-            continue;
-        }
-
-        let Some(extracted_camera_entity) = camera.camera() else {
-            continue;
-        };
-
-        let extracted_uinodes = extracted_ui_items
-            .camera_to_items
-            .entry(extracted_camera_entity)
-            .or_insert_with(|| Vec::default());
-
-        // Don't extract borders with zero width along all edges
-        if computed_node.border() != BorderRect::ZERO {
-            if let Some(border_color) = maybe_border_color.filter(|bc| !bc.0.is_fully_transparent())
-            {
-                extracted_uinodes.push(ExtractedUiNode {
-                    stack_index: computed_node.stack_index,
-                    color: border_color.0.into(),
-                    rect: Rect {
-                        max: computed_node.size(),
-                        ..Default::default()
-                    },
-                    image,
-                    clip: maybe_clip.map(|clip| clip.clip),
-                    item: ExtractedUiItem::Node {
-                        atlas_scaling: None,
-                        transform: global_transform.compute_matrix(),
-                        flip_x: false,
-                        flip_y: false,
-                        border: computed_node.border(),
-                        border_radius: computed_node.border_radius(),
-                        node_type: NodeType::Border,
-                    },
-                });
-            }
-        }
-
-        if computed_node.outline_width() <= 0. {
-            continue;
-        }
-
-        if let Some(outline) = maybe_outline.filter(|outline| !outline.color.is_fully_transparent())
-        {
-            let outline_size = computed_node.outlined_node_size();
-            extracted_uinodes.push(ExtractedUiNode {
-                stack_index: computed_node.stack_index,
-                color: outline.color.into(),
-                rect: Rect {
-                    max: outline_size,
-                    ..Default::default()
-                },
-                image,
-                clip: maybe_clip.map(|clip| clip.clip),
-                item: ExtractedUiItem::Node {
-                    transform: global_transform.compute_matrix(),
-                    atlas_scaling: None,
-                    flip_x: false,
-                    flip_y: false,
-                    border: BorderRect::all(computed_node.outline_width()),
-                    border_radius: computed_node.outline_radius(),
-                    node_type: NodeType::Border,
-                },
-            });
-        }
     }
 }
 
