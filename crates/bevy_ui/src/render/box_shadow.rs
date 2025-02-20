@@ -9,6 +9,7 @@ use crate::{
 use bevy_app::prelude::*;
 use bevy_asset::*;
 use bevy_color::{Alpha, ColorToComponents, LinearRgba};
+use bevy_ecs::entity::hash_map::EntityHashMap;
 use bevy_ecs::prelude::*;
 use bevy_ecs::{
     prelude::Component,
@@ -32,7 +33,9 @@ use bevy_render::{
 use bevy_transform::prelude::GlobalTransform;
 use bytemuck::{Pod, Zeroable};
 
-use super::{stack_z_offsets, UiCameraMap, UiCameraView, QUAD_INDICES, QUAD_VERTEX_POSITIONS};
+use super::{
+    stack_z_offsets, UiCameraMap, UiCameraView, UiCameraViews, QUAD_INDICES, QUAD_VERTEX_POSITIONS,
+};
 
 pub const BOX_SHADOW_SHADER_HANDLE: Handle<Shader> =
     weak_handle!("d2991ecd-134f-4f82-adf5-0fcc86f02227");
@@ -54,6 +57,7 @@ impl Plugin for BoxShadowPlugin {
                 .add_render_command::<TransparentUi, DrawBoxShadows>()
                 .init_resource::<ExtractedBoxShadows>()
                 .init_resource::<BoxShadowMeta>()
+                .init_resource::<ShadowBatches>()
                 .init_resource::<SpecializedRenderPipelines<BoxShadowPipeline>>()
                 .add_systems(
                     ExtractSchedule,
@@ -91,7 +95,6 @@ struct BoxShadowVertex {
 #[derive(Component)]
 pub struct UiShadowsBatch {
     pub range: Range<u32>,
-    pub camera: Entity,
 }
 
 /// Contains the vertices and bind groups to be sent to the GPU
@@ -218,27 +221,24 @@ pub struct ExtractedBoxShadow {
     pub transform: Mat4,
     pub bounds: Vec2,
     pub clip: Option<Rect>,
-    pub extracted_camera_entity: Entity,
     pub color: LinearRgba,
     pub radius: ResolvedBorderRadius,
     pub blur_radius: f32,
     pub size: Vec2,
-    pub main_entity: MainEntity,
-    pub render_entity: Entity,
 }
 
 /// List of extracted shadows to be sorted and queued for rendering
 #[derive(Resource)]
 pub struct ExtractedBoxShadows {
     pub batch_id: Entity,
-    pub box_shadows: Vec<ExtractedBoxShadow>,
+    pub box_shadows: EntityHashMap<Vec<ExtractedBoxShadow>>,
 }
 
 impl FromWorld for ExtractedBoxShadows {
     fn from_world(world: &mut World) -> Self {
         Self {
             batch_id: world.spawn_empty().id(),
-            box_shadows: Vec::new(),
+            box_shadows: EntityHashMap::default(),
         }
     }
 }
@@ -248,7 +248,6 @@ pub fn extract_shadows(
     mut extracted_box_shadows: ResMut<ExtractedBoxShadows>,
     box_shadow_query: Extract<
         Query<(
-            Entity,
             &ComputedNode,
             &GlobalTransform,
             &InheritedVisibility,
@@ -257,19 +256,21 @@ pub fn extract_shadows(
             &ComputedNodeTarget,
         )>,
     >,
-    camera_map: Extract<UiCameraMap>,
 ) {
-    let mut mapping = camera_map.get_mapper();
-
-    for (entity, uinode, transform, visibility, box_shadow, clip, camera) in &box_shadow_query {
+    for (uinode, transform, visibility, box_shadow, clip, camera) in &box_shadow_query {
         // Skip if no visible shadows
         if !visibility.get() || box_shadow.is_empty() || uinode.is_empty() {
             continue;
         }
 
-        let Some(extracted_camera_entity) = mapping.map(camera) else {
+        let Some(extracted_camera_entity) = camera.camera() else {
             continue;
         };
+
+        let extracted_uinodes = extracted_box_shadows
+            .box_shadows
+            .entry(extracted_camera_entity)
+            .or_insert_with(|| Vec::default());
 
         let ui_physical_viewport_size = camera.physical_size.as_vec2();
 
@@ -313,18 +314,15 @@ pub fn extract_shadows(
                 bottom_right: uinode.border_radius.bottom_right * spread_ratio,
             };
 
-            extracted_box_shadows.box_shadows.push(ExtractedBoxShadow {
-                render_entity: commands.spawn(TemporaryRenderEntity).id(),
+            extracted_uinodes.push(ExtractedBoxShadow {
                 stack_index: uinode.stack_index,
                 transform: transform.compute_matrix() * Mat4::from_translation(offset.extend(0.)),
                 color: drop_shadow.color.into(),
                 bounds: shadow_size + 6. * blur_radius,
                 clip: clip.map(|clip| clip.clip),
-                extracted_camera_entity,
                 radius,
                 blur_radius,
                 size: shadow_size,
-                main_entity: entity.into(),
             });
         }
     }
@@ -335,7 +333,7 @@ pub fn extract_shadows(
     reason = "it's a system that needs a lot of them"
 )]
 pub fn queue_shadows(
-    extracted_box_shadows: ResMut<ExtractedBoxShadows>,
+    extracted_box_shadows: Res<ExtractedBoxShadows>,
     box_shadow_pipeline: Res<BoxShadowPipeline>,
     mut pipelines: ResMut<SpecializedRenderPipelines<BoxShadowPipeline>>,
     mut transparent_render_phases: ResMut<ViewSortedRenderPhases<TransparentUi>>,
@@ -343,17 +341,21 @@ pub fn queue_shadows(
     camera_views: Query<&ExtractedView>,
     pipeline_cache: Res<PipelineCache>,
     draw_functions: Res<DrawFunctions<TransparentUi>>,
+    ui_camera_views: Res<UiCameraViews>,
 ) {
     let draw_function = draw_functions.read().id::<DrawBoxShadows>();
-    for (index, extracted_shadow) in extracted_box_shadows.box_shadows.iter().enumerate() {
-        let entity = extracted_shadow.render_entity;
-        let Ok((default_camera_view, shadow_samples)) =
-            render_views.get_mut(extracted_shadow.extracted_camera_entity)
+    for (main_camera_entity, extracted_uinodes) in extracted_box_shadows.box_shadows.iter() {
+        let Some((view, shadow_samples)) = ui_camera_views
+            .0
+            .get(main_camera_entity)
+            .and_then(|extracted_camera_entity| render_views.get_mut(*extracted_camera_entity).ok())
+            .and_then(|(ui_camera_view, shadow_samples)| {
+                camera_views
+                    .get(ui_camera_view.0)
+                    .ok()
+                    .map(|view| (view, shadow_samples))
+            })
         else {
-            continue;
-        };
-
-        let Ok(view) = camera_views.get(default_camera_view.0) else {
             continue;
         };
 
@@ -362,30 +364,40 @@ pub fn queue_shadows(
             continue;
         };
 
-        let pipeline = pipelines.specialize(
-            &pipeline_cache,
-            &box_shadow_pipeline,
-            BoxShadowPipelineKey {
-                hdr: view.hdr,
-                samples: shadow_samples.copied().unwrap_or_default().0,
-            },
-        );
+        for (index, extracted_shadow) in extracted_uinodes.iter().enumerate() {
+            let pipeline = pipelines.specialize(
+                &pipeline_cache,
+                &box_shadow_pipeline,
+                BoxShadowPipelineKey {
+                    hdr: view.hdr,
+                    samples: shadow_samples.copied().unwrap_or_default().0,
+                },
+            );
 
-        transparent_phase.add(TransparentUi {
-            draw_function,
-            pipeline,
-            entity: (entity, extracted_shadow.main_entity),
-            sort_key: (
-                FloatOrd(extracted_shadow.stack_index as f32 + stack_z_offsets::BOX_SHADOW),
-                entity.index(),
-            ),
-            batch_range: 0..0,
-            extra_index: PhaseItemExtraIndex::None,
-            index,
-            indexed: true,
-            batch_id: extracted_box_shadows.batch_id,
-        });
+            transparent_phase.add(TransparentUi {
+                draw_function,
+                pipeline,
+                entity: (
+                    extracted_box_shadows.batch_id,
+                    extracted_box_shadows.batch_id.into(),
+                ),
+                sort_key: (
+                    FloatOrd(extracted_shadow.stack_index as f32 + stack_z_offsets::BOX_SHADOW),
+                    extracted_box_shadows.batch_id.index(),
+                ),
+                batch_range: 0..0,
+                extra_index: PhaseItemExtraIndex::None,
+                index,
+                indexed: true,
+                batch_id: extracted_box_shadows.batch_id,
+            });
+        }
     }
+}
+
+#[derive(Default, Resource)]
+pub struct ShadowBatches {
+    batches: Vec<UiShadowsBatch>,
 }
 
 pub fn prepare_shadows(
@@ -398,10 +410,9 @@ pub fn prepare_shadows(
     box_shadow_pipeline: Res<BoxShadowPipeline>,
     mut phases: ResMut<ViewSortedRenderPhases<TransparentUi>>,
     mut previous_len: Local<usize>,
+    mut batches: ResMut<ShadowBatches>,
 ) {
     if let Some(view_binding) = view_uniforms.uniforms.binding() {
-        let mut batches: Vec<(Entity, UiShadowsBatch)> = Vec::with_capacity(*previous_len);
-
         ui_meta.vertices.clear();
         ui_meta.indices.clear();
         ui_meta.view_bind_group = Some(render_device.create_bind_group(
@@ -414,14 +425,21 @@ pub fn prepare_shadows(
         let mut vertices_index = 0;
         let mut indices_index = 0;
 
-        for ui_phase in phases.values_mut() {
+        for (retained_view_entity, ui_phase) in phases.iter_mut() {
+            let Some(box_shadows) = extracted_shadows
+                .box_shadows
+                .get(&*retained_view_entity.main_entity)
+            else {
+                continue;
+            };
+
             for item_index in 0..ui_phase.items.len() {
                 let item = &mut ui_phase.items[item_index];
                 if item.batch_id != extracted_shadows.batch_id {
                     continue;
                 }
 
-                if let Some(box_shadow) = extracted_shadows.box_shadows.get(item.index) {
+                if let Some(box_shadow) = box_shadows.get(item.index) {
                     let rect_size = box_shadow.bounds.extend(1.0);
 
                     // Specify the corners of the node
@@ -517,13 +535,11 @@ pub fn prepare_shadows(
                         ui_meta.indices.push(indices_index + i as u32);
                     }
 
-                    batches.push((
-                        item.entity(),
-                        UiShadowsBatch {
-                            range: vertices_index..vertices_index + 6,
-                            camera: box_shadow.extracted_camera_entity,
-                        },
-                    ));
+                    item.extra_index =
+                        PhaseItemExtraIndex::DynamicOffset(batches.batches.len() as u32);
+                    batches.batches.push(UiShadowsBatch {
+                        range: vertices_index..vertices_index + 6,
+                    });
 
                     vertices_index += 6;
                     indices_index += 4;
@@ -536,8 +552,6 @@ pub fn prepare_shadows(
         }
         ui_meta.vertices.write_buffer(&render_device, &render_queue);
         ui_meta.indices.write_buffer(&render_device, &render_queue);
-        *previous_len = batches.len();
-        commands.insert_or_spawn_batch(batches);
     }
     extracted_shadows.box_shadows.clear();
 }
@@ -567,19 +581,22 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetBoxShadowViewBindGrou
 
 pub struct DrawBoxShadow;
 impl<P: PhaseItem> RenderCommand<P> for DrawBoxShadow {
-    type Param = SRes<BoxShadowMeta>;
+    type Param = (SRes<BoxShadowMeta>, SRes<ShadowBatches>);
     type ViewQuery = ();
-    type ItemQuery = Read<UiShadowsBatch>;
+    type ItemQuery = ();
 
     #[inline]
     fn render<'w>(
-        _item: &P,
+        item: &P,
         _view: (),
-        batch: Option<&'w UiShadowsBatch>,
-        ui_meta: SystemParamItem<'w, '_, Self::Param>,
+        _batch: Option<()>,
+        (ui_meta, ui_batches): SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
-        let Some(batch) = batch else {
+        let PhaseItemExtraIndex::DynamicOffset(i) = item.extra_index() else {
+            return RenderCommandResult::Skip;
+        };
+        let Some(batch) = ui_batches.batches.get(i as usize) else {
             return RenderCommandResult::Skip;
         };
         let ui_meta = ui_meta.into_inner();
