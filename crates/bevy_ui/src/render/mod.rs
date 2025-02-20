@@ -122,6 +122,7 @@ pub fn build_ui_render(app: &mut App) {
         .init_resource::<SpecializedRenderPipelines<UiPipeline>>()
         .init_resource::<ImageNodeBindGroups>()
         .init_resource::<UiMeta>()
+        .init_resource::<UiBatches>()
         .init_resource::<ExtractedUiNodes>()
         .allow_ambiguous_resource::<ExtractedUiNodes>()
         .init_resource::<UiCameraViews>()
@@ -204,8 +205,6 @@ pub struct ExtractedUiNode {
     pub image: AssetId<Image>,
     pub clip: Option<Rect>,
     pub item: ExtractedUiItem,
-    pub main_entity: MainEntity,
-    pub render_entity: Entity,
 }
 
 /// The type of UI node.
@@ -337,7 +336,6 @@ impl RenderGraphNode for RunUiSubgraphOnUiViewNode {
 }
 
 pub fn extract_uinode_background_colors(
-    mut commands: Commands,
     mut extracted_ui_items: ResMut<ExtractedUiNodes>,
     uinode_query: Extract<
         Query<(
@@ -372,7 +370,6 @@ pub fn extract_uinode_background_colors(
             .or_insert_with(|| Vec::default());
 
         items.push(ExtractedUiNode {
-            render_entity: commands.spawn(TemporaryRenderEntity).id(),
             stack_index: uinode.stack_index,
             color: background_color.0.into(),
             rect: Rect {
@@ -390,7 +387,6 @@ pub fn extract_uinode_background_colors(
                 border_radius: uinode.border_radius(),
                 node_type: NodeType::Rect,
             },
-            main_entity: entity.into(),
         });
     }
 }
@@ -461,7 +457,6 @@ pub fn extract_uinode_images(
         };
 
         extracted_uinodes.push(ExtractedUiNode {
-            render_entity: commands.spawn(TemporaryRenderEntity).id(),
             stack_index: uinode.stack_index,
             color: image.color.into(),
             rect,
@@ -476,7 +471,6 @@ pub fn extract_uinode_images(
                 border_radius: uinode.border_radius,
                 node_type: NodeType::Rect,
             },
-            main_entity: entity.into(),
         });
     }
 }
@@ -546,8 +540,6 @@ pub fn extract_uinode_borders(
                         border_radius: computed_node.border_radius(),
                         node_type: NodeType::Border,
                     },
-                    main_entity: entity.into(),
-                    render_entity: commands.spawn(TemporaryRenderEntity).id(),
                 });
             }
         }
@@ -560,7 +552,6 @@ pub fn extract_uinode_borders(
         {
             let outline_size = computed_node.outlined_node_size();
             extracted_uinodes.push(ExtractedUiNode {
-                render_entity: commands.spawn(TemporaryRenderEntity).id(),
                 stack_index: computed_node.stack_index,
                 color: outline.color.into(),
                 rect: Rect {
@@ -578,7 +569,6 @@ pub fn extract_uinode_borders(
                     border_radius: computed_node.outline_radius(),
                     node_type: NodeType::Border,
                 },
-                main_entity: entity.into(),
             });
         }
     }
@@ -806,14 +796,12 @@ pub fn extract_text_sections(
                     .map(|text_color| LinearRgba::from(text_color.0))
                     .unwrap_or_default();
                 extracted_uinodes.push(ExtractedUiNode {
-                    render_entity: commands.spawn(TemporaryRenderEntity).id(),
                     stack_index: uinode.stack_index,
                     color,
                     image: atlas_info.texture.id(),
                     clip: clip.map(|clip| clip.clip),
                     rect,
                     item: ExtractedUiItem::Glyphs { range: start..end },
-                    main_entity: entity.into(),
                 });
                 start = end;
             }
@@ -902,14 +890,12 @@ pub fn extract_text_shadows(
                 info.span_index != *span_index || info.atlas_info.texture != atlas_info.texture
             }) {
                 extracted_uinodes.push(ExtractedUiNode {
-                    render_entity: commands.spawn(TemporaryRenderEntity).id(),
                     stack_index: uinode.stack_index,
                     color: shadow.color.into(),
                     image: atlas_info.texture.id(),
                     clip: clip.map(|clip| clip.clip),
                     rect,
                     item: ExtractedUiItem::Glyphs { range: start..end },
-                    main_entity: entity.into(),
                 });
                 start = end;
             }
@@ -945,6 +931,11 @@ pub struct UiMeta {
     vertices: RawBufferVec<UiVertex>,
     indices: RawBufferVec<u32>,
     view_bind_group: Option<BindGroup>,
+}
+
+#[derive(Resource, Default)]
+pub struct UiBatches {
+    batches: Vec<UiBatch>,
 }
 
 impl Default for UiMeta {
@@ -1025,10 +1016,13 @@ pub fn queue_uinodes(
             transparent_phase.add(TransparentUi {
                 draw_function,
                 pipeline,
-                entity: (extracted_uinode.render_entity, extracted_uinode.main_entity),
+                entity: (
+                    extracted_ui_items.batch_id,
+                    extracted_ui_items.batch_id.into(),
+                ),
                 sort_key: (
                     FloatOrd(extracted_uinode.stack_index as f32 + stack_z_offsets::NODE),
-                    extracted_uinode.render_entity.index(),
+                    index as u32,
                 ),
                 index,
                 // batch_range will be calculated in prepare_uinodes
@@ -1047,7 +1041,6 @@ pub struct ImageNodeBindGroups {
 }
 
 pub fn prepare_uinodes(
-    mut commands: Commands,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     mut ui_meta: ResMut<UiMeta>,
@@ -1058,7 +1051,7 @@ pub fn prepare_uinodes(
     gpu_images: Res<RenderAssets<GpuImage>>,
     mut phases: ResMut<ViewSortedRenderPhases<TransparentUi>>,
     events: Res<SpriteAssetEvents>,
-    mut previous_len: Local<usize>,
+    mut batches: ResMut<UiBatches>,
 ) {
     // If an image has changed, the GpuImage has (probably) changed
     for event in &events.images {
@@ -1073,9 +1066,10 @@ pub fn prepare_uinodes(
         };
     }
 
-    if let Some(view_binding) = view_uniforms.uniforms.binding() {
-        let mut batches: Vec<(Entity, UiBatch)> = Vec::with_capacity(*previous_len);
+    let batches = &mut batches.batches;
+    batches.clear();
 
+    if let Some(view_binding) = view_uniforms.uniforms.binding() {
         ui_meta.vertices.clear();
         ui_meta.indices.clear();
         ui_meta.view_bind_group = Some(render_device.create_bind_group(
@@ -1129,7 +1123,9 @@ pub fn prepare_uinodes(
                                 image: extracted_uinode.image,
                             };
 
-                            batches.push((item.entity(), new_batch));
+                            item.extra_index =
+                                PhaseItemExtraIndex::DynamicOffset(batches.len() as u32);
+                            batches.push(new_batch);
 
                             image_bind_groups
                                 .values
@@ -1154,7 +1150,7 @@ pub fn prepare_uinodes(
                     {
                         if let Some(gpu_image) = gpu_images.get(extracted_uinode.image) {
                             batch_image_handle = extracted_uinode.image;
-                            existing_batch.as_mut().unwrap().1.image = extracted_uinode.image;
+                            existing_batch.as_mut().unwrap().image = extracted_uinode.image;
 
                             image_bind_groups
                                 .values
@@ -1432,7 +1428,7 @@ pub fn prepare_uinodes(
                             }
                         }
                     }
-                    existing_batch.unwrap().1.range.end = vertices_index;
+                    existing_batch.unwrap().range.end = vertices_index;
                     ui_phase.items[batch_item_index].batch_range_mut().end += 1;
                 } else {
                     batch_image_handle = AssetId::invalid();
@@ -1442,8 +1438,6 @@ pub fn prepare_uinodes(
 
         ui_meta.vertices.write_buffer(&render_device, &render_queue);
         ui_meta.indices.write_buffer(&render_device, &render_queue);
-        *previous_len = batches.len();
-        commands.insert_or_spawn_batch(batches);
     }
     extracted_uinodes.clear();
 }

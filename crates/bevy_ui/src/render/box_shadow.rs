@@ -228,9 +228,19 @@ pub struct ExtractedBoxShadow {
 }
 
 /// List of extracted shadows to be sorted and queued for rendering
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct ExtractedBoxShadows {
+    pub batch_id: Entity,
     pub box_shadows: Vec<ExtractedBoxShadow>,
+}
+
+impl FromWorld for ExtractedBoxShadows {
+    fn from_world(world: &mut World) -> Self {
+        Self {
+            batch_id: world.spawn_empty().id(),
+            box_shadows: Vec::new(),
+        }
+    }
 }
 
 pub fn extract_shadows(
@@ -373,7 +383,7 @@ pub fn queue_shadows(
             extra_index: PhaseItemExtraIndex::None,
             index,
             indexed: true,
-            batch_id: Entity::PLACEHOLDER,
+            batch_id: extracted_box_shadows.batch_id,
         });
     }
 }
@@ -407,11 +417,11 @@ pub fn prepare_shadows(
         for ui_phase in phases.values_mut() {
             for item_index in 0..ui_phase.items.len() {
                 let item = &mut ui_phase.items[item_index];
-                if let Some(box_shadow) = extracted_shadows
-                    .box_shadows
-                    .get(item.index)
-                    .filter(|n| item.entity() == n.render_entity)
-                {
+                if item.batch_id != extracted_shadows.batch_id {
+                    continue;
+                }
+
+                if let Some(box_shadow) = extracted_shadows.box_shadows.get(item.index) {
                     let rect_size = box_shadow.bounds.extend(1.0);
 
                     // Specify the corners of the node

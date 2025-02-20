@@ -1,7 +1,6 @@
 use core::ops::Range;
-use std::any::TypeId;
 
-use super::{ImageNodeBindGroups, UiBatch, UiMeta, UiViewTarget};
+use super::{ImageNodeBindGroups, UiBatches, UiMeta, UiViewTarget};
 use crate::UiCameraView;
 use bevy_ecs::{
     prelude::*,
@@ -209,20 +208,23 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetUiViewBindGroup<I> {
 }
 pub struct SetUiTextureBindGroup<const I: usize>;
 impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetUiTextureBindGroup<I> {
-    type Param = SRes<ImageNodeBindGroups>;
+    type Param = (SRes<ImageNodeBindGroups>, SRes<UiBatches>);
     type ViewQuery = ();
-    type ItemQuery = Read<UiBatch>;
+    type ItemQuery = ();
 
     #[inline]
     fn render<'w>(
-        _item: &P,
+        item: &P,
         _view: (),
-        batch: Option<&'w UiBatch>,
-        image_bind_groups: SystemParamItem<'w, '_, Self::Param>,
+        _batch: Option<()>,
+        (image_bind_groups, ui_batches): SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
         let image_bind_groups = image_bind_groups.into_inner();
-        let Some(batch) = batch else {
+        let PhaseItemExtraIndex::DynamicOffset(i) = item.extra_index() else {
+            return RenderCommandResult::Skip;
+        };
+        let Some(batch) = ui_batches.batches.get(i as usize) else {
             return RenderCommandResult::Skip;
         };
 
@@ -233,19 +235,22 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetUiTextureBindGroup<I>
 
 pub struct DrawUiNode;
 impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
-    type Param = SRes<UiMeta>;
+    type Param = (SRes<UiMeta>, SRes<UiBatches>);
     type ViewQuery = ();
-    type ItemQuery = Read<UiBatch>;
+    type ItemQuery = ();
 
     #[inline]
     fn render<'w>(
-        _item: &P,
+        item: &P,
         _view: (),
-        batch: Option<&'w UiBatch>,
-        ui_meta: SystemParamItem<'w, '_, Self::Param>,
+        _batch: Option<()>,
+        (ui_meta, ui_batches): SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
-        let Some(batch) = batch else {
+        let PhaseItemExtraIndex::DynamicOffset(i) = item.extra_index() else {
+            return RenderCommandResult::Skip;
+        };
+        let Some(batch) = ui_batches.batches.get(i as usize) else {
             return RenderCommandResult::Skip;
         };
         let ui_meta = ui_meta.into_inner();
