@@ -10,8 +10,7 @@ mod debug_overlay;
 use crate::widget::ImageNode;
 use crate::{
     BackgroundColor, BorderColor, BoxShadowSamples, CalculatedClip, ComputedNode,
-    ComputedNodeTarget, DefaultUiCamera, Outline, ResolvedBorderRadius, TextShadow, UiAntiAlias,
-    UiTargetCamera,
+    ComputedNodeTarget, Outline, ResolvedBorderRadius, TextShadow, UiAntiAlias,
 };
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, weak_handle, AssetEvent, AssetId, Assets, Handle};
@@ -815,21 +814,19 @@ pub fn extract_text_sections(
 pub fn extract_text_shadows(
     mut commands: Commands,
     mut extracted_ui_items: ResMut<ExtractedUiNodes>,
-    default_ui_camera: Extract<DefaultUiCamera>,
     texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
     uinode_query: Extract<
         Query<(
             Entity,
             &ComputedNode,
+            &ComputedNodeTarget,
             &GlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,
-            Option<&UiTargetCamera>,
             &TextLayoutInfo,
             &TextShadow,
         )>,
     >,
-    mapping: Extract<Query<RenderEntity>>,
 ) {
     let mut start = extracted_ui_items.glyphs.len();
     let mut end = start + 1;
@@ -839,33 +836,28 @@ pub fn extract_text_shadows(
         glyphs,
     } = &mut (*extracted_ui_items);
 
-    let default_ui_camera = default_ui_camera.get();
     for (
         entity,
         uinode,
+        target,
         global_transform,
         inherited_visibility,
         clip,
-        camera,
         text_layout_info,
         shadow,
     ) in &uinode_query
     {
-        let Some(camera_entity) = camera.map(UiTargetCamera::entity).or(default_ui_camera) else {
-            continue;
-        };
-
         // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
         if !inherited_visibility.get() || uinode.is_empty() {
             continue;
         }
 
-        let Ok(extracted_camera_entity) = mapping.get(camera_entity) else {
+        let Some(camera) = target.camera() else {
             continue;
         };
 
         let extracted_uinodes = camera_to_items
-            .entry(extracted_camera_entity)
+            .entry(camera)
             .or_insert_with(|| Vec::default());
 
         let transform = global_transform.affine()
