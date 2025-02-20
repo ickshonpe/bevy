@@ -26,7 +26,6 @@ use bevy_math::{FloatOrd, Mat4, Rect, UVec4, Vec2, Vec3, Vec3Swizzles, Vec4Swizz
 use bevy_render::render_graph::{NodeRunError, RenderGraphContext};
 use bevy_render::render_phase::ViewSortedRenderPhases;
 use bevy_render::renderer::RenderContext;
-use bevy_render::sync_world::MainEntity;
 use bevy_render::texture::TRANSPARENT_IMAGE_HANDLE;
 use bevy_render::view::RetainedViewEntity;
 use bevy_render::{
@@ -339,7 +338,6 @@ pub fn extract_uinode_background_colors(
     mut extracted_ui_items: ResMut<ExtractedUiNodes>,
     uinode_query: Extract<
         Query<(
-            Entity,
             &ComputedNode,
             &GlobalTransform,
             &InheritedVisibility,
@@ -349,9 +347,7 @@ pub fn extract_uinode_background_colors(
         )>,
     >,
 ) {
-    for (entity, uinode, transform, inherited_visibility, clip, camera, background_color) in
-        &uinode_query
-    {
+    for (uinode, transform, inherited_visibility, clip, camera, background_color) in &uinode_query {
         // Skip invisible backgrounds
         if !inherited_visibility.get()
             || background_color.0.is_fully_transparent()
@@ -392,12 +388,10 @@ pub fn extract_uinode_background_colors(
 }
 
 pub fn extract_uinode_images(
-    mut commands: Commands,
     mut extracted_ui_items: ResMut<ExtractedUiNodes>,
     texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
     uinode_query: Extract<
         Query<(
-            Entity,
             &ComputedNode,
             &GlobalTransform,
             &InheritedVisibility,
@@ -407,7 +401,7 @@ pub fn extract_uinode_images(
         )>,
     >,
 ) {
-    for (entity, uinode, transform, inherited_visibility, clip, camera, image) in &uinode_query {
+    for (uinode, transform, inherited_visibility, clip, camera, image) in &uinode_query {
         // Skip invisible images
         if !inherited_visibility.get()
             || image.color.is_fully_transparent()
@@ -476,11 +470,9 @@ pub fn extract_uinode_images(
 }
 
 pub fn extract_uinode_borders(
-    mut commands: Commands,
     mut extracted_ui_items: ResMut<ExtractedUiNodes>,
     uinode_query: Extract<
         Query<(
-            Entity,
             &Node,
             &ComputedNode,
             &GlobalTransform,
@@ -494,7 +486,6 @@ pub fn extract_uinode_borders(
     let image = AssetId::<Image>::default();
 
     for (
-        entity,
         node,
         computed_node,
         global_transform,
@@ -709,12 +700,10 @@ pub fn extract_ui_camera_view(
 }
 
 pub fn extract_text_sections(
-    mut commands: Commands,
     mut extracted_ui_items: ResMut<ExtractedUiNodes>,
     texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
     uinode_query: Extract<
         Query<(
-            Entity,
             &ComputedNode,
             &GlobalTransform,
             &InheritedVisibility,
@@ -736,7 +725,6 @@ pub fn extract_text_sections(
     } = &mut (*extracted_ui_items);
 
     for (
-        entity,
         uinode,
         global_transform,
         inherited_visibility,
@@ -812,12 +800,10 @@ pub fn extract_text_sections(
 }
 
 pub fn extract_text_shadows(
-    mut commands: Commands,
     mut extracted_ui_items: ResMut<ExtractedUiNodes>,
     texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
     uinode_query: Extract<
         Query<(
-            Entity,
             &ComputedNode,
             &ComputedNodeTarget,
             &GlobalTransform,
@@ -837,16 +823,8 @@ pub fn extract_text_shadows(
         ..
     } = &mut (*extracted_ui_items);
 
-    for (
-        entity,
-        uinode,
-        target,
-        global_transform,
-        inherited_visibility,
-        clip,
-        text_layout_info,
-        shadow,
-    ) in &uinode_query
+    for (uinode, target, global_transform, inherited_visibility, clip, text_layout_info, shadow) in
+        &uinode_query
     {
         // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
         if !inherited_visibility.get() || uinode.is_empty() {
