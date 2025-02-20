@@ -230,7 +230,7 @@ pub struct ExtractedUiTextureSlice {
     pub atlas_rect: Option<Rect>,
     pub image: AssetId<Image>,
     pub clip: Option<Rect>,
-    pub extracted_camera_entity: Entity,
+    pub main_camera_entity: Entity,
     pub color: LinearRgba,
     pub image_scale_mode: SpriteImageMode,
     pub flip_x: bool,
@@ -260,11 +260,8 @@ pub fn extract_ui_texture_slices(
             &ImageNode,
         )>,
     >,
-    camera_map: Extract<UiCameraMap>,
 ) {
-    let mut camera_mapper = camera_map.get_mapper();
-
-    for (entity, uinode, transform, inherited_visibility, clip, camera, image) in &slicers_query {
+    for (entity, uinode, transform, inherited_visibility, clip, target, image) in &slicers_query {
         // Skip invisible images
         if !inherited_visibility.get()
             || image.color.is_fully_transparent()
@@ -272,6 +269,10 @@ pub fn extract_ui_texture_slices(
         {
             continue;
         }
+
+        let Some(main_camera_entity) = target.camera() else {
+            continue;
+        };
 
         let image_scale_mode = match image.image_mode.clone() {
             widget::NodeImageMode::Sliced(texture_slicer) => {
@@ -287,10 +288,6 @@ pub fn extract_ui_texture_slices(
                 stretch_value,
             },
             _ => continue,
-        };
-
-        let Some(extracted_camera_entity) = camera_mapper.map(camera) else {
-            continue;
         };
 
         let atlas_rect = image
@@ -321,7 +318,7 @@ pub fn extract_ui_texture_slices(
             },
             clip: clip.map(|clip| clip.clip),
             image: image.image.id(),
-            extracted_camera_entity,
+            main_camera_entity,
             image_scale_mode,
             atlas_rect,
             flip_x: image.flip_x,
@@ -348,8 +345,7 @@ pub fn queue_ui_slices(
 ) {
     let draw_function = draw_functions.read().id::<DrawUiTextureSlices>();
     for (index, extracted_slicer) in extracted_ui_slicers.slices.iter().enumerate() {
-        let Ok(default_camera_view) =
-            render_views.get_mut(extracted_slicer.extracted_camera_entity)
+        let Ok(default_camera_view) = render_views.get_mut(extracted_slicer.main_camera_entity)
         else {
             continue;
         };
@@ -447,7 +443,7 @@ pub fn prepare_ui_slices(
                             && texture_slices.image != AssetId::default()
                             && batch_image_handle != texture_slices.image)
                         || existing_batch.as_ref().map(|(_, b)| b.camera)
-                            != Some(texture_slices.extracted_camera_entity)
+                            != Some(texture_slices.main_camera_entity)
                     {
                         if let Some(gpu_image) = gpu_images.get(texture_slices.image) {
                             batch_item_index = item_index;
@@ -457,7 +453,7 @@ pub fn prepare_ui_slices(
                             let new_batch = UiTextureSlicerBatch {
                                 range: vertices_index..vertices_index,
                                 image: texture_slices.image,
-                                camera: texture_slices.extracted_camera_entity,
+                                camera: texture_slices.main_camera_entity,
                             };
 
                             batches.push((item.entity(), new_batch));

@@ -32,7 +32,7 @@ use bevy_render::{
 use bevy_transform::prelude::GlobalTransform;
 use bytemuck::{Pod, Zeroable};
 
-use super::{stack_z_offsets, UiCameraMap, UiCameraView, QUAD_INDICES, QUAD_VERTEX_POSITIONS};
+use super::{stack_z_offsets, UiCameraView, QUAD_INDICES, QUAD_VERTEX_POSITIONS};
 
 pub const BOX_SHADOW_SHADER_HANDLE: Handle<Shader> =
     weak_handle!("d2991ecd-134f-4f82-adf5-0fcc86f02227");
@@ -218,7 +218,7 @@ pub struct ExtractedBoxShadow {
     pub transform: Mat4,
     pub bounds: Vec2,
     pub clip: Option<Rect>,
-    pub extracted_camera_entity: Entity,
+    pub main_camera_entity: Entity,
     pub color: LinearRgba,
     pub radius: ResolvedBorderRadius,
     pub blur_radius: f32,
@@ -247,21 +247,18 @@ pub fn extract_shadows(
             &ComputedNodeTarget,
         )>,
     >,
-    camera_map: Extract<UiCameraMap>,
 ) {
-    let mut mapping = camera_map.get_mapper();
-
-    for (entity, uinode, transform, visibility, box_shadow, clip, camera) in &box_shadow_query {
+    for (entity, uinode, transform, visibility, box_shadow, clip, target) in &box_shadow_query {
         // Skip if no visible shadows
         if !visibility.get() || box_shadow.is_empty() || uinode.is_empty() {
             continue;
         }
 
-        let Some(extracted_camera_entity) = mapping.map(camera) else {
+        let Some(main_camera_entity) = target.camera() else {
             continue;
         };
 
-        let ui_physical_viewport_size = camera.physical_size.as_vec2();
+        let ui_physical_viewport_size = target.physical_size.as_vec2();
 
         let scale_factor = uinode.inverse_scale_factor.recip();
 
@@ -310,7 +307,7 @@ pub fn extract_shadows(
                 color: drop_shadow.color.into(),
                 bounds: shadow_size + 6. * blur_radius,
                 clip: clip.map(|clip| clip.clip),
-                extracted_camera_entity,
+                main_camera_entity,
                 radius,
                 blur_radius,
                 size: shadow_size,
@@ -338,7 +335,7 @@ pub fn queue_shadows(
     for (index, extracted_shadow) in extracted_box_shadows.box_shadows.iter().enumerate() {
         let entity = extracted_shadow.render_entity;
         let Ok((default_camera_view, shadow_samples)) =
-            render_views.get_mut(extracted_shadow.extracted_camera_entity)
+            render_views.get_mut(extracted_shadow.main_camera_entity)
         else {
             continue;
         };
@@ -510,7 +507,7 @@ pub fn prepare_shadows(
                         item.entity(),
                         UiShadowsBatch {
                             range: vertices_index..vertices_index + 6,
-                            camera: box_shadow.extracted_camera_entity,
+                            camera: box_shadow.main_camera_entity,
                         },
                     ));
 
