@@ -360,12 +360,10 @@ impl<M: UiMaterial> FromWorld for ExtractedUiMaterialNodes<M> {
 }
 
 pub fn extract_ui_material_nodes<M: UiMaterial>(
-    mut commands: Commands,
     mut extracted_uinodes: ResMut<ExtractedUiNodes<ExtractedUiMaterialNode<M>>>,
     materials: Extract<Res<Assets<M>>>,
     uinode_query: Extract<
         Query<(
-            Entity,
             &ComputedNode,
             &GlobalTransform,
             &MaterialNode<M>,
@@ -375,7 +373,7 @@ pub fn extract_ui_material_nodes<M: UiMaterial>(
         )>,
     >,
 ) {
-    for (entity, computed_node, transform, handle, inherited_visibility, clip, target) in
+    for (computed_node, transform, handle, inherited_visibility, clip, target) in
         uinode_query.iter()
     {
         // skip invisible nodes
@@ -450,6 +448,12 @@ pub fn prepare_uimaterial_nodes<M: UiMaterial>(
 
             for item_index in 0..ui_phase.items.len() {
                 let item = &mut ui_phase.items[item_index];
+
+                if item.entity != *batch_id {
+                    batch_shader_handle = AssetId::invalid();
+                    continue;
+                }
+
                 if let Some(extracted_uinode) = extracted_uinodes.get(item.extraction_index()) {
                     let mut existing_batch = batches
                         .last_mut()
