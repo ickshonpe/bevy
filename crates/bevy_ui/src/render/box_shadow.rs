@@ -20,22 +20,18 @@ use bevy_ecs::{
 };
 use bevy_image::BevyDefault as _;
 use bevy_math::{vec2, FloatOrd, Mat4, Rect, Vec2, Vec3Swizzles, Vec4Swizzles};
-use bevy_render::sync_world::MainEntity;
 use bevy_render::RenderApp;
 use bevy_render::{
     render_phase::*,
     render_resource::{binding_types::uniform_buffer, *},
     renderer::{RenderDevice, RenderQueue},
-    sync_world::TemporaryRenderEntity,
     view::*,
     Extract, ExtractSchedule, Render, RenderSet,
 };
 use bevy_transform::prelude::GlobalTransform;
 use bytemuck::{Pod, Zeroable};
 
-use super::{
-    stack_z_offsets, UiCameraMap, UiCameraView, UiCameraViews, QUAD_INDICES, QUAD_VERTEX_POSITIONS,
-};
+use super::{stack_z_offsets, UiCameraView, UiCameraViews, QUAD_INDICES, QUAD_VERTEX_POSITIONS};
 
 pub const BOX_SHADOW_SHADER_HANDLE: Handle<Shader> =
     weak_handle!("d2991ecd-134f-4f82-adf5-0fcc86f02227");
@@ -244,7 +240,6 @@ impl FromWorld for ExtractedBoxShadows {
 }
 
 pub fn extract_shadows(
-    mut commands: Commands,
     mut extracted_box_shadows: ResMut<ExtractedBoxShadows>,
     box_shadow_query: Extract<
         Query<(
