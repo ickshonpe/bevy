@@ -107,24 +107,31 @@ impl Node for UiPassNode {
 
 pub struct TransparentUi {
     pub sort_key: (FloatOrd, u32),
-    pub entity: (Entity, MainEntity),
+    pub entity: Entity,
     pub pipeline: CachedRenderPipelineId,
     pub draw_function: DrawFunctionId,
     pub batch_range: Range<u32>,
     pub extra_index: PhaseItemExtraIndex,
-    pub index: usize,
     pub indexed: bool,
-    pub batch_id: Entity,
+}
+
+impl TransparentUi {
+    pub(crate) fn extraction_index(&self) -> usize {
+        match self.extra_index {
+            PhaseItemExtraIndex::DynamicOffset(index) => index as usize,
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl PhaseItem for TransparentUi {
     #[inline]
     fn entity(&self) -> Entity {
-        self.entity.0
+        self.entity
     }
 
     fn main_entity(&self) -> MainEntity {
-        self.entity.1
+        self.entity.into()
     }
 
     #[inline]

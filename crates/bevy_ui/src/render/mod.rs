@@ -969,20 +969,15 @@ pub fn queue_uinodes(
             transparent_phase.add(TransparentUi {
                 draw_function,
                 pipeline,
-                entity: (
-                    extracted_ui_items.batch_id,
-                    extracted_ui_items.batch_id.into(),
-                ),
+                entity: extracted_ui_items.batch_id,
                 sort_key: (
                     FloatOrd(extracted_uinode.stack_index as f32 + stack_z_offsets::NODE),
                     index as u32,
                 ),
-                index,
                 // batch_range will be calculated in prepare_uinodes
                 batch_range: 0..0,
-                extra_index: PhaseItemExtraIndex::None,
+                extra_index: PhaseItemExtraIndex::DynamicOffset(index as u32),
                 indexed: true,
-                batch_id: extracted_ui_items.batch_id,
             });
         }
     }
@@ -1054,12 +1049,12 @@ pub fn prepare_uinodes(
             for item_index in 0..ui_phase.items.len() {
                 let item = &mut ui_phase.items[item_index];
 
-                if item.batch_id != *batch_id {
+                if item.entity != *batch_id {
                     batch_image_handle = AssetId::invalid();
                     continue;
                 }
 
-                if let Some(extracted_uinode) = extracted_uinodes.get(item.index) {
+                if let Some(extracted_uinode) = extracted_uinodes.get(item.extraction_index()) {
                     let mut existing_batch = batches.last_mut();
 
                     if batch_image_handle == AssetId::invalid()

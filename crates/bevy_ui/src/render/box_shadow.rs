@@ -377,19 +377,14 @@ pub fn queue_shadows(
             transparent_phase.add(TransparentUi {
                 draw_function,
                 pipeline,
-                entity: (
-                    extracted_box_shadows.batch_id,
-                    extracted_box_shadows.batch_id.into(),
-                ),
+                entity: extracted_box_shadows.batch_id,
                 sort_key: (
                     FloatOrd(extracted_shadow.stack_index as f32 + stack_z_offsets::BOX_SHADOW),
-                    extracted_box_shadows.batch_id.index(),
+                    index as u32,
                 ),
                 batch_range: 0..0,
-                extra_index: PhaseItemExtraIndex::None,
-                index,
+                extra_index: PhaseItemExtraIndex::DynamicOffset(index as u32),
                 indexed: true,
-                batch_id: extracted_box_shadows.batch_id,
             });
         }
     }
@@ -401,7 +396,6 @@ pub struct ShadowBatches {
 }
 
 pub fn prepare_shadows(
-    mut commands: Commands,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     mut ui_meta: ResMut<BoxShadowMeta>,
@@ -409,7 +403,6 @@ pub fn prepare_shadows(
     view_uniforms: Res<ViewUniforms>,
     box_shadow_pipeline: Res<BoxShadowPipeline>,
     mut phases: ResMut<ViewSortedRenderPhases<TransparentUi>>,
-    mut previous_len: Local<usize>,
     mut batches: ResMut<ShadowBatches>,
 ) {
     if let Some(view_binding) = view_uniforms.uniforms.binding() {
@@ -435,11 +428,11 @@ pub fn prepare_shadows(
 
             for item_index in 0..ui_phase.items.len() {
                 let item = &mut ui_phase.items[item_index];
-                if item.batch_id != extracted_shadows.batch_id {
+                if item.entity != extracted_shadows.batch_id {
                     continue;
                 }
 
-                if let Some(box_shadow) = box_shadows.get(item.index) {
+                if let Some(box_shadow) = box_shadows.get(item.extraction_index()) {
                     let rect_size = box_shadow.bounds.extend(1.0);
 
                     // Specify the corners of the node
