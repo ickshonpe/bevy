@@ -123,6 +123,7 @@ pub fn build_ui_render(app: &mut App) {
         .init_resource::<UiMeta>()
         .init_resource::<UiBatches>()
         .init_resource::<ExtractedUiNodes>()
+        .init_resource::<ExtractedGlyphs>()
         .allow_ambiguous_resource::<ExtractedUiNodes>()
         .init_resource::<UiCameraViews>()
         .init_resource::<DrawFunctions<TransparentUi>>()
@@ -244,6 +245,10 @@ pub struct ExtractedGlyph {
 pub struct ExtractedUiNodes {
     batch_id: Entity,
     camera_to_items: EntityHashMap<Vec<ExtractedUiNode>>,
+}
+
+#[derive(Resource, Default)]
+pub struct ExtractedGlyphs {
     pub glyphs: Vec<ExtractedGlyph>,
 }
 
@@ -252,13 +257,13 @@ impl FromWorld for ExtractedUiNodes {
         ExtractedUiNodes {
             batch_id: world.spawn_empty().id(),
             camera_to_items: EntityHashMap::default(),
-            glyphs: Vec::new(),
         }
     }
 }
 
 impl ExtractedUiNodes {
     pub fn clear(&mut self) {
+        // remove the entries for cameras that didn't display anything the last frame
         self.camera_to_items.retain(|_, items| {
             let is_empty = items.is_empty();
             items.clear();
@@ -679,6 +684,7 @@ pub fn extract_ui_camera_view(
 
 pub fn extract_text_sections(
     mut extracted_ui_items: ResMut<ExtractedUiNodes>,
+    mut extracted_glyphs: ResMut<ExtractedGlyphs>,
     texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
     uinode_query: Extract<
         Query<(
@@ -693,14 +699,8 @@ pub fn extract_text_sections(
     >,
     text_styles: Extract<Query<&TextColor>>,
 ) {
-    let mut start = extracted_ui_items.glyphs.len();
+    let mut start = extracted_glyphs.glyphs.len();
     let mut end = start + 1;
-
-    let ExtractedUiNodes {
-        camera_to_items,
-        glyphs,
-        ..
-    } = &mut (*extracted_ui_items);
 
     for (
         uinode,
@@ -721,7 +721,8 @@ pub fn extract_text_sections(
             continue;
         };
 
-        let extracted_uinodes = camera_to_items
+        let extracted_uinodes = extracted_ui_items
+            .camera_to_items
             .entry(extracted_camera_entity)
             .or_insert_with(|| Vec::default());
 
@@ -743,7 +744,7 @@ pub fn extract_text_sections(
                 .unwrap()
                 .textures[atlas_info.location.glyph_index]
                 .as_rect();
-            glyphs.push(ExtractedGlyph {
+            extracted_glyphs.glyphs.push(ExtractedGlyph {
                 transform: transform * Mat4::from_translation(position.extend(0.)),
                 rect,
             });
@@ -779,6 +780,7 @@ pub fn extract_text_sections(
 
 pub fn extract_text_shadows(
     mut extracted_ui_items: ResMut<ExtractedUiNodes>,
+    mut extracted_glyphs: ResMut<ExtractedGlyphs>,
     texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
     uinode_query: Extract<
         Query<(
@@ -792,14 +794,8 @@ pub fn extract_text_shadows(
         )>,
     >,
 ) {
-    let mut start = extracted_ui_items.glyphs.len();
+    let mut start = extracted_glyphs.glyphs.len();
     let mut end = start + 1;
-
-    let ExtractedUiNodes {
-        camera_to_items,
-        glyphs,
-        ..
-    } = &mut (*extracted_ui_items);
 
     for (uinode, target, global_transform, inherited_visibility, clip, text_layout_info, shadow) in
         &uinode_query
@@ -813,7 +809,8 @@ pub fn extract_text_shadows(
             continue;
         };
 
-        let extracted_uinodes = camera_to_items
+        let extracted_uinodes = extracted_ui_items
+            .camera_to_items
             .entry(camera)
             .or_insert_with(|| Vec::default());
 
@@ -837,7 +834,7 @@ pub fn extract_text_shadows(
                 .unwrap()
                 .textures[atlas_info.location.glyph_index]
                 .as_rect();
-            glyphs.push(ExtractedGlyph {
+            extracted_glyphs.glyphs.push(ExtractedGlyph {
                 transform: transform * Mat4::from_translation(position.extend(0.)),
                 rect,
             });
@@ -1001,6 +998,7 @@ pub fn prepare_uinodes(
     render_queue: Res<RenderQueue>,
     mut ui_meta: ResMut<UiMeta>,
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
+    mut extracted_glyphs: ResMut<ExtractedGlyphs>,
     view_uniforms: Res<ViewUniforms>,
     ui_pipeline: Res<UiPipeline>,
     mut image_bind_groups: ResMut<ImageNodeBindGroups>,
@@ -1040,7 +1038,6 @@ pub fn prepare_uinodes(
 
         let ExtractedUiNodes {
             camera_to_items,
-            glyphs,
             batch_id,
         } = &mut *extracted_uinodes;
 
@@ -1290,7 +1287,7 @@ pub fn prepare_uinodes(
                             let atlas_extent = image.size_2d().as_vec2();
 
                             let color = extracted_uinode.color.to_f32_array();
-                            for glyph in &glyphs[range.clone()] {
+                            for glyph in &extracted_glyphs.glyphs[range.clone()] {
                                 let glyph_rect = glyph.rect;
                                 let size = glyph.rect.size();
 
@@ -1396,4 +1393,5 @@ pub fn prepare_uinodes(
         ui_meta.indices.write_buffer(&render_device, &render_queue);
     }
     extracted_uinodes.clear();
+    extracted_glyphs.glyphs.clear();
 }
