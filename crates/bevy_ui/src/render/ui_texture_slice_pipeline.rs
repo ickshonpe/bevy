@@ -239,9 +239,19 @@ pub struct ExtractedUiTextureSlice {
     pub render_entity: Entity,
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct ExtractedUiTextureSlices {
+    pub batch_id: Entity,
     pub slices: Vec<ExtractedUiTextureSlice>,
+}
+
+impl FromWorld for ExtractedUiTextureSlices {
+    fn from_world(world: &mut World) -> Self {
+        Self {
+            batch_id: world.spawn_empty().id(),
+            slices: Vec::new(),
+        }
+    }
 }
 
 pub fn extract_ui_texture_slices(
@@ -371,16 +381,14 @@ pub fn queue_ui_slices(
         transparent_phase.add(TransparentUi {
             draw_function,
             pipeline,
-            entity: (extracted_slicer.render_entity, extracted_slicer.main_entity),
+            entity: extracted_slicer.render_entity,
             sort_key: (
                 FloatOrd(extracted_slicer.stack_index as f32 + stack_z_offsets::TEXTURE_SLICE),
                 extracted_slicer.render_entity.index(),
             ),
             batch_range: 0..0,
             extra_index: PhaseItemExtraIndex::None,
-            index,
             indexed: true,
-            batch_id: Entity::PLACEHOLDER,
         });
     }
 }
@@ -436,7 +444,7 @@ pub fn prepare_ui_slices(
                 let item = &mut ui_phase.items[item_index];
                 if let Some(texture_slices) = extracted_slices
                     .slices
-                    .get(item.index)
+                    .get(item.extraction_index())
                     .filter(|n| item.entity() == n.render_entity)
                 {
                     let mut existing_batch = batches.last_mut();

@@ -353,13 +353,15 @@ pub struct ExtractedUiMaterialNode<M: UiMaterial> {
 
 #[derive(Resource)]
 pub struct ExtractedUiMaterialNodes<M: UiMaterial> {
+    pub batch_id: Entity,
     pub uinodes: Vec<ExtractedUiMaterialNode<M>>,
 }
 
-impl<M: UiMaterial> Default for ExtractedUiMaterialNodes<M> {
-    fn default() -> Self {
+impl<M: UiMaterial> FromWorld for ExtractedUiMaterialNodes<M> {
+    fn from_world(world: &mut World) -> Self {
         Self {
-            uinodes: Default::default(),
+            batch_id: world.spawn_empty().id(),
+            uinodes: Vec::new(),
         }
     }
 }
@@ -452,7 +454,7 @@ pub fn prepare_uimaterial_nodes<M: UiMaterial>(
                 let item = &mut ui_phase.items[item_index];
                 if let Some(extracted_uinode) = extracted_uinodes
                     .uinodes
-                    .get(item.index)
+                    .get(item.extraction_index())
                     .filter(|n| item.entity() == n.render_entity)
                 {
                     let mut existing_batch = batches
@@ -664,16 +666,14 @@ pub fn queue_ui_material_nodes<M: UiMaterial>(
         transparent_phase.add(TransparentUi {
             draw_function,
             pipeline,
-            entity: (extracted_uinode.render_entity, extracted_uinode.main_entity),
+            entity: extracted_uinodes.batch_id,
             sort_key: (
                 FloatOrd(extracted_uinode.stack_index as f32 + stack_z_offsets::MATERIAL),
                 extracted_uinode.render_entity.index(),
             ),
             batch_range: 0..0,
             extra_index: PhaseItemExtraIndex::None,
-            index,
             indexed: false,
-            batch_id: Entity::PLACEHOLDER,
         });
     }
 }
