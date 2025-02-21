@@ -20,7 +20,6 @@ use bevy_core_pipeline::core_3d::graph::{Core3d, Node3d};
 use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
 use bevy_ecs::entity::hash_map::EntityHashMap;
 use bevy_ecs::prelude::*;
-use bevy_ecs::system::SystemParam;
 use bevy_image::prelude::*;
 use bevy_math::{FloatOrd, Mat4, Rect, UVec4, Vec2, Vec3, Vec3Swizzles, Vec4Swizzles};
 use bevy_render::render_graph::{NodeRunError, RenderGraphContext};
@@ -122,9 +121,9 @@ pub fn build_ui_render(app: &mut App) {
         .init_resource::<ImageNodeBindGroups>()
         .init_resource::<UiMeta>()
         .init_resource::<UiBatches>()
-        .init_resource::<ExtractedUiNodes>()
+        .init_resource::<ExtractedUiNodes<ExtractedRect>>()
         .init_resource::<ExtractedGlyphs>()
-        .allow_ambiguous_resource::<ExtractedUiNodes>()
+        .allow_ambiguous_resource::<ExtractedUiNodes<ExtractedRect>>()
         .init_resource::<UiCameraViews>()
         .init_resource::<DrawFunctions<TransparentUi>>()
         .init_resource::<ViewSortedRenderPhases<TransparentUi>>()
@@ -198,7 +197,41 @@ fn get_ui_graph(render_app: &mut SubApp) -> RenderGraph {
     ui_graph
 }
 
-pub struct ExtractedUiNode {
+#[derive(Resource)]
+pub struct ExtractedUiNodes<T> {
+    batch_id: Entity,
+    buffers: EntityHashMap<Vec<T>>,
+}
+
+impl<T> FromWorld for ExtractedUiNodes<T> {
+    fn from_world(world: &mut World) -> Self {
+        ExtractedUiNodes {
+            batch_id: world.spawn_empty().id(),
+            buffers: EntityHashMap::default(),
+        }
+    }
+}
+
+impl<T> ExtractedUiNodes<T> {
+    pub fn push(&mut self, camera: Entity, item: T) {
+        self.get_buffer(camera).push(item);
+    }
+
+    pub fn get_buffer(&mut self, camera: Entity) -> &mut Vec<T> {
+        self.buffers.entry(camera).or_insert_with(|| Vec::new())
+    }
+
+    pub fn clear(&mut self) {
+        // remove the entries for cameras that didn't display anything the last frame
+        self.buffers.retain(|_, items| {
+            let is_empty = items.is_empty();
+            items.clear();
+            !is_empty
+        });
+    }
+}
+
+pub struct ExtractedRect {
     pub stack_index: u32,
     pub color: LinearRgba,
     pub rect: Rect,
@@ -241,77 +274,9 @@ pub struct ExtractedGlyph {
     pub rect: Rect,
 }
 
-#[derive(Resource)]
-pub struct ExtractedUiNodes {
-    batch_id: Entity,
-    camera_to_items: EntityHashMap<Vec<ExtractedUiNode>>,
-}
-
 #[derive(Resource, Default)]
 pub struct ExtractedGlyphs {
     pub glyphs: Vec<ExtractedGlyph>,
-}
-
-impl FromWorld for ExtractedUiNodes {
-    fn from_world(world: &mut World) -> Self {
-        ExtractedUiNodes {
-            batch_id: world.spawn_empty().id(),
-            camera_to_items: EntityHashMap::default(),
-        }
-    }
-}
-
-impl ExtractedUiNodes {
-    pub fn clear(&mut self) {
-        // remove the entries for cameras that didn't display anything the last frame
-        self.camera_to_items.retain(|_, items| {
-            let is_empty = items.is_empty();
-            items.clear();
-            !is_empty
-        });
-    }
-}
-
-#[derive(SystemParam)]
-pub struct UiCameraMap<'w, 's> {
-    mapping: Query<'w, 's, RenderEntity>,
-}
-
-impl<'w, 's> UiCameraMap<'w, 's> {
-    /// Get the default camera and create the mapper
-    pub fn get_mapper(&'w self) -> UiCameraMapper<'w, 's> {
-        UiCameraMapper {
-            mapping: &self.mapping,
-            camera_entity: Entity::PLACEHOLDER,
-            render_entity: Entity::PLACEHOLDER,
-        }
-    }
-}
-
-pub struct UiCameraMapper<'w, 's> {
-    mapping: &'w Query<'w, 's, RenderEntity>,
-    camera_entity: Entity,
-    render_entity: Entity,
-}
-
-impl<'w, 's> UiCameraMapper<'w, 's> {
-    /// Returns the render entity corresponding to the given `UiTargetCamera` or the default camera if `None`.
-    pub fn map(&mut self, computed_target: &ComputedNodeTarget) -> Option<Entity> {
-        let camera_entity = computed_target.camera;
-        if self.camera_entity != camera_entity {
-            let Ok(new_render_camera_entity) = self.mapping.get(camera_entity) else {
-                return None;
-            };
-            self.render_entity = new_render_camera_entity;
-            self.camera_entity = camera_entity;
-        }
-
-        Some(self.render_entity)
-    }
-
-    pub fn current_camera(&self) -> Entity {
-        self.camera_entity
-    }
 }
 
 /// A [`RenderGraphNode`] that executes the UI rendering subgraph on the UI
@@ -340,7 +305,7 @@ impl RenderGraphNode for RunUiSubgraphOnUiViewNode {
 }
 
 pub fn extract_uinode_background_colors(
-    mut extracted_ui_items: ResMut<ExtractedUiNodes>,
+    mut extracted_ui_items: ResMut<ExtractedUiNodes<ExtractedRect>>,
     uinode_query: Extract<
         Query<(
             &ComputedNode,
@@ -384,14 +349,14 @@ pub fn extract_uinode_background_colors(
         if extracted_camera_entity != current_camera {
             current_camera = extracted_camera_entity;
             items = extracted_ui_items
-                .camera_to_items
+                .buffers
                 .entry(extracted_camera_entity)
                 .or_insert_with(|| Vec::default());
         }
 
         if !computed_node.is_empty() {
             if !background_color.0.is_fully_transparent() {
-                items.push(ExtractedUiNode {
+                items.push(ExtractedRect {
                     stack_index: computed_node.stack_index,
                     color: background_color.0.into(),
                     rect: Rect {
@@ -414,7 +379,7 @@ pub fn extract_uinode_background_colors(
 
             if computed_node.border() != BorderRect::ZERO {
                 if let Some(border_color) = border_color.filter(|bc| !bc.0.is_fully_transparent()) {
-                    items.push(ExtractedUiNode {
+                    items.push(ExtractedRect {
                         stack_index: computed_node.stack_index,
                         color: border_color.0.into(),
                         rect: Rect {
@@ -443,7 +408,7 @@ pub fn extract_uinode_background_colors(
 
         if let Some(outline) = outline.filter(|outline| !outline.color.is_fully_transparent()) {
             let outline_size = computed_node.outlined_node_size();
-            items.push(ExtractedUiNode {
+            items.push(ExtractedRect {
                 stack_index: computed_node.stack_index,
                 color: outline.color.into(),
                 rect: Rect {
@@ -467,7 +432,7 @@ pub fn extract_uinode_background_colors(
 }
 
 pub fn extract_uinode_images(
-    mut extracted_ui_items: ResMut<ExtractedUiNodes>,
+    mut extracted_uinodes: ResMut<ExtractedUiNodes<ExtractedRect>>,
     texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
     uinode_query: Extract<
         Query<(
@@ -480,7 +445,7 @@ pub fn extract_uinode_images(
         )>,
     >,
 ) {
-    for (uinode, transform, inherited_visibility, clip, camera, image) in &uinode_query {
+    for (uinode, transform, inherited_visibility, clip, target, image) in &uinode_query {
         // Skip invisible images
         if !inherited_visibility.get()
             || image.color.is_fully_transparent()
@@ -491,14 +456,11 @@ pub fn extract_uinode_images(
             continue;
         }
 
-        let Some(extracted_camera_entity) = camera.camera() else {
+        let Some(camera) = target.camera() else {
             continue;
         };
 
-        let extracted_uinodes = extracted_ui_items
-            .camera_to_items
-            .entry(extracted_camera_entity)
-            .or_insert_with(|| Vec::default());
+        let extracted_uinodes = extracted_uinodes.get_buffer(camera);
 
         let atlas_rect = image
             .texture_atlas
@@ -529,7 +491,7 @@ pub fn extract_uinode_images(
             None
         };
 
-        extracted_uinodes.push(ExtractedUiNode {
+        extracted_uinodes.push(ExtractedRect {
             stack_index: uinode.stack_index,
             color: image.color.into(),
             rect,
@@ -683,7 +645,7 @@ pub fn extract_ui_camera_view(
 }
 
 pub fn extract_text_sections(
-    mut extracted_ui_items: ResMut<ExtractedUiNodes>,
+    mut extracted_ui_items: ResMut<ExtractedUiNodes<ExtractedRect>>,
     mut extracted_glyphs: ResMut<ExtractedGlyphs>,
     texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
     uinode_query: Extract<
@@ -707,7 +669,7 @@ pub fn extract_text_sections(
         global_transform,
         inherited_visibility,
         clip,
-        camera,
+        target,
         computed_block,
         text_layout_info,
     ) in &uinode_query
@@ -717,14 +679,11 @@ pub fn extract_text_sections(
             continue;
         }
 
-        let Some(extracted_camera_entity) = camera.camera() else {
+        let Some(camera) = target.camera() else {
             continue;
         };
 
-        let extracted_uinodes = extracted_ui_items
-            .camera_to_items
-            .entry(extracted_camera_entity)
-            .or_insert_with(|| Vec::default());
+        let extracted_uinodes = extracted_ui_items.get_buffer(camera);
 
         let transform = global_transform.affine()
             * bevy_math::Affine3A::from_translation((-0.5 * uinode.size()).extend(0.));
@@ -762,7 +721,7 @@ pub fn extract_text_sections(
                     )
                     .map(|text_color| LinearRgba::from(text_color.0))
                     .unwrap_or_default();
-                extracted_uinodes.push(ExtractedUiNode {
+                extracted_uinodes.push(ExtractedRect {
                     stack_index: uinode.stack_index,
                     color,
                     image: atlas_info.texture.id(),
@@ -779,7 +738,7 @@ pub fn extract_text_sections(
 }
 
 pub fn extract_text_shadows(
-    mut extracted_ui_items: ResMut<ExtractedUiNodes>,
+    mut extracted_ui_items: ResMut<ExtractedUiNodes<ExtractedRect>>,
     mut extracted_glyphs: ResMut<ExtractedGlyphs>,
     texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
     uinode_query: Extract<
@@ -810,7 +769,7 @@ pub fn extract_text_shadows(
         };
 
         let extracted_uinodes = extracted_ui_items
-            .camera_to_items
+            .buffers
             .entry(camera)
             .or_insert_with(|| Vec::default());
 
@@ -842,7 +801,7 @@ pub fn extract_text_shadows(
             if text_layout_info.glyphs.get(i + 1).is_none_or(|info| {
                 info.span_index != *span_index || info.atlas_info.texture != atlas_info.texture
             }) {
-                extracted_uinodes.push(ExtractedUiNode {
+                extracted_uinodes.push(ExtractedRect {
                     stack_index: uinode.stack_index,
                     color: shadow.color.into(),
                     image: atlas_info.texture.id(),
@@ -926,7 +885,7 @@ pub mod shader_flags {
 }
 
 pub fn queue_uinodes(
-    extracted_ui_items: Res<ExtractedUiNodes>,
+    extracted_ui_items: Res<ExtractedUiNodes<ExtractedRect>>,
     ui_pipeline: Res<UiPipeline>,
     mut pipelines: ResMut<SpecializedRenderPipelines<UiPipeline>>,
     mut transparent_render_phases: ResMut<ViewSortedRenderPhases<TransparentUi>>,
@@ -937,7 +896,7 @@ pub fn queue_uinodes(
     ui_camera_views: Res<UiCameraViews>,
 ) {
     let draw_function = draw_functions.read().id::<DrawUi>();
-    for (main_camera_entity, extracted_uinodes) in extracted_ui_items.camera_to_items.iter() {
+    for (main_camera_entity, extracted_uinodes) in extracted_ui_items.buffers.iter() {
         let Some((view, ui_anti_alias)) = ui_camera_views
             .0
             .get(main_camera_entity)
@@ -992,7 +951,7 @@ pub fn prepare_uinodes(
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     mut ui_meta: ResMut<UiMeta>,
-    mut extracted_uinodes: ResMut<ExtractedUiNodes>,
+    mut extracted_uinodes: ResMut<ExtractedUiNodes<ExtractedRect>>,
     mut extracted_glyphs: ResMut<ExtractedGlyphs>,
     view_uniforms: Res<ViewUniforms>,
     ui_pipeline: Res<UiPipeline>,
@@ -1031,10 +990,7 @@ pub fn prepare_uinodes(
         let mut vertices_index = 0;
         let mut indices_index = 0;
 
-        let ExtractedUiNodes {
-            camera_to_items,
-            batch_id,
-        } = &mut *extracted_uinodes;
+        let ExtractedUiNodes { buffers, batch_id } = &mut *extracted_uinodes;
 
         for (retained_view_entity, ui_phase) in phases.iter_mut() {
             let mut batch_item_index = 0;
@@ -1042,7 +998,7 @@ pub fn prepare_uinodes(
 
             let main_camera_entity = &*retained_view_entity.main_entity;
 
-            let Some(extracted_uinodes) = camera_to_items.get(main_camera_entity) else {
+            let Some(extracted_uinodes) = buffers.get(main_camera_entity) else {
                 continue;
             };
 
