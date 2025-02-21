@@ -1055,6 +1055,7 @@ pub fn prepare_uinodes(
                 let item = &mut ui_phase.items[item_index];
 
                 if item.batch_id != *batch_id {
+                    batch_image_handle = AssetId::invalid();
                     continue;
                 }
 
