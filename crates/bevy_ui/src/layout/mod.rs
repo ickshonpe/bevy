@@ -1,7 +1,7 @@
 use crate::{
     experimental::{UiChildren, UiRootNodes},
-    BorderRadius, ComputedNode, ComputedNodeTarget, ContentSize, Display, LayoutConfig, Node,
-    Outline, OverflowAxis, ScrollPosition, Val,
+    BorderRadius, ComputedNode, ComputedNodeTarget, ContentSize, Display, Inset, LayoutConfig,
+    Node, Outline, OverflowAxis, ScrollPosition, Val,
 };
 use bevy_ecs::{
     change_detection::{DetectChanges, DetectChangesMut},
@@ -13,7 +13,6 @@ use bevy_ecs::{
     world::Ref,
 };
 use bevy_math::Vec2;
-use bevy_sprite::BorderRect;
 use bevy_transform::components::Transform;
 use thiserror::Error;
 use tracing::warn;
@@ -26,6 +25,17 @@ use bevy_text::CosmicFontSystem;
 mod convert;
 pub mod debug;
 pub(crate) mod ui_surface;
+
+impl From<taffy::Rect<f32>> for Inset {
+    fn from(rect: taffy::Rect<f32>) -> Self {
+        Self {
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            bottom: rect.bottom,
+        }
+    }
+}
 
 pub struct LayoutContext {
     pub scale_factor: f32,
@@ -242,16 +252,8 @@ with UI components as a child of an entity without UI components, your UI layout
 
             let content_size = Vec2::new(layout.content_size.width, layout.content_size.height);
             node.bypass_change_detection().content_size = content_size;
-
-            let taffy_rect_to_border_rect = |rect: taffy::Rect<f32>| BorderRect {
-                left: rect.left,
-                right: rect.right,
-                top: rect.top,
-                bottom: rect.bottom,
-            };
-
-            node.bypass_change_detection().border = taffy_rect_to_border_rect(layout.border);
-            node.bypass_change_detection().padding = taffy_rect_to_border_rect(layout.padding);
+            node.bypass_change_detection().border = layout.border.into();
+            node.bypass_change_detection().padding = layout.padding.into();
 
             let viewport_size = root_size.unwrap_or(node.size);
 

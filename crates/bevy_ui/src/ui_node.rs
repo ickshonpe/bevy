@@ -1,4 +1,4 @@
-use crate::{FocusPolicy, UiRect, Val};
+use crate::{FocusPolicy, Inset, UiRect, Val};
 use bevy_color::Color;
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{prelude::*, system::SystemParam};
@@ -9,7 +9,6 @@ use bevy_render::{
     view::Visibility,
     view::VisibilityClass,
 };
-use bevy_sprite::BorderRect;
 use bevy_transform::components::Transform;
 use bevy_utils::once;
 use bevy_window::{PrimaryWindow, WindowRef};
@@ -60,7 +59,7 @@ pub struct ComputedNode {
     /// Border updates bypass change detection.
     ///
     /// Automatically calculated by [`super::layout::ui_layout_system`].
-    pub border: BorderRect,
+    pub border: Inset,
     /// Resolved border radius values in physical pixels.
     /// Border radius updates bypass change detection.
     ///
@@ -70,7 +69,7 @@ pub struct ComputedNode {
     /// Padding updates bypass change detection.
     ///
     /// Automatically calculated by [`super::layout::ui_layout_system`].
-    pub padding: BorderRect,
+    pub padding: Inset,
     /// Inverse scale factor for this Node.
     /// Multiply physical coordinates by the inverse scale factor to give logical coordinates.
     ///
@@ -171,7 +170,7 @@ impl ComputedNode {
     ///
     /// Automatically calculated by [`super::layout::ui_layout_system`].
     #[inline]
-    pub const fn border(&self) -> BorderRect {
+    pub const fn border(&self) -> Inset {
         self.border
     }
 
@@ -209,14 +208,14 @@ impl ComputedNode {
     ///
     /// Automatically calculated by [`super::layout::ui_layout_system`].
     #[inline]
-    pub const fn padding(&self) -> BorderRect {
+    pub const fn padding(&self) -> Inset {
         self.padding
     }
 
     /// Returns the combined inset on each edge including both padding and border thickness in physical pixels.
     #[inline]
-    pub const fn content_inset(&self) -> BorderRect {
-        BorderRect {
+    pub const fn content_inset(&self) -> Inset {
+        Inset {
             left: self.border.left + self.padding.left,
             right: self.border.right + self.padding.right,
             top: self.border.top + self.padding.top,
@@ -241,8 +240,8 @@ impl ComputedNode {
         outline_offset: 0.,
         unrounded_size: Vec2::ZERO,
         border_radius: ResolvedBorderRadius::ZERO,
-        border: BorderRect::ZERO,
-        padding: BorderRect::ZERO,
+        border: Inset::ZERO,
+        padding: Inset::ZERO,
         inverse_scale_factor: 1.,
     };
 }

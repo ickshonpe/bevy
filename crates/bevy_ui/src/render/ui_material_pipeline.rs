@@ -339,7 +339,7 @@ pub struct ExtractedUiMaterialNode<M: UiMaterial> {
     pub stack_index: u32,
     pub transform: Mat4,
     pub rect: Rect,
-    pub border: BorderRect,
+    pub border: Inset,
     pub border_radius: ResolvedBorderRadius,
     pub material: AssetId<M>,
     pub clip: Option<Rect>,

@@ -10,7 +10,7 @@ mod debug_overlay;
 use crate::widget::ImageNode;
 use crate::{
     BackgroundColor, BorderColor, BoxShadowSamples, CalculatedClip, ComputedNode,
-    ComputedNodeTarget, Outline, ResolvedBorderRadius, TextShadow, UiAntiAlias,
+    ComputedNodeTarget, Inset, Outline, ResolvedBorderRadius, TextShadow, UiAntiAlias,
 };
 use bevy_app::prelude::*;
 use bevy_asset::{load_internal_asset, weak_handle, AssetEvent, AssetId, Assets, Handle};
@@ -45,7 +45,7 @@ use bevy_render::{
     view::InheritedVisibility,
     ExtractSchedule, Render,
 };
-use bevy_sprite::{BorderRect, SpriteAssetEvents};
+use bevy_sprite::SpriteAssetEvents;
 #[cfg(feature = "bevy_ui_debug")]
 pub use debug_overlay::UiDebugOptions;
 
@@ -226,7 +226,7 @@ pub enum ExtractedUiItem {
         border_radius: ResolvedBorderRadius,
         /// Border thickness of the UI node.
         /// Ordering: left, top, right, bottom.
-        border: BorderRect,
+        border: Inset,
         node_type: NodeType,
         transform: Mat4,
     },
@@ -505,7 +505,7 @@ pub fn extract_uinode_borders(
         };
 
         // Don't extract borders with zero width along all edges
-        if computed_node.border() != BorderRect::ZERO {
+        if computed_node.border() != Inset::ZERO {
             if let Some(border_color) = maybe_border_color.filter(|bc| !bc.0.is_fully_transparent())
             {
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
@@ -556,7 +556,7 @@ pub fn extract_uinode_borders(
                     atlas_scaling: None,
                     flip_x: false,
                     flip_y: false,
-                    border: BorderRect::all(computed_node.outline_width()),
+                    border: Inset::all(computed_node.outline_width()),
                     border_radius: computed_node.outline_radius(),
                     node_type: NodeType::Border,
                 },

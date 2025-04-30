@@ -678,6 +678,68 @@ impl Default for UiRect {
     }
 }
 
+/// This struct is used to represent thickness or insets from the edges
+/// of a rectangle increasing inwards.
+/// Values in node-local space.
+#[derive(Default, Copy, Clone, PartialEq, Debug, Reflect)]
+#[reflect(Clone, PartialEq, Default)]
+pub struct Inset {
+    /// Inset into the rectangle from the left edge in node-local space
+    pub left: f32,
+    /// Inset into the rectangle from the left edge in node-local space
+    pub right: f32,
+    /// Inset into the rectangle from the left edge in node-local space
+    pub top: f32,
+    /// Inset into the rectangle from the left edge in node-local space
+    pub bottom: f32,
+}
+
+impl Inset {
+    /// No insets on any edge
+    pub const ZERO: Self = Self::all(0.);
+
+    /// Creates a border with the same inset along each edge
+    #[must_use]
+    #[inline]
+    pub const fn all(extent: f32) -> Self {
+        Self {
+            left: extent,
+            right: extent,
+            top: extent,
+            bottom: extent,
+        }
+    }
+
+    /// Creates a new border with the `left` and `right` extents equal to `horizontal`, and `top` and `bottom` extents equal to `vertical`.
+    #[must_use]
+    #[inline]
+    pub const fn axes(horizontal: f32, vertical: f32) -> Self {
+        Self {
+            left: horizontal,
+            right: horizontal,
+            top: vertical,
+            bottom: vertical,
+        }
+    }
+}
+
+impl From<f32> for Inset {
+    fn from(extent: f32) -> Self {
+        Self::all(extent)
+    }
+}
+
+impl From<[f32; 4]> for Inset {
+    fn from([left, right, top, bottom]: [f32; 4]) -> Self {
+        Self {
+            left,
+            right,
+            top,
+            bottom,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::geometry::*;
