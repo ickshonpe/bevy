@@ -90,7 +90,7 @@ fn update_clipping(
         maybe_inherited_clip
     } else {
         // Find the current node's clipping rect and intersect it with the inherited clipping rect, if one exists
-        let mut clip_rect = Rect::from_center_size(
+        let node_rect = Rect::from_center_size(
             global_transform.translation().truncate(),
             computed_node.size(),
         );
@@ -105,12 +105,8 @@ fn update_clipping(
             crate::OverflowClipBox::PaddingBox => computed_node.border(),
         };
 
-        clip_rect.min.x += clip_inset.left;
-        clip_rect.min.y += clip_inset.top;
-        clip_rect.max.x -= clip_inset.right;
-        clip_rect.max.y -= clip_inset.bottom;
-
-        clip_rect = clip_rect
+        let mut clip_rect = clip_inset
+            .apply(node_rect)
             .inflate(node.overflow_clip_margin.margin.max(0.) / computed_node.inverse_scale_factor);
 
         if node.overflow.x == OverflowAxis::Visible {
@@ -121,7 +117,7 @@ fn update_clipping(
             clip_rect.min.y = -f32::INFINITY;
             clip_rect.max.y = f32::INFINITY;
         }
-        Some(maybe_inherited_clip.map_or(clip_rect, |c| c.intersect(clip_rect)))
+        Some(maybe_inherited_clip.map_or(node_rect, |c| c.intersect(node_rect)))
     };
 
     for child in ui_children.iter_ui_children(entity) {

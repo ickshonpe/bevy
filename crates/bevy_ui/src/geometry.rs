@@ -1,4 +1,4 @@
-use bevy_math::Vec2;
+use bevy_math::{Rect, Vec2};
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 use core::ops::{Div, DivAssign, Mul, MulAssign, Neg};
 use thiserror::Error;
@@ -680,7 +680,7 @@ impl Default for UiRect {
 
 /// This struct is used to represent thickness or insets from the edges
 /// of a rectangle increasing inwards.
-/// Values in node-local space.
+/// Values should be in node-local space.
 #[derive(Default, Copy, Clone, PartialEq, Debug, Reflect)]
 #[reflect(Clone, PartialEq, Default)]
 pub struct Inset {
@@ -698,7 +698,7 @@ impl Inset {
     /// No insets on any edge
     pub const ZERO: Self = Self::all(0.);
 
-    /// Creates a border with the same inset along each edge
+    /// Creates an `Inset` with the same value on each edge
     #[must_use]
     #[inline]
     pub const fn all(extent: f32) -> Self {
@@ -710,7 +710,7 @@ impl Inset {
         }
     }
 
-    /// Creates a new border with the `left` and `right` extents equal to `horizontal`, and `top` and `bottom` extents equal to `vertical`.
+    /// Creates a new `Inset`` with its `left` and `right` extents equal to `horizontal`, and its `top` and `bottom` extents equal to `vertical`.
     #[must_use]
     #[inline]
     pub const fn axes(horizontal: f32, vertical: f32) -> Self {
@@ -720,6 +720,32 @@ impl Inset {
             top: vertical,
             bottom: vertical,
         }
+    }
+
+    #[must_use]
+    #[inline]
+    /// Applies the `Inset` to the given [`Rect`] by adding  the `left` and `top` inset values
+    /// to the [`Rect`]'s `min.x` and `min.y`), and subtracting the `right` and `bottom` inset
+    /// values from the [`Rect`]'s `max.x` and `max.y`.
+    ///
+    /// # Example
+    /// ```
+    /// use bevy_ui::Inset;
+    /// use bevy_math::{Rect, Vec2};
+    ///
+    /// let inset = Inset { left: 10., right: 20., top: 30., bottom: 40. };
+    /// let rect = Rect::new(0., 0., 200., 100.);
+    /// let inset_rect = inset.apply(rect);
+    ///
+    /// assert_eq!(inset_rect.min, Vec2::new(10., 30.));
+    /// assert_eq!(inset_rect.max, Vec2::new(180., 60.));
+    /// ```
+    pub const fn apply(self, mut rect: Rect) -> Rect {
+        rect.min.x += self.left;
+        rect.min.y += self.top;
+        rect.max.x -= self.right;
+        rect.max.y -= self.bottom;
+        rect
     }
 }
 
