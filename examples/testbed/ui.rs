@@ -449,7 +449,7 @@ mod slice {
         let image = asset_server.load("textures/fantasy_ui_borders/numbered_slices.png");
 
         let slicer = TextureSlicer {
-            border: Inset::all(16.0),
+            border: BorderRect::all(16.0),
             center_scale_mode: SliceScaleMode::Tile { stretch_value: 1.0 },
             sides_scale_mode: SliceScaleMode::Tile { stretch_value: 1.0 },
             ..default()
