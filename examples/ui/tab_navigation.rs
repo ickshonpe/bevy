@@ -40,17 +40,14 @@ fn button_system(
         let mut text = text_query.get_mut(children[0]).unwrap();
         match *interaction {
             Interaction::Pressed => {
-                **text = "Press".to_string();
                 *color = PRESSED_BUTTON.into();
                 border_color.0 = RED.into();
             }
             Interaction::Hovered => {
-                **text = "Hover".to_string();
                 *color = HOVERED_BUTTON.into();
                 border_color.0 = Color::WHITE;
             }
             Interaction::None => {
-                **text = "Button".to_string();
                 *color = NORMAL_BUTTON.into();
                 border_color.0 = Color::BLACK;
             }
@@ -176,7 +173,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     TabGroup::modal(),
                 ))
                 .with_children(|parent| {
-                    for i in 0..4 {
+                    // Navigate these tabs in an arbitrary order.
+                    for i in [0, 3, 1, 2] {
                         create_button(parent, &asset_server, i);
                     }
                 });
@@ -209,7 +207,7 @@ fn create_button(parent: &mut ChildSpawnerCommands<'_>, asset_server: &AssetServ
             },
         )
         .with_child((
-            Text::new("Button"),
+            Text::new(format!("Button {index}")),
             TextFont {
                 font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                 font_size: 23.0,
