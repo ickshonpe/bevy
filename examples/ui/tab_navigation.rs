@@ -114,8 +114,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     TabGroup::new(0),
                 ))
                 .with_children(|parent| {
-                    for i in 0..4 {
-                        create_button(parent, &asset_server, i);
+                    // These tabs all have the same index, so they will be navigated according to their order as children.
+                    for _ in 0..4 {
+                        create_button(parent, &asset_server, 0);
                     }
                 });
 
@@ -135,7 +136,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     TabGroup::new(2),
                 ))
                 .with_children(|parent| {
-                    for i in 0..4 {
+                    // The orders of the `TabIndex`s is the reverse of the order of the buttons, so the buttons will be navigated in right-to-left order.
+                    for i in (0..4).rev() {
                         create_button(parent, &asset_server, i);
                     }
                 });
@@ -156,6 +158,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     TabGroup::new(1),
                 ))
                 .with_children(|parent| {
+                    // The order of the `TabIndex`s matches the order of the buttons, so the buttons will be navigated in left-to-right order.
                     for i in 0..4 {
                         create_button(parent, &asset_server, i);
                     }
