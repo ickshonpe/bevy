@@ -114,10 +114,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     TabGroup::new(0),
                 ))
                 .with_children(|parent| {
-                    create_button(parent, &asset_server);
-                    create_button(parent, &asset_server);
-                    create_button(parent, &asset_server);
-                    create_button(parent, &asset_server);
+                    for i in 0..4 {
+                        create_button(parent, &asset_server, i);
+                    }
                 });
 
             parent.spawn(Text::new("Tab Group 2"));
@@ -136,10 +135,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     TabGroup::new(2),
                 ))
                 .with_children(|parent| {
-                    create_button(parent, &asset_server);
-                    create_button(parent, &asset_server);
-                    create_button(parent, &asset_server);
-                    create_button(parent, &asset_server);
+                    for i in 0..4 {
+                        create_button(parent, &asset_server, i);
+                    }
                 });
 
             parent.spawn(Text::new("Tab Group 1"));
@@ -158,10 +156,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     TabGroup::new(1),
                 ))
                 .with_children(|parent| {
-                    create_button(parent, &asset_server);
-                    create_button(parent, &asset_server);
-                    create_button(parent, &asset_server);
-                    create_button(parent, &asset_server);
+                    for i in 0..4 {
+                        create_button(parent, &asset_server, i);
+                    }
                 });
 
             parent.spawn(Text::new("Modal Tab Group"));
@@ -176,15 +173,14 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     TabGroup::modal(),
                 ))
                 .with_children(|parent| {
-                    create_button(parent, &asset_server);
-                    create_button(parent, &asset_server);
-                    create_button(parent, &asset_server);
-                    create_button(parent, &asset_server);
+                    for i in 0..4 {
+                        create_button(parent, &asset_server, i);
+                    }
                 });
         });
 }
 
-fn create_button(parent: &mut ChildSpawnerCommands<'_>, asset_server: &AssetServer) {
+fn create_button(parent: &mut ChildSpawnerCommands<'_>, asset_server: &AssetServer, index: i32) {
     parent
         .spawn((
             Button,
@@ -201,7 +197,7 @@ fn create_button(parent: &mut ChildSpawnerCommands<'_>, asset_server: &AssetServ
             BorderColor(Color::BLACK),
             BorderRadius::MAX,
             BackgroundColor(NORMAL_BUTTON),
-            TabIndex(0),
+            TabIndex(index),
         ))
         .observe(
             |mut trigger: Trigger<Pointer<Click>>, mut focus: ResMut<InputFocus>| {
