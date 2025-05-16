@@ -174,7 +174,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ))
                 .with_children(|parent| {
                     // Navigate these tabs in an arbitrary order.
-                    for i in [0, 3, 1, 2] {
+                    for i in [0, 2, 3, 1] {
                         create_button(parent, &asset_server, i);
                     }
                 });
@@ -186,7 +186,7 @@ fn create_button(parent: &mut ChildSpawnerCommands<'_>, asset_server: &AssetServ
         .spawn((
             Button,
             Node {
-                width: Val::Px(150.0),
+                width: Val::Px(160.0),
                 height: Val::Px(65.0),
                 border: UiRect::all(Val::Px(5.0)),
                 // horizontally center child text
@@ -207,7 +207,7 @@ fn create_button(parent: &mut ChildSpawnerCommands<'_>, asset_server: &AssetServ
             },
         )
         .with_child((
-            Text::new(format!("Button {index}")),
+            Text::new(format!("TabIndex {index}")),
             TextFont {
                 font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                 font_size: 23.0,
