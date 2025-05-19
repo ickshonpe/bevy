@@ -26,17 +26,17 @@ impl bevy_app::Plugin for ClipboardPlugin {
 /// On desktop targets the result is available immediately.
 /// On wasm32 the result is fetched asynchronously.
 #[derive(Debug)]
-pub enum ClipboardRead {
+pub enum ClipboardRead<T> {
     /// The clipboard contents are ready to be accessed.
-    Ready(Result<String, ClipboardError>),
+    Ready(Result<T, ClipboardError>),
     /// The clipboard contents are being fetched asynchronously.
-    Pending(Arc<Mutex<Option<Result<String, ClipboardError>>>>),
+    Pending(Arc<Mutex<Option<Result<T, ClipboardError>>>>),
 }
 
-impl ClipboardRead {
+impl<T> ClipboardRead<T> {
     /// The result of an attempt to read from the clipboard, if it is ready.
     /// If the result is still pending, returns `None`.
-    pub fn poll_result(&mut self) -> Option<Result<String, ClipboardError>> {
+    pub fn poll_result(&mut self) -> Option<Result<T, ClipboardError>> {
         match self {
             Self::Pending(shared) => {
                 if let Some(contents) = shared.lock().ok().and_then(|mut inner| inner.take()) {
@@ -74,7 +74,7 @@ impl Clipboard {
     /// Fetches UTF-8 text from the clipboard and returns it via a `ClipboardRead`.
     ///
     /// On Windows and Unix `ClipboardRead`s are completed instantly, on wasm32 the result is fetched asynchronously.
-    pub fn fetch_text(&mut self) -> ClipboardRead {
+    pub fn fetch_text(&mut self) -> ClipboardRead<String> {
         #[cfg(unix)]
         {
             ClipboardRead::Ready(if let Some(clipboard) = self.0.as_mut() {

@@ -109,7 +109,7 @@ fn setup(mut commands: Commands) {
 }
 
 fn paste_text_system(
-    mut paste: Local<Option<ClipboardRead>>,
+    mut paste: Local<Option<ClipboardRead<String>>>,
     mut clipboard: ResMut<Clipboard>,
     mut interaction_query: Query<
         (
