@@ -8,12 +8,18 @@ repository = "https://github.com/bevyengine/bevy"
 license = "MIT OR Apache-2.0"
 keywords = ["bevy", "clipboard"]
 
+[features]
+default = ["image"]
+image = ["bevy_image", "wgpu-types", "bevy_asset"]
+
 [dependencies]
 # bevy
 bevy_app = { path = "../bevy_app", version = "0.16.0-dev", default-features = false }
+bevy_asset = { path = "../bevy_asset", version = "0.16.0-dev", default-features = false, optional = true }
 bevy_ecs = { path = "../bevy_ecs", version = "0.16.0-dev", default-features = false }
 bevy_platform = { path = "../bevy_platform", version = "0.16.0-dev", default-features = false }
-bevy_image = { path = "../bevy_image", version = "0.16.0-dev", default-features = false }
+bevy_image = { path = "../bevy_image", version = "0.16.0-dev", default-features = false, optional = true }
+wgpu-types = { version = "24", default-features = false, optional = true }
 
 [target.'cfg(any(windows, unix))'.dependencies]
 arboard = { version = "3.5.0", features = ["image-data"] }

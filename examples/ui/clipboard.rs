@@ -31,6 +31,10 @@ pub enum ButtonAction {
 #[derive(Component)]
 pub struct PasteTarget;
 
+/// Marker component for image box paste target
+#[derive(Component)]
+pub struct ImagePasteTarget;
+
 fn setup(mut commands: Commands) {
     // UI camera
     commands.spawn(Camera2d);
@@ -62,20 +66,37 @@ fn setup(mut commands: Commands) {
                     Text::new("Bevy clipboard example"),
                 ),
                 (
-                    Node {
-                        width: Val::Px(500.),
-                        height: Val::Px(250.),
-                        padding: UiRect::all(Val::Px(3.)),
-                        border: UiRect::all(Val::Px(2.)),
-                        ..Default::default()
-                    },
-                    BorderColor(Color::WHITE),
-                    BackgroundColor(Color::BLACK),
-                    children![(
-                        Text::new("Nothing pasted yet."),
-                        TextColor(GREY.into()),
-                        PasteTarget
-                    )],
+                    Node::default(),
+                    children![
+                        (
+                            Node {
+                                width: Val::Px(500.),
+                                height: Val::Px(250.),
+                                padding: UiRect::all(Val::Px(3.)),
+                                border: UiRect::all(Val::Px(2.)),
+                                ..Default::default()
+                            },
+                            BorderColor(Color::WHITE),
+                            BackgroundColor(Color::BLACK),
+                            children![(
+                                Text::new("Nothing pasted yet."),
+                                TextColor(GREY.into()),
+                                PasteTarget
+                            )],
+                        ),
+                        (
+                            Node {
+                                width: Val::Px(250.),
+                                height: Val::Px(250.),
+                                padding: UiRect::all(Val::Px(3.)),
+                                border: UiRect::all(Val::Px(2.)),
+                                ..Default::default()
+                            },
+                            BorderColor(Color::WHITE),
+                            BackgroundColor(Color::BLACK),
+                            children![(ImageNode::default(), ImagePasteTarget)],
+                        ),
+                    ],
                 ),
                 (
                     Node {
@@ -88,7 +109,7 @@ fn setup(mut commands: Commands) {
                     ButtonAction::PasteText,
                     BorderColor(Color::WHITE),
                     BackgroundColor(Color::BLACK),
-                    children![Text::new("Click to paste text")],
+                    children![Text::new("Click to paste")],
                 ),
                 (
                     Node {
@@ -109,7 +130,8 @@ fn setup(mut commands: Commands) {
 }
 
 fn paste_text_system(
-    mut paste: Local<Option<ClipboardRead<String>>>,
+    mut text_paste: Local<Option<ClipboardRead<String>>>,
+    mut image_paste: Local<Option<ClipboardRead<Image>>>,
     mut clipboard: ResMut<Clipboard>,
     mut interaction_query: Query<
         (
@@ -120,9 +142,11 @@ fn paste_text_system(
         ),
         (Changed<Interaction>, With<Button>),
     >,
+    asset_server: Res<AssetServer>,
     mut text_query: Query<(&mut Text, &mut TextColor), With<PasteTarget>>,
+    mut image_query: Query<&mut ImageNode, With<ImagePasteTarget>>,
 ) {
-    if let Some(contents) = paste.as_mut() {
+    if let Some(contents) = text_paste.as_mut() {
         if let Some(contents) = contents.poll_result() {
             let (message, color) = match contents {
                 Ok(text) => (text, Color::WHITE),
@@ -132,7 +156,23 @@ fn paste_text_system(
                 text.0 = message.clone();
                 text_color.0 = color;
             }
-            *paste = None;
+            *text_paste = None;
+        }
+    }
+    if let Some(contents) = image_paste.as_mut() {
+        if let Some(contents) = contents.poll_result() {
+            info!("recieved image");
+            match contents {
+                Ok(image) => {
+                    if let Ok(mut image_node) = image_query.single_mut() {
+                        image_node.image = asset_server.add(image);
+                    }
+                }
+                Err(error) => {
+                    info!("{error:?}");
+                }
+            }
+            *image_paste = None;
         }
     }
     for (interaction, mut color, mut border_color, button_action) in &mut interaction_query {
@@ -140,7 +180,8 @@ fn paste_text_system(
             Interaction::Pressed => {
                 match button_action {
                     ButtonAction::PasteText => {
-                        *paste = Some(clipboard.fetch_text());
+                        *text_paste = Some(clipboard.fetch_text());
+                        *image_paste = Some(clipboard.fetch_image());
                     }
                     ButtonAction::SetText => {
                         clipboard.set_text("Hello bevy!").ok();

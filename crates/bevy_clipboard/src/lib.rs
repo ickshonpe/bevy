@@ -2,7 +2,12 @@
 
 extern crate alloc;
 
+use bevy_asset::RenderAssetUsages;
 use bevy_ecs::resource::Resource;
+use bevy_image::Image;
+use wgpu_types::Extent3d;
+use wgpu_types::TextureDimension;
+use wgpu_types::TextureFormat;
 
 use {alloc::sync::Arc, bevy_platform::sync::Mutex};
 
@@ -75,21 +80,20 @@ impl Clipboard {
     ///
     /// On Windows and Unix `ClipboardRead`s are completed instantly, on wasm32 the result is fetched asynchronously.
     pub fn fetch_text(&mut self) -> ClipboardRead<String> {
-        #[cfg(unix)]
+        #[cfg(any(windows, unix))]
         {
-            ClipboardRead::Ready(if let Some(clipboard) = self.0.as_mut() {
-                clipboard.get_text().map_err(ClipboardError::from)
-            } else {
-                Err(ClipboardError::ClipboardNotSupported)
-            })
-        }
+            #[cfg(windows)]
+            let clipboard = arboard::Clipboard::new().map_err(ClipboardError::from);
 
-        #[cfg(windows)]
-        {
+            #[cfg(unix)]
+            let clipboard = self
+                .0
+                .as_mut()
+                .map_err(Err(ClipboardError::ClipboardNotSupported));
+
             ClipboardRead::Ready(
-                arboard::Clipboard::new()
-                    .and_then(|mut clipboard| clipboard.get_text())
-                    .map_err(ClipboardError::from),
+                clipboard
+                    .and_then(|mut clipboard| clipboard.get_text().map_err(ClipboardError::from)),
             )
         }
 
@@ -122,20 +126,19 @@ impl Clipboard {
         &mut self,
         text: T,
     ) -> Result<(), ClipboardError> {
-        #[cfg(unix)]
+        #[cfg(any(windows, unix))]
         {
-            if let Some(clipboard) = self.0.as_mut() {
-                clipboard.set_text(text).map_err(ClipboardError::from)
-            } else {
-                Err(ClipboardError::ClipboardNotSupported)
-            }
-        }
+            #[cfg(windows)]
+            let clipboard = arboard::Clipboard::new().map_err(ClipboardError::from);
 
-        #[cfg(windows)]
-        {
-            arboard::Clipboard::new()
-                .and_then(|mut clipboard| clipboard.set_text(text))
-                .map_err(ClipboardError::from)
+            #[cfg(unix)]
+            let clipboard = self
+                .0
+                .as_mut()
+                .map_err(Err(ClipboardError::ClipboardNotSupported));
+
+            clipboard
+                .and_then(|mut clipboard| clipboard.set_text(text).map_err(ClipboardError::from))
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -148,6 +151,87 @@ impl Clipboard {
             } else {
                 Err(ClipboardError::ClipboardNotSupported)
             }
+        }
+    }
+
+    /// Fetches an image from the clipboard and returns it via a `ClipboardRead`.
+    ///
+    /// On Windows and Unix `ClipboardRead`s are completed instantly, on wasm32 the result is fetched asynchronously.
+    #[cfg(feature = "image")]
+    pub fn fetch_image(&mut self) -> ClipboardRead<Image> {
+        #[cfg(target_arch = "wasm32")]
+        {
+            ClipboardRead::Ready(Err::ContentNotAvailable)
+        }
+
+        #[cfg(any(windows, unix))]
+        {
+            #[cfg(windows)]
+            let clipboard = arboard::Clipboard::new().map_err(ClipboardError::from);
+
+            #[cfg(unix)]
+            let clipboard = self
+                .0
+                .as_mut()
+                .map_err(Err(ClipboardError::ClipboardNotSupported));
+
+            println!("fetch image");
+
+            ClipboardRead::Ready(
+                clipboard
+                    .and_then(|mut clipboard| clipboard.get_image().map_err(ClipboardError::from))
+                    .map(|image_data| {
+                        println!("make image");
+                        Image::new(
+                            Extent3d {
+                                width: image_data.width as u32,
+                                height: image_data.height as u32,
+                                depth_or_array_layers: 1,
+                            },
+                            TextureDimension::D2,
+                            image_data.bytes.into_owned(),
+                            TextureFormat::Rgba8Unorm,
+                            RenderAssetUsages::default(),
+                        )
+                    }),
+            )
+        }
+    }
+
+    #[cfg(feature = "image")]
+    /// Place an image onto the clipboard.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if the image fails to be stored on the clipboard.
+    pub fn set_image(width: u32, height: u32, bytes: &[u8]) -> Result<(), ClipboardError> {
+        use arboard::ImageData;
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            Err::ClipboardNotSupported
+        }
+
+        #[cfg(any(windows, unix))]
+        {
+            #[cfg(windows)]
+            let clipboard = arboard::Clipboard::new().map_err(ClipboardError::from);
+
+            #[cfg(unix)]
+            let clipboard = self
+                .0
+                .as_mut()
+                .map_err(Err(ClipboardError::ClipboardNotSupported));
+
+            clipboard.and_then(|mut clipboard: arboard::Clipboard| {
+                clipboard
+                    .set_image(ImageData {
+                        width: width as usize,
+                        height: height as usize,
+                        bytes: bytes.into(),
+                    })
+                    .map_err(ClipboardError::from)
+            })
         }
     }
 }
