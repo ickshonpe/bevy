@@ -394,6 +394,118 @@ impl From<Vec2> for CVal2 {
     }
 }
 
+impl Add<Vec2> for CVal2 {
+    type Output = Self;
+
+    fn add(self, other: Vec2) -> Self {
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
+}
+
+impl Sub<Vec2> for CVal2 {
+    type Output = Self;
+
+    fn sub(self, other: Vec2) -> Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+}
+
+impl AddAssign<Vec2> for CVal2 {
+    fn add_assign(&mut self, other: Vec2) {
+        *self = *self + other;
+    }
+}
+
+impl SubAssign<Vec2> for CVal2 {
+    fn sub_assign(&mut self, other: Vec2) {
+        *self = *self - other;
+    }
+}
+
+impl Add for CVal2 {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
+}
+
+impl Sub for CVal2 {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+}
+
+impl AddAssign for CVal2 {
+    fn add_assign(&mut self, other: Self) {
+        *self = *self + other;
+    }
+}
+
+impl SubAssign for CVal2 {
+    fn sub_assign(&mut self, other: Self) {
+        *self = *self - other;
+    }
+}
+
+impl Mul<f32> for CVal2 {
+    type Output = Self;
+
+    fn mul(self, other: f32) -> Self {
+        Self {
+            x: self.x * other,
+            y: self.y * other,
+        }
+    }
+}
+impl Div<f32> for CVal2 {
+    type Output = Self;
+
+    fn div(self, other: f32) -> Self {
+        Self {
+            x: self.x / other,
+            y: self.y / other,
+        }
+    }
+}
+
+impl MulAssign<f32> for CVal2 {
+    fn mul_assign(&mut self, other: f32) {
+        *self = *self * other;
+    }
+}
+
+impl DivAssign<f32> for CVal2 {
+    fn div_assign(&mut self, other: f32) {
+        *self = *self / other;
+    }
+}
+
+impl Mul<CVal2> for f32 {
+    type Output = CVal2;
+
+    fn mul(self, rhs: CVal2) -> CVal2 {
+        CVal2 {
+            x: self * rhs.x,
+            y: self * rhs.y,
+        }
+    }
+}
+
 /// Relative 2D transform for UI nodes
 ///
 /// [`UiGlobalTransform`] is automatically inserted whenever [`UiTransform`] is inserted.

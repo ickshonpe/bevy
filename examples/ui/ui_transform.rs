@@ -87,15 +87,9 @@ fn translation_system(
     for &(key_code, direction) in &controls {
         if input.pressed(key_code) {
             for mut transform in translation_query.iter_mut() {
-                let d = direction * 50.0 * time.delta_secs();
-                let (Val::Px(x), Val::Px(y)) = (transform.translation.x, transform.translation.y)
-                else {
-                    continue;
-                };
-                let x = (x + d.x).clamp(-150., 150.);
-                let y = (y + d.y).clamp(-150., 150.);
+                let d = (direction * 50.0 * time.delta_secs()).map(|v| v.clamp(-150., 150.));
 
-                transform.translation = CVal2::px(x, y);
+                transform.translation += d;
             }
         }
     }
