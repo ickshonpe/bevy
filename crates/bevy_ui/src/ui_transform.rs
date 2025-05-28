@@ -326,7 +326,7 @@ impl CVal {
     derive(serde::Serialize, serde::Deserialize),
     reflect(Serialize, Deserialize)
 )]
-pub struct Val2 {
+pub struct CVal2 {
     /// Translate the node along the x-axis.
     /// `Val::Percent` values are resolved based on the computed width of the Ui Node.
     /// `Val::Auto` is resolved to `0.`.
@@ -337,7 +337,7 @@ pub struct Val2 {
     pub y: CVal,
 }
 
-impl Val2 {
+impl CVal2 {
     pub const ZERO: Self = Self {
         x: CVal::ZERO,
         y: CVal::ZERO,
@@ -379,13 +379,13 @@ impl Val2 {
     }
 }
 
-impl Default for Val2 {
+impl Default for CVal2 {
     fn default() -> Self {
         Self::ZERO
     }
 }
 
-impl From<Vec2> for Val2 {
+impl From<Vec2> for CVal2 {
     fn from(value: Vec2) -> Self {
         Self {
             x: value.x.into(),
@@ -407,7 +407,7 @@ impl From<Vec2> for Val2 {
 #[require(UiGlobalTransform)]
 pub struct UiTransform {
     /// Translate the node.
-    pub translation: Val2,
+    pub translation: CVal2,
     /// Scale the node. A negative value reflects the node in that axis.
     pub scale: Vec2,
     /// Rotate the node clockwise by the given value in radians.
@@ -416,7 +416,7 @@ pub struct UiTransform {
 
 impl UiTransform {
     pub const IDENTITY: Self = Self {
-        translation: Val2::ZERO,
+        translation: CVal2::ZERO,
         scale: Vec2::ONE,
         rotation: 0.,
     };
@@ -438,7 +438,7 @@ impl UiTransform {
     }
 
     /// Creates a UI transform representing a responsive translation.
-    pub fn from_translation(translation: Val2) -> Self {
+    pub fn from_translation(translation: CVal2) -> Self {
         Self {
             translation,
             ..Self::IDENTITY
