@@ -22,7 +22,7 @@ use bevy_core_pipeline::{core_2d::Camera2d, core_3d::Camera3d};
 use bevy_ecs::prelude::*;
 use bevy_ecs::system::SystemParam;
 use bevy_image::prelude::*;
-use bevy_math::{FloatOrd, Mat4, Rect, UVec4, Vec2, Vec3, Vec3Swizzles, Vec4Swizzles};
+use bevy_math::{FloatOrd, Mat4, Quat, Rect, UVec4, Vec2, Vec3, Vec3Swizzles, Vec4Swizzles};
 use bevy_render::load_shader_library;
 use bevy_render::render_graph::{NodeRunError, RenderGraphContext};
 use bevy_render::render_phase::ViewSortedRenderPhases;
@@ -940,12 +940,18 @@ pub fn extract_text_shadows(
             continue;
         }
 
+        if shadow.scale <= 0. {
+            continue;
+        }
+
         let Some(extracted_camera_entity) = camera_mapper.map(target) else {
             continue;
         };
 
         let transform = global_transform.affine()
-            * Mat4::from_translation(
+            * Mat4::from_scale_rotation_translation(
+                shadow.scale * Vec2::ONE.extend(0.),
+                Quat::IDENTITY,
                 (-0.5 * uinode.size() + shadow.offset / uinode.inverse_scale_factor()).extend(0.),
             );
 

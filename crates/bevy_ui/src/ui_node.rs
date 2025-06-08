@@ -2804,6 +2804,10 @@ pub struct TextShadow {
     pub offset: Vec2,
     /// Color of the shadow
     pub color: Color,
+    /// Size of the shadow relative to the text
+    ///
+    /// If less than or equal to zero, no shadow will be rendered.
+    pub scale: f32,
 }
 
 impl Default for TextShadow {
@@ -2811,6 +2815,7 @@ impl Default for TextShadow {
         Self {
             offset: Vec2::splat(4.),
             color: Color::linear_rgba(0., 0., 0., 0.75),
+            scale: 1.,
         }
     }
 }

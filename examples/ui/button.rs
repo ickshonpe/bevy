@@ -104,7 +104,10 @@ fn button(asset_server: &AssetServer) -> impl Bundle + use<> {
                     ..default()
                 },
                 TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                TextShadow::default(),
+                TextShadow {
+                    scale: 2.0,
+                    ..default()
+                },
             )]
         )],
     )
