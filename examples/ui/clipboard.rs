@@ -1,7 +1,7 @@
 //! This example demonstrates accessing the clipboard to retrieve and display text.
 
 use bevy::{
-    clipboard::{Clipboard, ClipboardRead},
+    clipboard::Clipboard,
     color::palettes::css::{GREY, NAVY, RED},
     diagnostic::FrameTimeDiagnosticsPlugin,
     prelude::*,
@@ -109,7 +109,6 @@ fn setup(mut commands: Commands) {
 }
 
 fn paste_text_system(
-    mut paste: Local<Option<ClipboardRead>>,
     mut clipboard: ResMut<Clipboard>,
     mut interaction_query: Query<
         (
@@ -120,30 +119,25 @@ fn paste_text_system(
         ),
         (Changed<Interaction>, With<Button>),
     >,
-    mut text_query: Query<(&mut Text, &mut TextColor), With<PasteTarget>>,
+    mut paste_target: Single<(&mut Text, &mut TextColor), With<PasteTarget>>,
 ) {
-    if let Some(contents) = paste.as_mut() {
-        if let Some(contents) = contents.poll_result() {
-            let (message, color) = match contents {
-                Ok(text) => (text, Color::WHITE),
-                Err(error) => (format!("{error:?}"), RED.into()),
-            };
-            for (mut text, mut text_color) in text_query.iter_mut() {
-                text.0 = message.clone();
-                text_color.0 = color;
-            }
-            *paste = None;
-        }
-    }
     for (interaction, mut color, mut border_color, button_action) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
                 match button_action {
-                    ButtonAction::PasteText => {
-                        *paste = Some(clipboard.fetch_text());
-                    }
+                    ButtonAction::PasteText => match clipboard.fetch_text() {
+                        Ok(text) => {
+                            paste_target.0 .0 = text;
+                            paste_target.1 .0 = Color::WHITE;
+                        }
+                        Err(error) => {
+                            paste_target.0 .0 = format!("{error:?}");
+                            paste_target.1 .0 = RED.into();
+                        }
+                    },
                     ButtonAction::SetText => {
-                        clipboard.set_text("Hello bevy!").ok();
+                        // Silent error here
+                        let _ = clipboard.set_text("Hello bevy!");
                     }
                 };
             }
