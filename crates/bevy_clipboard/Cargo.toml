@@ -13,6 +13,9 @@ keywords = ["bevy", "clipboard"]
 bevy_app = { path = "../bevy_app", version = "0.17.0-dev", default-features = false }
 bevy_ecs = { path = "../bevy_ecs", version = "0.17.0-dev", default-features = false }
 bevy_platform = { path = "../bevy_platform", version = "0.17.0-dev", default-features = false }
+bevy_tasks = { path = "../bevy_tasks", version = "0.17.0-dev", default-features = false, features = [
+  "async_executor",
+] }
 
 [target.'cfg(any(windows, unix))'.dependencies]
 arboard = { version = "3.5.0", default-features = false, features = [ "wayland-data-control" ] }
