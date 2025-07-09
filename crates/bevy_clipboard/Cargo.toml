@@ -13,13 +13,19 @@ keywords = ["bevy", "clipboard"]
 bevy_app = { path = "../bevy_app", version = "0.17.0-dev", default-features = false }
 bevy_ecs = { path = "../bevy_ecs", version = "0.17.0-dev", default-features = false }
 bevy_platform = { path = "../bevy_platform", version = "0.17.0-dev", default-features = false }
+bevy_tasks = { path = "../bevy_tasks", version = "0.17.0-dev", default-features = false, features = [
+  "async_executor",
+] }
+displaydoc = "0.2"
 
 [target.'cfg(any(windows, unix))'.dependencies]
-arboard = { version = "3.5.0", default-features = false }
+arboard = { version = "3.5.0", default-features = false, features = [
+  "wayland-data-control",
+] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "0.2" }
-web-sys = { version = "0.3", features = ["Navigator", "Clipboard"] }
+web-sys = { version = "0.3", features = ["Window", "Navigator", "Clipboard"] }
 wasm-bindgen-futures = "0.4"
 
 [lints]
