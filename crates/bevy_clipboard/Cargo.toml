@@ -20,7 +20,7 @@ displaydoc = "0.2"
 
 [target.'cfg(any(windows, unix))'.dependencies]
 arboard = { version = "3.5.0", default-features = false, features = [
-  "wayland-data-control"
+  "wayland-data-control",
 ] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
