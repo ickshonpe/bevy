@@ -18,6 +18,9 @@ pub mod ui_texture_slice_pipeline;
 #[cfg(feature = "bevy_ui_debug")]
 mod debug_overlay;
 
+use bevy_feathers::theme::UiTheme;
+use bevy_input_focus::tab_navigation::TabIndex;
+use bevy_input_focus::InputFocus;
 use bevy_reflect::prelude::ReflectDefault;
 use bevy_reflect::Reflect;
 use bevy_ui::widget::{ImageNode, TextShadow, ViewportNode};
@@ -123,6 +126,7 @@ pub mod stack_z_offsets {
     pub const IMAGE: f32 = 0.04;
     pub const MATERIAL: f32 = 0.05;
     pub const TEXT: f32 = 0.06;
+    pub const FOCUS_RING: f32 = 0.07;
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
@@ -139,6 +143,7 @@ pub enum RenderUiSystems {
     ExtractText,
     ExtractDebug,
     ExtractGradient,
+    ExtractFocusRing,
 }
 
 /// Marker for controlling whether UI is rendered with or without anti-aliasing
@@ -240,6 +245,7 @@ impl Plugin for UiRenderPlugin {
                     RenderUiSystems::ExtractTextShadows,
                     RenderUiSystems::ExtractText,
                     RenderUiSystems::ExtractDebug,
+                    RenderUiSystems::ExtractFocusRing,
                 )
                     .chain(),
             )
@@ -255,6 +261,7 @@ impl Plugin for UiRenderPlugin {
                     extract_text_background_colors.in_set(RenderUiSystems::ExtractTextBackgrounds),
                     extract_text_shadows.in_set(RenderUiSystems::ExtractTextShadows),
                     extract_text_sections.in_set(RenderUiSystems::ExtractText),
+                    extract_focus_ring.in_set(RenderUiSystems::ExtractFocusRing),
                     #[cfg(feature = "bevy_ui_debug")]
                     debug_overlay::extract_debug_overlay.in_set(RenderUiSystems::ExtractDebug),
                 ),
@@ -702,6 +709,92 @@ pub fn extract_uinode_borders(
             });
         }
     }
+}
+
+pub fn extract_focus_ring(
+    mut commands: Commands,
+    mut extracted_uinodes: ResMut<ExtractedUiNodes>,
+    focus: Extract<Res<InputFocus>>,
+    theme: Extract<Option<Res<UiTheme>>>,
+    uinode_query: Extract<
+        Query<
+            (
+                &Node,
+                &ComputedNode,
+                &InheritedVisibility,
+                &UiGlobalTransform,
+                Option<&CalculatedClip>,
+                &ComputedNodeTarget,
+            ),
+            With<TabIndex>,
+        >,
+    >,
+    camera_map: Extract<UiCameraMap>,
+) {
+    let mut camera_mapper = camera_map.get_mapper();
+
+    let Some(focused_entity) = focus.0 else {
+        return;
+    };
+    let Ok((node, computed_node, inherited_visibility, transform, maybe_clip, target)) =
+        uinode_query.get(focused_entity)
+    else {
+        return;
+    };
+
+    if !inherited_visibility.get() || node.display == Display::None {
+        return;
+    }
+
+    let ring_color = theme
+        .as_ref()
+        .map(|theme| theme.color(bevy_feathers::tokens::FOCUS_RING))
+        .unwrap_or(bevy_color::palettes::tailwind::BLUE_700.into());
+
+    let Some(extracted_camera_entity) = camera_mapper.map(target) else {
+        return;
+    };
+
+    let ring_width = 2. * target.scale_factor();
+    let outer_distance = 2. * ring_width;
+    let ring_size = computed_node.size() + outer_distance;
+    let compute_radius = |node_corner_radius| {
+        if 0. < node_corner_radius {
+            node_corner_radius + outer_distance
+        } else {
+            0.
+        }
+    };
+
+    let ring_radius = ResolvedBorderRadius {
+        top_left: compute_radius(computed_node.border_radius.top_left),
+        top_right: compute_radius(computed_node.border_radius.top_right),
+        bottom_right: compute_radius(computed_node.border_radius.bottom_right),
+        bottom_left: compute_radius(computed_node.border_radius.bottom_left),
+    };
+
+    extracted_uinodes.uinodes.push(ExtractedUiNode {
+        z_order: computed_node.stack_index as f32 + stack_z_offsets::FOCUS_RING,
+        render_entity: commands.spawn(TemporaryRenderEntity).id(),
+        color: ring_color.into(),
+        rect: Rect {
+            max: ring_size,
+            ..Default::default()
+        },
+        image: AssetId::default(),
+        clip: maybe_clip.map(|clip| clip.clip),
+        extracted_camera_entity,
+        item: ExtractedUiItem::Node {
+            transform: transform.into(),
+            atlas_scaling: None,
+            flip_x: false,
+            flip_y: false,
+            border: BorderRect::all(ring_width),
+            border_radius: ring_radius,
+            node_type: NodeType::Border(shader_flags::BORDER_ALL),
+        },
+        main_entity: focused_entity.into(),
+    });
 }
 
 /// The UI camera is "moved back" by this many units (plus the [`UI_CAMERA_TRANSFORM_OFFSET`]) and also has a view

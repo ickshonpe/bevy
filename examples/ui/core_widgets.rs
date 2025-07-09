@@ -43,7 +43,7 @@ fn main() {
                 update_checkbox_or_radio_style.after(update_widget_values),
                 update_checkbox_or_radio_style2.after(update_widget_values),
                 toggle_disabled,
-                focus_system,
+                //focus_system,
             ),
         )
         .run();
