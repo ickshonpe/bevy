@@ -48,7 +48,7 @@ impl Default for Clipboard {
 
 #[cfg(not(all(unix, not(target_os = "android"))))]
 /// Resource providing access to the clipboard
-#[derive(Resource, Default)]
+#[derive(Resource, Clone, Default)]
 pub struct Clipboard;
 
 impl Clipboard {
