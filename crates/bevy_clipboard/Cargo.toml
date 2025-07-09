@@ -16,6 +16,7 @@ bevy_platform = { path = "../bevy_platform", version = "0.17.0-dev", default-fea
 bevy_tasks = { path = "../bevy_tasks", version = "0.17.0-dev", default-features = false, features = [
   "async_executor",
 ] }
+displaydoc = "0.2"
 
 [target.'cfg(any(windows, unix))'.dependencies]
 arboard = { version = "3.5.0", default-features = false, features = [ "wayland-data-control" ] }

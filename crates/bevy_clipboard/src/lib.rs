@@ -155,7 +155,7 @@ impl Clipboard {
 
 /// An error that might happen during a clipboard operation.
 #[non_exhaustive]
-#[derive(Debug, Clone)]
+#[derive(Debug, displaydoc::Display, Clone)]
 pub enum ClipboardError {
     /// Clipboard contents were unavailable or not in the expected format.
     ContentNotAvailable,
@@ -172,12 +172,14 @@ pub enum ClipboardError {
     /// The clipboard content was already taken from the `ClipboardRead`.
     ContentTaken,
 
-    /// An unknown error
+    /// An unknown clipboard error
     Unknown {
         /// String describing the error
         description: String,
     },
 }
+
+impl core::error::Error for ClipboardError {}
 
 #[cfg(any(windows, unix))]
 impl From<arboard::Error> for ClipboardError {
