@@ -338,7 +338,7 @@ impl Plugin for CheckboxPlugin {
             (
                 update_checkbox_styles,
                 update_checkbox_styles_remove,
-                update_checkbox_focus,
+                //update_checkbox_focus,
             )
                 .in_set(PickingSystems::Last),
         );

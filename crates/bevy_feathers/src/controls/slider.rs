@@ -223,7 +223,7 @@ impl Plugin for SliderPlugin {
                 update_slider_colors,
                 update_slider_colors_remove,
                 update_slider_pos,
-                update_slider_focus,
+                //update_slider_focus,
             )
                 .in_set(PickingSystems::Last),
         );

@@ -286,7 +286,7 @@ impl Plugin for RadioPlugin {
             (
                 update_radio_styles,
                 update_radio_styles_remove,
-                update_radio_group_focus,
+                //update_radio_group_focus,
             )
                 .in_set(PickingSystems::Last),
         );

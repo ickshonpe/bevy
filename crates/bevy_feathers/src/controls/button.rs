@@ -229,7 +229,7 @@ impl Plugin for ButtonPlugin {
             (
                 update_button_styles,
                 update_button_styles_remove,
-                update_button_focus,
+                //update_button_focus,
             )
                 .in_set(PickingSystems::Last),
         );
