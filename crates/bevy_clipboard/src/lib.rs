@@ -2,16 +2,16 @@
 
 extern crate alloc;
 
-use alloc::sync::Arc;
 use bevy_app::Plugin;
 use bevy_ecs::resource::Resource;
-use bevy_platform::sync::Mutex;
+use bevy_platform::cfg;
+use bevy_platform::cfg::*;
 use bevy_tasks::{block_on, IoTaskPool, Task};
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::JsCast;
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen_futures::JsFuture;
+define_alias! {
+    #[cfg(all(unix, not(target_os = "android")))] => { unix_non_android }
+    #[cfg(any(all(unix, not(target_os = "android")), windows))] => { arboard_platform }
+}
 
 /// The clipboard prelude
 pub mod prelude {
@@ -28,28 +28,38 @@ impl Plugin for ClipboardPlugin {
     }
 }
 
-#[cfg(all(unix, not(target_os = "android")))]
-/// Resource providing access to the clipboard
-#[derive(Resource, Clone)]
-pub struct Clipboard(Result<Arc<Mutex<arboard::Clipboard>>, ClipboardError>);
+cfg::switch! {
+    unix_non_android => {
+        use alloc::sync::Arc;
+        use bevy_platform::sync::Mutex;
 
-#[cfg(all(unix, not(target_os = "android")))]
-impl Default for Clipboard {
-    fn default() -> Self {
-        {
-            Self(
-                arboard::Clipboard::new()
-                    .map(|clipboard| Arc::new(Mutex::new(clipboard)))
-                    .map_err(|_| ClipboardError::ClipboardNotSupported),
-            )
+        /// Resource providing access to the clipboard
+        #[derive(Resource, Clone)]
+        pub struct Clipboard(Result<Arc<Mutex<arboard::Clipboard>>, ClipboardError>);
+
+        impl Default for Clipboard {
+            fn default() -> Self {
+                {
+                    Self(
+                        arboard::Clipboard::new()
+                            .map(|clipboard| Arc::new(Mutex::new(clipboard)))
+                            .map_err(|_| ClipboardError::ClipboardNotSupported),
+                    )
+                }
+            }
         }
+    }
+    _ => {
+        /// Resource providing access to the clipboard
+        #[derive(Resource, Clone, Default)]
+        pub struct Clipboard;
     }
 }
 
-#[cfg(not(all(unix, not(target_os = "android"))))]
-/// Resource providing access to the clipboard
-#[derive(Resource, Clone, Default)]
-pub struct Clipboard;
+cfg::web! {
+    use wasm_bindgen::JsCast;
+    use wasm_bindgen_futures::JsFuture;
+}
 
 impl Clipboard {
     /// Fetches UTF-8 text from the clipboard and returns it via a `ClipboardRead`.
@@ -61,38 +71,31 @@ impl Clipboard {
 
     /// Schedules and returns `Task` on `IoTaskPool` that retrieves UTF-8 text from the clipboard.
     pub fn fetch_text_task(&mut self) -> Task<Result<String, ClipboardError>> {
-        let clipboard_res = self.clone();
+        arboard_platform! {
+            let clipboard_res = self.clone();
+        }
+
         IoTaskPool::get().spawn(async move {
-            #[cfg(unix)]
-            {
-                let clipboard_mut = clipboard_res.0?;
-                let mut clipboard = clipboard_mut.lock().unwrap();
-                clipboard.get_text().map_err(ClipboardError::from)
-            }
-
-            #[cfg(windows)]
-            {
-                arboard::Clipboard::new()
-                    .and_then(|mut clipboard| clipboard.get_text())
-                    .map_err(ClipboardError::from)
-            }
-
-            #[cfg(target_arch = "wasm32")]
-            {
-                let clipboard = web_sys::window()
-                    .map(|w| w.navigator().clipboard())
-                    .ok_or(ClipboardError::ClipboardNotSupported)?;
-
-                let result = JsFuture::from(clipboard.read_text()).await;
-                match result {
-                    Ok(val) => val.as_string().ok_or(ClipboardError::ConversionFailure),
-                    Err(_) => Err(ClipboardError::ContentNotAvailable),
+            cfg::switch! {
+                arboard_platform => {
+                    let clipboard_mut = clipboard_res.0?;
+                    let mut clipboard = clipboard_mut.lock().unwrap();
+                    clipboard.get_text().map_err(ClipboardError::from)
                 }
-            }
+                cfg::web => {
+                    let clipboard = web_sys::window()
+                        .map(|w| w.navigator().clipboard())
+                        .ok_or(ClipboardError::ClipboardNotSupported)?;
 
-            #[cfg(not(any(unix, windows, target_arch = "wasm32")))]
-            {
-                Err(ClipboardError::ClipboardNotSupported)
+                    let result = JsFuture::from(clipboard.read_text()).await;
+                    match result {
+                        Ok(val) => val.as_string().ok_or(ClipboardError::ConversionFailure),
+                        Err(_) => Err(ClipboardError::ContentNotAvailable),
+                    }
+                }
+                _ => {
+                    Err(ClipboardError::ClipboardNotSupported)
+                }
             }
         })
     }
@@ -114,40 +117,33 @@ impl Clipboard {
     ///
     /// Task may result in error if `text` failed to be stored on the clipboard.
     pub fn set_text_task<T: Into<String>>(&mut self, text: T) -> Task<Result<(), ClipboardError>> {
-        let clipboard_res = self.clone();
         let text_string: String = text.into();
 
+        arboard_platform! {
+            let clipboard_res = self.clone();
+        }
+
         IoTaskPool::get().spawn(async move {
-            #[cfg(unix)]
-            {
-                let clipboard_mut = clipboard_res.0?;
-                clipboard_mut
-                    .lock()
-                    .unwrap()
-                    .set_text(text_string)
-                    .map_err(ClipboardError::from)
-            }
-
-            #[cfg(windows)]
-            {
-                arboard::Clipboard::new()
-                    .and_then(|mut clipboard| clipboard.set_text(text_string))
-                    .map_err(ClipboardError::from)
-            }
-
-            #[cfg(target_arch = "wasm32")]
-            {
-                if let Some(clipboard) = web_sys::window().map(|w| w.navigator().clipboard()) {
-                    let _ = JsFuture::from(clipboard.write_text(&text_string)).await;
-                    Ok(())
-                } else {
+            cfg::switch! {
+                arboard_platform => {
+                    let clipboard_mut = clipboard_res.0?;
+                    clipboard_mut
+                        .lock()
+                        .unwrap()
+                        .set_text(text_string)
+                        .map_err(ClipboardError::from)
+                }
+                cfg::web => {
+                    if let Some(clipboard) = web_sys::window().map(|w| w.navigator().clipboard()) {
+                        let _ = JsFuture::from(clipboard.write_text(&text_string)).await;
+                        Ok(())
+                    } else {
+                        Err(ClipboardError::ClipboardNotSupported)
+                    }
+                }
+                _ => {
                     Err(ClipboardError::ClipboardNotSupported)
                 }
-            }
-
-            #[cfg(any(target_os = "android", not(any(unix, windows, target_arch = "wasm32"))))]
-            {
-                Err(ClipboardError::ClipboardNotSupported)
             }
         })
     }
@@ -181,18 +177,19 @@ pub enum ClipboardError {
 
 impl core::error::Error for ClipboardError {}
 
-#[cfg(any(windows, unix))]
-impl From<arboard::Error> for ClipboardError {
-    fn from(value: arboard::Error) -> Self {
-        match value {
-            arboard::Error::ContentNotAvailable => ClipboardError::ContentNotAvailable,
-            arboard::Error::ClipboardNotSupported => ClipboardError::ClipboardNotSupported,
-            arboard::Error::ClipboardOccupied => ClipboardError::ClipboardOccupied,
-            arboard::Error::ConversionFailure => ClipboardError::ConversionFailure,
-            arboard::Error::Unknown { description } => ClipboardError::Unknown { description },
-            _ => ClipboardError::Unknown {
-                description: "Unknown arboard error variant".to_owned(),
-            },
+arboard_platform! {
+    impl From<arboard::Error> for ClipboardError {
+        fn from(value: arboard::Error) -> Self {
+            match value {
+                arboard::Error::ContentNotAvailable => ClipboardError::ContentNotAvailable,
+                arboard::Error::ClipboardNotSupported => ClipboardError::ClipboardNotSupported,
+                arboard::Error::ClipboardOccupied => ClipboardError::ClipboardOccupied,
+                arboard::Error::ConversionFailure => ClipboardError::ConversionFailure,
+                arboard::Error::Unknown { description } => ClipboardError::Unknown { description },
+                _ => ClipboardError::Unknown {
+                    description: "Unknown arboard error variant".to_owned(),
+                },
+            }
         }
     }
 }
