@@ -1,4 +1,7 @@
-use taffy::style_helpers;
+use taffy::{
+    prelude::{TaffyAuto, TaffyZero},
+    style_helpers, LengthPercentage,
+};
 
 use crate::{
     AlignContent, AlignItems, AlignSelf, BoxSizing, Display, FlexDirection, FlexWrap, GridAutoFlow,
@@ -15,34 +18,42 @@ impl Val {
         context: &LayoutContext,
     ) -> taffy::style::LengthPercentageAuto {
         match self {
-            Val::Auto => taffy::style::LengthPercentageAuto::Auto,
-            Val::Percent(value) => taffy::style::LengthPercentageAuto::Percent(value / 100.),
+            Val::Auto => taffy::style::LengthPercentageAuto::auto(),
+            Val::Percent(value) => taffy::LengthPercentageAuto::percent(value / 100.),
             Val::Px(value) => {
-                taffy::style::LengthPercentageAuto::Length(context.scale_factor * value)
+                taffy::style::LengthPercentageAuto::length(context.scale_factor * value)
             }
-            Val::VMin(value) => taffy::style::LengthPercentageAuto::Length(
+            Val::VMin(value) => taffy::style::LengthPercentageAuto::length(
                 context.physical_size.min_element() * value / 100.,
             ),
-            Val::VMax(value) => taffy::style::LengthPercentageAuto::Length(
+            Val::VMax(value) => taffy::style::LengthPercentageAuto::length(
                 context.physical_size.max_element() * value / 100.,
             ),
             Val::Vw(value) => {
-                taffy::style::LengthPercentageAuto::Length(context.physical_size.x * value / 100.)
+                taffy::style::LengthPercentageAuto::length(context.physical_size.x * value / 100.)
             }
             Val::Vh(value) => {
-                taffy::style::LengthPercentageAuto::Length(context.physical_size.y * value / 100.)
+                taffy::style::LengthPercentageAuto::length(context.physical_size.y * value / 100.)
             }
         }
     }
 
     fn into_length_percentage(self, context: &LayoutContext) -> taffy::style::LengthPercentage {
-        match self.into_length_percentage_auto(context) {
-            taffy::style::LengthPercentageAuto::Auto => taffy::style::LengthPercentage::Length(0.0),
-            taffy::style::LengthPercentageAuto::Percent(value) => {
-                taffy::style::LengthPercentage::Percent(value)
+        match self {
+            Val::Auto => taffy::style::LengthPercentage::ZERO,
+            Val::Percent(value) => taffy::LengthPercentage::percent(value / 100.),
+            Val::Px(value) => taffy::style::LengthPercentage::length(context.scale_factor * value),
+            Val::VMin(value) => taffy::style::LengthPercentage::length(
+                context.physical_size.min_element() * value / 100.,
+            ),
+            Val::VMax(value) => taffy::style::LengthPercentage::length(
+                context.physical_size.max_element() * value / 100.,
+            ),
+            Val::Vw(value) => {
+                taffy::style::LengthPercentage::length(context.physical_size.x * value / 100.)
             }
-            taffy::style::LengthPercentageAuto::Length(value) => {
-                taffy::style::LengthPercentage::Length(value)
+            Val::Vh(value) => {
+                taffy::style::LengthPercentage::length(context.physical_size.y * value / 100.)
             }
         }
     }
@@ -537,15 +548,15 @@ mod tests {
         );
         assert_eq!(
             taffy_style.inset.right,
-            taffy::style::LengthPercentageAuto::Percent(0.5)
+            taffy::LengthPercentageAuto::percent(0.5)
         );
         assert_eq!(
             taffy_style.inset.top,
-            taffy::style::LengthPercentageAuto::Length(12.)
+            taffy::style::LengthPercentageAuto::length(12.)
         );
         assert_eq!(
             taffy_style.inset.bottom,
-            taffy::style::LengthPercentageAuto::Auto
+            taffy::style::LengthPercentageAuto::auto()
         );
         assert_eq!(
             taffy_style.flex_direction,
@@ -578,10 +589,7 @@ mod tests {
             taffy_style.margin.right,
             taffy::style::LengthPercentageAuto::Length(10.)
         );
-        assert_eq!(
-            taffy_style.margin.top,
-            taffy::style::LengthPercentageAuto::Percent(0.15)
-        );
+        assert_eq!(taffy_style.margin.top, lengthPercentageAuto::percent(0.15));
         assert_eq!(
             taffy_style.margin.bottom,
             taffy::style::LengthPercentageAuto::Auto
