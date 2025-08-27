@@ -137,7 +137,7 @@ struct AmbiguousWithUpdateText2dLayout;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<UiSurface>()
+        app.insert_non_send_resource(UiSurface::default())
             .init_resource::<UiScale>()
             .init_resource::<UiStack>()
             .configure_sets(

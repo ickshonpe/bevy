@@ -1,7 +1,4 @@
-use taffy::{
-    prelude::{TaffyAuto, TaffyZero},
-    style_helpers,
-};
+use taffy::{prelude::TaffyZero, style_helpers};
 
 use crate::{
     AlignContent, AlignItems, AlignSelf, BoxSizing, Display, FlexDirection, FlexWrap, GridAutoFlow,

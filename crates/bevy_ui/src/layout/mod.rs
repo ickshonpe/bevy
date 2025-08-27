@@ -10,7 +10,7 @@ use bevy_ecs::{
     hierarchy::Children,
     lifecycle::RemovedComponents,
     query::Added,
-    system::{Query, ResMut},
+    system::{NonSendMut, Query, ResMut},
     world::Ref,
 };
 
@@ -70,7 +70,7 @@ pub enum LayoutError {
 
 /// Updates the UI's layout tree, computes the new layout geometry and then updates the sizes and transforms of all the UI nodes.
 pub fn ui_layout_system(
-    mut ui_surface: ResMut<UiSurface>,
+    mut ui_surface: NonSendMut<UiSurface>,
     ui_root_node_query: UiRootNodes,
     ui_children: UiChildren,
     mut node_query: Query<(
@@ -385,7 +385,7 @@ mod tests {
             PostUpdate,
         ));
         app.init_resource::<UiScale>();
-        app.init_resource::<UiSurface>();
+        app.insert_non_send_resource(UiSurface::default());
         app.init_resource::<bevy_text::TextPipeline>();
         app.init_resource::<bevy_text::CosmicFontSystem>();
         app.init_resource::<bevy_text::SwashCache>();
@@ -459,7 +459,7 @@ mod tests {
 
         app.update();
 
-        let mut ui_surface = app.world_mut().resource_mut::<UiSurface>();
+        let mut ui_surface = app.world_mut().non_send_resource_mut::<UiSurface>();
 
         for ui_entity in [ui_root, ui_child] {
             let layout = ui_surface.get_layout(ui_entity, true).unwrap().0;
@@ -474,7 +474,7 @@ mod tests {
 
         let world = app.world_mut();
         // no UI entities in world, none in UiSurface
-        let ui_surface = world.resource::<UiSurface>();
+        let ui_surface = world.non_send_resource::<UiSurface>();
         assert!(ui_surface.entity_to_taffy.is_empty());
 
         let ui_entity = world.spawn(Node::default()).id();
@@ -482,7 +482,7 @@ mod tests {
         app.update();
         let world = app.world_mut();
 
-        let ui_surface = world.resource::<UiSurface>();
+        let ui_surface = world.non_send_resource::<UiSurface>();
         assert!(ui_surface.entity_to_taffy.contains_key(&ui_entity));
         assert_eq!(ui_surface.entity_to_taffy.len(), 1);
 
@@ -491,7 +491,7 @@ mod tests {
         app.update();
         let world = app.world_mut();
 
-        let ui_surface = world.resource::<UiSurface>();
+        let ui_surface = world.non_send_resource::<UiSurface>();
         assert!(!ui_surface.entity_to_taffy.contains_key(&ui_entity));
         assert!(ui_surface.entity_to_taffy.is_empty());
     }
@@ -509,7 +509,7 @@ mod tests {
         let world = app.world_mut();
 
         // retrieve the ui node corresponding to `ui_entity` from ui surface
-        let ui_surface = world.resource::<UiSurface>();
+        let ui_surface = world.non_send_resource::<UiSurface>();
         let ui_node = ui_surface.entity_to_taffy[&ui_entity];
 
         world.despawn(ui_entity);
@@ -519,7 +519,7 @@ mod tests {
         app.update();
         let world = app.world_mut();
 
-        let ui_surface = world.resource::<UiSurface>();
+        let ui_surface = world.non_send_resource::<UiSurface>();
 
         // `ui_node` is removed, attempting to retrieve a style for `ui_node` panics
         let _ = ui_surface.taffy.style(ui_node.id);
@@ -536,7 +536,7 @@ mod tests {
         app.update();
         let world = app.world_mut();
 
-        let ui_surface = world.resource::<UiSurface>();
+        let ui_surface = world.non_send_resource::<UiSurface>();
         let ui_parent_node = ui_surface.entity_to_taffy[&ui_parent_entity];
 
         // `ui_parent_node` shouldn't have any children yet
@@ -554,7 +554,7 @@ mod tests {
         let world = app.world_mut();
 
         // `ui_parent_node` should have children now
-        let ui_surface = world.resource::<UiSurface>();
+        let ui_surface = world.non_send_resource::<UiSurface>();
         assert_eq!(
             ui_surface.entity_to_taffy.len(),
             1 + ui_child_entities.len()
@@ -586,7 +586,7 @@ mod tests {
         app.update();
         let world = app.world_mut();
 
-        let ui_surface = world.resource::<UiSurface>();
+        let ui_surface = world.non_send_resource::<UiSurface>();
         assert_eq!(
             ui_surface.entity_to_taffy.len(),
             1 + ui_child_entities.len()
@@ -631,7 +631,7 @@ mod tests {
         let world = app.world_mut();
 
         // all nodes should have been deleted
-        let ui_surface = world.resource::<UiSurface>();
+        let ui_surface = world.non_send_resource::<UiSurface>();
         assert!(ui_surface.entity_to_taffy.is_empty());
     }
 
@@ -644,7 +644,7 @@ mod tests {
         let world = app.world_mut();
 
         // no UI entities in world, none in UiSurface
-        let ui_surface = world.resource::<UiSurface>();
+        let ui_surface = world.non_send_resource::<UiSurface>();
         assert!(ui_surface.entity_to_taffy.is_empty());
 
         let ui_entity = world.spawn(Node::default()).id();
@@ -653,7 +653,7 @@ mod tests {
         app.update();
         let world = app.world_mut();
 
-        let ui_surface = world.resource::<UiSurface>();
+        let ui_surface = world.non_send_resource::<UiSurface>();
         assert!(ui_surface.entity_to_taffy.contains_key(&ui_entity));
         assert_eq!(ui_surface.entity_to_taffy.len(), 1);
 
@@ -665,7 +665,7 @@ mod tests {
         app.update();
         let world = app.world_mut();
 
-        let ui_surface = world.resource::<UiSurface>();
+        let ui_surface = world.non_send_resource::<UiSurface>();
         assert!(ui_surface.entity_to_taffy.contains_key(&ui_entity));
         assert_eq!(ui_surface.entity_to_taffy.len(), 1);
     }
@@ -687,7 +687,7 @@ mod tests {
         app.update();
         let world = app.world_mut();
 
-        let ui_surface = world.resource_mut::<UiSurface>();
+        let ui_surface = world.non_send_resource_mut::<UiSurface>();
         let taffy_root = ui_surface.entity_to_taffy[&root_node];
 
         // There should be one child of the root node after fixing it
@@ -713,7 +713,7 @@ mod tests {
         app.update();
         let world = app.world_mut();
 
-        let ui_surface = world.resource::<UiSurface>();
+        let ui_surface = world.non_send_resource::<UiSurface>();
         for (entity, n) in [(a, 2), (b, 0), (c, 1), (d, 0)] {
             let taffy_id = ui_surface.entity_to_taffy[&entity].id;
             assert_eq!(ui_surface.taffy.child_count(taffy_id), n);
@@ -859,7 +859,7 @@ mod tests {
                 .single(world)
                 .expect("missing MovingUiNode");
             assert_eq!(expected_camera_entity, target_camera_entity);
-            let mut ui_surface = world.resource_mut::<UiSurface>();
+            let mut ui_surface = world.non_send_resource_mut::<UiSurface>();
 
             let layout = ui_surface
                 .get_layout(ui_node_entity, true)
@@ -871,7 +871,10 @@ mod tests {
         }
 
         fn get_taffy_node_count(world: &World) -> usize {
-            world.resource::<UiSurface>().taffy.total_node_count()
+            world
+                .non_send_resource::<UiSurface>()
+                .taffy
+                .total_node_count()
         }
 
         let mut app = setup_ui_test_app();
@@ -954,7 +957,7 @@ mod tests {
         app.update();
         let world = app.world_mut();
 
-        let mut ui_surface = world.resource_mut::<UiSurface>();
+        let mut ui_surface = world.non_send_resource_mut::<UiSurface>();
         let layout = ui_surface.get_layout(ui_entity, true).unwrap().0;
 
         // the node should takes its size from the fixed size measure func
@@ -981,7 +984,7 @@ mod tests {
         app.update();
         let world = app.world_mut();
 
-        let mut ui_surface = world.resource_mut::<UiSurface>();
+        let mut ui_surface = world.non_send_resource_mut::<UiSurface>();
         let ui_node = ui_surface.entity_to_taffy[&ui_entity];
 
         // a node with a content size should have taffy context
@@ -995,7 +998,7 @@ mod tests {
         app.update();
         let world = app.world_mut();
 
-        let mut ui_surface = world.resource_mut::<UiSurface>();
+        let mut ui_surface = world.non_send_resource_mut::<UiSurface>();
         // a node without a content size should not have taffy context
         assert!(ui_surface.taffy.get_node_context(ui_node.id).is_none());
 
@@ -1077,7 +1080,7 @@ mod tests {
 
         let world = app.world_mut();
         world.init_resource::<UiScale>();
-        world.init_resource::<UiSurface>();
+        world.insert_non_send_resource(UiSurface::default());
 
         world.init_resource::<bevy_text::TextPipeline>();
 
@@ -1121,7 +1124,7 @@ mod tests {
 
         fn test_system(
             params: In<TestSystemParam>,
-            mut ui_surface: ResMut<UiSurface>,
+            mut ui_surface: NonSendMut<UiSurface>,
             mut computed_text_block_query: Query<&mut bevy_text::ComputedTextBlock>,
             mut font_system: ResMut<bevy_text::CosmicFontSystem>,
         ) {
@@ -1142,7 +1145,7 @@ mod tests {
 
         let _ = world.run_system_once_with(test_system, TestSystemParam { root_node_entity });
 
-        let ui_surface = world.resource::<UiSurface>();
+        let ui_surface = world.non_send_resource::<UiSurface>();
 
         let taffy_node = ui_surface.entity_to_taffy.get(&root_node_entity).unwrap();
         assert!(ui_surface.taffy.layout(taffy_node.id).is_ok());
@@ -1164,7 +1167,10 @@ mod tests {
         // An implicit taffy node representing the viewport and a taffy node corresponding to the
         // root UI entity which is parented to the viewport taffy node.
         assert_eq!(
-            world.resource_mut::<UiSurface>().taffy.total_node_count(),
+            world
+                .non_send_resource_mut::<UiSurface>()
+                .taffy
+                .total_node_count(),
             2
         );
 
@@ -1177,7 +1183,10 @@ mod tests {
 
         // Both taffy nodes should now be removed from the internal `TaffyTree`
         assert_eq!(
-            world.resource_mut::<UiSurface>().taffy.total_node_count(),
+            world
+                .non_send_resource_mut::<UiSurface>()
+                .taffy
+                .total_node_count(),
             0
         );
     }
@@ -1196,7 +1205,10 @@ mod tests {
         // There are two UI root entities. Each root taffy node is given it's own viewport node parent,
         // so a total of four taffy nodes are added to the `TaffyTree` by the UI schedule.
         assert_eq!(
-            world.resource_mut::<UiSurface>().taffy.total_node_count(),
+            world
+                .non_send_resource_mut::<UiSurface>()
+                .taffy
+                .total_node_count(),
             4
         );
 
@@ -1213,7 +1225,10 @@ mod tests {
 
         // There is only one viewport node now, so the `TaffyTree` contains 3 nodes in total.
         assert_eq!(
-            world.resource_mut::<UiSurface>().taffy.total_node_count(),
+            world
+                .non_send_resource_mut::<UiSurface>()
+                .taffy
+                .total_node_count(),
             3
         );
     }

@@ -212,12 +212,18 @@ impl Measure for ImageMeasure {
 
         // Resolve styles
         let s_aspect_ratio = style.aspect_ratio;
-        let s_width = style.size.width.maybe_resolve(parent_width);
-        let s_min_width = style.min_size.width.maybe_resolve(parent_width);
-        let s_max_width = style.max_size.width.maybe_resolve(parent_width);
-        let s_height = style.size.height.maybe_resolve(parent_height);
-        let s_min_height = style.min_size.height.maybe_resolve(parent_height);
-        let s_max_height = style.max_size.height.maybe_resolve(parent_height);
+        let s_width = style.size.width.maybe_resolve(parent_width, |_, _| 0.);
+        let s_min_width = style.min_size.width.maybe_resolve(parent_width, |_, _| 0.);
+        let s_max_width = style.max_size.width.maybe_resolve(parent_width, |_, _| 0.);
+        let s_height = style.size.height.maybe_resolve(parent_height, |_, _| 0.);
+        let s_min_height = style
+            .min_size
+            .height
+            .maybe_resolve(parent_height, |_, _| 0.);
+        let s_max_height = style
+            .max_size
+            .height
+            .maybe_resolve(parent_height, |_, _| 0.);
 
         // Determine width and height from styles and known_sizes (if a size is available
         // from any of these sources)
