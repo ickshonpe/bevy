@@ -458,11 +458,8 @@ impl RepeatedGridTrack {
 
 #[cfg(test)]
 mod tests {
-    use bevy_math::Vec2;
-    use taffy::CompactLength;
-    use taffy::ResolveOrZero;
-
     use super::*;
+    use bevy_math::Vec2;
 
     #[test]
     fn test_convert_from() {
