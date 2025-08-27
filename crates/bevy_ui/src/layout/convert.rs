@@ -457,6 +457,7 @@ impl RepeatedGridTrack {
 mod tests {
     use super::*;
     use bevy_math::Vec2;
+    use taffy::prelude::TaffyAuto;
 
     #[test]
     fn test_convert_from() {
