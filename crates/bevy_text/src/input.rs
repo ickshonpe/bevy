@@ -1,66 +1,88 @@
-use std::time::Duration;
+//! This module provides text editing functionality, by wrapping the functionality of the
+//! [`cosmic_text`] crate.
+//!
+//! The primary entry point into the text editing functionality is the [`TextInputBuffer`] component,
+//! which includes a [`cosmic_text::Editor`], and adds the associated "required components" needed
+//! to construct functioning text input fields.
+//!
+//! ## How this works
+//!
+//! Text editing functionality is included as part of [`TextPlugin`](crate::TextPlugin),
+//! and the systems which perform the work are grouped under the [`TextInputSystems`] system set.
+//!  
+//! The [`TextInputBuffer`] comes with the following required components that act as machinery to convert user inputs into text:
+//!
+//! * [`TextInputValue`] - Contains the current text in the text input buffer.
+//!    * Automatically synchronized with the buffer by [`apply_text_edits`] after any edits are applied.
+//! * [`TextEdits`] - Text input commands queue, used to queue up text edit and navigation actions.\
+//!    * Contains a queue of [`TextEdit`] actions that are applied to the buffer.
+//!    * These are applied by the [`apply_text_edits` system.
+//! * [`TextInputTarget`] - Details of the render target the text input will be rendered to, such as size and scale factor.
+//!
+//!
+//! Layouting is done in:
+//!
+//! * [`update_text_input_layouts`] - Updates the `TextLayoutInfo` for each text input for rendering.
+//! * [`update_placeholder_layouts`] - Updates the `TextLayoutInfo` for each [`Placeholder`] for rendering.
+//!
+//! ## Configuring text input
+//!
+//! Several components are used to configure the text input, and belong on the [`TextInputBuffer`] entity:
+//!
+//! * [`TextInputAttributes`] - Common text input properties set by the user, such as font, font size, line height, justification, maximum characters etc.
+//! * [`TextInputFilter`] - Optional component that can be added to restrict the text input to certain formats, such as integers, decimals, hexadecimal etc.
+//! * [`PasswordMask`] - Optional component that can be added to hide the text input buffer contents by replacing the characters with a mask character.
+//! * [`Placeholder`] - Optional component that can be added to display placeholder text when the input buffer is empty.
+//! * [`CursorBlink`] - Optional component that controls cursor blinking.
+//!
+//! ## Copy-paste and clipboard support
+//!
+//! The clipboard support provided by this module is very basic, and only works within the `bevy` app,
+//! storing a simple [`String`].
+//!
+//! It can be accessed via the [`Clipboard`] resource.
 
-use crate::buffer_dimensions;
-use crate::load_font_to_fontdb;
-use crate::CosmicFontSystem;
-use crate::Font;
-use crate::FontAtlasSets;
-use crate::FontSmoothing;
-use crate::Justify;
-use crate::LineBreak;
-use crate::LineHeight;
-use crate::PositionedGlyph;
-use crate::TextBounds;
-use crate::TextError;
-use crate::TextFont;
-use crate::TextLayoutInfo;
-use crate::TextPipeline;
+use core::time::Duration;
+
 use alloc::collections::VecDeque;
-use bevy_asset::Assets;
-use bevy_asset::Handle;
-use bevy_derive::Deref;
-use bevy_derive::DerefMut;
-use bevy_ecs::change_detection::DetectChanges;
-use bevy_ecs::change_detection::DetectChangesMut;
-use bevy_ecs::component::Component;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::event::EntityEvent;
-use bevy_ecs::hierarchy::ChildOf;
-use bevy_ecs::lifecycle::HookContext;
-use bevy_ecs::prelude::ReflectComponent;
-use bevy_ecs::query::Changed;
-use bevy_ecs::query::Or;
-use bevy_ecs::resource::Resource;
-use bevy_ecs::schedule::SystemSet;
-use bevy_ecs::system::Commands;
-use bevy_ecs::system::Query;
-use bevy_ecs::system::Res;
-use bevy_ecs::system::ResMut;
-use bevy_ecs::world::DeferredWorld;
-use bevy_ecs::world::Ref;
-use bevy_image::Image;
-use bevy_image::TextureAtlasLayout;
-use bevy_math::IVec2;
-use bevy_math::Rect;
-use bevy_math::UVec2;
-use bevy_math::Vec2;
-use bevy_reflect::prelude::ReflectDefault;
-use bevy_reflect::Reflect;
+use bevy_asset::{AssetEvent, Assets, Handle};
+use bevy_derive::{Deref, DerefMut};
+use bevy_ecs::{
+    change_detection::{DetectChanges, DetectChangesMut},
+    component::Component,
+    entity::Entity,
+    event::{EntityEvent, EventReader},
+    hierarchy::ChildOf,
+    lifecycle::HookContext,
+    prelude::ReflectComponent,
+    resource::Resource,
+    schedule::SystemSet,
+    system::{Commands, Query, Res, ResMut},
+    world::{DeferredWorld, Ref},
+};
+use bevy_image::{Image, TextureAtlasLayout};
+use bevy_math::{IVec2, Rect, UVec2, Vec2};
+use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_time::Time;
-use cosmic_text::Action;
-use cosmic_text::BorrowedWithFontSystem;
-use cosmic_text::Buffer;
-use cosmic_text::BufferLine;
-use cosmic_text::Edit;
-use cosmic_text::Editor;
-use cosmic_text::Metrics;
 pub use cosmic_text::Motion;
-use cosmic_text::Selection;
+use cosmic_text::{
+    Action, BorrowedWithFontSystem, Buffer, BufferLine, Edit, Editor, Metrics, Selection,
+};
+
+use crate::{
+    buffer_dimensions, load_font_to_fontdb, CosmicFontSystem, Font, FontAtlasSets, FontSmoothing,
+    Justify, LineBreak, LineHeight, PositionedGlyph, TextBounds, TextError, TextLayoutInfo,
+    TextPipeline,
+};
+
 /// Systems handling text input update and layout
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub struct TextInputSystems;
 
 /// Basic clipboard implementation that only works within the bevy app.
+///
+/// This is written to in the [`apply_text_edits`] system when
+/// [`TextEdit::Copy`], [`TextEdit::Cut`] or [`TextEdit::Paste`] edits are applied.
 #[derive(Resource, Default)]
 pub struct Clipboard(pub String);
 
@@ -92,19 +114,16 @@ pub struct TextInputBuffer {
     /// Space advance width for the current font, used to determine the width of the cursor when it is at the end of a line
     /// or when the buffer is empty.
     pub space_advance: f32,
-    /// Controls cursor blinking.
-    /// If the value is none or greater than the `blink_interval` in `TextCursorStyle` then the cursor
-    /// is not displayed.
-    /// The timer is reset when a `TextEdit` is applied.
-    pub cursor_blink_timer: Option<f32>,
 }
 
 impl Default for TextInputBuffer {
     fn default() -> Self {
         Self {
-            editor: Editor::new(Buffer::new_empty(Metrics::new(20.0, 20.0))),
-            space_advance: 20.,
-            cursor_blink_timer: None,
+            editor: Editor::new(Buffer::new_empty(Metrics::new(
+                DEFAULT_FONT_SIZE,
+                DEFAULT_LINE_HEIGHT,
+            ))),
+            space_advance: DEFAULT_SPACE_ADVANCE,
         }
     }
 }
@@ -142,21 +161,6 @@ impl TextInputBuffer {
     /// Returns true if the buffer's contents have changed and need to be redrawn.
     pub fn needs_redraw(&self) -> bool {
         self.editor.redraw()
-    }
-}
-
-/// Component containing the change history for a text input.
-/// Text input entities without this component will ignore undo and redo actions.
-#[derive(Component, Debug, Default)]
-pub struct UndoHistory {
-    /// The commands to undo and undo
-    pub changes: cosmic_undo_2::Commands<cosmic_text::Change>,
-}
-
-impl UndoHistory {
-    /// Clear the history for the text input
-    pub fn clear(&mut self) {
-        self.changes.clear();
     }
 }
 
@@ -221,7 +225,7 @@ impl Default for TextCursorBlinkInterval {
 /// On changes, the text input systems will automatically update the buffer, layout and fonts as required.
 #[derive(Component, Debug, PartialEq)]
 pub struct TextInputAttributes {
-    /// The text input's font, also used for any [`Placeholder`] text or password mask.
+    /// The text input's font, which also applies to any [`Placeholder`] text or password mask.
     /// A text input's glyphs must all be from the same font.
     pub font: Handle<Font>,
     /// The size of the font.
@@ -246,28 +250,31 @@ pub struct TextInputAttributes {
     /// * Only restricts the maximum number of visible lines, places no constraint on the text buffer's length.
     /// * Supports fractional values, `visible_lines: Some(2.5)` will display two and a half lines of text.
     pub visible_lines: Option<f32>,
-    /// Clear on submit (Triggered when [`apply_text_edits`] receives a [`TextEdit::Submit`] edit for an entity).
-    pub clear_on_submit: bool,
 }
+
+// These defaults
+const DEFAULT_FONT_SIZE: f32 = 20.;
+const DEFAULT_LINE_HEIGHT_FACTOR: f32 = 1.2; // `1.2` corresponds to `normal` in https://developer.mozilla.org/en-US/docs/Web/CSS/line-height
+const DEFAULT_LINE_HEIGHT: f32 = DEFAULT_FONT_SIZE * DEFAULT_LINE_HEIGHT_FACTOR;
+const DEFAULT_SPACE_ADVANCE: f32 = 20.;
 
 impl Default for TextInputAttributes {
     fn default() -> Self {
         Self {
             font: Default::default(),
-            font_size: 20.,
-            line_height: LineHeight::RelativeToFont(1.2),
+            font_size: DEFAULT_FONT_SIZE,
+            line_height: LineHeight::RelativeToFont(DEFAULT_LINE_HEIGHT_FACTOR),
             font_smoothing: Default::default(),
             justify: Default::default(),
             line_break: Default::default(),
             max_chars: None,
             visible_lines: None,
-            clear_on_submit: false,
         }
     }
 }
 
-/// If a text input entity has a `TextInputFilter` component, after each [TextEdit] is applied, the [TextInputBuffer]’s text is checked
-/// against the filter, and if it fails, the `TextEdit is rolled back.
+/// If a text input entity has a `TextInputFilter` component, after each [`TextEdit`] is applied, the [`TextInputBuffer`]’s text is checked
+/// against the filter, and if it fails, the `TextEdit` is immediately rolled back, and a [`TextInputEvent::InvalidEdit`] event is emitted.
 #[derive(Component)]
 pub enum TextInputFilter {
     /// Positive integer input
@@ -329,9 +336,11 @@ impl TextInputFilter {
 /// Add this component to hide the text input buffer contents
 /// by replacing the characters with `mask_char`.
 ///
-/// It is strongly recommended to only use a `PasswordMask` with fixed-width fonts.
+/// It is strongly recommended to only use a [`PasswordMask` with fixed-width fonts.
 /// With variable width fonts mouse picking and horizontal scrolling
 /// may not work correctly.
+///
+/// This is updated in [`update_password_masks`].
 #[derive(Component)]
 pub struct PasswordMask {
     /// If true the password will not be hidden
@@ -347,7 +356,10 @@ impl Default for PasswordMask {
         Self {
             show_password: false,
             mask_char: '*',
-            editor: Editor::new(Buffer::new_empty(Metrics::new(20.0, 20.0))),
+            editor: Editor::new(Buffer::new_empty(Metrics::new(
+                DEFAULT_FONT_SIZE,
+                DEFAULT_LINE_HEIGHT,
+            ))),
         }
     }
 }
@@ -366,14 +378,22 @@ impl TextEdits {
     }
 }
 
-/// Deferred text input edit and navigation actions applied by the `apply_text_edits` system.
+/// Deferred text input edit and navigation actions.
+///
+/// These are generated by user inputs,
+/// stored in the [`TextEdits`] component,
+/// and applied by the [`apply_text_edits`] system.
+///
+/// The user is currently completely responsible for generating these edits
+/// by handling input events and mapping them to edits.
 #[derive(Debug, Clone)]
 pub enum TextEdit {
     /// Copy the selected text into the clipboard. Does nothing if no text is selected.
     Copy,
     /// Copy the selected text into the clipboard, then delete the selected text. Does nothing if no text is selected.
     Cut,
-    /// Insert the contents of the clipboard at the current cursor position. Does nothing if the clipboard is empty.
+    /// Insert the contents of the clipboard at the current cursor position, or replaces the current selection.
+    /// Does nothing if the clipboard is empty.
     Paste,
     /// Move the cursor with some motion.
     Motion {
@@ -416,10 +436,6 @@ pub enum TextEdit {
         /// Negative values scroll upwards towards the start of the text, positive downwards to the end of the text.
         lines: i32,
     },
-    /// Undo the previous action.
-    Undo,
-    /// Redo an undone action. Must directly follow an Undo.
-    Redo,
     /// Select the entire contents of the text input buffer.
     SelectAll,
     /// Select the line at the cursor.
@@ -430,13 +446,12 @@ pub enum TextEdit {
     Clear,
     /// Set the contents of the text input buffer. The existing contents are discarded.
     SetText(String),
-    /// Submit the contents of the text input buffer
-    Submit,
 }
 
 impl TextEdit {
     /// An action that moves the cursor.
-    /// If `with_select` is true, it selects as it moves
+    ///
+    /// If `with_select` is true, it selects as it moves.
     pub fn motion(motion: Motion, with_select: bool) -> Self {
         Self::Motion {
             motion,
@@ -474,28 +489,10 @@ pub fn is_cursor_at_end_of_line(editor: &mut Editor<'_>) -> bool {
     })
 }
 
-/// Apply an action from the undo history to the text input buffer.
-fn apply_action<'a>(
-    editor: &mut BorrowedWithFontSystem<Editor<'a>>,
-    action: cosmic_undo_2::Action<&cosmic_text::Change>,
-) {
-    match action {
-        cosmic_undo_2::Action::Do(change) => {
-            editor.apply_change(change);
-        }
-        cosmic_undo_2::Action::Undo(change) => {
-            let mut reversed = change.clone();
-            reversed.reverse();
-            editor.apply_change(&reversed);
-        }
-    }
-    editor.set_redraw(true);
-}
-
 /// Applies the [`TextEdit`]s queued for each [`TextInputBuffer`] and emits [`TextInputEvent`]s in response.
 ///
-/// After all edits are applied, if a text input entity has a [TextInputValue] component and its buffer was changed,
-/// then the [TextInputValue]'s text is updated with the new contents of the [TextInputBuffer].
+/// After all edits are applied, if a text input entity has a [`TextInputValue`] component and its buffer was changed,
+/// then the [`TextInputValue`]'s text is updated with the new contents of the [`TextInputBuffer`].
 pub fn apply_text_edits(
     mut commands: Commands,
     mut font_system: ResMut<CosmicFontSystem>,
@@ -505,58 +502,22 @@ pub fn apply_text_edits(
         &mut TextEdits,
         &TextInputAttributes,
         Option<&TextInputFilter>,
-        Option<&mut UndoHistory>,
         Option<&mut TextInputValue>,
     )>,
     mut clipboard: ResMut<Clipboard>,
 ) {
-    for (
-        entity,
-        mut buffer,
-        mut text_input_actions,
-        attribs,
-        maybe_filter,
-        mut maybe_history,
-        maybe_value,
-    ) in text_input_query.iter_mut()
+    for (entity, mut buffer, mut text_input_actions, attribs, maybe_filter, maybe_value) in
+        text_input_query.iter_mut()
     {
         for edit in text_input_actions.queue.drain(..) {
-            match edit {
-                TextEdit::Submit => {
-                    commands.trigger_targets(
-                        TextInputEvent::Submission {
-                            text: buffer.get_text(),
-                        },
-                        entity,
-                    );
-
-                    if attribs.clear_on_submit {
-                        let _ = apply_text_edit(
-                            buffer.editor.borrow_with(&mut font_system),
-                            maybe_history.as_mut().map(AsMut::as_mut),
-                            maybe_filter,
-                            attribs.max_chars,
-                            &mut clipboard,
-                            &TextEdit::Clear,
-                        );
-
-                        if let Some(history) = maybe_history.as_mut() {
-                            history.clear();
-                        }
-                    }
-                }
-                edit => {
-                    if let Err(error) = apply_text_edit(
-                        buffer.editor.borrow_with(&mut font_system),
-                        maybe_history.as_mut().map(AsMut::as_mut),
-                        maybe_filter,
-                        attribs.max_chars,
-                        &mut clipboard,
-                        &edit,
-                    ) {
-                        commands.trigger_targets(TextInputEvent::InvalidEdit(error, edit), entity);
-                    }
-                }
+            if let Err(error) = apply_text_edit(
+                buffer.editor.borrow_with(&mut font_system),
+                maybe_filter,
+                attribs.max_chars,
+                &mut clipboard,
+                &edit,
+            ) {
+                commands.trigger_targets(TextInputEvent::InvalidEdit(error, edit), entity);
             }
         }
 
@@ -579,32 +540,44 @@ pub fn update_text_input_buffers(
         Ref<TextInputTarget>,
         &TextEdits,
         Ref<TextInputAttributes>,
+        Option<&mut CursorBlink>,
     )>,
     time: Res<Time>,
     cursor_blink_interval: Res<TextCursorBlinkInterval>,
     mut font_system: ResMut<CosmicFontSystem>,
     mut text_pipeline: ResMut<TextPipeline>,
     fonts: Res<Assets<Font>>,
+    mut font_events: EventReader<AssetEvent<Font>>,
 ) {
     let font_system = &mut font_system.0;
     let font_id_map = &mut text_pipeline.map_handle_to_font_id;
-    for (mut input_buffer, target, edits, attributes) in text_input_query.iter_mut() {
+    for (mut input_buffer, target, edits, attributes, maybe_cursor_blink) in
+        text_input_query.iter_mut()
+    {
         let TextInputBuffer {
             editor,
             space_advance,
-            cursor_blink_timer,
         } = input_buffer.as_mut();
 
-        if let Some(timer) = cursor_blink_timer {
-            *timer = if edits.queue.is_empty() {
-                (*timer + time.delta_secs()).rem_euclid(cursor_blink_interval.0.as_secs_f32() * 2.)
+        if let Some(mut cursor_blink) = maybe_cursor_blink {
+            cursor_blink.cursor_blink_timer = if edits.queue.is_empty() {
+                (cursor_blink.cursor_blink_timer + time.delta_secs())
+                    .rem_euclid(cursor_blink_interval.0.as_secs_f32() * 2.)
             } else {
                 0.
             };
         }
 
         let _ = editor.with_buffer_mut(|buffer| {
-            if target.is_changed() || attributes.is_changed() {
+            if target.is_changed()
+                || attributes.is_changed()
+                || font_events.read().any(|event| match event {
+                    AssetEvent::Added { id } | AssetEvent::Modified { id } => {
+                        *id == attributes.font.id()
+                    }
+                    _ => false,
+                })
+            {
                 let line_height = attributes.line_height.eval(attributes.font_size);
                 let metrics =
                     Metrics::new(attributes.font_size, line_height).scale(target.scale_factor);
@@ -763,12 +736,12 @@ impl<'b> Iterator for ScrollingLayoutRunIter<'b> {
                 let glyph_height = layout_line.max_ascent + layout_line.max_descent;
                 let centering_offset = (line_height - glyph_height) / 2.0;
                 let line_bottom = line_top + centering_offset + layout_line.max_ascent;
-                if let Some(height) = self.buffer.size().1 {
-                    if height + line_height < line_bottom {
-                        // The line is below the target bound's bottom edge.
-                        // No more lines are visible, return `None` to end the iteration.
-                        return None;
-                    }
+                if let Some(height) = self.buffer.size().1
+                    && height + line_height < line_bottom
+                {
+                    // The line is below the target bound's bottom edge.
+                    // No more lines are visible, return `None` to end the iteration.
+                    return None;
                 }
                 self.line_top += line_height;
                 if line_bottom < 0.0 {
@@ -854,14 +827,14 @@ pub fn update_text_input_layouts(
                     ));
                 }
                 let result = ScrollingLayoutRunIter::new(buffer).try_for_each(|run| {
-                    if let Some(selection) = selection {
-                        if let Some((x0, w)) = run.highlight(selection.0, selection.1) {
-                            let y0 = run.line_top;
-                            let y1 = y0 + run.line_height;
-                            let x1 = x0 + w;
-                            let r = Rect::new(x0, y0, x1, y1);
-                            layout_info.selection_rects.push(r);
-                        }
+                    if let Some(selection) = selection
+                        && let Some((x0, w)) = run.highlight(selection.0, selection.1)
+                    {
+                        let y0 = run.line_top;
+                        let y1 = y0 + run.line_height;
+                        let x1 = x0 + w;
+                        let r = Rect::new(x0, y0, x1, y1);
+                        layout_info.selection_rects.push(r);
                     }
 
                     run.glyphs
@@ -984,9 +957,8 @@ pub enum InvalidTextEditError {
 }
 
 /// Apply a text input action to a text input
-fn apply_text_edit(
+pub fn apply_text_edit(
     mut editor: BorrowedWithFontSystem<'_, Editor<'static>>,
-    mut maybe_history: Option<&mut UndoHistory>,
     maybe_filter: Option<&TextInputFilter>,
     max_chars: Option<usize>,
     clipboard_contents: &mut ResMut<Clipboard>,
@@ -1078,20 +1050,6 @@ fn apply_text_edit(
         &TextEdit::Scroll { lines } => {
             editor.action(Action::Scroll { lines });
         }
-        TextEdit::Undo => {
-            if let Some(history) = maybe_history.as_mut() {
-                for action in history.changes.undo() {
-                    apply_action(&mut editor, action);
-                }
-            }
-        }
-        TextEdit::Redo => {
-            if let Some(history) = maybe_history.as_mut() {
-                for action in history.changes.redo() {
-                    apply_action(&mut editor, action);
-                }
-            }
-        }
         TextEdit::SelectAll => {
             editor.action(Action::Motion(Motion::BufferStart));
             let cursor = editor.cursor();
@@ -1119,9 +1077,8 @@ fn apply_text_edit(
             let cursor = editor.cursor();
             editor.set_selection(Selection::Normal(cursor));
             editor.action(Action::Motion(Motion::End));
-            editor.insert_string(&text, None);
+            editor.insert_string(text, None);
         }
-        TextEdit::Submit => {}
     }
 
     let Some(mut change) = editor.finish_change() else {
@@ -1146,10 +1103,6 @@ fn apply_text_edit(
         }
     }
 
-    if let Some(history) = maybe_history.as_mut() {
-        history.changes.push(change);
-    }
-
     // Set redraw manually, sometimes the editor doesn't set it automatically.
     editor.set_redraw(true);
 
@@ -1160,20 +1113,30 @@ fn apply_text_edit(
 #[derive(EntityEvent, Clone, Debug, Component)]
 #[entity_event(traversal = &'static ChildOf, auto_propagate)]
 pub enum TextInputEvent {
-    /// The text input received an invalid `TextEdit` that failed to be applied
+    /// The text input received an invalid [`TextEdit`] that failed to be applied
     InvalidEdit(InvalidTextEditError, TextEdit),
-    /// Text from the input was submitted
-    Submission {
-        /// The submitted text
-        text: String,
-    },
     /// The contents of the text input changed due to a [`TextEdit`].
     /// Only dispatched if a text input entity has a [`TextInputValue`] component.
     TextChanged,
 }
 
-/// Placeholder text displayed when the input is empty (including whitespace).
-/// Optional component.
+/// Optional component to control cursor blink behavior
+#[derive(Default, Component, Clone, Debug, Reflect, Deref, DerefMut)]
+#[reflect(Component, Default, Debug)]
+pub struct CursorBlink {
+    /// Controls cursor blinking.
+    /// If the value is greater than the `blink_interval` in `TextCursorStyle` then the cursor
+    /// is not displayed.
+    /// The timer is reset when a `TextEdit` is applied.
+    pub cursor_blink_timer: f32,
+}
+
+/// Placeholder text displayed when the input is empty.
+///
+/// Text inputs that contain only whitespace (i.e spaces or tabs) are not empty.
+///
+/// This is an optional component, intended to work with [`TextInputTarget`].
+/// The font and other properties are controlled with [`TextInputAttributes`].
 #[derive(Default, Component, Clone, Debug, Reflect, Deref, DerefMut)]
 #[reflect(Component, Default, Debug)]
 #[require(PlaceholderLayout)]
@@ -1186,7 +1149,9 @@ impl Placeholder {
     }
 }
 
-/// Layout for the [`Placeholder`] text
+/// Layout for the [`Placeholder`] text.
+///
+/// This is laid out in [`update_placeholder_layouts`].
 #[derive(Component)]
 pub struct PlaceholderLayout {
     /// A [`Placeholder`] text's cosmic-text buffer (not an Editor as it isn't editable).
@@ -1207,7 +1172,7 @@ impl PlaceholderLayout {
 impl Default for PlaceholderLayout {
     fn default() -> Self {
         Self {
-            buffer: Buffer::new_empty(Metrics::new(20.0, 20.0)),
+            buffer: Buffer::new_empty(Metrics::new(DEFAULT_FONT_SIZE, DEFAULT_LINE_HEIGHT)),
             layout: Default::default(),
         }
     }
@@ -1222,23 +1187,27 @@ pub fn update_placeholder_layouts(
     mut text_pipeline: ResMut<TextPipeline>,
     mut swash_cache: ResMut<crate::pipeline::SwashCache>,
     mut font_atlas_sets: ResMut<FontAtlasSets>,
-    mut text_query: Query<
-        (
-            &Placeholder,
-            &TextInputAttributes,
-            &TextInputTarget,
-            &TextFont,
-            &mut PlaceholderLayout,
-        ),
-        Or<(
-            Changed<Placeholder>,
-            Changed<TextInputAttributes>,
-            Changed<TextFont>,
-            Changed<TextInputTarget>,
-        )>,
-    >,
+    mut text_query: Query<(
+        Ref<Placeholder>,
+        Ref<TextInputAttributes>,
+        Ref<TextInputTarget>,
+        &mut PlaceholderLayout,
+    )>,
+    mut font_events: EventReader<AssetEvent<Font>>,
 ) {
-    for (placeholder, style, target, text_font, mut prompt_layout) in text_query.iter_mut() {
+    for (placeholder, attributes, target, mut prompt_layout) in text_query.iter_mut() {
+        if !(placeholder.is_changed()
+            || attributes.is_changed()
+            || target.is_changed()
+            || font_events.read().any(|event| match event {
+                AssetEvent::Added { id } | AssetEvent::Modified { id } => {
+                    *id == attributes.font.id()
+                }
+                _ => false,
+            }))
+        {
+            continue;
+        }
         let PlaceholderLayout { buffer, layout } = prompt_layout.as_mut();
 
         layout.clear();
@@ -1247,13 +1216,13 @@ pub fn update_placeholder_layouts(
             continue;
         }
 
-        if !fonts.contains(text_font.font.id()) {
+        if !fonts.contains(attributes.font.id()) {
             continue;
         }
 
-        let line_height = text_font.line_height.eval(text_font.font_size);
+        let line_height = attributes.line_height.eval(attributes.font_size);
 
-        let metrics = Metrics::new(text_font.font_size, line_height).scale(target.scale_factor);
+        let metrics = Metrics::new(attributes.font_size, line_height).scale(target.scale_factor);
 
         if metrics.font_size <= 0. || metrics.line_height <= 0. {
             continue;
@@ -1261,7 +1230,7 @@ pub fn update_placeholder_layouts(
 
         let bounds: TextBounds = target.size.into();
         let face_info = load_font_to_fontdb(
-            text_font.font.clone(),
+            attributes.font.clone(),
             font_system.as_mut(),
             &mut text_pipeline.map_handle_to_font_id,
             &fonts,
@@ -1269,7 +1238,7 @@ pub fn update_placeholder_layouts(
 
         buffer.set_size(font_system.as_mut(), bounds.width, bounds.height);
 
-        buffer.set_wrap(&mut font_system, style.line_break.into());
+        buffer.set_wrap(&mut font_system, attributes.line_break.into());
 
         let attrs = cosmic_text::Attrs::new()
             .metadata(0)
@@ -1286,7 +1255,7 @@ pub fn update_placeholder_layouts(
             cosmic_text::Shaping::Advanced,
         );
 
-        let align = Some(style.justify.into());
+        let align = Some(attributes.justify.into());
         for buffer_line in buffer.lines.iter_mut() {
             buffer_line.set_align(align);
         }
@@ -1301,8 +1270,8 @@ pub fn update_placeholder_layouts(
                 .try_for_each(|(layout_glyph, line_y, line_i)| {
                     let mut temp_glyph;
                     let span_index = layout_glyph.metadata;
-                    let font_id = text_font.font.id();
-                    let font_smoothing = text_font.font_smoothing;
+                    let font_id = attributes.font.id();
+                    let font_smoothing = attributes.font_smoothing;
 
                     let layout_glyph = if font_smoothing == FontSmoothing::None {
                         // If font smoothing is disabled, round the glyph positions and sizes,
