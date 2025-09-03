@@ -214,27 +214,22 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetUiViewBindGroup<I> {
     }
 }
 pub struct SetUiTextureBindGroup<const I: usize>;
-impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetUiTextureBindGroup<I> {
+impl<const I: usize> RenderCommand<TransparentUi> for SetUiTextureBindGroup<I> {
     type Param = (SRes<ImageNodeBindGroups>, SRes<UiBatches>);
     type ViewQuery = ();
     type ItemQuery = ();
 
     #[inline]
     fn render<'w>(
-        item: &P,
+        item: &TransparentUi,
         _view: (),
-        _ent: Option<()>,
+        _entity: Option<()>,
         (image_bind_groups, batches): SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
         let image_bind_groups = image_bind_groups.into_inner();
-        // let Some(batch) = batch else {
-        //     return RenderCommandResult::Skip;
-        // };
 
-        let Some(batch) = batches.batches.get(&(item.entity(), item.main_entity())) else {
-            return RenderCommandResult::Skip;
-        };
+        let batch = &batches.0[item.index];
 
         pass.set_bind_group(I, image_bind_groups.values.get(&batch.image).unwrap(), &[]);
         RenderCommandResult::Success
@@ -242,21 +237,21 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetUiTextureBindGroup<I>
 }
 
 pub struct DrawUiNode;
-impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
+impl RenderCommand<TransparentUi> for DrawUiNode {
     type Param = (SRes<UiMeta>, SRes<UiBatches>);
     type ViewQuery = ();
     type ItemQuery = ();
 
     #[inline]
     fn render<'w>(
-        item: &P,
+        item: &TransparentUi,
         _view: (),
-        _batch: Option<()>,
-        param: SystemParamItem<'w, '_, Self::Param>,
+        _entity: Option<()>,
+        (ui_meta, batches): SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
-        let (ui_meta, batches) = param;
         let ui_meta = ui_meta.into_inner();
+
         let Some(vertices) = ui_meta.vertices.buffer() else {
             return RenderCommandResult::Failure("missing vertices to draw ui");
         };
@@ -264,10 +259,7 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
             return RenderCommandResult::Failure("missing indices to draw ui");
         };
 
-        let Some(batch) = batches.batches.get(&(item.entity(), item.main_entity())) else {
-            return RenderCommandResult::Skip;
-        };
-
+        let batch_range = batches.0[item.index].range.clone();
         // Store the vertices
         pass.set_vertex_buffer(0, vertices.slice(..));
         // Define how to "connect" the vertices
@@ -277,7 +269,7 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
             bevy_render::render_resource::IndexFormat::Uint32,
         );
         // Draw the vertices
-        pass.draw_indexed(batch.range.clone(), 0, 0..1);
+        pass.draw_indexed(batch_range, 0, 0..1);
         RenderCommandResult::Success
     }
 }

@@ -1191,9 +1191,7 @@ pub(crate) const QUAD_VERTEX_POSITIONS: [Vec2; 4] = [
 pub(crate) const QUAD_INDICES: [usize; 6] = [0, 2, 3, 0, 1, 2];
 
 #[derive(Resource, Default)]
-pub struct UiBatches {
-    pub batches: HashMap<(Entity, MainEntity), UiBatch>,
-}
+pub struct UiBatches(pub Vec<UiBatch>);
 
 pub struct UiBatch {
     pub range: Range<u32>,
@@ -1296,7 +1294,8 @@ pub fn prepare_uinodes(
     events: Res<SpriteAssetEvents>,
     mut ui_batches: ResMut<UiBatches>,
 ) {
-    ui_batches.batches.clear();
+    let batches = &mut ui_batches.0;
+    batches.clear();
 
     // If an image has changed, the GpuImage has (probably) changed
     for event in &events.images {
@@ -1310,8 +1309,6 @@ pub fn prepare_uinodes(
             }
         };
     }
-
-    let mut existing_batch = None;
 
     if let Some(view_binding) = view_uniforms.uniforms.binding() {
         ui_meta.vertices.clear();
@@ -1330,13 +1327,14 @@ pub fn prepare_uinodes(
             let mut batch_item_index = 0;
             let mut batch_image_handle = AssetId::invalid();
 
-            for item_index in 0..ui_phase.items.len() {
-                let item = &mut ui_phase.items[item_index];
+            for phase_item_index in 0..ui_phase.items.len() {
+                let item = &mut ui_phase.items[phase_item_index];
                 if let Some(extracted_uinode) = extracted_uinodes
                     .uinodes
                     .get(item.index)
                     .filter(|n| item.entity() == n.render_entity)
                 {
+                    let mut existing_batch = batches.last_mut();
                     if batch_image_handle == AssetId::invalid()
                         || existing_batch.is_none()
                         || (batch_image_handle != AssetId::default()
@@ -1344,7 +1342,7 @@ pub fn prepare_uinodes(
                             && batch_image_handle != extracted_uinode.image)
                     {
                         if let Some(gpu_image) = gpu_images.get(extracted_uinode.image) {
-                            batch_item_index = item_index;
+                            batch_item_index = phase_item_index;
                             batch_image_handle = extracted_uinode.image;
 
                             let new_batch = UiBatch {
@@ -1352,20 +1350,8 @@ pub fn prepare_uinodes(
                                 image: extracted_uinode.image,
                             };
 
-                            // ui_batches
-                            //     .batches
-                            //     .insert((item.entity(), item.main_entity()), new_batch);
-
-                            let key = (item.entity(), item.main_entity());
-                            existing_batch = Some(match ui_batches.batches.entry(key) {
-                                bevy_platform::collections::hash_map::Entry::Occupied(mut occ) => {
-                                    *occ.get_mut() = new_batch; // replace in place
-                                    occ.into_mut() // &'_ mut V to the stored value
-                                }
-                                bevy_platform::collections::hash_map::Entry::Vacant(vac) => {
-                                    vac.insert(new_batch)
-                                } // &'_ mut V
-                            });
+                            item.index = batches.len();
+                            batches.push(new_batch);
 
                             image_bind_groups
                                 .values
@@ -1380,6 +1366,8 @@ pub fn prepare_uinodes(
                                         )),
                                     )
                                 });
+
+                            existing_batch = batches.last_mut();
                         } else {
                             continue;
                         }
@@ -1671,8 +1659,8 @@ pub fn prepare_uinodes(
                     }
                     existing_batch.as_mut().unwrap().range.end = vertices_index;
                     ui_phase.items[batch_item_index].batch_range_mut().end += 1;
-                    *ui_phase.items[item_index].batch_range_mut() =
-                        item_index as u32..item_index as u32 + 1;
+                    *ui_phase.items[phase_item_index].batch_range_mut() =
+                        phase_item_index as u32..phase_item_index as u32 + 1;
                 } else {
                     batch_image_handle = AssetId::invalid();
                 }
