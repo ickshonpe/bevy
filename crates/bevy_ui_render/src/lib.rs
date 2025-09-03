@@ -215,6 +215,7 @@ impl Plugin for UiRenderPlugin {
             .init_resource::<ImageNodeBindGroups>()
             .init_resource::<UiMeta>()
             .init_resource::<ExtractedUiNodes>()
+            .init_resource::<UiBatches>()
             .allow_ambiguous_resource::<ExtractedUiNodes>()
             .init_resource::<DrawFunctions<TransparentUi>>()
             .init_resource::<ViewSortedRenderPhases<TransparentUi>>()
@@ -1189,7 +1190,11 @@ pub(crate) const QUAD_VERTEX_POSITIONS: [Vec2; 4] = [
 
 pub(crate) const QUAD_INDICES: [usize; 6] = [0, 2, 3, 0, 1, 2];
 
-#[derive(Component)]
+#[derive(Resource, Default)]
+pub struct UiBatches {
+    pub batches: Vec<UiBatch>,
+}
+
 pub struct UiBatch {
     pub range: Range<u32>,
     pub image: AssetId<Image>,
@@ -1279,7 +1284,6 @@ pub struct ImageNodeBindGroups {
 }
 
 pub fn prepare_uinodes(
-    mut commands: Commands,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     mut ui_meta: ResMut<UiMeta>,
@@ -1290,8 +1294,10 @@ pub fn prepare_uinodes(
     gpu_images: Res<RenderAssets<GpuImage>>,
     mut phases: ResMut<ViewSortedRenderPhases<TransparentUi>>,
     events: Res<SpriteAssetEvents>,
-    mut previous_len: Local<usize>,
+    mut ui_batches: ResMut<UiBatches>,
 ) {
+    ui_batches.batches.clear();
+
     // If an image has changed, the GpuImage has (probably) changed
     for event in &events.images {
         match event {
@@ -1306,8 +1312,6 @@ pub fn prepare_uinodes(
     }
 
     if let Some(view_binding) = view_uniforms.uniforms.binding() {
-        let mut batches: Vec<(Entity, UiBatch)> = Vec::with_capacity(*previous_len);
-
         ui_meta.vertices.clear();
         ui_meta.indices.clear();
         ui_meta.view_bind_group = Some(render_device.create_bind_group(
@@ -1331,7 +1335,7 @@ pub fn prepare_uinodes(
                     .get(item.index)
                     .filter(|n| item.entity() == n.render_entity)
                 {
-                    let mut existing_batch = batches.last_mut();
+                    let mut existing_batch = ui_batches.batches.last_mut();
 
                     if batch_image_handle == AssetId::invalid()
                         || existing_batch.is_none()
@@ -1348,7 +1352,7 @@ pub fn prepare_uinodes(
                                 image: extracted_uinode.image,
                             };
 
-                            batches.push((item.entity(), new_batch));
+                            ui_batches.batches.push(new_batch);
 
                             image_bind_groups
                                 .values
@@ -1364,7 +1368,7 @@ pub fn prepare_uinodes(
                                     )
                                 });
 
-                            existing_batch = batches.last_mut();
+                            existing_batch = ui_batches.batches.last_mut();
                         } else {
                             continue;
                         }
@@ -1375,7 +1379,7 @@ pub fn prepare_uinodes(
                             && let Some(gpu_image) = gpu_images.get(extracted_uinode.image)
                         {
                             batch_image_handle = extracted_uinode.image;
-                            existing_batch.1.image = extracted_uinode.image;
+                            existing_batch.image = extracted_uinode.image;
 
                             image_bind_groups
                                 .values
@@ -1654,8 +1658,13 @@ pub fn prepare_uinodes(
                             }
                         }
                     }
-                    existing_batch.unwrap().1.range.end = vertices_index;
+                    existing_batch.unwrap().range.end = vertices_index;
                     ui_phase.items[batch_item_index].batch_range_mut().end += 1;
+                    let (range, index) =
+                        ui_phase.items[item_index].batch_range_and_extra_index_mut();
+                    *range = item_index as u32..item_index as u32 + 1;
+                    *index =
+                        PhaseItemExtraIndex::DynamicOffset(ui_batches.batches.len() as u32 - 1);
                 } else {
                     batch_image_handle = AssetId::invalid();
                 }
@@ -1664,8 +1673,6 @@ pub fn prepare_uinodes(
 
         ui_meta.vertices.write_buffer(&render_device, &render_queue);
         ui_meta.indices.write_buffer(&render_device, &render_queue);
-        *previous_len = batches.len();
-        commands.try_insert_batch(batches);
     }
     extracted_uinodes.clear();
 }

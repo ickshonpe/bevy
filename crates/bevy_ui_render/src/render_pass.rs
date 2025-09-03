@@ -2,7 +2,7 @@ use core::ops::Range;
 
 use super::{ImageNodeBindGroups, UiBatch, UiMeta, UiViewTarget};
 
-use crate::UiCameraView;
+use crate::{UiBatches, UiCameraView};
 use bevy_ecs::{
     prelude::*,
     system::{lifetimeless::*, SystemParamItem},
@@ -215,45 +215,57 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetUiViewBindGroup<I> {
 }
 pub struct SetUiTextureBindGroup<const I: usize>;
 impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetUiTextureBindGroup<I> {
-    type Param = SRes<ImageNodeBindGroups>;
+    type Param = (SRes<ImageNodeBindGroups>, SRes<UiBatches>);
     type ViewQuery = ();
-    type ItemQuery = Read<UiBatch>;
+    type ItemQuery = ();
 
     #[inline]
     fn render<'w>(
-        _item: &P,
+        item: &P,
         _view: (),
-        batch: Option<&'w UiBatch>,
-        image_bind_groups: SystemParamItem<'w, '_, Self::Param>,
+        _ent: Option<()>,
+        (image_bind_groups, batches): SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
         let image_bind_groups = image_bind_groups.into_inner();
-        let Some(batch) = batch else {
+        // let Some(batch) = batch else {
+        //     return RenderCommandResult::Skip;
+        // };
+        let PhaseItemExtraIndex::DynamicOffset(e) = item.extra_index() else {
             return RenderCommandResult::Skip;
         };
 
-        pass.set_bind_group(I, image_bind_groups.values.get(&batch.image).unwrap(), &[]);
+        pass.set_bind_group(
+            I,
+            image_bind_groups
+                .values
+                .get(&batches.batches[e as usize].image)
+                .unwrap(),
+            &[],
+        );
         RenderCommandResult::Success
     }
 }
 
 pub struct DrawUiNode;
 impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
-    type Param = SRes<UiMeta>;
+    type Param = (SRes<UiMeta>, SRes<UiBatches>);
     type ViewQuery = ();
-    type ItemQuery = Read<UiBatch>;
+    type ItemQuery = ();
 
     #[inline]
     fn render<'w>(
-        _item: &P,
+        item: &P,
         _view: (),
-        batch: Option<&'w UiBatch>,
-        ui_meta: SystemParamItem<'w, '_, Self::Param>,
+        _batch: Option<()>,
+        param: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
-        let Some(batch) = batch else {
+        let PhaseItemExtraIndex::DynamicOffset(e) = item.extra_index() else {
             return RenderCommandResult::Skip;
         };
+
+        let (ui_meta, batches) = param;
         let ui_meta = ui_meta.into_inner();
         let Some(vertices) = ui_meta.vertices.buffer() else {
             return RenderCommandResult::Failure("missing vertices to draw ui");
@@ -271,7 +283,7 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
             bevy_render::render_resource::IndexFormat::Uint32,
         );
         // Draw the vertices
-        pass.draw_indexed(batch.range.clone(), 0, 0..1);
+        pass.draw_indexed(batches.batches[e as usize].range.clone(), 0, 0..1);
         RenderCommandResult::Success
     }
 }
