@@ -1,6 +1,6 @@
 use core::ops::Range;
 
-use super::{ImageNodeBindGroups, UiBatch, UiMeta, UiViewTarget};
+use super::{ImageNodeBindGroups, UiMeta, UiViewTarget};
 
 use crate::{UiBatches, UiCameraView};
 use bevy_ecs::{
@@ -231,18 +231,12 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetUiTextureBindGroup<I>
         // let Some(batch) = batch else {
         //     return RenderCommandResult::Skip;
         // };
-        let PhaseItemExtraIndex::DynamicOffset(e) = item.extra_index() else {
+
+        let Some(batch) = batches.batches.get(&(item.entity(), item.main_entity())) else {
             return RenderCommandResult::Skip;
         };
 
-        pass.set_bind_group(
-            I,
-            image_bind_groups
-                .values
-                .get(&batches.batches[e as usize].image)
-                .unwrap(),
-            &[],
-        );
+        pass.set_bind_group(I, image_bind_groups.values.get(&batch.image).unwrap(), &[]);
         RenderCommandResult::Success
     }
 }
@@ -261,10 +255,6 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
         param: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
-        let PhaseItemExtraIndex::DynamicOffset(e) = item.extra_index() else {
-            return RenderCommandResult::Skip;
-        };
-
         let (ui_meta, batches) = param;
         let ui_meta = ui_meta.into_inner();
         let Some(vertices) = ui_meta.vertices.buffer() else {
@@ -272,6 +262,10 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
         };
         let Some(indices) = ui_meta.indices.buffer() else {
             return RenderCommandResult::Failure("missing indices to draw ui");
+        };
+
+        let Some(batch) = batches.batches.get(&(item.entity(), item.main_entity())) else {
+            return RenderCommandResult::Skip;
         };
 
         // Store the vertices
@@ -283,7 +277,7 @@ impl<P: PhaseItem> RenderCommand<P> for DrawUiNode {
             bevy_render::render_resource::IndexFormat::Uint32,
         );
         // Draw the vertices
-        pass.draw_indexed(batches.batches[e as usize].range.clone(), 0, 0..1);
+        pass.draw_indexed(batch.range.clone(), 0, 0..1);
         RenderCommandResult::Success
     }
 }

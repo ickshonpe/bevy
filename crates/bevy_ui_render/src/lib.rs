@@ -1192,7 +1192,7 @@ pub(crate) const QUAD_INDICES: [usize; 6] = [0, 2, 3, 0, 1, 2];
 
 #[derive(Resource, Default)]
 pub struct UiBatches {
-    pub batches: Vec<UiBatch>,
+    pub batches: HashMap<(Entity, MainEntity), UiBatch>,
 }
 
 pub struct UiBatch {
@@ -1311,6 +1311,8 @@ pub fn prepare_uinodes(
         };
     }
 
+    let mut existing_batch = None;
+
     if let Some(view_binding) = view_uniforms.uniforms.binding() {
         ui_meta.vertices.clear();
         ui_meta.indices.clear();
@@ -1335,8 +1337,6 @@ pub fn prepare_uinodes(
                     .get(item.index)
                     .filter(|n| item.entity() == n.render_entity)
                 {
-                    let mut existing_batch = ui_batches.batches.last_mut();
-
                     if batch_image_handle == AssetId::invalid()
                         || existing_batch.is_none()
                         || (batch_image_handle != AssetId::default()
@@ -1352,7 +1352,20 @@ pub fn prepare_uinodes(
                                 image: extracted_uinode.image,
                             };
 
-                            ui_batches.batches.push(new_batch);
+                            // ui_batches
+                            //     .batches
+                            //     .insert((item.entity(), item.main_entity()), new_batch);
+
+                            let key = (item.entity(), item.main_entity());
+                            existing_batch = Some(match ui_batches.batches.entry(key) {
+                                bevy_platform::collections::hash_map::Entry::Occupied(mut occ) => {
+                                    *occ.get_mut() = new_batch; // replace in place
+                                    occ.into_mut() // &'_ mut V to the stored value
+                                }
+                                bevy_platform::collections::hash_map::Entry::Vacant(vac) => {
+                                    vac.insert(new_batch)
+                                } // &'_ mut V
+                            });
 
                             image_bind_groups
                                 .values
@@ -1367,15 +1380,13 @@ pub fn prepare_uinodes(
                                         )),
                                     )
                                 });
-
-                            existing_batch = ui_batches.batches.last_mut();
                         } else {
                             continue;
                         }
                     } else if batch_image_handle == AssetId::default()
                         && extracted_uinode.image != AssetId::default()
                     {
-                        if let Some(ref mut existing_batch) = existing_batch
+                        if let Some(existing_batch) = existing_batch.as_mut()
                             && let Some(gpu_image) = gpu_images.get(extracted_uinode.image)
                         {
                             batch_image_handle = extracted_uinode.image;
@@ -1658,13 +1669,10 @@ pub fn prepare_uinodes(
                             }
                         }
                     }
-                    existing_batch.unwrap().range.end = vertices_index;
+                    existing_batch.as_mut().unwrap().range.end = vertices_index;
                     ui_phase.items[batch_item_index].batch_range_mut().end += 1;
-                    let (range, index) =
-                        ui_phase.items[item_index].batch_range_and_extra_index_mut();
-                    *range = item_index as u32..item_index as u32 + 1;
-                    *index =
-                        PhaseItemExtraIndex::DynamicOffset(ui_batches.batches.len() as u32 - 1);
+                    *ui_phase.items[item_index].batch_range_mut() =
+                        item_index as u32..item_index as u32 + 1;
                 } else {
                     batch_image_handle = AssetId::invalid();
                 }
