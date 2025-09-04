@@ -1664,8 +1664,6 @@ pub fn prepare_uinodes(
                     }
                     existing_batch.as_mut().unwrap().range.end = vertices_index;
                     ui_phase.items[batch_item_index].batch_range_mut().end += 1;
-                    *ui_phase.items[phase_item_index].batch_range_mut() =
-                        phase_item_index as u32..phase_item_index as u32 + 1;
                 } else {
                     batch_image_handle = AssetId::invalid();
                 }
