@@ -1,4 +1,4 @@
-//! basic bevy_2d text input
+//! basic bevy 2d text input
 use std::any::TypeId;
 
 use bevy::{
@@ -9,18 +9,18 @@ use bevy::{
     },
     input::keyboard::{Key, KeyboardInput},
     prelude::*,
-    sprite::{
-        Anchor, ExtractedSlice, ExtractedSlices, ExtractedSprite, ExtractedSpriteKind,
-        ExtractedSprites,
+    render::{sync_world::TemporaryRenderEntity, Extract, RenderApp},
+    sprite::Anchor,
+    sprite_render::{
+        ExtractedSlice, ExtractedSlices, ExtractedSprite, ExtractedSpriteKind, ExtractedSprites,
     },
     text::{
-        LineBreak, Motion, Placeholder, PlaceholderLayout, PositionedGlyph, TextBounds,
-        TextCursorBlinkInterval, TextEdit, TextEdits, TextInputAttributes, TextInputBuffer,
-        TextInputEvent, TextInputSystems, TextInputTarget, TextLayoutInfo, UndoHistory,
+        CursorBlink, LineBreak, Motion, Placeholder, PlaceholderLayout, PositionedGlyph,
+        TextBounds, TextCursorBlinkInterval, TextEdit, TextEdits, TextInputBuffer,
+        TextInputSystems, TextInputTarget, TextLayoutInfo,
     },
     window::PrimaryWindow,
 };
-use bevy_render::{sync_world::TemporaryRenderEntity, Extract, RenderApp};
 
 #[derive(Component)]
 struct TextInputSize(Vec2);
@@ -35,8 +35,10 @@ fn main() {
         .add_systems(Startup, setup)
         .add_systems(
             PostUpdate,
-            (update_text_input_attributes, update_inputs, update_targets).before(TextInputSystems),
-        );
+            (update_inputs, update_targets).before(TextInputSystems),
+        )
+        .add_event::<TextSubmission>()
+        .add_systems(Update, handle_submissions);
     app.sub_app_mut(RenderApp)
         .add_systems(ExtractSchedule, extract_text_input);
 
@@ -46,56 +48,38 @@ fn main() {
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);
 
-    let submit_target = commands
-        .spawn((
-            Text2d::new("submit with SHIFT + ENTER"),
-            Anchor::TOP_CENTER,
-            TextBounds {
-                width: Some(500.),
-                height: None,
-            },
-            TextLayout {
-                linebreak: LineBreak::AnyCharacter,
-                justify: Justify::Left,
-            },
-            Transform::from_translation(Vec3::new(0., -25., 0.)),
-        ))
-        .id();
+    commands.spawn((
+        Text2d::new("submit with SHIFT + ENTER"),
+        Anchor::TOP_CENTER,
+        TextBounds {
+            width: Some(500.),
+            height: None,
+        },
+        TextLayout {
+            linebreak: LineBreak::AnyCharacter,
+            justify: Justify::Left,
+        },
+        Transform::from_translation(Vec3::new(0., -25., 0.)),
+    ));
 
-    commands
-        .spawn((
-            TextInputBuffer {
-                cursor_blink_timer: Some(0.),
-                ..Default::default()
-            },
-            TextLayoutInfo::default(),
-            TextEdits::default(),
-            TextInputAttributes::default(),
-            TextInputTarget::default(),
-            Overwrite::default(),
-            TextFont::default(),
-            TextInputSize(Vec2::new(500., 250.)),
-            Transform::from_translation(Vec3::new(0., 150., 0.)),
-            UndoHistory::default(),
-            Placeholder::new("type here.."),
-            Visibility::default(),
-            VisibilityClass([TypeId::of::<Sprite>()].into()),
-            Anchor::CENTER,
-        ))
-        .observe(
-            move |event: On<TextInputEvent>, mut query: Query<&mut Text2d>| {
-                match event.event() {
-                    TextInputEvent::Submission { text } => {
-                        if let Ok(mut target) = query.get_mut(submit_target) {
-                            target.0 = text.clone();
-                        }
-                    }
-                    _ => {}
-                };
-            },
-        );
+    commands.spawn((
+        TextInputBuffer {
+            ..Default::default()
+        },
+        CursorBlink {
+            cursor_blink_timer: 0.,
+        },
+        Overwrite::default(),
+        TextInputSize(Vec2::new(500., 250.)),
+        Transform::from_translation(Vec3::new(0., 150., 0.)), // This is in UI coordinates
+        Placeholder::new("type here.."),
+        Visibility::default(),
+        VisibilityClass([TypeId::of::<Sprite>()].into()), // Text input is rendered as sprites
+        Anchor::CENTER,
+    ));
 }
 
+// Here we set the text rendering target's size to match based on the window's scale factor
 fn update_targets(
     mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
@@ -116,11 +100,7 @@ fn update_targets(
             size: size.0 * scale_factor,
             scale_factor,
         }) {
-            let x1 = (Anchor::TOP_LEFT.0.x - anchor.as_vec().x) * size.0.x;
-            let x2 = (Anchor::TOP_LEFT.0.x - anchor.as_vec().x + 1.) * size.0.x;
-            let y1 = (Anchor::TOP_LEFT.0.y - anchor.as_vec().y - 1.) * size.0.y;
-            let y2 = (Anchor::TOP_LEFT.0.y - anchor.as_vec().y) * size.0.y;
-            let new_aabb = Aabb::from_min_max(Vec3::new(x1, y1, 0.), Vec3::new(x2, y2, 0.));
+            let new_aabb = anchor.calculate_bounds(size.0);
 
             if let Some(mut aabb) = aabb {
                 *aabb = new_aabb;
@@ -131,28 +111,15 @@ fn update_targets(
     }
 }
 
-fn update_text_input_attributes(
-    mut text_input_node_query: Query<(&TextFont, &mut TextInputAttributes)>,
-) {
-    for (font, mut attributes) in text_input_node_query.iter_mut() {
-        attributes.set_if_neq(TextInputAttributes {
-            font: font.font.clone(),
-            font_size: font.font_size,
-            font_smoothing: font.font_smoothing,
-            justify: Justify::Left,
-            line_break: LineBreak::AnyCharacter,
-            line_height: font.line_height,
-            max_chars: None,
-            clear_on_submit: true,
-            visible_lines: None,
-        });
-    }
-}
+#[derive(BufferedEvent, Clone, Debug, Component)]
+struct TextSubmission;
 
+// This example demonstrates how to convert keyboard input to text edits that get resolved
 fn update_inputs(
     mut keyboard_events: EventReader<KeyboardInput>,
     mut query: Query<(&mut TextEdits, &mut Overwrite)>,
     keyboard_state: Res<ButtonInput<Key>>,
+    mut submit_events: EventWriter<TextSubmission>,
 ) {
     for key_input in keyboard_events.read() {
         if !key_input.state.is_pressed() {
@@ -173,29 +140,6 @@ fn update_inputs(
                         if let Some(char) = str.chars().next() {
                             // convert to lowercase so that the commands work with capslock on
                             match (char.to_ascii_lowercase(), is_shift_pressed) {
-                                ('c', false) => {
-                                    // copy
-                                    actions.queue(TextEdit::Copy);
-                                }
-                                ('x', false) => {
-                                    // cut
-                                    actions.queue(TextEdit::Cut);
-                                }
-                                ('v', false) => {
-                                    // paste
-                                    actions.queue(TextEdit::Paste);
-                                }
-                                ('z', false) => {
-                                    actions.queue(TextEdit::Undo);
-                                }
-                                #[cfg(target_os = "macos")]
-                                ('z', true) => {
-                                    actions.queue(TextEdit::Redo);
-                                }
-                                #[cfg(not(target_os = "macos"))]
-                                ('y', false) => {
-                                    actions.queue(TextEdit::Redo);
-                                }
                                 ('a', false) => {
                                     // select all
                                     actions.queue(TextEdit::SelectAll);
@@ -252,7 +196,7 @@ fn update_inputs(
                     }
                     Key::Enter => {
                         if is_shift_pressed {
-                            actions.queue(TextEdit::Submit);
+                            submit_events.write(TextSubmission);
                         } else {
                             actions.queue(TextEdit::NewLine);
                         }
@@ -261,11 +205,7 @@ fn update_inputs(
                         actions.queue(TextEdit::Backspace);
                     }
                     Key::Delete => {
-                        if is_shift_pressed {
-                            actions.queue(TextEdit::Cut);
-                        } else {
-                            actions.queue(TextEdit::Delete);
-                        }
+                        actions.queue(TextEdit::Delete);
                     }
                     Key::PageUp => {
                         actions.queue(TextEdit::motion(Motion::PageUp, is_shift_pressed));
@@ -311,6 +251,20 @@ fn update_inputs(
     }
 }
 
+fn handle_submissions(
+    mut submit_events: EventReader<TextSubmission>,
+    text_query: Single<&mut Text2d>,
+    buffer_query: Single<&TextInputBuffer>,
+) {
+    let mut text = text_query.into_inner();
+    let buffer = *buffer_query;
+
+    for _ in submit_events.read() {
+        text.0 = buffer.get_text().clone();
+    }
+}
+
+/// Each text fragment is extracted as a sprite for rendering
 fn extract_text_input(
     mut commands: Commands,
     mut extracted_sprites: ResMut<ExtractedSprites>,
@@ -323,6 +277,7 @@ fn extract_text_input(
             &TextInputBuffer,
             &TextLayoutInfo,
             Option<&PlaceholderLayout>,
+            Option<&CursorBlink>,
             &TextInputTarget,
             &Overwrite,
             &ViewVisibility,
@@ -339,6 +294,7 @@ fn extract_text_input(
         buffer,
         text_layout,
         maybe_placeholder_layout,
+        maybe_cursor_blink,
         target,
         overwrite,
         view_visibility,
@@ -380,9 +336,8 @@ fn extract_text_input(
             },
         });
 
-        let blink = buffer
-            .cursor_blink_timer
-            .is_none_or(|t| cursor_blink_interval.0.as_secs_f32() < t);
+        let blink = maybe_cursor_blink
+            .is_none_or(|t| cursor_blink_interval.0.as_secs_f32() < t.cursor_blink_timer);
 
         let transform = transform
             * GlobalTransform::from_translation(
