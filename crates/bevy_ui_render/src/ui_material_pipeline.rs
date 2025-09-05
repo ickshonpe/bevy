@@ -80,6 +80,7 @@ where
 #[derive(Resource)]
 pub struct UiMaterialMeta<M: UiMaterial> {
     vertices: RawBufferVec<UiMaterialVertex>,
+    indices: RawBufferVec<u32>,
     view_bind_group: Option<BindGroup>,
     marker: PhantomData<M>,
 }
@@ -88,6 +89,7 @@ impl<M: UiMaterial> Default for UiMaterialMeta<M> {
     fn default() -> Self {
         Self {
             vertices: RawBufferVec::new(BufferUsages::VERTEX),
+            indices: RawBufferVec::new(BufferUsages::INDEX),
             view_bind_group: Default::default(),
             marker: PhantomData,
         }
@@ -290,8 +292,17 @@ impl<P: PhaseItem, M: UiMaterial> RenderCommand<P> for DrawUiMaterialNode<M> {
             return RenderCommandResult::Skip;
         };
 
-        pass.set_vertex_buffer(0, ui_meta.into_inner().vertices.buffer().unwrap().slice(..));
-        pass.draw(batch.range.clone(), 0..1);
+        let ui_meta = ui_meta.into_inner();
+        let Some(vertices) = ui_meta.vertices.buffer() else {
+            return RenderCommandResult::Failure("missing vertices to draw ui material");
+        };
+        let Some(indices) = ui_meta.indices.buffer() else {
+            return RenderCommandResult::Failure("missing indices to draw ui material");
+        };
+
+        pass.set_vertex_buffer(0, vertices.slice(..));
+        pass.set_index_buffer(indices.slice(..), 0, IndexFormat::Uint32);
+        pass.draw_indexed(batch.range.clone(), 0, 0..1);
         RenderCommandResult::Success
     }
 }
@@ -398,13 +409,14 @@ pub fn prepare_uimaterial_nodes<M: UiMaterial>(
         let mut batches: Vec<(Entity, UiMaterialBatch<M>)> = Vec::with_capacity(*previous_len);
 
         ui_meta.vertices.clear();
+        ui_meta.indices.clear();
         ui_meta.view_bind_group = Some(render_device.create_bind_group(
             "ui_material_view_bind_group",
             &ui_material_pipeline.view_layout,
             &BindGroupEntries::sequential((view_binding, globals_binding)),
         ));
-        let mut index = 0;
-
+        let mut vertices_index = 0;
+        let mut indices_index = 0;
         for ui_phase in phases.values_mut() {
             let mut batch_item_index = 0;
             let mut batch_shader_handle = AssetId::invalid();
@@ -425,7 +437,7 @@ pub fn prepare_uimaterial_nodes<M: UiMaterial>(
                         batch_shader_handle = extracted_uinode.material;
 
                         let new_batch = UiMaterialBatch {
-                            range: index..index,
+                            range: vertices_index..vertices_index,
                             material: extracted_uinode.material,
                         };
 
@@ -512,7 +524,7 @@ pub fn prepare_uimaterial_nodes<M: UiMaterial>(
                     ]
                     .map(|pos| pos / uinode_rect.max);
 
-                    for i in QUAD_INDICES {
+                    for i in 0..4 {
                         ui_meta.vertices.push(UiMaterialVertex {
                             position: positions_clipped[i].into(),
                             uv: uvs[i].into(),
@@ -527,8 +539,13 @@ pub fn prepare_uimaterial_nodes<M: UiMaterial>(
                         });
                     }
 
-                    index += QUAD_INDICES.len() as u32;
-                    existing_batch.unwrap().1.range.end = index;
+                    for &i in &QUAD_INDICES {
+                        ui_meta.indices.push(indices_index + i as u32);
+                    }
+
+                    vertices_index += 6;
+                    indices_index += 4;
+                    existing_batch.unwrap().1.range.end = vertices_index;
                     ui_phase.items[batch_item_index].batch_range_mut().end += 1;
                 } else {
                     batch_shader_handle = AssetId::invalid();
@@ -536,6 +553,7 @@ pub fn prepare_uimaterial_nodes<M: UiMaterial>(
             }
         }
         ui_meta.vertices.write_buffer(&render_device, &render_queue);
+        ui_meta.indices.write_buffer(&render_device, &render_queue);
         *previous_len = batches.len();
         commands.try_insert_batch(batches);
     }
@@ -630,7 +648,7 @@ pub fn queue_ui_material_nodes<M: UiMaterial>(
             batch_range: 0..0,
             extra_index: PhaseItemExtraIndex::None,
             index,
-            indexed: false,
+            indexed: true,
         });
     }
 }
