@@ -2,7 +2,7 @@
 
 use crate::{
     experimental::{UiChildren, UiRootNodes},
-    ComputedNode, GlobalZIndex, ZIndex,
+    ComputedNode, ComputedUiTargetCamera, GlobalZIndex, ZIndex,
 };
 use bevy_ecs::prelude::*;
 use bevy_platform::collections::HashSet;
@@ -15,7 +15,7 @@ use core::ops::Range;
 #[derive(Debug, Resource, Default)]
 pub struct UiStack {
     /// Partition of the `uinodes` list into disjoint slices of nodes that all share the same camera target.
-    pub partition: Vec<Range<usize>>,
+    pub partition: Vec<(Entity, Range<usize>)>,
     /// List of UI nodes ordered from back-to-front
     pub uinodes: Vec<Entity>,
 }
@@ -42,12 +42,25 @@ impl ChildBufferCache {
 /// filtering branches by `Without<GlobalZIndex>`so that we don't revisit nodes.
 pub fn ui_stack_system(
     mut cache: Local<ChildBufferCache>,
-    mut root_nodes: Local<Vec<(Entity, (i32, i32))>>,
+    mut root_nodes: Local<Vec<(Entity, Entity, (i32, i32))>>,
     mut visited_root_nodes: Local<HashSet<Entity>>,
     mut ui_stack: ResMut<UiStack>,
     ui_root_nodes: UiRootNodes,
-    root_node_query: Query<(Entity, Option<&GlobalZIndex>, Option<&ZIndex>)>,
-    zindex_global_node_query: Query<(Entity, &GlobalZIndex, Option<&ZIndex>), With<ComputedNode>>,
+    root_node_query: Query<(
+        Entity,
+        &ComputedUiTargetCamera,
+        Option<&GlobalZIndex>,
+        Option<&ZIndex>,
+    )>,
+    zindex_global_node_query: Query<
+        (
+            Entity,
+            &ComputedUiTargetCamera,
+            &GlobalZIndex,
+            Option<&ZIndex>,
+        ),
+        With<ComputedNode>,
+    >,
     ui_children: UiChildren,
     zindex_query: Query<Option<&ZIndex>, (With<ComputedNode>, Without<GlobalZIndex>)>,
     mut update_query: Query<&mut ComputedNode>,
@@ -56,35 +69,53 @@ pub fn ui_stack_system(
     ui_stack.uinodes.clear();
     visited_root_nodes.clear();
 
-    for (id, maybe_global_zindex, maybe_zindex) in root_node_query.iter_many(ui_root_nodes.iter()) {
-        root_nodes.push((
-            id,
-            (
-                maybe_global_zindex.map(|zindex| zindex.0).unwrap_or(0),
-                maybe_zindex.map(|zindex| zindex.0).unwrap_or(0),
-            ),
-        ));
-        visited_root_nodes.insert(id);
+    for (id, camera, maybe_global_zindex, maybe_zindex) in
+        root_node_query.iter_many(ui_root_nodes.iter())
+    {
+        if let Some(camera) = camera.get() {
+            root_nodes.push((
+                id,
+                camera,
+                (
+                    maybe_global_zindex.map(|zindex| zindex.0).unwrap_or(0),
+                    maybe_zindex.map(|zindex| zindex.0).unwrap_or(0),
+                ),
+            ));
+            visited_root_nodes.insert(id);
+        }
     }
 
-    for (id, global_zindex, maybe_zindex) in zindex_global_node_query.iter() {
+    for (id, camera, global_zindex, maybe_zindex) in zindex_global_node_query.iter() {
         if visited_root_nodes.contains(&id) {
             continue;
         }
 
-        root_nodes.push((
-            id,
-            (
-                global_zindex.0,
-                maybe_zindex.map(|zindex| zindex.0).unwrap_or(0),
-            ),
-        ));
+        if let Some(camera) = camera.get() {
+            root_nodes.push((
+                id,
+                camera,
+                (
+                    global_zindex.0,
+                    maybe_zindex.map(|zindex| zindex.0).unwrap_or(0),
+                ),
+            ));
+        }
     }
 
-    root_nodes.sort_by_key(|(_, z)| *z);
+    root_nodes.sort_by_key(|(_, _, z)| *z);
+    root_nodes.sort_by_key(|(_, e, _)| *e);
+    let mut start = 0;
+    let Some(mut current_camera) = root_nodes.get(0).map(|root| root.1) else {
+        return;
+    };
+    for (root_entity, camera_entity, _) in root_nodes.drain(..) {
+        if current_camera != camera_entity {
+            let end = ui_stack.uinodes.len();
+            ui_stack.partition.push((current_camera, start..end));
+            start = end;
+            current_camera = camera_entity;
+        }
 
-    for (root_entity, _) in root_nodes.drain(..) {
-        let start = ui_stack.uinodes.len();
         update_uistack_recursive(
             &mut cache,
             root_entity,
@@ -92,8 +123,11 @@ pub fn ui_stack_system(
             &zindex_query,
             &mut ui_stack.uinodes,
         );
+    }
+
+    if start != ui_stack.uinodes.len() {
         let end = ui_stack.uinodes.len();
-        ui_stack.partition.push(start..end);
+        ui_stack.partition.push((current_camera, start..end));
     }
 
     for (i, entity) in ui_stack.uinodes.iter().enumerate() {
@@ -265,11 +299,11 @@ mod tests {
 
         // Test partitioning
         let last_part = ui_stack.partition.last().unwrap();
-        assert_eq!(last_part.len(), 1);
-        let last_entity = ui_stack.uinodes[last_part.start];
+        assert_eq!(last_part.1.len(), 1);
+        let last_entity = ui_stack.uinodes[last_part.1.start];
         assert_eq!(*query.get(&world, last_entity).unwrap(), Label("0"));
 
-        let actual_result = ui_stack.uinodes[ui_stack.partition[4].clone()]
+        let actual_result = ui_stack.uinodes[ui_stack.partition[4].1.clone()]
             .iter()
             .map(|entity| query.get(&world, *entity).unwrap().clone())
             .collect::<Vec<_>>();
@@ -335,7 +369,7 @@ mod tests {
 
         assert_eq!(ui_stack.partition.len(), expected_result.len());
         for (i, part) in ui_stack.partition.iter().enumerate() {
-            assert_eq!(*part, i..i + 1);
+            assert_eq!(part.1, i..i + 1);
         }
     }
 }

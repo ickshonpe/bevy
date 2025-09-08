@@ -223,7 +223,7 @@ pub fn ui_focus_system(
         .partition
         .iter()
         .rev()
-        .map(|range| &ui_stack.uinodes[range.clone()])
+        .map(|range| &ui_stack.uinodes[range.1.clone()])
     {
         // Retrieve the first node and resolve its camera target.
         // Only need to do this once per slice, as all the nodes in the slice share the same camera.

@@ -144,7 +144,9 @@ impl Plugin for UiPlugin {
                 PostUpdate,
                 (
                     CameraUpdateSystems,
-                    UiSystems::Prepare.after(AnimationSystems),
+                    UiSystems::Prepare
+                        .after(AnimationSystems)
+                        .before(UiSystems::Stack),
                     UiSystems::Propagate,
                     UiSystems::Content,
                     UiSystems::Layout,
