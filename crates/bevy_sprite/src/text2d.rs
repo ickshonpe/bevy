@@ -7,7 +7,6 @@ use bevy_camera::visibility::{
 use bevy_camera::Camera;
 use bevy_color::Color;
 use bevy_derive::{Deref, DerefMut};
-use bevy_ecs::change_detection::DetectChangesMut;
 use bevy_ecs::entity::EntityHashSet;
 use bevy_ecs::{
     change_detection::{DetectChanges, Ref},
@@ -21,8 +20,8 @@ use bevy_image::prelude::*;
 use bevy_math::{FloatOrd, Vec2, Vec3};
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_text::{
-    ComputedFont, ComputedTextBlock, CosmicFontSystem, Font, FontAtlasKey, FontAtlasSet, LineBreak,
-    SwashCache, TextBounds, TextColor, TextError, TextFont, TextLayout, TextLayoutInfo,
+    ComputedTextBlock, ComputedTextFonts, CosmicFontSystem, Font, FontAtlasKey, FontAtlasSet,
+    LineBreak, SwashCache, TextBounds, TextColor, TextError, TextFont, TextLayout, TextLayoutInfo,
     TextPipeline, TextReader, TextRoot, TextSpanAccess, TextWriter,
 };
 use bevy_transform::components::Transform;
@@ -88,7 +87,7 @@ use core::any::TypeId;
     Anchor,
     Visibility,
     VisibilityClass,
-    ComputedFont,
+    ComputedTextFonts,
     Transform
 )]
 #[component(on_add = visibility::add_visibility_class::<Sprite>)]
@@ -176,8 +175,8 @@ pub fn update_text2d_layout(
         Ref<TextBounds>,
         &mut TextLayoutInfo,
         &mut ComputedTextBlock,
+        &mut ComputedTextFonts,
     )>,
-    mut computed_font_query: Query<&mut ComputedFont>,
     mut text_reader: Text2dReader,
     mut font_system: ResMut<CosmicFontSystem>,
     mut swash_cache: ResMut<SwashCache>,
@@ -199,8 +198,15 @@ pub fn update_text2d_layout(
     let mut previous_scale_factor = 0.;
     let mut previous_mask = &RenderLayers::none();
 
-    for (entity, maybe_entity_mask, block, bounds, text_layout_info, mut computed) in
-        &mut text_query
+    for (
+        entity,
+        maybe_entity_mask,
+        block,
+        bounds,
+        text_layout_info,
+        mut computed,
+        mut computed_fonts,
+    ) in &mut text_query
     {
         let entity_mask = maybe_entity_mask.unwrap_or_default();
 
@@ -235,6 +241,7 @@ pub fn update_text2d_layout(
                 height: bounds.height.map(|height| height * scale_factor),
             };
 
+            computed_fonts.0.clear();
             let text_layout_info = text_layout_info.into_inner();
             match text_pipeline.queue_text(
                 text_layout_info,
@@ -262,16 +269,15 @@ pub fn update_text2d_layout(
                     text_layout_info.scale_factor = scale_factor;
                     text_layout_info.size *= scale_factor.recip();
 
-                    for (section_entity, _, _, font, _) in text_reader.iter(entity) {
-                        if let Ok(mut computed_font) = computed_font_query.get_mut(section_entity) {
-                            let key = FontAtlasKey(
+                    computed_fonts
+                        .0
+                        .extend(text_reader.iter(entity).map(|(_, _, _, font, _)| {
+                            FontAtlasKey(
                                 font.font.id(),
                                 (scale_factor * font.font_size).to_bits(),
                                 font.font_smoothing,
-                            );
-                            computed_font.set_if_neq(ComputedFont(Some(key)));
-                        }
-                    }
+                            )
+                        }));
                 }
             }
         }

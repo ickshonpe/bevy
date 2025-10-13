@@ -8,6 +8,7 @@ use bevy_ecs::{
     system::{Local, Query, ResMut},
 };
 use bevy_platform::collections::{HashMap, HashSet};
+use smallvec::SmallVec;
 
 /// Identifies the font atlases for a particular font in [`FontAtlasSet`]
 ///
@@ -59,9 +60,9 @@ impl Default for MaxFontAtlasSets {
     }
 }
 
-#[derive(Component, PartialEq, Default)]
+#[derive(Component, Default)]
 /// Computed font derived from `TextFont` and the scale factor of the render target.
-pub struct ComputedFont(pub Option<FontAtlasKey>);
+pub struct ComputedTextFonts(pub SmallVec<[FontAtlasKey; 1]>);
 
 /// Automatically frees unused fonts when the total number of fonts
 /// is greater than the [`MaxFonts`] value. Doesn't free in use fonts
@@ -74,13 +75,13 @@ pub fn free_unused_font_atlases(
     mut active_fonts: Local<HashSet<FontAtlasKey>>,
     mut font_atlas_set: ResMut<FontAtlasSet>,
     max_fonts: ResMut<MaxFontAtlasSets>,
-    active_font_query: Query<&ComputedFont>,
+    active_fonts_query: Query<&ComputedTextFonts>,
 ) {
     // collect keys for all fonts currently in use by a text entity
     active_fonts.extend(
-        active_font_query
+        active_fonts_query
             .iter()
-            .filter_map(|computed_font| computed_font.0),
+            .flat_map(|computed_fonts| computed_fonts.0.iter()),
     );
 
     // remove any keys for fonts in use from the least recently used list
