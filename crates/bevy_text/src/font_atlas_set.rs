@@ -52,9 +52,9 @@ pub fn free_unused_font_atlases_system(
 
 #[derive(Resource)]
 /// Maximum number of font atlas sets.
-pub struct MaxFontAtlasSets(pub usize);
+pub struct MaxUnusedFontAtlasSets(pub usize);
 
-impl Default for MaxFontAtlasSets {
+impl Default for MaxUnusedFontAtlasSets {
     fn default() -> Self {
         Self(20)
     }
@@ -67,14 +67,14 @@ pub struct ComputedTextFonts(pub SmallVec<[FontAtlasKey; 1]>);
 /// Automatically frees unused fonts when the total number of fonts
 /// is greater than the [`MaxFonts`] value. Doesn't free in use fonts
 /// even if the number of in use fonts is greater than [`MaxFonts`].
-pub fn free_unused_font_atlases(
+pub fn free_unused_font_atlases_computed_system(
     // list of unused fonts in order from least to most recently used
     mut least_recently_used: Local<Vec<FontAtlasKey>>,
     // fonts that were in use the previous frame
     mut previous_active_fonts: Local<HashSet<FontAtlasKey>>,
     mut active_fonts: Local<HashSet<FontAtlasKey>>,
     mut font_atlas_set: ResMut<FontAtlasSet>,
-    max_fonts: ResMut<MaxFontAtlasSets>,
+    max_fonts: ResMut<MaxUnusedFontAtlasSets>,
     active_fonts_query: Query<&ComputedTextFonts>,
 ) {
     // collect keys for all fonts currently in use by a text entity
@@ -107,4 +107,78 @@ pub fn free_unused_font_atlases(
 
     previous_active_fonts.clear();
     core::mem::swap(&mut *previous_active_fonts, &mut *active_fonts);
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::free_unused_font_atlases_computed_system;
+    use crate::ComputedTextFonts;
+    use crate::FontAtlasKey;
+    use crate::FontAtlasSet;
+    use crate::MaxUnusedFontAtlasSets;
+    use bevy_app::App;
+    use bevy_app::Update;
+    use bevy_asset::AssetId;
+    use smallvec::smallvec;
+
+    #[test]
+    fn text_free_unused_font_atlases_computed_system() {
+        let mut app = App::new();
+
+        app.init_resource::<MaxUnusedFontAtlasSets>();
+        app.init_resource::<FontAtlasSet>();
+
+        app.add_systems(Update, free_unused_font_atlases_computed_system);
+
+        let world = app.world_mut();
+
+        let mut font_atlases = world.resource_mut::<FontAtlasSet>();
+
+        let font_atlas_key_1 =
+            FontAtlasKey(AssetId::default(), 10, crate::FontSmoothing::AntiAliased);
+        let font_atlas_key_2 = FontAtlasKey(AssetId::default(), 10, crate::FontSmoothing::None);
+
+        font_atlases.insert(font_atlas_key_1, vec![]);
+        font_atlases.insert(font_atlas_key_2, vec![]);
+
+        let e = world
+            .spawn(ComputedTextFonts(smallvec![font_atlas_key_1]))
+            .id();
+        let f = world
+            .spawn(ComputedTextFonts(smallvec![font_atlas_key_2]))
+            .id();
+
+        app.update();
+
+        let world = app.world_mut();
+        let font_atlases = world.resource_mut::<FontAtlasSet>();
+        assert_eq!(font_atlases.len(), 2);
+
+        world.despawn(f);
+
+        app.update();
+
+        let world = app.world_mut();
+        let font_atlases = world.resource_mut::<FontAtlasSet>();
+        assert_eq!(font_atlases.len(), 2);
+
+        world.resource_mut::<MaxUnusedFontAtlasSets>().0 = 1;
+
+        app.update();
+
+        let world = app.world_mut();
+        let font_atlases = world.resource_mut::<FontAtlasSet>();
+        assert_eq!(font_atlases.len(), 1);
+        assert!(font_atlases.contains_key(&font_atlas_key_1));
+        assert!(!font_atlases.contains_key(&font_atlas_key_2));
+
+        world.despawn(e);
+        world.resource_mut::<MaxUnusedFontAtlasSets>().0 = 0;
+
+        app.update();
+
+        let world = app.world_mut();
+        let font_atlases = world.resource_mut::<FontAtlasSet>();
+        assert_eq!(font_atlases.len(), 0);
+    }
 }
