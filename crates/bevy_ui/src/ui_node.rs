@@ -1303,6 +1303,8 @@ pub enum PositionType {
     Relative,
     /// Independent of all other nodes, but relative to its parent node.
     Absolute,
+    /// Sticky on scroll
+    Sticky,
 }
 
 impl PositionType {

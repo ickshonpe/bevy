@@ -83,11 +83,14 @@ pub fn from_node(node: &Node, context: &LayoutContext, ignore_border: bool) -> t
         justify_self: node.justify_self.into(),
         align_content: node.align_content.into(),
         justify_content: node.justify_content.into(),
-        inset: taffy::Rect {
-            left: node.left.into_length_percentage_auto(context),
-            right: node.right.into_length_percentage_auto(context),
-            top: node.top.into_length_percentage_auto(context),
-            bottom: node.bottom.into_length_percentage_auto(context),
+        inset: match node.position_type {
+            PositionType::Sticky => taffy::Rect::auto(),
+            _ => taffy::Rect {
+                left: node.left.into_length_percentage_auto(context),
+                right: node.right.into_length_percentage_auto(context),
+                top: node.top.into_length_percentage_auto(context),
+                bottom: node.bottom.into_length_percentage_auto(context),
+            },
         },
         margin: node
             .margin
@@ -284,7 +287,7 @@ impl From<FlexDirection> for taffy::style::FlexDirection {
 impl From<PositionType> for taffy::style::Position {
     fn from(value: PositionType) -> Self {
         match value {
-            PositionType::Relative => taffy::style::Position::Relative,
+            PositionType::Relative | PositionType::Sticky => taffy::style::Position::Relative,
             PositionType::Absolute => taffy::style::Position::Absolute,
         }
     }

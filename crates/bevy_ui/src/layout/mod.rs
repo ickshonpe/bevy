@@ -2,7 +2,7 @@ use crate::{
     experimental::{UiChildren, UiRootNodes},
     ui_transform::{UiGlobalTransform, UiTransform},
     BorderRadius, ComputedNode, ComputedUiRenderTargetInfo, ContentSize, Display, LayoutConfig,
-    Node, Outline, OverflowAxis, ScrollPosition,
+    Node, Outline, OverflowAxis, PositionType, ScrollPosition,
 };
 use bevy_ecs::{
     change_detection::{DetectChanges, DetectChangesMut},
@@ -244,6 +244,58 @@ pub fn ui_layout_system(
                 node.unrounded_size = unrounded_size;
                 node.inverse_scale_factor = inverse_target_scale_factor;
             }
+
+            fn resolve_scroll(
+                min: Option<f32>,
+                max: Option<f32>,
+                scroll_pos: f32,
+                size: f32,
+            ) -> f32 {
+                match (min, max) {
+                    (None, None) => scroll_pos,
+                    (Some(min), None) => {
+                        println!("MIN only");
+                        println!("min = {}", min);
+                        println!("pos = {scroll_pos}");
+                        println!("size = {size}");
+                        let out = scroll_pos.max(min + 0.5 * size);
+                        println!("out = {out}");
+                        out
+                    }
+                    (None, Some(max)) => scroll_pos.min(max - 0.5 * size),
+                    (Some(min), Some(max)) => {
+                        scroll_pos.max(min + 0.5 * size).min(max - 0.5 * size)
+                    }
+                }
+            }
+
+            let local_center = if matches!(style.position_type, PositionType::Sticky) {
+                println!("ps = {}", parent_scroll_position.x);
+                println!("sp = {:?}", maybe_scroll_position);
+                let scale_factor = inverse_target_scale_factor.recip();
+                let left = style
+                    .left
+                    .resolve(scale_factor, layout.size.width, target_size)
+                    .ok();
+                let right = style
+                    .right
+                    .resolve(scale_factor, layout.size.width, target_size)
+                    .ok();
+                let top = style
+                    .top
+                    .resolve(scale_factor, layout.size.height, target_size)
+                    .ok();
+                let bottom = style
+                    .bottom
+                    .resolve(scale_factor, layout.size.height, target_size)
+                    .ok();
+                Vec2::new(
+                    resolve_scroll(left, right, local_center.x, node.size.x),
+                    resolve_scroll(top, bottom, local_center.y, node.size.y),
+                )
+            } else {
+                local_center
+            };
 
             let content_size = Vec2::new(layout.content_size.width, layout.content_size.height);
             node.bypass_change_detection().content_size = content_size;

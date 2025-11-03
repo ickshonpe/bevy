@@ -3,6 +3,7 @@
 use accesskit::{Node as Accessible, Role};
 use bevy::{
     a11y::AccessibilityNode,
+    color::palettes::css::MAROON,
     ecs::spawn::SpawnIter,
     input::mouse::{MouseScrollUnit, MouseWheel},
     picking::hover::HoverMap,
@@ -277,30 +278,43 @@ fn bidirectional_scrolling_list(font_handle: Handle<Font>) -> impl Bundle {
                     align_self: AlignSelf::Stretch,
                     height: percent(50),
                     overflow: Overflow::scroll(), // n.b.
+
                     ..default()
                 },
                 BackgroundColor(Color::srgb(0.10, 0.10, 0.10)),
-                Children::spawn(SpawnIter((0..25).map(move |oi| {
-                    (
-                        Node {
-                            flex_direction: FlexDirection::Row,
-                            ..default()
-                        },
-                        Children::spawn(SpawnIter((0..10).map({
-                            let value = font_handle.clone();
-                            move |i| {
+                // Children::spawn(SpawnIter((0..25).map(move |oi| {
+                //     (
+                //         Node {
+                //             flex_direction: FlexDirection::Row,
+                //             ..default()
+                //         },
+                Children::spawn(SpawnIter((0..50).map({
+                    let value = font_handle.clone();
+                    move |i| {
+                        (
+                            if i == 0 {
                                 (
-                                    Text(format!("Item {}", (oi * 10) + i)),
-                                    TextFont {
-                                        font: value.clone(),
-                                        ..default()
+                                    Node {
+                                        position_type: PositionType::Sticky,
+                                        top: Val::Px(100.),
+                                        //bottom: Val::Px(0.),
+                                        ..Default::default()
                                     },
-                                    Label,
-                                    AccessibilityNode(Accessible::new(Role::ListItem)),
+                                    BackgroundColor(MAROON.into()),
+                                    ZIndex(1),
                                 )
-                            }
-                        }))),
-                    )
+                            } else {
+                                (Node::default(), BackgroundColor::default(), ZIndex(0))
+                            },
+                            Text(format!("Item {}", i)),
+                            TextFont {
+                                font: value.clone(),
+                                ..default()
+                            },
+                            Label,
+                            AccessibilityNode(Accessible::new(Role::ListItem)),
+                        )
+                    }
                 })))
             )
         ],
