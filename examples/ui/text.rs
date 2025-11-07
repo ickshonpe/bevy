@@ -2,208 +2,133 @@
 //!
 //! It displays the current FPS in the top left corner, as well as text that changes color
 //! in the bottom right. For text within a scene, please see the text2d example.
-
-use bevy::{
-    color::palettes::css::GOLD,
-    diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
-    prelude::*,
-    text::{FontFeatureTag, FontFeatures, Underline},
-};
+use bevy::color::palettes::tailwind::RED_500;
+use bevy::prelude::*;
+use bevy::text::LineHeight;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, FrameTimeDiagnosticsPlugin::default()))
+        .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
-        .add_systems(Update, (text_update_system, text_color_system))
+        .add_systems(Update, handle_user_input)
         .run();
 }
 
-// Marker struct to help identify the FPS UI component, since there may be many Text components
 #[derive(Component)]
-struct FpsText;
+struct RootNode;
 
-// Marker struct to help identify the color-changing Text component
 #[derive(Component)]
-struct AnimatedText;
+struct DescriptionText;
+
+#[derive(Resource)]
+struct OverflowSettings(OverflowAxis);
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // UI camera
+    // Camera
     commands.spawn(Camera2d);
-    // Text with one section
-    commands.spawn((
-        // Accepts a `String` or any type that converts into a `String`, such as `&str`
-        Text::new("hello\nbevy!"),
-        Underline,
-        TextFont {
-            // This font is loaded and will be used instead of the default font.
-            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-            font_size: 67.0,
-            ..default()
-        },
-        TextShadow::default(),
-        // Set the justification of the Text
-        TextLayout::new_with_justify(Justify::Center),
-        // Set the style of the Node itself.
-        Node {
-            position_type: PositionType::Absolute,
-            bottom: px(5),
-            right: px(5),
-            ..default()
-        },
-        AnimatedText,
-    ));
 
-    // Text with multiple sections
+    let overflow_settings = OverflowSettings(OverflowAxis::Clip);
+
     commands
         .spawn((
-            // Create a Text with multiple child spans.
-            Text::new("FPS: "),
-            TextFont {
-                // This font is loaded and will be used instead of the default font.
-                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                font_size: 42.0,
-                ..default()
-            },
-        ))
-        .with_child((
-            TextSpan::default(),
-            if cfg!(feature = "default_font") {
-                (
-                    TextFont {
-                        font_size: 33.0,
-                        // If no font is specified, the default font (a minimal subset of FiraMono) will be used.
-                        ..default()
-                    },
-                    TextColor(GOLD.into()),
-                )
-            } else {
-                (
-                    // "default_font" feature is unavailable, load a font to use instead.
-                    TextFont {
-                        font: asset_server.load("fonts/FiraMono-Medium.ttf"),
-                        font_size: 33.0,
-                        ..Default::default()
-                    },
-                    TextColor(GOLD.into()),
-                )
-            },
-            FpsText,
-        ));
-
-    // Text with OpenType features
-    let opentype_font_handle = asset_server.load("fonts/EBGaramond12-Regular.otf");
-    commands
-        .spawn((
+            RootNode,
             Node {
-                margin: UiRect::all(Val::Px(12.0)),
-                position_type: PositionType::Absolute,
-                top: Val::Px(5.0),
-                right: Val::Px(5.0),
+                left: Val::Px(100.0),
+                top: Val::Px(100.0),
+                width: Val::Px(200.0),
+                height: Val::Px(100.0),
+                overflow: Overflow::clip(),
                 ..default()
             },
-            Text::new("Opentype features:\n"),
-            TextFont {
-                font: opentype_font_handle.clone(),
-                font_size: 32.0,
-                ..default()
-            },
+            BackgroundColor(Color::srgb(0.8, 0.9, 0.6)),
         ))
         .with_children(|parent| {
-            let text_rows = [
-                ("Smallcaps: ", FontFeatureTag::SMALL_CAPS, "Hello World"),
-                (
-                    "Ligatures: ",
-                    FontFeatureTag::STANDARD_LIGATURES,
-                    "fi fl ff ffi ffl",
-                ),
-                ("Fractions: ", FontFeatureTag::FRACTIONS, "12/134"),
-                ("Superscript: ", FontFeatureTag::SUPERSCRIPT, "Up here!"),
-                ("Subscript: ", FontFeatureTag::SUBSCRIPT, "Down here!"),
-                (
-                    "Oldstyle figures: ",
-                    FontFeatureTag::OLDSTYLE_FIGURES,
-                    "1234567890",
-                ),
-                (
-                    "Lining figures: ",
-                    FontFeatureTag::LINING_FIGURES,
-                    "1234567890",
-                ),
-            ];
-
-            for (title, feature, text) in text_rows {
-                parent.spawn((
-                    TextSpan::new(title),
-                    TextFont {
-                        font: opentype_font_handle.clone(),
-                        font_size: 24.0,
-                        ..default()
-                    },
-                ));
-                parent.spawn((
-                    TextSpan::new(format!("{text}\n")),
-                    TextFont {
-                        font: opentype_font_handle.clone(),
-                        font_size: 24.0,
-                        font_features: FontFeatures::builder().enable(feature).build(),
-                        ..default()
-                    },
-                ));
-            }
+            parent.spawn((
+                // Text::new("Hello World"),
+                // TextFont::from_font_size(24.0),
+                // TextColor(Color::srgb(0.4, 0.4, 0.4)),
+                //ImageNode::new(asset_server.load("branding/icon.png")),
+                BackgroundColor(RED_500.into()),
+                Node {
+                    width: Val::Px(200.0),
+                    height: Val::Px(100.0),
+                    ..Default::default()
+                },
+            ));
         });
 
-    #[cfg(feature = "default_font")]
     commands.spawn((
-        // Here we are able to call the `From` method instead of creating a new `TextSection`.
-        // This will use the default font (a minimal subset of FiraMono) and apply the default styling.
-        Text::new("From an &str into a Text with the default font!"),
+        DescriptionText,
+        Text::new(description_node_text(&overflow_settings, 1.0)),
+        TextFont::from_font_size(16.0),
+        LineHeight::RelativeToFont(3.),
+        TextColor(Color::WHITE),
         Node {
             position_type: PositionType::Absolute,
-            bottom: px(5),
-            left: px(15),
+            right: Val::Px(16.0),
+            top: Val::Px(16.0),
             ..default()
         },
     ));
-
-    #[cfg(not(feature = "default_font"))]
-    commands.spawn((
-        Text::new("Default font disabled"),
-        TextFont {
-            font: asset_server.load("fonts/FiraMono-Medium.ttf"),
-            ..default()
-        },
-        Node {
-            position_type: PositionType::Absolute,
-            bottom: px(5),
-            left: px(15),
-            ..default()
-        },
-    ));
+    commands.insert_resource(overflow_settings);
 }
 
-fn text_color_system(time: Res<Time>, mut query: Query<&mut TextColor, With<AnimatedText>>) {
-    for mut text_color in &mut query {
-        let seconds = time.elapsed_secs();
-
-        // Update the color of the ColorText span.
-        text_color.0 = Color::srgb(
-            ops::sin(1.25 * seconds) / 2.0 + 0.5,
-            ops::sin(0.75 * seconds) / 2.0 + 0.5,
-            ops::sin(0.50 * seconds) / 2.0 + 0.5,
-        );
-    }
-}
-
-fn text_update_system(
-    diagnostics: Res<DiagnosticsStore>,
-    mut query: Query<&mut TextSpan, With<FpsText>>,
+fn handle_user_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    root_node_q: Single<(&mut UiTransform, &mut Node), With<RootNode>>,
+    // inner_node_q: Single<&mut Node, (With<InnerNode>, Without<RootNode>)>,
+    mut overflow_settings: ResMut<OverflowSettings>,
+    mut description_text_q: Single<(&mut Text, &mut LineHeight), With<DescriptionText>>,
 ) {
-    for mut span in &mut query {
-        if let Some(fps) = diagnostics.get(&FrameTimeDiagnosticsPlugin::FPS)
-            && let Some(value) = fps.smoothed()
-        {
-            // Update the value of the second section
-            **span = format!("{value:.2}");
-        }
+    let (mut root_node_transform, mut root_node) = root_node_q.into_inner();
+    // let mut inner_node = inner_node_q.into_inner();
+    let (mut _description_text, mut lh) = description_text_q.into_inner();
+
+    if keys.just_pressed(KeyCode::KeyA) {
+        root_node_transform.scale += Vec2::splat(0.125);
+        *lh = match *lh {
+            LineHeight::RelativeToFont(r) => LineHeight::RelativeToFont(r + 0.125),
+            LineHeight::Px(h) => LineHeight::Px(h),
+        };
+    }
+    if keys.just_pressed(KeyCode::KeyZ) {
+        root_node_transform.scale =
+            (root_node_transform.scale - Vec2::splat(0.125)).max(Vec2::splat(0.125));
+        *lh = match *lh {
+            LineHeight::RelativeToFont(r) => LineHeight::RelativeToFont((r - 0.125).max(0.125)),
+            LineHeight::Px(h) => LineHeight::Px(h),
+        };
+    }
+    if keys.just_pressed(KeyCode::KeyR) {
+        overflow_settings.0 = next_overflow_axis(overflow_settings.0);
+        root_node.overflow = Overflow {
+            x: overflow_settings.0,
+            y: overflow_settings.0,
+        };
+    }
+
+    // *description_text = Text::new(description_node_text(
+    //     &overflow_settings,
+    //     root_node_transform.scale.x,
+    // ));
+}
+
+fn description_node_text(overflow_settings: &OverflowSettings, scale: f32) -> String {
+    format!(
+        "Press A/Z to scale the root UI node.               \n\
+        R to change root node overflow.\n\
+        Current overflow: {:?}.\n\
+        Current Scale: {:.3}\n\
+        It gets really weird at 1.5x and above.",
+        overflow_settings.0, scale,
+    )
+}
+
+fn next_overflow_axis(current: OverflowAxis) -> OverflowAxis {
+    match current {
+        OverflowAxis::Clip => OverflowAxis::Hidden,
+        OverflowAxis::Hidden => OverflowAxis::Scroll,
+        OverflowAxis::Scroll => OverflowAxis::Visible,
+        OverflowAxis::Visible => OverflowAxis::Clip,
     }
 }
