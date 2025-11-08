@@ -2,9 +2,7 @@
 //!
 //! It displays the current FPS in the top left corner, as well as text that changes color
 //! in the bottom right. For text within a scene, please see the text2d example.
-use bevy::color::palettes::tailwind::RED_500;
 use bevy::prelude::*;
-use bevy::text::LineHeight;
 
 fn main() {
     App::new()
@@ -23,7 +21,7 @@ struct DescriptionText;
 #[derive(Resource)]
 struct OverflowSettings(OverflowAxis);
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(mut commands: Commands) {
     // Camera
     commands.spawn(Camera2d);
 
@@ -35,8 +33,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             Node {
                 left: Val::Px(100.0),
                 top: Val::Px(100.0),
-                width: Val::Px(200.0),
-                height: Val::Px(100.0),
+                width: Val::Px(100.0),
+                height: Val::Px(50.0),
                 overflow: Overflow::clip(),
                 ..default()
             },
@@ -44,16 +42,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ))
         .with_children(|parent| {
             parent.spawn((
-                // Text::new("Hello World"),
-                // TextFont::from_font_size(24.0),
-                // TextColor(Color::srgb(0.4, 0.4, 0.4)),
-                //ImageNode::new(asset_server.load("branding/icon.png")),
-                BackgroundColor(RED_500.into()),
-                Node {
-                    width: Val::Px(200.0),
-                    height: Val::Px(100.0),
-                    ..Default::default()
-                },
+                Text::new("Hello World"),
+                TextFont::from_font_size(12.0),
+                TextColor(Color::srgb(0.4, 0.4, 0.4)),
+                TextLayout::new_with_justify(Justify::Center),
             ));
         });
 
@@ -61,7 +53,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         DescriptionText,
         Text::new(description_node_text(&overflow_settings, 1.0)),
         TextFont::from_font_size(16.0),
-        LineHeight::RelativeToFont(3.),
         TextColor(Color::WHITE),
         Node {
             position_type: PositionType::Absolute,
@@ -78,26 +69,17 @@ fn handle_user_input(
     root_node_q: Single<(&mut UiTransform, &mut Node), With<RootNode>>,
     // inner_node_q: Single<&mut Node, (With<InnerNode>, Without<RootNode>)>,
     mut overflow_settings: ResMut<OverflowSettings>,
-    mut description_text_q: Single<(&mut Text, &mut LineHeight), With<DescriptionText>>,
+    mut description_text_q: Single<&mut Text, With<DescriptionText>>,
 ) {
     let (mut root_node_transform, mut root_node) = root_node_q.into_inner();
     // let mut inner_node = inner_node_q.into_inner();
-    let (mut _description_text, mut lh) = description_text_q.into_inner();
 
     if keys.just_pressed(KeyCode::KeyA) {
         root_node_transform.scale += Vec2::splat(0.125);
-        *lh = match *lh {
-            LineHeight::RelativeToFont(r) => LineHeight::RelativeToFont(r + 0.125),
-            LineHeight::Px(h) => LineHeight::Px(h),
-        };
     }
     if keys.just_pressed(KeyCode::KeyZ) {
         root_node_transform.scale =
             (root_node_transform.scale - Vec2::splat(0.125)).max(Vec2::splat(0.125));
-        *lh = match *lh {
-            LineHeight::RelativeToFont(r) => LineHeight::RelativeToFont((r - 0.125).max(0.125)),
-            LineHeight::Px(h) => LineHeight::Px(h),
-        };
     }
     if keys.just_pressed(KeyCode::KeyR) {
         overflow_settings.0 = next_overflow_axis(overflow_settings.0);
@@ -106,11 +88,11 @@ fn handle_user_input(
             y: overflow_settings.0,
         };
     }
-
-    // *description_text = Text::new(description_node_text(
-    //     &overflow_settings,
-    //     root_node_transform.scale.x,
-    // ));
+    let mut description_text = description_text_q.into_inner();
+    *description_text = Text::new(description_node_text(
+        &overflow_settings,
+        root_node_transform.scale.x,
+    ));
 }
 
 fn description_node_text(overflow_settings: &OverflowSettings, scale: f32) -> String {

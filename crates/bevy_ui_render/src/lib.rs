@@ -1594,6 +1594,11 @@ pub fn prepare_uinodes(
                         // Calculate the effect of clipping
                         // Note: this won't work with rotation/scaling, but that's much more complex (may need more that 2 quads)
                         let mut positions_diff = if let Some(clip) = extracted_uinode.clip {
+                            let scale = transform.to_scale_angle_translation().0;
+                            let center = clip.center();
+                            let hw = clip.half_size().x * scale.x;
+                            let hh = clip.half_size().y * scale.y;
+                            let clip = Rect::from_center_half_size(center, (hw, hh).into());
                             [
                                 Vec2::new(
                                     f32::max(clip.min.x - positions[0].x, 0.),
@@ -1738,6 +1743,12 @@ pub fn prepare_uinodes(
                             });
 
                             let positions_diff = if let Some(clip) = extracted_uinode.clip {
+                                let scale =
+                                    extracted_uinode.transform.to_scale_angle_translation().0;
+                                let center = clip.center();
+                                let hw = clip.half_size().x * scale.x;
+                                let hh = clip.half_size().y * scale.y;
+                                let clip = Rect::from_center_half_size(center, (hw, hh).into());
                                 [
                                     Vec2::new(
                                         f32::max(clip.min.x - positions[0].x, 0.),
