@@ -22,6 +22,7 @@ fn main() {
         .add_systems(OnEnter(Scene::LayoutRounding), layout_rounding::setup)
         .add_systems(OnEnter(Scene::LinearGradient), linear_gradient::setup)
         .add_systems(OnEnter(Scene::RadialGradient), radial_gradient::setup)
+        .add_systems(OnEnter(Scene::ScaledClipped), scaled_clipped::setup)
         .add_systems(Update, switch_scene);
 
     #[cfg(feature = "bevy_ci_testing")]
@@ -45,6 +46,7 @@ enum Scene {
     LayoutRounding,
     LinearGradient,
     RadialGradient,
+    ScaledClipped,
 }
 
 impl Next for Scene {
@@ -60,7 +62,8 @@ impl Next for Scene {
             Scene::Slice => Scene::LayoutRounding,
             Scene::LayoutRounding => Scene::LinearGradient,
             Scene::LinearGradient => Scene::RadialGradient,
-            Scene::RadialGradient => Scene::Image,
+            Scene::RadialGradient => Scene::ScaledClipped,
+            Scene::ScaledClipped => Scene::Text,
         }
     }
 }
@@ -880,5 +883,117 @@ mod radial_gradient {
                     }
                 }
             });
+    }
+}
+
+mod scaled_clipped {
+    use bevy::prelude::*;
+
+    pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+        // Camera
+        commands.spawn((Camera2d, DespawnOnExit(super::Scene::ScaledClipped)));
+
+        commands.spawn((
+            Node {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                ..default()
+            },
+            children![
+                (
+                    Node {
+                        left: Val::VMin(10.0),
+                        top: Val::VMin(10.0),
+                        max_width: Val::Px(200.0),
+                        max_height: Val::Px(200.0),
+                        overflow: Overflow::clip(),
+                        ..default()
+                    },
+                    //UiTransform::from_scale(Vec2::splat(1.5)),
+                    BackgroundColor(Color::srgb(0.8, 0.9, 0.6)),
+                    DespawnOnExit(super::Scene::ScaledClipped),
+                    // children![(
+                    //     Node {
+                    //         position_type: PositionType::Absolute,
+                    //         min_width: Val::Px(1000.0),
+                    //         ..default()
+                    //     },
+                    //     BackgroundColor(Color::srgba(1., 0., 0., 0.5)),
+                    //     Text::new("Hello World\nThis is a long line that will be clipped on the right\n\nList clipped below\none\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten"),
+                    //     TextFont::from_font_size(12.0),
+                    //     TextColor(Color::srgb(0.4, 0.4, 0.4)),
+                    // )],
+                ),
+                (
+                    Node {
+                        position_type: PositionType::Absolute,
+                        right: Val::VMin(50.0),
+                        bottom: Val::VMin(50.0),
+                        width: Val::Px(100.0),
+                        height: Val::Px(100.0),
+                        //overflow: Overflow::clip(),
+                        ..default()
+                    },
+                    UiTransform::from_scale(Vec2::splat(2.)),
+                    BackgroundColor(Color::srgb(0.8, 0.9, 0.6)),
+                    DespawnOnExit(super::Scene::ScaledClipped),
+                    children![(
+                        Node {
+                            position_type: PositionType::Absolute,
+                            // width: Val::Px(200.),
+                            // height: Val::Px(200.),
+                            ..default()
+                        },
+                        ImageNode::new(asset_server.load("branding/icon.png"))
+                    )],
+                ),
+                (
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: Val::VMin(10.0),
+                        bottom: Val::VMin(10.0),
+                        //width: Val::Px(100.0),
+                        max_width: Val::Px(50.),
+                        height: Val::Px(100.0),
+                        overflow: Overflow::clip(),
+                        ..default()
+                    },
+                    UiTransform::from_scale(Vec2::splat(2.)),
+                    BackgroundColor(Color::srgb(0.8, 0.9, 0.6)),
+                    DespawnOnExit(super::Scene::ScaledClipped),
+                    children![(
+                        Node {
+                            width: Val::Px(100.),
+                            height: Val::Px(100.),
+                            ..default()
+                        },
+                        ImageNode::new(asset_server.load("branding/icon.png"))
+                    )],
+                ),
+                (
+                    Node {
+                        position_type: PositionType::Absolute,
+                        right: Val::VMin(10.0),
+                        top: Val::VMin(10.0),
+                        //width: Val::Px(100.0),
+                        width: Val::Px(100.),
+                        max_height: Val::Px(50.0),
+                        overflow: Overflow::clip(),
+                        ..default()
+                    },
+                    UiTransform::from_scale(Vec2::splat(2.)),
+                    BackgroundColor(Color::srgb(0.8, 0.9, 0.6)),
+                    DespawnOnExit(super::Scene::ScaledClipped),
+                    children![(
+                        Node {
+                            width: Val::Px(100.),
+                            height: Val::Px(100.),
+                            ..default()
+                        },
+                        ImageNode::new(asset_server.load("branding/icon.png"))
+                    )],
+                ),
+            ],
+        ));
     }
 }
