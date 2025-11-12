@@ -43,7 +43,7 @@ fn setup(mut commands: Commands) {
         .with_children(|parent| {
             parent.spawn((
                 Text::new("Hello World"),
-                TextFont::from_font_size(12.0),
+                TextFont::from_font_size(50.0),
                 TextColor(Color::srgb(0.4, 0.4, 0.4)),
                 TextLayout::new_with_justify(Justify::Center),
             ));
