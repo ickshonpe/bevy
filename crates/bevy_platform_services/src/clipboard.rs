@@ -7,11 +7,6 @@ use bevy_ecs::resource::Resource;
 #[cfg(target_arch = "wasm32")]
 use {alloc::sync::Arc, bevy_platform::sync::Mutex, wasm_bindgen_futures::JsFuture};
 
-/// The clipboard prelude
-pub mod prelude {
-    pub use crate::{Clipboard, ClipboardRead};
-}
-
 /// Clipboard plugin
 #[derive(Default)]
 pub struct ClipboardPlugin;

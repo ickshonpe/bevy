@@ -1,9 +1,9 @@
 //! This example demonstrates accessing the clipboard to retrieve and display text.
 
 use bevy::{
-    clipboard::{Clipboard, ClipboardRead},
     color::palettes::css::{GREY, NAVY, RED},
     diagnostic::FrameTimeDiagnosticsPlugin,
+    platform_services::clipboard::{Clipboard, ClipboardRead},
     prelude::*,
 };
 

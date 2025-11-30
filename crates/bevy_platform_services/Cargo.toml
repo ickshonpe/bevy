@@ -1,5 +1,5 @@
 [package]
-name = "bevy_clipboard"
+name = "bevy_platform_services"
 version = "0.17.0-dev"
 edition = "2024"
 description = "Provides clipboard support for Bevy Engine"
@@ -7,6 +7,10 @@ homepage = "https://bevyengine.org"
 repository = "https://github.com/bevyengine/bevy"
 license = "MIT OR Apache-2.0"
 keywords = ["bevy", "clipboard"]
+
+[features]
+default = []
+clipboard = []
 
 [dependencies]
 # bevy
