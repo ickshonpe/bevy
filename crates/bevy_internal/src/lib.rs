@@ -27,8 +27,6 @@ pub use bevy_asset as asset;
 pub use bevy_audio as audio;
 #[cfg(feature = "bevy_camera")]
 pub use bevy_camera as camera;
-#[cfg(feature = "bevy_clipboard")]
-pub use bevy_clipboard as clipboard;
 #[cfg(feature = "bevy_color")]
 pub use bevy_color as color;
 #[cfg(feature = "bevy_core_pipeline")]
@@ -64,6 +62,8 @@ pub use bevy_pbr as pbr;
 #[cfg(feature = "bevy_picking")]
 pub use bevy_picking as picking;
 pub use bevy_platform as platform;
+#[cfg(feature = "bevy_platform_services")]
+pub use bevy_platform_services as platform_services;
 pub use bevy_ptr as ptr;
 pub use bevy_reflect as reflect;
 #[cfg(feature = "bevy_remote")]

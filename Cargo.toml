@@ -131,7 +131,6 @@ default = [
   "animation",
   "bevy_asset",
   "bevy_audio",
-  "bevy_clipboard",
   "bevy_color",
   "bevy_core_pipeline",
   "bevy_core_widgets",
@@ -308,11 +307,14 @@ bevy_log = ["bevy_internal/bevy_log"]
 # Enable input focus subsystem
 bevy_input_focus = ["bevy_internal/bevy_input_focus"]
 
-# Clipboard access
-bevy_clipboard = ["bevy_internal/bevy_clipboard"]
+# Platform agnostic features
+bevy_platform_services = ["bevy_internal/bevy_platform_services"]
 
 # Headless widget collection for Bevy UI.
 bevy_core_widgets = ["bevy_internal/bevy_core_widgets"]
+
+# Clipboard access
+clipboard = ["bevy_internal/clipboard"]
 
 # Feathers widget collection.
 experimental_bevy_feathers = ["bevy_internal/bevy_feathers"]

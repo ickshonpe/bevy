@@ -369,7 +369,8 @@ web = [
 ]
 
 # Clipboard support
-bevy_clipboard = ["dep:bevy_clipboard"]
+bevy_platform_services = ["dep:bevy_platform_services"]
+clipboard = ["bevy_platform_services/clipboard"]
 
 hotpatching = ["bevy_app/hotpatching", "bevy_ecs/hotpatching"]
 
@@ -460,7 +461,7 @@ bevy_window = { path = "../bevy_window", optional = true, version = "0.17.0-dev"
   "bevy_reflect",
 ] }
 bevy_winit = { path = "../bevy_winit", optional = true, version = "0.17.0-dev", default-features = false }
-bevy_clipboard = { path = "../bevy_clipboard", optional = true, version = "0.17.0-dev" }
+bevy_platform_services = { path = "../bevy_platform_services", optional = true, version = "0.17.0-dev" }
 
 [lints]
 workspace = true

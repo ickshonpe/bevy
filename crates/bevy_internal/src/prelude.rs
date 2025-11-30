@@ -88,5 +88,5 @@ pub use crate::gltf::prelude::*;
 pub use crate::picking::prelude::*;
 
 #[doc(hidden)]
-#[cfg(feature = "bevy_clipboard")]
-pub use crate::clipboard::prelude::*;
+#[cfg(feature = "bevy_platform_services")]
+pub use crate::platform_services::prelude::*;
