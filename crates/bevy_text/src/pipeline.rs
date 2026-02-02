@@ -6,7 +6,7 @@ use bevy_ecs::{
     system::ResMut,
 };
 use bevy_image::prelude::*;
-use bevy_log::{once, warn};
+use bevy_log::warn_once;
 use bevy_math::{Rect, UVec2, Vec2};
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 
@@ -157,7 +157,7 @@ impl TextPipeline {
         linebreak: LineBreak,
         justify: Justify,
         bounds: TextBounds,
-        scale_factor: f64,
+        scale_factor: f32,
         computed: &mut ComputedTextBlock,
         font_system: &mut CosmicFontSystem,
         hinting: FontHinting,
@@ -168,9 +168,7 @@ impl TextPipeline {
         computed.needs_rerender = false;
 
         if scale_factor <= 0.0 {
-            once!(warn!(
-                "Text scale factor is <= 0.0. No text will be displayed.",
-            ));
+            warn_once!("Text scale factor is <= 0.0. No text will be displayed.",);
 
             return Err(TextError::DegenerateScaleFactor);
         }
@@ -218,11 +216,22 @@ impl TextPipeline {
 
                 // Save spans that aren't zero-sized.
                 if font_size <= 0.0 {
-                    once!(warn!(
+                    warn_once!(
                         "Text span {entity} has a font size <= 0.0. Nothing will be displayed.",
-                    ));
+                    );
 
                     continue;
+                }
+
+                const WARN_FONT_SIZE: f32 = 1000.0;
+                if font_size > WARN_FONT_SIZE {
+                    warn_once!(
+                        "Text span {entity} has an excessively large font size ({} with scale factor {}). \
+                        Extremely large font sizes will cause performance issues with font atlas \
+                        generation and high memory usage.",
+                        font_size,
+                        scale_factor,
+                    );
                 }
 
                 let attrs = get_attrs(
@@ -289,7 +298,7 @@ impl TextPipeline {
         entity: Entity,
         fonts: &Assets<Font>,
         text_spans: impl Iterator<Item = (Entity, usize, &'a str, &'a TextFont, Color, LineHeight)>,
-        scale_factor: f64,
+        scale_factor: f32,
         layout: &TextLayout,
         computed: &mut ComputedTextBlock,
         font_system: &mut CosmicFontSystem,
@@ -599,21 +608,24 @@ fn get_attrs<'a>(
     font_size: f32,
     line_height: LineHeight,
     family: Family<'a>,
-    scale_factor: f64,
+    scale_factor: f32,
 ) -> Attrs<'a> {
+    let font_size = (font_size * scale_factor).round();
+    let line_height = match line_height {
+        LineHeight::Px(px) => px * scale_factor,
+        LineHeight::RelativeToFont(s) => s * font_size,
+    };
+
     Attrs::new()
         .metadata(span_index)
         .family(family)
         .stretch(text_font.width.into())
         .style(text_font.style.into())
         .weight(text_font.weight.into())
-        .metrics(
-            Metrics {
-                font_size,
-                line_height: line_height.eval(font_size),
-            }
-            .scale(scale_factor as f32),
-        )
+        .metrics(Metrics {
+            font_size,
+            line_height,
+        })
         .font_features((&text_font.font_features).into())
 }
 
