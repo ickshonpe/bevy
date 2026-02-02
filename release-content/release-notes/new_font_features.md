@@ -1,7 +1,7 @@
 ---
 title: "New Font features"
 authors: ["@ickshonpe"]
-pull_requests: [22156]
+pull_requests: [22156, 22614]
 ---
 
 `TextFont` has been expanded to include new fields:
