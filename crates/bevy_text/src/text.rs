@@ -107,6 +107,16 @@ impl ComputedTextBlock {
     pub fn buffer(&self) -> &CosmicBuffer {
         &self.buffer
     }
+
+    /// Returns true if the text should be reupdated on changes to the size of the viewport.
+    pub fn update_on_viewport_size_changed(&self) -> bool {
+        self.uses_viewport_sizes
+    }
+
+    /// Returns true if the text should be reupdated on changes to the rem size.
+    pub fn update_on_rem_size_changed(&self) -> bool {
+        self.uses_rem_sizes
+    }
 }
 
 impl Default for ComputedTextBlock {
