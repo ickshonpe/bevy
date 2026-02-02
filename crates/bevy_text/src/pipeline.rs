@@ -166,6 +166,8 @@ impl TextPipeline {
     ) -> Result<(), TextError> {
         computed.entities.clear();
         computed.needs_rerender = false;
+        computed.uses_rem_sizes = false;
+        computed.uses_viewport_sizes = false;
 
         if scale_factor <= 0.0 {
             warn_once!("Text scale factor is <= 0.0. No text will be displayed.",);
@@ -186,6 +188,15 @@ impl TextPipeline {
             for (span_index, (entity, depth, span, text_font, _color, line_height)) in
                 text_spans.enumerate()
             {
+                match text_font.font_size {
+                    crate::FontSize::Vw(_)
+                    | crate::FontSize::Vh(_)
+                    | crate::FontSize::VMin(_)
+                    | crate::FontSize::VMax(_) => computed.uses_viewport_sizes |= true,
+                    crate::FontSize::Rem(_) => computed.uses_rem_sizes |= true,
+                    _ => (),
+                };
+
                 // Save this span entity in the computed text block.
                 computed.entities.push(TextEntity {
                     entity,

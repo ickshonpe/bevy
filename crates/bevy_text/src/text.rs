@@ -69,6 +69,16 @@ pub struct ComputedTextBlock {
     // solution would probably require splitting TextLayout and TextFont into structural/non-structural
     // components for more granular change detection. A cost/benefit analysis is needed.
     pub(crate) needs_rerender: bool,
+    // Flag set by `TextPipeline::update_buffer` if any text section in the block has a viewport font size value.
+    //
+    // Used by dependents to determine if they should update a text block on changes to
+    // the viewport size.
+    pub(crate) uses_viewport_sizes: bool,
+    // Flag set by `TextPipeline::update_buffer` if any text section in the block has a rem font size value.
+    //
+    // Used by dependents to determine if they should update a text block on changes to
+    // the rem size.
+    pub(crate) uses_rem_sizes: bool,
 }
 
 impl ComputedTextBlock {
@@ -105,6 +115,8 @@ impl Default for ComputedTextBlock {
             buffer: CosmicBuffer::default(),
             entities: SmallVec::default(),
             needs_rerender: true,
+            uses_rem_sizes: false,
+            uses_viewport_sizes: false,
         }
     }
 }
