@@ -94,8 +94,14 @@ impl ComputedTextBlock {
     ///
     /// Updated automatically by [`detect_text_needs_rerender`] and cleared
     /// by [`TextPipeline`](crate::TextPipeline) methods.
-    pub fn needs_rerender(&self) -> bool {
+    pub fn needs_rerender(
+        &self,
+        is_viewport_size_changed: bool,
+        is_rem_size_changed: bool,
+    ) -> bool {
         self.needs_rerender
+            || (is_viewport_size_changed && self.uses_viewport_sizes)
+            || (is_rem_size_changed && self.uses_rem_sizes)
     }
     /// Accesses the underlying buffer which can be used for `cosmic-text` APIs such as accessing layout information
     /// or calculating a cursor position.
@@ -106,16 +112,6 @@ impl ComputedTextBlock {
     /// `TextLayoutInfo`.
     pub fn buffer(&self) -> &CosmicBuffer {
         &self.buffer
-    }
-
-    /// Returns true if the text should be reupdated on changes to the size of the viewport.
-    pub fn update_on_viewport_size_changed(&self) -> bool {
-        self.uses_viewport_sizes
-    }
-
-    /// Returns true if the text should be reupdated on changes to the rem size.
-    pub fn update_on_rem_size_changed(&self) -> bool {
-        self.uses_rem_sizes
     }
 }
 
