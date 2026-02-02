@@ -166,6 +166,7 @@ impl Default for Text2dShadow {
 /// [`ResMut<Assets<Image>>`](Assets<Image>) -- This system only adds new [`Image`] assets.
 /// It does not modify or observe existing ones.
 pub fn update_text2d_layout(
+    mut last_logical_viewport_size: Local<Vec2>,
     mut target_scale_factors: Local<Vec<(f32, RenderLayers)>>,
     // Text2d entities from the previous frame which need to be reprocessed, usually because the font hadn't loaded yet.
     mut reprocess_queue: Local<EntityHashSet>,
@@ -193,6 +194,10 @@ pub fn update_text2d_layout(
     let logical_viewport_size = primary_window
         .map(|window| window.resolution.size())
         .unwrap_or(Vec2::splat(1000.));
+
+    let viewport_size_changed = *last_logical_viewport_size == logical_viewport_size;
+
+    *last_logical_viewport_size = logical_viewport_size;
 
     target_scale_factors.clear();
     target_scale_factors.extend(
@@ -237,6 +242,8 @@ pub fn update_text2d_layout(
             || block.is_changed()
             || hinting.is_changed()
             || computed.needs_rerender()
+            || (viewport_size_changed && computed.update_on_viewport_size_changed())
+            || (rem_size.is_changed() && computed.update_on_rem_size_changed())
             || (!reprocess_queue.is_empty() && reprocess_queue.remove(&entity));
 
         if !(text_changed || bounds.is_changed()) {
