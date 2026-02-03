@@ -102,7 +102,7 @@ impl<'a> StrokeTextLayout<'a> {
 
         core::iter::from_fn(move || loop {
             if !current_strokes.is_empty() {
-                while let Some(stroke_index) = current_strokes.next() {
+                for stroke_index in current_strokes.by_ref() {
                     let stroke = self.font.strokes[stroke_index].clone();
                     if stroke.len() < 2 {
                         continue;
@@ -137,6 +137,7 @@ impl<'a> StrokeTextLayout<'a> {
                 self.font.glyphs[(code_point - self.font.ascii_range.start) as usize].clone();
             current_strokes = strokes;
             current_x = x;
+
             x += advance as f32 * self.scale;
         })
     }
