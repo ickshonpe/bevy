@@ -102,8 +102,8 @@ impl<'a> StrokeTextLayout<'a> {
         let mut chars = self.text.chars();
         let mut x = 0.0;
         let mut y = -self.margin_top;
-        let mut remaining_strokes: Option<Range<usize>> = None;
-        let mut strokes_x = 0.0;
+        let mut current_strokes: Range<usize> = 0..0;
+        let mut current_x = 0.0;
 
         let font = self.font;
         let positions = self.font.positions;
@@ -113,8 +113,8 @@ impl<'a> StrokeTextLayout<'a> {
         let space_advance = self.space_advance;
 
         core::iter::from_fn(move || loop {
-            if let Some(stroke_indices) = &mut remaining_strokes {
-                while let Some(stroke_index) = stroke_indices.next() {
+            if !current_strokes.is_empty() {
+                while let Some(stroke_index) = current_strokes.next() {
                     let stroke = font.strokes[stroke_index].clone();
                     if stroke.len() < 2 {
                         continue;
@@ -123,13 +123,11 @@ impl<'a> StrokeTextLayout<'a> {
                     return Some(stroke.map(move |index| {
                         let [p, q] = positions[index];
                         Vec2::new(
-                            strokes_x + scale * p as f32,
+                            current_x + scale * p as f32,
                             y - scale * (cap_height - q as f32),
                         )
                     }));
                 }
-
-                remaining_strokes = None;
             }
 
             let c = chars.next()?;
@@ -149,8 +147,8 @@ impl<'a> StrokeTextLayout<'a> {
 
             let (advance, strokes) =
                 font.glyphs[(code_point - font.ascii_range.start) as usize].clone();
-            remaining_strokes = Some(strokes);
-            strokes_x = x;
+            current_strokes = strokes;
+            current_x = x;
             x += advance as f32 * scale;
         })
     }
