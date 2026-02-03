@@ -29,7 +29,7 @@ fn hello_world(mut text_gizmos: Gizmos, time: Res<Time>) {
     );
 
     text_gizmos.text(
-        Isometry3d::new(Vec3::new(0.0, 0.0, 0.0), Quat::from_rotation_y(-t - 0.25)),
+        Isometry3d::new(Vec3::new(0.0, 0.0, 0.0), Quat::from_rotation_y(t + 0.25)),
         "Text",
         1.,
         Vec2::ZERO,

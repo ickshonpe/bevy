@@ -3,7 +3,7 @@
 use crate::simplex_stroke_font::*;
 use crate::{gizmos::GizmoBuffer, prelude::GizmoConfigGroup};
 use bevy_color::Color;
-use bevy_math::{vec2, Isometry2d, Isometry3d, Vec2, Vec3A};
+use bevy_math::{vec2, Isometry2d, Isometry3d, Vec2};
 use core::ops::Range;
 
 /// A stroke font
@@ -178,13 +178,15 @@ where
         anchor: Vec2,
         color: impl Into<Color>,
     ) {
+        let isometry: Isometry3d = isometry.into();
         let color = color.into();
         let layout = SIMPLEX_STROKE_FONT.layout(text, font_size);
-        let layout_anchor = vec2(-0.5, 0.5) - anchor;
-        let mut isometry: Isometry3d = isometry.into();
-        isometry.translation += Vec3A::from((layout.measure() * layout_anchor).extend(0.));
+        let layout_anchor = layout.measure() * vec2(-0.5, 0.5) - anchor;
         for points in layout.render() {
-            self.linestrip(points.map(|point| isometry * point.extend(0.)), color);
+            self.linestrip(
+                points.map(|point| isometry * (layout_anchor + point).extend(0.)),
+                color,
+            );
         }
     }
 
@@ -218,13 +220,15 @@ where
         anchor: Vec2,
         color: impl Into<Color>,
     ) {
+        let isometry: Isometry2d = isometry.into();
         let color = color.into();
         let layout = SIMPLEX_STROKE_FONT.layout(text, font_size);
-        let layout_anchor = vec2(-0.5, 0.5) - anchor;
-        let mut isometry: Isometry2d = isometry.into();
-        isometry.translation += layout.measure() * layout_anchor;
+        let layout_anchor = layout.measure() * (vec2(-0.5, 0.5) - anchor);
         for points in layout.render() {
-            self.linestrip_2d(points.map(|point| isometry * point), color);
+            self.linestrip_2d(
+                points.map(|point| isometry * (layout_anchor + point)),
+                color,
+            );
         }
     }
 }

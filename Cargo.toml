@@ -4547,7 +4547,7 @@ wasm = true
 
 [[example]]
 name = "2d_text_gizmos"
-path = "examples/gizmos/2d_text_gizmos_2d.rs"
+path = "examples/gizmos/2d_text_gizmos.rs"
 # Causes an ICE on docs.rs
 doc-scrape-examples = false
 
