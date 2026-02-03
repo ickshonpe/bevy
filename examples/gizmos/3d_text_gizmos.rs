@@ -1,5 +1,6 @@
 //! Basic example demonstrating 3d text gizmos
 
+use bevy::color::palettes::css::{ORANGE, RED, YELLOW};
 use bevy::prelude::*;
 
 fn main() {
@@ -25,7 +26,7 @@ fn hello_world(mut text_gizmos: Gizmos, time: Res<Time>) {
         "Hello",
         1.,
         Vec2::ZERO,
-        Color::WHITE,
+        RED,
     );
 
     text_gizmos.text(
@@ -33,7 +34,7 @@ fn hello_world(mut text_gizmos: Gizmos, time: Res<Time>) {
         "Text",
         1.,
         Vec2::ZERO,
-        Color::WHITE,
+        ORANGE,
     );
 
     text_gizmos.text(
@@ -41,6 +42,6 @@ fn hello_world(mut text_gizmos: Gizmos, time: Res<Time>) {
         "Gizmos",
         1.,
         Vec2::ZERO,
-        Color::WHITE,
+        YELLOW,
     );
 }
