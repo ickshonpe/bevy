@@ -1,10 +1,12 @@
 //! Shows how to use animation clips to animate UI properties.
 
 use bevy::{
-    animation::{AnimatedBy, AnimationEntityMut, AnimationEvaluationError, AnimationTargetId},
+    animation::{
+        animated_field, AnimatedBy, AnimationEntityMut, AnimationEvaluationError, AnimationTargetId,
+    },
     prelude::*,
 };
-use bevy_animation::animated_field;
+
 use std::any::TypeId;
 
 // Holds information about the animation we programmatically create.
