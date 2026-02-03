@@ -103,7 +103,7 @@ impl<'a> StrokeTextLayout<'a> {
     }
 }
 
-/// Iterator that yields the strokes needed to draw the text.
+/// Iterator that yields the strokes required to draw the text layout.
 ///
 /// Each stroke is a sequence of scaled `Vec2` points that can be passed to
 /// `linestrip_2d` directly, or mapped to `Vec3` for `linestrip`.
