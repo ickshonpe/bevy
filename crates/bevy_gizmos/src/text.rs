@@ -6,18 +6,29 @@ use bevy_color::Color;
 use bevy_math::{vec2, Isometry2d, Isometry3d, Vec2, Vec3A};
 use core::{ops::Range, str::Chars};
 
+/// A stroke font
 pub struct StrokeFont<'a> {
+    /// Baseline-to-baseline line height ratio.
     pub line_height: f32,
+    /// Inclusive ASCII range covered by `glyphs`.
     pub ascii_range: Range<u8>,
+    /// Full glyph height (cap + descender) in font units.
     pub height: f32,
+    /// Cap height in font units.
     pub cap_height: f32,
+    /// Advance used for unsupported glyphs.
     pub advance: i8,
+    /// Raw glyph point positions.
     pub positions: &'a [[i8; 2]],
+    /// Stroke ranges into `positions`.
     pub strokes: &'a [Range<usize>],
+    /// Glyph advances and stroke ranges, indexed by ASCII code point.
     pub glyphs: &'a [(i8, Range<usize>)],
 }
 
 impl StrokeFont<'_> {
+    /// Get the advance for the glyph corresponding to this char.
+    /// Returns `self.advance` if there is no corresponding glyph.
     pub fn get_glyph_advance(&self, c: char) -> i8 {
         u8::try_from(c)
             .ok()
@@ -82,6 +93,29 @@ struct GlyphStrokeIterator {
     ry: f32,
 }
 
+/// Iterator over the points of a single stroke line strip.
+pub struct StrokeLineStrip<'a> {
+    positions: &'a [[i8; 2]],
+    stroke: Range<usize>,
+    rx: f32,
+    ry: f32,
+    scale: f32,
+    cap_height: f32,
+}
+
+impl Iterator for StrokeLineStrip<'_> {
+    type Item = Vec2;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let index = self.stroke.next()?;
+        let [x, y] = self.positions[index];
+        Some(Vec2::new(
+            self.rx + self.scale * x as f32,
+            self.ry - self.scale * (self.cap_height - y as f32),
+        ))
+    }
+}
+
 impl<'a> StrokeTextIterator<'a> {
     /// Create a new iterator for the given text and font size.
     pub fn new(text: &'a str, font: &'a StrokeFont<'a>, metrics: StrokeFontMetrics) -> Self {
@@ -96,8 +130,8 @@ impl<'a> StrokeTextIterator<'a> {
     }
 }
 
-impl Iterator for StrokeTextIterator<'_> {
-    type Item = Vec<Vec2>;
+impl<'a> Iterator for StrokeTextIterator<'a> {
+    type Item = StrokeLineStrip<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -108,17 +142,14 @@ impl Iterator for StrokeTextIterator<'_> {
                         continue;
                     }
 
-                    let points = self.font.positions[stroke]
-                        .iter()
-                        .map(|&[x, y]| {
-                            Vec2::new(
-                                pending.rx + self.metrics.scale * x as f32,
-                                pending.ry - self.metrics.scale * (self.font.cap_height - y as f32),
-                            )
-                        })
-                        .collect();
-
-                    return Some(points);
+                    return Some(StrokeLineStrip {
+                        positions: self.font.positions,
+                        stroke,
+                        rx: pending.rx,
+                        ry: pending.ry,
+                        scale: self.metrics.scale,
+                        cap_height: self.font.cap_height,
+                    });
                 }
 
                 self.strokes = None;
