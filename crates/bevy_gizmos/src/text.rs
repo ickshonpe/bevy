@@ -8,20 +8,30 @@ use core::{ops::Range, str::Chars};
 
 pub struct StrokeFont<'a> {
     pub line_height: f32,
-    pub start: usize,
-    pub end: usize,
+    pub ascii_range: Range<u8>,
     pub height: f32,
     pub cap_height: f32,
+    pub advance: i8,
     pub positions: &'a [[i8; 2]],
-    pub strokes: &'a [Range<usize>; 188],
-    pub glyphs: &'a [(i8, Range<usize>); 95],
+    pub strokes: &'a [Range<usize>],
+    pub glyphs: &'a [(i8, Range<usize>)],
+}
+
+impl StrokeFont<'_> {
+    pub fn get_glyph_advance(&self, c: char) -> i8 {
+        u8::try_from(c)
+            .ok()
+            .filter(|c| self.ascii_range.contains(&c))
+            .map(|c| self.glyphs[(c - self.ascii_range.start) as usize].0)
+            .unwrap_or(self.advance)
+    }
 }
 
 /// Computes the width and height of a text layout with the given text and
 /// metrics when drawn with the builtin Simplex stroke font.
 ///
 /// Returns the layout size in pixels.
-pub fn measure_simplex_text(text: &str, metrics: StrokeFontMetrics) -> Vec2 {
+pub fn measure_stroke_text(text: &str, font: &StrokeFont<'_>, metrics: StrokeFontMetrics) -> Vec2 {
     let mut layout_size = vec2(0., metrics.line_height);
 
     let mut w = 0.;
@@ -33,14 +43,7 @@ pub fn measure_simplex_text(text: &str, metrics: StrokeFontMetrics) -> Vec2 {
             continue;
         }
 
-        let code_point = c as usize;
-        if !(SIMPLEX_ASCII_START..=SIMPLEX_ASCII_END).contains(&code_point) {
-            w += metrics.space_advance;
-            continue;
-        }
-
-        let glyph = &SIMPLEX_GLYPHS[code_point - SIMPLEX_ASCII_START];
-        w += glyph.0 as f32 * metrics.scale;
+        w += font.get_glyph_advance(c) as f32 * metrics.scale;
     }
 
     layout_size.x = layout_size.x.max(w);
@@ -53,6 +56,7 @@ pub fn measure_simplex_text(text: &str, metrics: StrokeFontMetrics) -> Vec2 {
 /// `linestrip_2d` directly, or mapped to `Vec3` for `linestrip`.
 pub struct StrokeTextIterator<'a> {
     chars: Chars<'a>,
+    font: &'a StrokeFont<'a>,
     metrics: StrokeFontMetrics,
     rx: f32,
     ry: f32,
@@ -80,9 +84,10 @@ struct GlyphStrokeIterator {
 
 impl<'a> StrokeTextIterator<'a> {
     /// Create a new iterator for the given text and font size.
-    pub fn new(text: &'a str, metrics: StrokeFontMetrics) -> Self {
+    pub fn new(text: &'a str, font: &'a StrokeFont<'a>, metrics: StrokeFontMetrics) -> Self {
         Self {
             chars: text.chars(),
+            font,
             rx: 0.0,
             metrics,
             ry: -metrics.margin_top,
@@ -98,17 +103,17 @@ impl Iterator for StrokeTextIterator<'_> {
         loop {
             if let Some(pending) = &mut self.strokes {
                 if let Some(stroke_index) = pending.stroke_indices.next() {
-                    let stroke = SIMPLEX_STROKES[stroke_index].clone();
+                    let stroke: Range<usize> = self.font.strokes[stroke_index].clone();
                     if stroke.len() < 2 {
                         continue;
                     }
 
-                    let points = SIMPLEX_POSITIONS[stroke]
+                    let points = self.font.positions[stroke]
                         .iter()
                         .map(|&[x, y]| {
                             Vec2::new(
                                 pending.rx + self.metrics.scale * x as f32,
-                                pending.ry - self.metrics.scale * (SIMPLEX_CAP_HEIGHT - y as f32),
+                                pending.ry - self.metrics.scale * (self.font.cap_height - y as f32),
                             )
                         })
                         .collect();
@@ -126,13 +131,15 @@ impl Iterator for StrokeTextIterator<'_> {
                 continue;
             }
 
-            let code_point = c as usize;
-            if !(SIMPLEX_ASCII_START..=SIMPLEX_ASCII_END).contains(&code_point) {
+            let Some(code_point) = u8::try_from(c)
+                .ok()
+                .filter(|c| self.font.ascii_range.contains(&c))
+            else {
                 self.rx += self.metrics.space_advance;
                 continue;
-            }
+            };
 
-            let glyph = &SIMPLEX_GLYPHS[code_point - SIMPLEX_ASCII_START];
+            let glyph = &self.font.glyphs[(code_point - self.font.ascii_range.start) as usize];
             let advance = glyph.0 as f32 * self.metrics.scale;
 
             self.strokes = Some(GlyphStrokeIterator {
@@ -148,21 +155,7 @@ impl Iterator for StrokeTextIterator<'_> {
 
 /// Build a stroke text iterator for the given text and font size.
 pub fn stroke_text_iter(text: &str, font_size: f32) -> StrokeTextIterator<'_> {
-    let scale = font_size / SIMPLEX_CAP_HEIGHT;
-    let glyph_height = SIMPLEX_HEIGHT * scale;
-    let line_height = LINE_HEIGHT * glyph_height;
-    let margin_top = line_height - glyph_height;
-    let space_advance = SIMPLEX_GLYPHS[0].0 as f32 * scale;
-
-    StrokeTextIterator::new(
-        text,
-        StrokeFontMetrics {
-            scale,
-            line_height,
-            margin_top,
-            space_advance,
-        },
-    )
+    StrokeTextIterator::new(text, &SIMPLEX_STROKE_FONT, simplex_font_metrics(font_size))
 }
 
 impl<Config, Clear> GizmoBuffer<Config, Clear>
@@ -202,7 +195,7 @@ where
     ) {
         let color = color.into();
         let metrics = simplex_font_metrics(font_size);
-        let layout_size = measure_simplex_text(text, metrics);
+        let layout_size = measure_stroke_text(text, &SIMPLEX_STROKE_FONT, metrics);
         let adjusted_anchor = -anchor + vec2(-0.5, 0.5);
 
         let mut isometry: Isometry3d = isometry.into();
@@ -248,7 +241,7 @@ where
     ) {
         let color = color.into();
         let metrics = simplex_font_metrics(size);
-        let layout_size = measure_simplex_text(text, metrics);
+        let layout_size = measure_stroke_text(text, &SIMPLEX_STROKE_FONT, metrics);
         // Adjust anchor to top-left coords
         let adjusted_anchor = -anchor + vec2(-0.5, 0.5);
 
