@@ -81,19 +81,19 @@ impl<'a> StrokeTextLayout<'a> {
     pub fn measure(&self) -> Vec2 {
         let mut layout_size = vec2(0., self.line_height);
 
-        let mut w = 0.;
+        let mut line_width = 0.;
         for c in self.text.chars() {
             if c == '\n' {
-                layout_size.x = layout_size.x.max(w);
-                w = 0.;
+                layout_size.x = layout_size.x.max(line_width);
+                line_width = 0.;
                 layout_size.y += self.line_height;
                 continue;
             }
 
-            w += self.advance(c) as f32 * self.scale;
+            line_width += self.advance(c) as f32 * self.scale;
         }
 
-        layout_size.x = layout_size.x.max(w);
+        layout_size.x = layout_size.x.max(line_width);
         layout_size
     }
 
@@ -105,26 +105,19 @@ impl<'a> StrokeTextLayout<'a> {
         let mut current_strokes: Range<usize> = 0..0;
         let mut current_x = 0.0;
 
-        let font = self.font;
-        let positions = self.font.positions;
-        let scale = self.scale;
-        let cap_height = self.font.cap_height;
-        let line_height = self.line_height;
-        let space_advance = self.space_advance;
-
         core::iter::from_fn(move || loop {
             if !current_strokes.is_empty() {
                 while let Some(stroke_index) = current_strokes.next() {
-                    let stroke = font.strokes[stroke_index].clone();
+                    let stroke = self.font.strokes[stroke_index].clone();
                     if stroke.len() < 2 {
                         continue;
                     }
 
                     return Some(stroke.map(move |index| {
-                        let [p, q] = positions[index];
+                        let [p, q] = self.font.positions[index];
                         Vec2::new(
-                            current_x + scale * p as f32,
-                            y - scale * (cap_height - q as f32),
+                            current_x + self.scale * p as f32,
+                            y - self.scale * (self.font.cap_height - q as f32),
                         )
                     }));
                 }
@@ -133,23 +126,23 @@ impl<'a> StrokeTextLayout<'a> {
             let c = chars.next()?;
             if c == '\n' {
                 x = 0.0;
-                y -= line_height;
+                y -= self.line_height;
                 continue;
             }
 
             let Some(code_point) = u8::try_from(c)
                 .ok()
-                .filter(|c| font.ascii_range.contains(&c))
+                .filter(|c| self.font.ascii_range.contains(&c))
             else {
-                x += space_advance;
+                x += self.space_advance;
                 continue;
             };
 
             let (advance, strokes) =
-                font.glyphs[(code_point - font.ascii_range.start) as usize].clone();
+                self.font.glyphs[(code_point - self.font.ascii_range.start) as usize].clone();
             current_strokes = strokes;
             current_x = x;
-            x += advance as f32 * scale;
+            x += advance as f32 * self.scale;
         })
     }
 }
