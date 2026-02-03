@@ -81,7 +81,7 @@ impl<'a> StrokeTextLayout<'a> {
 
             line_width += u8::try_from(c)
                 .ok()
-                .filter(|c| self.font.ascii_range.contains(&c))
+                .filter(|c| self.font.ascii_range.contains(c))
                 .map(|c| self.font.glyphs[(c - self.font.ascii_range.start) as usize].0)
                 .unwrap_or(self.font.advance) as f32
                 * self.scale;
@@ -127,7 +127,7 @@ impl<'a> StrokeTextLayout<'a> {
 
             let Some(code_point) = u8::try_from(c)
                 .ok()
-                .filter(|c| self.font.ascii_range.contains(&c))
+                .filter(|c| self.font.ascii_range.contains(c))
             else {
                 x += self.space_advance;
                 continue;
