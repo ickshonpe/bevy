@@ -6,11 +6,22 @@ use bevy_color::Color;
 use bevy_math::{vec2, Isometry2d, Isometry3d, Vec2, Vec3A};
 use core::{ops::Range, str::Chars};
 
+pub struct StrokeFont<'a> {
+    pub line_height: f32,
+    pub start: usize,
+    pub end: usize,
+    pub height: f32,
+    pub cap_height: f32,
+    pub positions: &'a [[i8; 2]],
+    pub strokes: &'a [Range<usize>; 188],
+    pub glyphs: &'a [(i8, Range<usize>); 95],
+}
+
 /// Computes the width and height of a text layout with the given text and
 /// metrics when drawn with the builtin Simplex stroke font.
 ///
 /// Returns the layout size in pixels.
-pub fn measure_simplex_text(text: &str, metrics: StrokeTextMetrics) -> Vec2 {
+pub fn measure_simplex_text(text: &str, metrics: StrokeFontMetrics) -> Vec2 {
     let mut layout_size = vec2(0., metrics.line_height);
 
     let mut w = 0.;
@@ -42,7 +53,7 @@ pub fn measure_simplex_text(text: &str, metrics: StrokeTextMetrics) -> Vec2 {
 /// `linestrip_2d` directly, or mapped to `Vec3` for `linestrip`.
 pub struct StrokeTextIterator<'a> {
     chars: Chars<'a>,
-    metrics: StrokeTextMetrics,
+    metrics: StrokeFontMetrics,
     rx: f32,
     ry: f32,
     strokes: Option<GlyphStrokeIterator>,
@@ -50,7 +61,7 @@ pub struct StrokeTextIterator<'a> {
 
 /// Scaled stroke font metrics for use during stroke text layout.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct StrokeTextMetrics {
+pub struct StrokeFontMetrics {
     /// Scale applied to the raw glyph positions.
     pub scale: f32,
     /// Height of each line of text.
@@ -69,7 +80,7 @@ struct GlyphStrokeIterator {
 
 impl<'a> StrokeTextIterator<'a> {
     /// Create a new iterator for the given text and font size.
-    pub fn new(text: &'a str, metrics: StrokeTextMetrics) -> Self {
+    pub fn new(text: &'a str, metrics: StrokeFontMetrics) -> Self {
         Self {
             chars: text.chars(),
             rx: 0.0,
@@ -145,7 +156,7 @@ pub fn stroke_text_iter(text: &str, font_size: f32) -> StrokeTextIterator<'_> {
 
     StrokeTextIterator::new(
         text,
-        StrokeTextMetrics {
+        StrokeFontMetrics {
             scale,
             line_height,
             margin_top,

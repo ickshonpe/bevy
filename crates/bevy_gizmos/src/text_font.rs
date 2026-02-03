@@ -2,7 +2,8 @@
 
 use core::ops::Range;
 
-use crate::text::StrokeTextMetrics;
+use crate::text::StrokeFont;
+use crate::text::StrokeFontMetrics;
 
 pub(crate) const LINE_HEIGHT: f32 = 1.3;
 pub(crate) const SIMPLEX_ASCII_START: usize = 32;
@@ -1403,14 +1404,25 @@ pub(crate) const SIMPLEX_GLYPHS: [(i8, Range<usize>); 95] = [
     (24, 186..188),
 ];
 
+pub const SIMPLEX_STROKE_FONT: StrokeFont = StrokeFont {
+    line_height: LINE_HEIGHT,
+    start: SIMPLEX_ASCII_START,
+    end: SIMPLEX_ASCII_END,
+    height: SIMPLEX_HEIGHT,
+    cap_height: SIMPLEX_CAP_HEIGHT,
+    positions: &SIMPLEX_POSITIONS,
+    strokes: &SIMPLEX_STROKES,
+    glyphs: &SIMPLEX_GLYPHS,
+};
+
 /// Compute simplex font metrics from the given font size
-pub fn simplex_font_metrics(font_size: f32) -> StrokeTextMetrics {
+pub fn simplex_font_metrics(font_size: f32) -> StrokeFontMetrics {
     let scale = font_size / SIMPLEX_CAP_HEIGHT;
     let glyph_height = SIMPLEX_HEIGHT * scale;
     let line_height = LINE_HEIGHT * glyph_height;
     let margin_top = line_height - glyph_height;
     let space_advance = SIMPLEX_GLYPHS[0].0 as f32 * scale;
-    StrokeTextMetrics {
+    StrokeFontMetrics {
         scale,
         line_height,
         margin_top,
