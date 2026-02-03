@@ -1,11 +1,10 @@
 //! Shows how to use animation clips to animate UI properties.
 
 use bevy::{
-    animation::{
-        animated_field, AnimatedBy, AnimationEntityMut, AnimationEvaluationError, AnimationTargetId,
-    },
+    animation::{AnimatedBy, AnimationEntityMut, AnimationEvaluationError, AnimationTargetId},
     prelude::*,
 };
+use bevy_animation::animated_field;
 use std::any::TypeId;
 
 // Holds information about the animation we programmatically create.
@@ -143,7 +142,7 @@ fn setup(
         Text::new("Bevy"),
         TextFont {
             font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
-            font_size: 80.,
+            font_size: FontSize::Px(80.),
             ..default()
         },
         TextColor(Color::Srgba(Srgba::RED)),

@@ -106,6 +106,10 @@ pub struct Args {
     /// disable CPU culling.
     #[argh(switch)]
     no_cpu_culling: bool,
+
+    /// disable mip map generation.
+    #[argh(switch)]
+    no_mip_generation: bool,
 }
 
 pub fn main() {
@@ -127,41 +131,36 @@ pub fn main() {
             }),
             ..default()
         }))
-        // Generating mipmaps takes a minute
-        // Mipmap generation be skipped if ktx2 is used
-        .insert_resource(MipmapGeneratorSettings {
-            anisotropic_filtering: 16,
-            compression: args.compress.then(Default::default),
-            compressed_image_data_cache_path: if args.cache {
-                Some(PathBuf::from("compressed_texture_cache"))
-            } else {
-                None
-            },
-            low_quality: args.low_quality_compression,
-            ..default()
-        })
         .add_plugins((
             FrameTimeDiagnosticsPlugin {
                 max_history_length: 1000,
                 ..default()
             },
-            MipmapGeneratorPlugin,
-            MipmapGeneratorDebugTextPlugin,
             FreeCameraPlugin,
         ))
         .add_systems(Startup, setup)
         .add_systems(
             Update,
-            (
-                generate_mipmaps::<StandardMaterial>,
-                input,
-                run_animation,
-                spin,
-                frame_time_system,
-                benchmark,
-            )
-                .chain(),
+            (input, run_animation, spin, frame_time_system, benchmark).chain(),
         );
+
+    if !args.no_mip_generation {
+        app.add_plugins((MipmapGeneratorPlugin, MipmapGeneratorDebugTextPlugin))
+            // Generating mipmaps takes a minute
+            // Mipmap generation be skipped if ktx2 is used
+            .insert_resource(MipmapGeneratorSettings {
+                anisotropic_filtering: 16,
+                compression: args.compress.then(Default::default),
+                compressed_image_data_cache_path: if args.cache {
+                    Some(PathBuf::from("compressed_texture_cache"))
+                } else {
+                    None
+                },
+                low_quality: args.low_quality_compression,
+                ..default()
+            })
+            .add_systems(Update, generate_mipmaps::<StandardMaterial>);
+    }
 
     if args.no_frustum_culling {
         app.add_systems(Update, add_no_frustum_culling);
@@ -263,8 +262,8 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<A
         Msaa::Off,
         Camera3d::default(),
         ScreenSpaceTransmission {
-            screen_space_specular_transmission_steps: 0,
-            screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::Low,
+            steps: 0,
+            quality: ScreenSpaceTransmissionQuality::Low,
         },
         Hdr,
         Transform::from_xyz(-10.5, 1.7, -1.0).looking_at(Vec3::new(0.0, 3.5, 0.0), Vec3::Y),
@@ -308,8 +307,8 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<A
         commands
             .spawn((
                 Node {
-                    left: Val::Px(1.5),
-                    top: Val::Px(1.5),
+                    left: px(1.5),
+                    top: px(1.5),
                     ..default()
                 },
                 GlobalZIndex(-1),
