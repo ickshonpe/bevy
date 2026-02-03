@@ -50,15 +50,16 @@ impl<'a> StrokeFont<'a> {
 pub struct StrokeTextLayout<'a> {
     /// The unscaled font
     font: &'a StrokeFont<'a>,
+    /// The text
     text: &'a str,
     /// Scale applied to the raw glyph positions.
-    pub scale: f32,
+    scale: f32,
     /// Height of each line of text.
-    pub line_height: f32,
+    line_height: f32,
     /// Space between top of line and cap height.
-    pub margin_top: f32,
+    margin_top: f32,
     /// Width of a space.
-    pub space_advance: f32,
+    space_advance: f32,
 }
 
 impl<'a> StrokeTextLayout<'a> {
@@ -109,7 +110,6 @@ impl<'a> StrokeTextLayout<'a> {
 struct StrokeTextIterator<'a> {
     chars: Chars<'a>,
     layout: &'a StrokeTextLayout<'a>,
-
     rx: f32,
     ry: f32,
     strokes: Option<GlyphStrokeIterator>,
