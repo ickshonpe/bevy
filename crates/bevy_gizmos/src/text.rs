@@ -233,10 +233,7 @@ where
         isometry.translation += Vec3A::from((layout_size * adjusted_anchor).extend(0.));
 
         for points in stroke_text_iter(text, font_size) {
-            self.linestrip(
-                points.into_iter().map(|point| isometry * point.extend(0.)),
-                color,
-            );
+            self.linestrip(points.map(|point| isometry * point.extend(0.)), color);
         }
     }
 
@@ -280,7 +277,7 @@ where
         isometry.translation += layout_size * adjusted_anchor;
 
         for points in stroke_text_iter(text, size) {
-            self.linestrip_2d(points.into_iter().map(|point| isometry * point), color);
+            self.linestrip_2d(points.map(|point| isometry * point), color);
         }
     }
 }
