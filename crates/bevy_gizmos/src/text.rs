@@ -103,9 +103,9 @@ impl<'a> StrokeTextLayout<'a> {
     }
 }
 
-/// Iterator that yields stroke line strips for a text string using the Simplex font.
+/// Iterator that yields the strokes needed to draw the text.
 ///
-/// Each item is a sequence of scaled `Vec2` points that can be passed to
+/// Each stroke is a sequence of scaled `Vec2` points that can be passed to
 /// `linestrip_2d` directly, or mapped to `Vec3` for `linestrip`.
 struct StrokeTextIterator<'a> {
     chars: Chars<'a>,
@@ -134,7 +134,7 @@ struct GlyphStrokeIterator {
     ry: f32,
 }
 
-/// Iterator over the points of a single stroke line strip.
+/// Iterator over the points of a single stroke.
 struct StrokeLineStrip<'a> {
     positions: &'a [[i8; 2]],
     stroke: Range<usize>,
