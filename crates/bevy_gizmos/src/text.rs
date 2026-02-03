@@ -37,12 +37,10 @@ impl<'a> StrokeFont<'a> {
         let space_advance = SIMPLEX_GLYPHS[0].0 as f32 * scale;
         StrokeTextLayout {
             font: self,
-            metrics: StrokeFontMetrics {
-                scale,
-                line_height,
-                margin_top,
-                space_advance,
-            },
+            scale,
+            line_height,
+            margin_top,
+            space_advance,
             text,
         }
     }
@@ -52,10 +50,15 @@ impl<'a> StrokeFont<'a> {
 pub struct StrokeTextLayout<'a> {
     /// The unscaled font
     font: &'a StrokeFont<'a>,
-    /// Font metrics
-    metrics: StrokeFontMetrics,
-    /// text
     text: &'a str,
+    /// Scale applied to the raw glyph positions.
+    pub scale: f32,
+    /// Height of each line of text.
+    pub line_height: f32,
+    /// Space between top of line and cap height.
+    pub margin_top: f32,
+    /// Width of a space.
+    pub space_advance: f32,
 }
 
 impl<'a> StrokeTextLayout<'a> {
@@ -67,7 +70,7 @@ impl<'a> StrokeTextLayout<'a> {
             .filter(|c| self.font.ascii_range.contains(&c))
             .map(|c| self.font.glyphs[(c - self.font.ascii_range.start) as usize].0)
             .unwrap_or(self.font.advance) as f32
-            * self.metrics.scale
+            * self.scale
     }
 
     /// Computes the width and height of a text layout with this font and
@@ -75,18 +78,18 @@ impl<'a> StrokeTextLayout<'a> {
     ///
     /// Returns the layout size in pixels.
     pub fn measure(&self) -> Vec2 {
-        let mut layout_size = vec2(0., self.metrics.line_height);
+        let mut layout_size = vec2(0., self.line_height);
 
         let mut w = 0.;
         for c in self.text.chars() {
             if c == '\n' {
                 layout_size.x = layout_size.x.max(w);
                 w = 0.;
-                layout_size.y += self.metrics.line_height;
+                layout_size.y += self.line_height;
                 continue;
             }
 
-            w += self.advance(c) as f32 * self.metrics.scale;
+            w += self.advance(c) as f32 * self.scale;
         }
 
         layout_size.x = layout_size.x.max(w);
@@ -95,7 +98,7 @@ impl<'a> StrokeTextLayout<'a> {
 
     /// Render lines
     pub fn render(&'a self) -> impl Iterator<Item = impl Iterator<Item = Vec2>> + 'a {
-        StrokeTextIterator::new(self.text, &self.font, self.metrics)
+        StrokeTextIterator::new(&self)
     }
 }
 
@@ -105,24 +108,24 @@ impl<'a> StrokeTextLayout<'a> {
 /// `linestrip_2d` directly, or mapped to `Vec3` for `linestrip`.
 struct StrokeTextIterator<'a> {
     chars: Chars<'a>,
-    font: &'a StrokeFont<'a>,
-    metrics: StrokeFontMetrics,
+    layout: &'a StrokeTextLayout<'a>,
+
     rx: f32,
     ry: f32,
     strokes: Option<GlyphStrokeIterator>,
 }
 
-/// Scaled stroke font metrics for use during stroke text layout.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct StrokeFontMetrics {
-    /// Scale applied to the raw glyph positions.
-    pub scale: f32,
-    /// Height of each line of text.
-    pub line_height: f32,
-    /// Space between top of line and cap height.
-    pub margin_top: f32,
-    /// Width of a space.
-    pub space_advance: f32,
+impl<'a> StrokeTextIterator<'a> {
+    /// Create a new iterator for the given text and font size.
+    pub fn new(layout: &'a StrokeTextLayout) -> Self {
+        Self {
+            chars: layout.text.chars(),
+            layout,
+            rx: 0.0,
+            ry: -layout.margin_top,
+            strokes: None,
+        }
+    }
 }
 
 struct GlyphStrokeIterator {
@@ -154,20 +157,6 @@ impl Iterator for StrokeLineStrip<'_> {
     }
 }
 
-impl<'a> StrokeTextIterator<'a> {
-    /// Create a new iterator for the given text and font size.
-    pub fn new(text: &'a str, font: &'a StrokeFont<'a>, metrics: StrokeFontMetrics) -> Self {
-        Self {
-            chars: text.chars(),
-            font,
-            rx: 0.0,
-            metrics,
-            ry: -metrics.margin_top,
-            strokes: None,
-        }
-    }
-}
-
 impl<'a> Iterator for StrokeTextIterator<'a> {
     type Item = StrokeLineStrip<'a>;
 
@@ -175,18 +164,18 @@ impl<'a> Iterator for StrokeTextIterator<'a> {
         loop {
             if let Some(pending) = &mut self.strokes {
                 if let Some(stroke_index) = pending.stroke_indices.next() {
-                    let stroke: Range<usize> = self.font.strokes[stroke_index].clone();
+                    let stroke: Range<usize> = self.layout.font.strokes[stroke_index].clone();
                     if stroke.len() < 2 {
                         continue;
                     }
 
                     return Some(StrokeLineStrip {
-                        positions: self.font.positions,
+                        positions: self.layout.font.positions,
                         stroke,
                         rx: pending.rx,
                         ry: pending.ry,
-                        scale: self.metrics.scale,
-                        cap_height: self.font.cap_height,
+                        scale: self.layout.scale,
+                        cap_height: self.layout.font.cap_height,
                     });
                 }
 
@@ -196,20 +185,21 @@ impl<'a> Iterator for StrokeTextIterator<'a> {
             let c = self.chars.next()?;
             if c == '\n' {
                 self.rx = 0.0;
-                self.ry -= self.metrics.line_height;
+                self.ry -= self.layout.line_height;
                 continue;
             }
 
             let Some(code_point) = u8::try_from(c)
                 .ok()
-                .filter(|c| self.font.ascii_range.contains(&c))
+                .filter(|c| self.layout.font.ascii_range.contains(&c))
             else {
-                self.rx += self.metrics.space_advance;
+                self.rx += self.layout.space_advance;
                 continue;
             };
 
-            let glyph = &self.font.glyphs[(code_point - self.font.ascii_range.start) as usize];
-            let advance = glyph.0 as f32 * self.metrics.scale;
+            let glyph = &self.layout.font.glyphs
+                [(code_point - self.layout.font.ascii_range.start) as usize];
+            let advance = glyph.0 as f32 * self.layout.scale;
 
             self.strokes = Some(GlyphStrokeIterator {
                 stroke_indices: glyph.1.clone(),
