@@ -57,7 +57,7 @@ fn draw_labels(mut text_gizmos: Gizmos, diagnostic: Res<DiagnosticsStore>) {
             },
             &format!("label {i}"),
             25.,
-            Vec2::new(-0.5, 0.5),
+            Vec2::ZERO,
             color,
         );
     }
@@ -65,21 +65,20 @@ fn draw_labels(mut text_gizmos: Gizmos, diagnostic: Res<DiagnosticsStore>) {
     if let Some(fps) = diagnostic.get(&FrameTimeDiagnosticsPlugin::FPS)
         && let Some(fps_smoothed) = fps.smoothed()
     {
-        let pos = 0.5 * Vec2::new(1920., 1080.) - Vec2::new(X_STEP, Y_STEP);
         text_gizmos.text_2d(
-            Isometry2d::from_translation(pos),
+            Isometry2d::from_translation(Vec2::new(600., START_Y + 150.)),
             &format!("fps: {:.1}", fps_smoothed),
             25.,
-            Vec2::new(-0.5, 0.5),
+            Vec2::ZERO,
             Color::WHITE,
         );
     }
 
     text_gizmos.text_2d(
-        Isometry2d::from_translation(Vec2::new(-200., 500.)),
+        Isometry2d::from_translation(Vec2::new(-300., START_Y + 200.)),
         "lxgh",
         150.,
-        Vec2::new(-0.5, 0.5),
+        Vec2::ZERO,
         Color::WHITE,
     );
 }
@@ -96,10 +95,10 @@ xyz{|}~";
 
 fn draw_all_glyphs(mut text_gizmos: Gizmos) {
     text_gizmos.text_2d(
-        Isometry2d::from_xy(500., START_Y),
+        Isometry2d::from_xy(600., 0.),
         ALL_GLYPHS,
         30.0,
-        Vec2::new(-0.5, 0.5),
+        Vec2::ZERO,
         Color::WHITE,
     );
 }
