@@ -63,17 +63,6 @@ pub struct StrokeTextLayout<'a> {
 }
 
 impl<'a> StrokeTextLayout<'a> {
-    /// Get the advance for the glyph corresponding to this char.
-    /// Returns `self.advance` if there is no corresponding glyph.
-    pub fn advance(&self, c: char) -> f32 {
-        u8::try_from(c)
-            .ok()
-            .filter(|c| self.font.ascii_range.contains(&c))
-            .map(|c| self.font.glyphs[(c - self.font.ascii_range.start) as usize].0)
-            .unwrap_or(self.font.advance) as f32
-            * self.scale
-    }
-
     /// Computes the width and height of a text layout with this font and
     /// the given text.
     ///
@@ -90,7 +79,12 @@ impl<'a> StrokeTextLayout<'a> {
                 continue;
             }
 
-            line_width += self.advance(c) as f32 * self.scale;
+            line_width += u8::try_from(c)
+                .ok()
+                .filter(|c| self.font.ascii_range.contains(&c))
+                .map(|c| self.font.glyphs[(c - self.font.ascii_range.start) as usize].0)
+                .unwrap_or(self.font.advance) as f32
+                * self.scale;
         }
 
         layout_size.x = layout_size.x.max(line_width);
