@@ -114,7 +114,7 @@ impl<'a> StrokeTextLayout<'a> {
 
         core::iter::from_fn(move || loop {
             if let Some(stroke_indices) = &mut remaining_strokes {
-                if let Some(stroke_index) = stroke_indices.next() {
+                while let Some(stroke_index) = stroke_indices.next() {
                     let stroke = font.strokes[stroke_index].clone();
                     if stroke.len() < 2 {
                         continue;
