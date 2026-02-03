@@ -11,11 +11,15 @@ fn main() {
         .run();
 }
 
-fn setup_camera(mut commands: Commands) {
+fn setup_camera(mut commands: Commands, mut gizmo_config_store: ResMut<GizmoConfigStore>) {
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(0.0, 0.0, 10.0).looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
     ));
+
+    let (config, _) = gizmo_config_store.config_mut::<DefaultGizmoConfigGroup>();
+
+    config.line.width = 4.;
 }
 
 fn hello_world(mut text_gizmos: Gizmos, time: Res<Time>) {
