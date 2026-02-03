@@ -91,7 +91,8 @@ impl<'a> StrokeTextLayout<'a> {
         layout_size
     }
 
-    /// Render lines
+    /// Returns an iterator over the font strokes for this text layout,
+    /// grouped into polylines of `Vec2` points.
     pub fn render(&'a self) -> impl Iterator<Item = impl Iterator<Item = Vec2>> + 'a {
         let mut chars = self.text.chars();
         let mut x = 0.0;
