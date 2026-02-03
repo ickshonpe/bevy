@@ -2,7 +2,7 @@
 
 use core::ops::Range;
 
-use crate::text::StrokeFont;
+use crate::stroke_text::StrokeFont;
 
 pub(crate) const LINE_HEIGHT: f32 = 1.3;
 pub(crate) const SIMPLEX_ASCII_START: u8 = 32;

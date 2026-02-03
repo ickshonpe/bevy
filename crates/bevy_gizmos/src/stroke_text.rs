@@ -1,6 +1,6 @@
 //! This module draws text gizmos using a stroke font.
 
-use crate::text_font::*;
+use crate::simplex_stroke_font::*;
 use crate::{gizmos::GizmoBuffer, prelude::GizmoConfigGroup};
 use bevy_color::Color;
 use bevy_math::{vec2, Isometry2d, Isometry3d, Vec2, Vec3A};
