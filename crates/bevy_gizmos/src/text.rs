@@ -61,8 +61,6 @@ pub struct StrokeTextMetrics {
     pub space_advance: f32,
 }
 
-impl StrokeTextMetrics {}
-
 struct GlyphStrokeIterator {
     stroke_indices: Range<usize>,
     rx: f32,
