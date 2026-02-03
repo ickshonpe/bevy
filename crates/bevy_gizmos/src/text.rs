@@ -100,11 +100,10 @@ impl<'a> StrokeTextLayout<'a> {
     /// Render lines
     pub fn render(&'a self) -> impl Iterator<Item = impl Iterator<Item = Vec2>> + 'a {
         let mut chars = self.text.chars();
-        let mut rx = 0.0;
-        let mut ry = -self.margin_top;
-        let mut pending_strokes: Option<Range<usize>> = None;
-        let mut pending_rx = 0.0;
-        let mut pending_ry = 0.0;
+        let mut x = 0.0;
+        let mut y = -self.margin_top;
+        let mut remaining_strokes: Option<Range<usize>> = None;
+        let mut strokes_x = 0.0;
 
         let font = self.font;
         let positions = self.font.positions;
@@ -114,31 +113,29 @@ impl<'a> StrokeTextLayout<'a> {
         let space_advance = self.space_advance;
 
         core::iter::from_fn(move || loop {
-            if let Some(stroke_indices) = &mut pending_strokes {
+            if let Some(stroke_indices) = &mut remaining_strokes {
                 if let Some(stroke_index) = stroke_indices.next() {
                     let stroke = font.strokes[stroke_index].clone();
                     if stroke.len() < 2 {
                         continue;
                     }
 
-                    let rx0 = pending_rx;
-                    let ry0 = pending_ry;
                     return Some(stroke.map(move |index| {
-                        let [x, y] = positions[index];
+                        let [p, q] = positions[index];
                         Vec2::new(
-                            rx0 + scale * x as f32,
-                            ry0 - scale * (cap_height - y as f32),
+                            strokes_x + scale * p as f32,
+                            y - scale * (cap_height - q as f32),
                         )
                     }));
                 }
 
-                pending_strokes = None;
+                remaining_strokes = None;
             }
 
             let c = chars.next()?;
             if c == '\n' {
-                rx = 0.0;
-                ry -= line_height;
+                x = 0.0;
+                y -= line_height;
                 continue;
             }
 
@@ -146,18 +143,15 @@ impl<'a> StrokeTextLayout<'a> {
                 .ok()
                 .filter(|c| font.ascii_range.contains(&c))
             else {
-                rx += space_advance;
+                x += space_advance;
                 continue;
             };
 
-            let glyph = &font.glyphs[(code_point - font.ascii_range.start) as usize];
-            let advance = glyph.0 as f32 * scale;
-
-            pending_strokes = Some(glyph.1.clone());
-            pending_rx = rx;
-            pending_ry = ry;
-
-            rx += advance;
+            let (advance, strokes) =
+                font.glyphs[(code_point - font.ascii_range.start) as usize].clone();
+            remaining_strokes = Some(strokes);
+            strokes_x = x;
+            x += advance as f32 * scale;
         })
     }
 }
