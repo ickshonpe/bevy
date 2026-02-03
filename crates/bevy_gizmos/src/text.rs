@@ -4,7 +4,7 @@ use crate::text_font::*;
 use crate::{gizmos::GizmoBuffer, prelude::GizmoConfigGroup};
 use bevy_color::Color;
 use bevy_math::{vec2, Isometry2d, Isometry3d, Vec2, Vec3A};
-use core::{ops::Range, str::Chars};
+use core::ops::Range;
 
 /// A stroke font
 pub struct StrokeFont<'a> {
@@ -99,116 +99,66 @@ impl<'a> StrokeTextLayout<'a> {
 
     /// Render lines
     pub fn render(&'a self) -> impl Iterator<Item = impl Iterator<Item = Vec2>> + 'a {
-        StrokeTextIterator::new(&self)
-    }
-}
+        let mut chars = self.text.chars();
+        let mut rx = 0.0;
+        let mut ry = -self.margin_top;
+        let mut pending_strokes: Option<Range<usize>> = None;
+        let mut pending_rx = 0.0;
+        let mut pending_ry = 0.0;
 
-/// Iterator that yields the strokes required to draw the text layout.
-///
-/// Each stroke is a sequence of scaled `Vec2` points that can be passed to
-/// `linestrip_2d` directly, or mapped to `Vec3` for `linestrip`.
-struct StrokeTextIterator<'a> {
-    chars: Chars<'a>,
-    layout: &'a StrokeTextLayout<'a>,
-    rx: f32,
-    ry: f32,
-    strokes: Option<GlyphStrokeIterator>,
-}
+        let font = self.font;
+        let positions = self.font.positions;
+        let scale = self.scale;
+        let cap_height = self.font.cap_height;
+        let line_height = self.line_height;
+        let space_advance = self.space_advance;
 
-impl<'a> StrokeTextIterator<'a> {
-    /// Create a new iterator for the given text and font size.
-    pub fn new(layout: &'a StrokeTextLayout) -> Self {
-        Self {
-            chars: layout.text.chars(),
-            layout,
-            rx: 0.0,
-            ry: -layout.margin_top,
-            strokes: None,
-        }
-    }
-}
-
-struct GlyphStrokeIterator {
-    stroke_indices: Range<usize>,
-    rx: f32,
-    ry: f32,
-}
-
-/// Iterator over the points of a single stroke.
-struct StrokeLineStrip<'a> {
-    positions: &'a [[i8; 2]],
-    stroke: Range<usize>,
-    rx: f32,
-    ry: f32,
-    scale: f32,
-    cap_height: f32,
-}
-
-impl Iterator for StrokeLineStrip<'_> {
-    type Item = Vec2;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let index = self.stroke.next()?;
-        let [x, y] = self.positions[index];
-        Some(Vec2::new(
-            self.rx + self.scale * x as f32,
-            self.ry - self.scale * (self.cap_height - y as f32),
-        ))
-    }
-}
-
-impl<'a> Iterator for StrokeTextIterator<'a> {
-    type Item = StrokeLineStrip<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if let Some(pending) = &mut self.strokes {
-                if let Some(stroke_index) = pending.stroke_indices.next() {
-                    let stroke: Range<usize> = self.layout.font.strokes[stroke_index].clone();
+        core::iter::from_fn(move || loop {
+            if let Some(stroke_indices) = &mut pending_strokes {
+                if let Some(stroke_index) = stroke_indices.next() {
+                    let stroke = font.strokes[stroke_index].clone();
                     if stroke.len() < 2 {
                         continue;
                     }
 
-                    return Some(StrokeLineStrip {
-                        positions: self.layout.font.positions,
-                        stroke,
-                        rx: pending.rx,
-                        ry: pending.ry,
-                        scale: self.layout.scale,
-                        cap_height: self.layout.font.cap_height,
-                    });
+                    let rx0 = pending_rx;
+                    let ry0 = pending_ry;
+                    return Some(stroke.map(move |index| {
+                        let [x, y] = positions[index];
+                        Vec2::new(
+                            rx0 + scale * x as f32,
+                            ry0 - scale * (cap_height - y as f32),
+                        )
+                    }));
                 }
 
-                self.strokes = None;
+                pending_strokes = None;
             }
 
-            let c = self.chars.next()?;
+            let c = chars.next()?;
             if c == '\n' {
-                self.rx = 0.0;
-                self.ry -= self.layout.line_height;
+                rx = 0.0;
+                ry -= line_height;
                 continue;
             }
 
             let Some(code_point) = u8::try_from(c)
                 .ok()
-                .filter(|c| self.layout.font.ascii_range.contains(&c))
+                .filter(|c| font.ascii_range.contains(&c))
             else {
-                self.rx += self.layout.space_advance;
+                rx += space_advance;
                 continue;
             };
 
-            let glyph = &self.layout.font.glyphs
-                [(code_point - self.layout.font.ascii_range.start) as usize];
-            let advance = glyph.0 as f32 * self.layout.scale;
+            let glyph = &font.glyphs[(code_point - font.ascii_range.start) as usize];
+            let advance = glyph.0 as f32 * scale;
 
-            self.strokes = Some(GlyphStrokeIterator {
-                stroke_indices: glyph.1.clone(),
-                rx: self.rx,
-                ry: self.ry,
-            });
+            pending_strokes = Some(glyph.1.clone());
+            pending_rx = rx;
+            pending_ry = ry;
 
-            self.rx += advance;
-        }
+            rx += advance;
+        })
     }
 }
 
@@ -249,11 +199,9 @@ where
     ) {
         let color = color.into();
         let layout = SIMPLEX_STROKE_FONT.layout(text, font_size);
-        let adjusted_anchor = -anchor + vec2(-0.5, 0.5);
-
+        let layout_anchor = vec2(-0.5, 0.5) - anchor;
         let mut isometry: Isometry3d = isometry.into();
-        isometry.translation += Vec3A::from((layout.measure() * adjusted_anchor).extend(0.));
-
+        isometry.translation += Vec3A::from((layout.measure() * layout_anchor).extend(0.));
         for points in layout.render() {
             self.linestrip(points.map(|point| isometry * point.extend(0.)), color);
         }
@@ -291,13 +239,9 @@ where
     ) {
         let color = color.into();
         let layout = SIMPLEX_STROKE_FONT.layout(text, font_size);
-
-        // Adjust anchor to top-left coords
-        let adjusted_anchor = -anchor + vec2(-0.5, 0.5);
-
+        let layout_anchor = vec2(-0.5, 0.5) - anchor;
         let mut isometry: Isometry2d = isometry.into();
-        isometry.translation += layout.measure() * adjusted_anchor;
-
+        isometry.translation += layout.measure() * layout_anchor;
         for points in layout.render() {
             self.linestrip_2d(points.map(|point| isometry * point), color);
         }
