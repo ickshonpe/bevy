@@ -4558,6 +4558,18 @@ category = "Gizmos"
 wasm = true
 
 [[example]]
+name = "anchored_text_gizmos"
+path = "examples/gizmos/anchored_text_gizmos.rs"
+# Causes an ICE on docs.rs
+doc-scrape-examples = false
+
+[package.metadata.example.anchored_text_gizmos]
+name = "Anchored Text Gizmos"
+description = "Demonstrates anchored text gizmos"
+category = "Gizmos"
+wasm = true
+
+[[example]]
 name = "3d_text_gizmos"
 path = "examples/gizmos/3d_text_gizmos.rs"
 # Causes an ICE on docs.rs
