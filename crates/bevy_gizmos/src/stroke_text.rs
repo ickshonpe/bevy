@@ -21,12 +21,11 @@ pub struct StrokeFont<'a> {
     /// Stroke ranges into `positions`.
     pub strokes: &'a [Range<usize>],
     /// Glyph advances and stroke ranges.
-    pub glyphs: [(i8, Range<usize>); 95],
+    pub glyphs: &'a [(i8, Range<usize>); 95],
 }
 
 impl<'a> StrokeFont<'a> {
-    /// Get the advance for the glyph corresponding to this char.
-    /// Returns `self.advance` if there is no corresponding glyph.
+    /// Builds a `StrokeTextLayout` for `text` at the requested `font_size`.
     pub fn layout(&'a self, text: &'a str, font_size: f32) -> StrokeTextLayout<'a> {
         let scale = font_size / SIMPLEX_CAP_HEIGHT;
         let glyph_height = SIMPLEX_HEIGHT * scale;
