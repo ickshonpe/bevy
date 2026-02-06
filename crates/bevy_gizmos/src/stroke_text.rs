@@ -52,12 +52,9 @@ impl<'a> StrokeFont<'a> {
         }
     }
 
-    /// Get the advance and stroke point slices for a glyph.
-    pub fn get_glyph(&self, c: char) -> Option<(i8, impl Iterator<Item = &'a [[i8; 2]]> + '_)> {
-        let (advance, strokes_range) = self.glyphs[self.get_glyph_index(c)?].clone();
-        let strokes = strokes_range
-            .map(move |stroke_index| &self.positions[self.strokes[stroke_index].clone()]);
-        Some((advance, strokes))
+    /// Get the advance and stroke point ranges for a glyph.
+    pub fn get_glyph(&self, c: char) -> Option<(i8, Range<usize>)> {
+        Some(self.glyphs[self.get_glyph_index(c)?].clone())
     }
 
     /// Get the advance for a glyph.
@@ -144,12 +141,10 @@ impl<'a> StrokeTextLayout<'a> {
                 continue;
             }
 
-            let Some(index) = self.font.get_glyph_index(c) else {
+            let Some((advance, strokes)) = self.font.get_glyph(c) else {
                 x += self.space_advance;
                 continue;
             };
-
-            let (advance, strokes) = self.font.glyphs[index].clone();
             current_strokes = strokes;
             current_x = x;
 
