@@ -8,7 +8,6 @@ use bevy_reflect::prelude::*;
 use bevy_utils::{default, once};
 use core::fmt::{Debug, Formatter};
 use core::str::from_utf8;
-use cosmic_text::{Buffer, Family, Metrics, Stretch};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use smol_str::SmolStr;
@@ -254,15 +253,21 @@ pub enum Justify {
     /// align with their margins.
     /// Bounds start from the render position and advance equally left & right.
     Justified,
+    /// `TextAlignment::Left` for LTR text and `TextAlignment::Right` for RTL text.
+    Start,
+    /// `TextAlignment::Left` for RTL text and `TextAlignment::Right` for LTR text.
+    End,
 }
 
-impl From<Justify> for cosmic_text::Align {
+impl From<Justify> for parley::Alignment {
     fn from(justify: Justify) -> Self {
         match justify {
-            Justify::Left => cosmic_text::Align::Left,
-            Justify::Center => cosmic_text::Align::Center,
-            Justify::Right => cosmic_text::Align::Right,
-            Justify::Justified => cosmic_text::Align::Justified,
+            Justify::Start => parley::Alignment::Start,
+            Justify::End => parley::Alignment::End,
+            Justify::Left => parley::Alignment::Left,
+            Justify::Center => parley::Alignment::Center,
+            Justify::Right => parley::Alignment::Right,
+            Justify::Justified => parley::Alignment::Justify,
         }
     }
 }
@@ -638,9 +643,9 @@ impl Default for FontWeight {
     }
 }
 
-impl From<FontWeight> for cosmic_text::Weight {
+impl From<FontWeight> for parley::style::FontWeight {
     fn from(value: FontWeight) -> Self {
-        cosmic_text::Weight(value.clamp().0)
+        parley::style::FontWeight::new(value.clamp().0 as f32)
     }
 }
 
@@ -683,18 +688,18 @@ impl Default for FontWidth {
     }
 }
 
-impl From<FontWidth> for Stretch {
+impl From<FontWidth> for parley::FontWidth {
     fn from(value: FontWidth) -> Self {
         match value.0 {
-            1 => Stretch::UltraCondensed,
-            2 => Stretch::ExtraCondensed,
-            3 => Stretch::Condensed,
-            4 => Stretch::SemiCondensed,
-            6 => Stretch::SemiExpanded,
-            7 => Stretch::Expanded,
-            8 => Stretch::ExtraExpanded,
-            9 => Stretch::UltraExpanded,
-            _ => Stretch::Normal,
+            1 => parley::FontWidth::UltraCondensed,
+            2 => parley::FontWidth::ExtraCondensed,
+            3 => parley::FontWidth::Condensed,
+            4 => parley::FontWidth::SemiCondensed,
+            6 => parley::FontWidth::SemiExpanded,
+            7 => parley::FontWidth::Expanded,
+            8 => parley::FontWidth::ExtraExpanded,
+            9 => parley::FontWidth::UltraExpanded,
+            _ => parley::FontWidth::Normal,
         }
     }
 }

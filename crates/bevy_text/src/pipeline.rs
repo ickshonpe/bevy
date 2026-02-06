@@ -1,6 +1,5 @@
 use bevy_asset::Assets;
 use bevy_color::Color;
-use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{
     component::Component, entity::Entity, reflect::ReflectComponent, resource::Resource,
     system::ResMut,
@@ -15,41 +14,23 @@ use crate::{
     FontAtlasKey, FontAtlasSet, FontHinting, FontSmoothing, FontSource, FontStyle, FontWeight,
     Justify, LineBreak, LineHeight, PositionedGlyph, TextBounds, TextEntity, TextFont, TextLayout,
 };
-use cosmic_text::{Attrs, Buffer, Family, Metrics, Shaping, Wrap};
 
-/// A wrapper resource around a [`cosmic_text::FontSystem`]
-///
-/// The font system is used to retrieve fonts and their information, including glyph outlines.
-///
-/// This resource is updated by the [`TextPipeline`] resource.
-#[derive(Resource, Deref, DerefMut)]
-pub struct CosmicFontSystem(pub cosmic_text::FontSystem);
+// impl CosmicFontSystem {
+//     /// Get information about a font face, if it exists
+//     pub fn get_face_details(&self, id: cosmic_text::fontdb::ID) -> Option<FontFaceDetails> {
+//         self.0.db().face(id).map(FontFaceDetails::from)
+//     }
 
-impl Default for CosmicFontSystem {
-    fn default() -> Self {
-        let locale = sys_locale::get_locale().unwrap_or_else(|| String::from("en-US"));
-        let db = cosmic_text::fontdb::Database::new();
-        // TODO: consider using `cosmic_text::FontSystem::new()` (load system fonts by default)
-        Self(cosmic_text::FontSystem::new_with_locale_and_db(locale, db))
-    }
-}
-
-impl CosmicFontSystem {
-    /// Get information about a font face, if it exists
-    pub fn get_face_details(&self, id: cosmic_text::fontdb::ID) -> Option<FontFaceDetails> {
-        self.0.db().face(id).map(FontFaceDetails::from)
-    }
-
-    /// Get the family name associated with a `FontSource`.
-    ///
-    /// Returns `None` for a `FontSource::Handle`. Instead, a font asset's family name
-    /// can be read from its `family` field.
-    pub fn get_family(&self, source: &FontSource) -> Option<smol_str::SmolStr> {
-        source
-            .as_family()
-            .map(|family| self.db().family_name(&family).into())
-    }
-}
+//     /// Get the family name associated with a `FontSource`.
+//     ///
+//     /// Returns `None` for a `FontSource::Handle`. Instead, a font asset's family name
+//     /// can be read from its `family` field.
+//     pub fn get_family(&self, source: &FontSource) -> Option<smol_str::SmolStr> {
+//         source
+//             .as_family()
+//             .map(|family| self.db().family_name(&family).into())
+//     }
+// }
 
 #[derive(Debug)]
 /// Details about a Font Face
@@ -94,46 +75,32 @@ pub struct FontFaceDetails {
     pub monospaced: bool,
 }
 
-impl From<&cosmic_text::fontdb::FaceInfo> for FontFaceDetails {
-    fn from(face: &cosmic_text::fontdb::FaceInfo) -> Self {
-        FontFaceDetails {
-            path: match face.source {
-                cosmic_text::fontdb::Source::Binary(_) => None,
-                cosmic_text::fontdb::Source::File(ref path)
-                | cosmic_text::fontdb::Source::SharedFile(ref path, _) => Some(path.clone()),
-            },
-            index: face.index,
-            families: face
-                .families
-                .iter()
-                .map(|(name, language)| (name.clone(), language.to_string()))
-                .collect(),
-            post_script_name: face.post_script_name.clone(),
-            style: match face.style {
-                cosmic_text::Style::Normal => FontStyle::Normal,
-                cosmic_text::Style::Italic => FontStyle::Italic,
-                cosmic_text::Style::Oblique => FontStyle::Oblique,
-            },
-            weight: FontWeight(face.weight.0),
-            stretch: face.stretch.to_number(),
-            monospaced: face.monospaced,
-        }
-    }
-}
-
-/// A wrapper resource around a [`cosmic_text::SwashCache`]
-///
-/// The swash cache rasterizer is used to rasterize glyphs
-///
-/// This resource is updated by the [`TextPipeline`] resource.
-#[derive(Resource)]
-pub struct SwashCache(pub cosmic_text::SwashCache);
-
-impl Default for SwashCache {
-    fn default() -> Self {
-        Self(cosmic_text::SwashCache::new())
-    }
-}
+// impl From<&cosmic_text::fontdb::FaceInfo> for FontFaceDetails {
+//     fn from(face: &cosmic_text::fontdb::FaceInfo) -> Self {
+//         FontFaceDetails {
+//             path: match face.source {
+//                 cosmic_text::fontdb::Source::Binary(_) => None,
+//                 cosmic_text::fontdb::Source::File(ref path)
+//                 | cosmic_text::fontdb::Source::SharedFile(ref path, _) => Some(path.clone()),
+//             },
+//             index: face.index,
+//             families: face
+//                 .families
+//                 .iter()
+//                 .map(|(name, language)| (name.clone(), language.to_string()))
+//                 .collect(),
+//             post_script_name: face.post_script_name.clone(),
+//             style: match face.style {
+//                 cosmic_text::Style::Normal => FontStyle::Normal,
+//                 cosmic_text::Style::Italic => FontStyle::Italic,
+//                 cosmic_text::Style::Oblique => FontStyle::Oblique,
+//             },
+//             weight: FontWeight(face.weight.0),
+//             stretch: face.stretch.to_number(),
+//             monospaced: face.monospaced,
+//         }
+//     }
+// }
 
 /// The `TextPipeline` is used to layout and render text blocks (see `Text`/`Text2d`).
 ///
