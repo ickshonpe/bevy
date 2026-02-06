@@ -8,20 +8,11 @@ use bevy_reflect::prelude::*;
 use bevy_utils::{default, once};
 use core::fmt::{Debug, Formatter};
 use core::str::from_utf8;
+use parley::{FontFamily, FontFeature};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use smol_str::SmolStr;
 use tracing::warn;
-
-/// Wrapper for [`cosmic_text::Buffer`]
-#[derive(Deref, DerefMut, Debug, Clone)]
-pub struct CosmicBuffer(pub Buffer);
-
-impl Default for CosmicBuffer {
-    fn default() -> Self {
-        Self(Buffer::new_empty(Metrics::new(20.0, 20.0)))
-    }
-}
 
 /// A sub-entity of a [`ComputedTextBlock`].
 ///
@@ -45,14 +36,6 @@ pub struct TextEntity {
 #[derive(Component, Debug, Clone, Reflect)]
 #[reflect(Component, Debug, Default, Clone)]
 pub struct ComputedTextBlock {
-    /// Buffer for managing text layout and creating [`TextLayoutInfo`].
-    ///
-    /// This is private because buffer contents are always refreshed from ECS state when writing glyphs to
-    /// `TextLayoutInfo`. If you want to control the buffer contents manually or use the `cosmic-text`
-    /// editor, then you need to not use `TextLayout` and instead manually implement the conversion to
-    /// `TextLayoutInfo`.
-    #[reflect(ignore, clone)]
-    pub(crate) buffer: CosmicBuffer,
     /// Entities for all text spans in the block, including the root-level text.
     ///
     /// The [`TextEntity::depth`] field can be used to reconstruct the hierarchy.
@@ -102,22 +85,11 @@ impl ComputedTextBlock {
             || (is_viewport_size_changed && self.uses_viewport_sizes)
             || (is_rem_size_changed && self.uses_rem_sizes)
     }
-    /// Accesses the underlying buffer which can be used for `cosmic-text` APIs such as accessing layout information
-    /// or calculating a cursor position.
-    ///
-    /// Mutable access is not offered because changes would be overwritten during the automated layout calculation.
-    /// If you want to control the buffer contents manually or use the `cosmic-text`
-    /// editor, then you need to not use `TextLayout` and instead manually implement the conversion to
-    /// `TextLayoutInfo`.
-    pub fn buffer(&self) -> &CosmicBuffer {
-        &self.buffer
-    }
 }
 
 impl Default for ComputedTextBlock {
     fn default() -> Self {
         Self {
-            buffer: CosmicBuffer::default(),
             entities: SmallVec::default(),
             needs_rerender: true,
             uses_rem_sizes: false,
@@ -337,14 +309,16 @@ pub enum FontSource {
 impl FontSource {
     /// Returns this `FontSource` as a `fontdb` family, or `None`
     /// if this source is a `Handle`.
-    pub(crate) fn as_family<'a>(&'a self) -> Option<Family<'a>> {
+    pub(crate) fn as_family<'a>(&'a self) -> Option<FontFamily<'a>> {
         Some(match self {
-            FontSource::Family(family) => Family::Name(family.as_str()),
-            FontSource::Serif => Family::Serif,
-            FontSource::SansSerif => Family::SansSerif,
-            FontSource::Cursive => Family::Cursive,
-            FontSource::Fantasy => Family::Fantasy,
-            FontSource::Monospace => Family::Monospace,
+            FontSource::Family(family) => {
+                FontFamily::Named(alloc::borrow::Cow::from(family.as_str()))
+            }
+            FontSource::Serif => FontFamily::Generic(parley::GenericFamily::Serif),
+            FontSource::SansSerif => FontFamily::Generic(parley::GenericFamily::SansSerif),
+            FontSource::Cursive => FontFamily::Generic(parley::GenericFamily::Cursive),
+            FontSource::Fantasy => FontFamily::Generic(parley::GenericFamily::Fantasy),
+            FontSource::Monospace => FontFamily::Generic(parley::GenericFamily::Monospace),
             _ => return None,
         })
     }
@@ -691,21 +665,21 @@ impl Default for FontWidth {
 impl From<FontWidth> for parley::FontWidth {
     fn from(value: FontWidth) -> Self {
         match value.0 {
-            1 => parley::FontWidth::UltraCondensed,
-            2 => parley::FontWidth::ExtraCondensed,
-            3 => parley::FontWidth::Condensed,
-            4 => parley::FontWidth::SemiCondensed,
-            6 => parley::FontWidth::SemiExpanded,
-            7 => parley::FontWidth::Expanded,
-            8 => parley::FontWidth::ExtraExpanded,
-            9 => parley::FontWidth::UltraExpanded,
-            _ => parley::FontWidth::Normal,
+            1 => parley::FontWidth::ULTRA_CONDENSED,
+            2 => parley::FontWidth::EXTRA_CONDENSED,
+            3 => parley::FontWidth::CONDENSED,
+            4 => parley::FontWidth::SEMI_CONDENSED,
+            6 => parley::FontWidth::SEMI_EXPANDED,
+            7 => parley::FontWidth::EXPANDED,
+            8 => parley::FontWidth::EXTRA_EXPANDED,
+            9 => parley::FontWidth::ULTRA_EXPANDED,
+            _ => parley::FontWidth::NORMAL,
         }
     }
 }
 
 /// The slant style of a font face: normal, italic, or oblique.
-#[derive(Clone, Copy, Default, PartialEq, Eq, Debug, Hash, Reflect)]
+#[derive(Clone, Copy, Default, PartialEq, Debug, Reflect)]
 pub enum FontStyle {
     /// A face that is neither italic nor obliqued.
     #[default]
@@ -713,15 +687,15 @@ pub enum FontStyle {
     /// A form that is generally cursive in nature.
     Italic,
     /// A typically sloped version of the regular face.
-    Oblique,
+    Oblique(Option<f32>),
 }
 
-impl From<FontStyle> for cosmic_text::Style {
+impl From<FontStyle> for parley::FontStyle {
     fn from(value: FontStyle) -> Self {
         match value {
-            FontStyle::Normal => cosmic_text::Style::Normal,
-            FontStyle::Italic => cosmic_text::Style::Italic,
-            FontStyle::Oblique => cosmic_text::Style::Oblique,
+            FontStyle::Normal => parley::FontStyle::Normal,
+            FontStyle::Italic => parley::FontStyle::Italic,
+            FontStyle::Oblique(value) => parley::FontStyle::Oblique(value),
         }
     }
 }
@@ -896,18 +870,18 @@ where
     }
 }
 
-impl From<&FontFeatures> for cosmic_text::FontFeatures {
+impl From<&FontFeatures> for parley::style::FontSettings<'static, FontFeature> {
     fn from(font_features: &FontFeatures) -> Self {
-        cosmic_text::FontFeatures {
-            features: font_features
+        parley::style::FontSettings::List(
+            font_features
                 .features
                 .iter()
-                .map(|(tag, value)| cosmic_text::Feature {
-                    tag: cosmic_text::FeatureTag::new(&tag.0),
-                    value: *value,
+                .map(|(tag, value)| FontFeature {
+                    tag: u32::from_be_bytes(tag.0),
+                    value: *value as u16,
                 })
                 .collect(),
-        }
+        )
     }
 }
 
@@ -1172,32 +1146,6 @@ pub fn detect_text_needs_rerender<Root: Component>(
                 break;
             };
             parent = next_child_of.parent();
-        }
-    }
-}
-
-#[derive(Component, Debug, Copy, Clone, Default, Reflect, PartialEq)]
-#[reflect(Component, Default, Debug, Clone, PartialEq)]
-/// Font hinting strategy.
-///
-/// The text bounds can underflow or overflow slightly with `FontHinting::Enabled`.
-///
-/// <https://docs.rs/cosmic-text/latest/cosmic_text/enum.Hinting.html>
-pub enum FontHinting {
-    #[default]
-    /// Glyphs will have subpixel coordinates.
-    Disabled,
-    /// Glyphs will be snapped to integral coordinates in the X-axis during layout.
-    ///
-    /// The text bounds can underflow or overflow slightly with this enabled.
-    Enabled,
-}
-
-impl From<FontHinting> for cosmic_text::Hinting {
-    fn from(value: FontHinting) -> Self {
-        match value {
-            FontHinting::Disabled => cosmic_text::Hinting::Disabled,
-            FontHinting::Enabled => cosmic_text::Hinting::Enabled,
         }
     }
 }
