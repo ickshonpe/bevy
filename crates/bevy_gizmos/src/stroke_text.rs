@@ -167,7 +167,9 @@ where
     /// - `isometry`: defines the translation and rotation of the text.
     /// - `text`: the text to be drawn.
     /// - `size`: the size of the text in pixels.
-    /// - `anchor`: anchor point relative to the center of the text.
+    /// - `anchor`: normalized anchor point relative to the text bounds,
+    ///   where `(0, 0)` is centered, `(-0.5, 0.5)` is top-left,
+    ///   and `(0.5, -0.5)` is bottom-right.
     /// - `color`: the color of the text.
     ///
     /// # Example
@@ -209,7 +211,9 @@ where
     /// - `isometry`: defines the translation and rotation of the text.
     /// - `text`: the text to be drawn.
     /// - `size`: the size of the text.
-    /// - `anchor`: anchor point relative to the center of the text.
+    /// - `anchor`: normalized anchor point relative to the text bounds,
+    ///   where `(0., 0.)` is centered, `(-0.5, 0.5)` is top-left,
+    ///   and `(0.5, -0.5)` is bottom-right.
     /// - `color`: the color of the text.
     ///
     /// # Example
