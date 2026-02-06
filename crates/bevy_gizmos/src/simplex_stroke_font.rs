@@ -1,4 +1,6 @@
 //! Static Simplex Hershey font data used by text gizmos
+//!
+//! https://paulbourke.net/dataformats/hershey/
 
 use core::ops::Range;
 
@@ -1408,5 +1410,5 @@ pub const SIMPLEX_STROKE_FONT: StrokeFont = StrokeFont {
     cap_height: SIMPLEX_CAP_HEIGHT,
     positions: &SIMPLEX_POSITIONS,
     strokes: &SIMPLEX_STROKES,
-    glyphs: SIMPLEX_GLYPHS,
+    glyphs: &SIMPLEX_GLYPHS,
 };
