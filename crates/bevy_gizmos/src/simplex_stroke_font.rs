@@ -5,8 +5,6 @@ use core::ops::Range;
 use crate::stroke_text::StrokeFont;
 
 pub(crate) const LINE_HEIGHT: f32 = 1.3;
-pub(crate) const SIMPLEX_ASCII_START: u8 = 32;
-pub(crate) const SIMPLEX_ASCII_END: u8 = 126;
 pub(crate) const SIMPLEX_CAP_HEIGHT: f32 = 21.0;
 pub(crate) const SIMPLEX_DESCENDER_DEPTH: f32 = 7.0;
 pub(crate) const SIMPLEX_HEIGHT: f32 = SIMPLEX_CAP_HEIGHT + SIMPLEX_DESCENDER_DEPTH;
@@ -1405,11 +1403,10 @@ pub(crate) const SIMPLEX_GLYPHS: [(i8, Range<usize>); 95] = [
 
 pub const SIMPLEX_STROKE_FONT: StrokeFont = StrokeFont {
     line_height: LINE_HEIGHT,
-    ascii_range: SIMPLEX_ASCII_START..SIMPLEX_ASCII_END,
     advance: 16,
     height: SIMPLEX_HEIGHT,
     cap_height: SIMPLEX_CAP_HEIGHT,
     positions: &SIMPLEX_POSITIONS,
     strokes: &SIMPLEX_STROKES,
-    glyphs: &SIMPLEX_GLYPHS,
+    glyphs: SIMPLEX_GLYPHS,
 };

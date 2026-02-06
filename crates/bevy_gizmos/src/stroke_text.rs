@@ -6,12 +6,10 @@ use bevy_color::Color;
 use bevy_math::{vec2, Isometry2d, Isometry3d, Vec2};
 use core::ops::Range;
 
-/// A stroke font
+/// A stroke font containing glyphs for the 95 printable ASCII codes.
 pub struct StrokeFont<'a> {
     /// Baseline-to-baseline line height ratio.
     pub line_height: f32,
-    /// Inclusive ASCII range covered by `glyphs`.
-    pub ascii_range: Range<u8>,
     /// Full glyph height (cap + descender) in font units.
     pub height: f32,
     /// Cap height in font units.
@@ -22,8 +20,8 @@ pub struct StrokeFont<'a> {
     pub positions: &'a [[i8; 2]],
     /// Stroke ranges into `positions`.
     pub strokes: &'a [Range<usize>],
-    /// Glyph advances and stroke ranges, indexed by ASCII code point.
-    pub glyphs: &'a [(i8, Range<usize>)],
+    /// Glyph advances and stroke ranges.
+    pub glyphs: [(i8, Range<usize>); 95],
 }
 
 impl<'a> StrokeFont<'a> {
@@ -43,6 +41,28 @@ impl<'a> StrokeFont<'a> {
             space_advance,
             text,
         }
+    }
+
+    fn get_glyph_index(&self, c: char) -> Option<usize> {
+        let code = c as u32;
+        if (0x20..=0x7E).contains(&code) {
+            Some(code as usize - 0x20)
+        } else {
+            None
+        }
+    }
+
+    /// Get the advance and stroke point slices for a glyph.
+    pub fn get_glyph(&self, c: char) -> Option<(i8, impl Iterator<Item = &'a [[i8; 2]]> + '_)> {
+        let (advance, strokes_range) = self.glyphs[self.get_glyph_index(c)?].clone();
+        let strokes = strokes_range
+            .map(move |stroke_index| &self.positions[self.strokes[stroke_index].clone()]);
+        Some((advance, strokes))
+    }
+
+    /// Get the advance for a glyph.
+    pub fn get_glyph_advance(&self, c: char) -> Option<i8> {
+        Some(self.glyphs[self.get_glyph_index(c)?].0)
     }
 }
 
@@ -79,12 +99,11 @@ impl<'a> StrokeTextLayout<'a> {
                 continue;
             }
 
-            line_width += u8::try_from(c)
-                .ok()
-                .filter(|c| self.font.ascii_range.contains(c))
-                .map(|c| self.font.glyphs[(c - self.font.ascii_range.start) as usize].0)
-                .unwrap_or(self.font.advance) as f32
-                * self.scale;
+            line_width += self
+                .font
+                .get_glyph_advance(c)
+                .map(|advance| advance as f32 * self.scale)
+                .unwrap_or(self.space_advance);
         }
 
         layout_size.x = layout_size.x.max(line_width);
@@ -125,16 +144,12 @@ impl<'a> StrokeTextLayout<'a> {
                 continue;
             }
 
-            let Some(code_point) = u8::try_from(c)
-                .ok()
-                .filter(|c| self.font.ascii_range.contains(c))
-            else {
+            let Some(index) = self.font.get_glyph_index(c) else {
                 x += self.space_advance;
                 continue;
             };
 
-            let (advance, strokes) =
-                self.font.glyphs[(code_point - self.font.ascii_range.start) as usize].clone();
+            let (advance, strokes) = self.font.glyphs[index].clone();
             current_strokes = strokes;
             current_x = x;
 
