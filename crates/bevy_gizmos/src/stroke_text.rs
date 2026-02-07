@@ -192,7 +192,7 @@ where
         let isometry: Isometry3d = isometry.into();
         let color = color.into();
         let layout = SIMPLEX_STROKE_FONT.layout(text, font_size);
-        let layout_anchor = layout.measure() * vec2(-0.5, 0.5) - anchor;
+        let layout_anchor = layout.measure() * (vec2(-0.5, 0.5) - anchor);
         for points in layout.render() {
             self.linestrip(
                 points.map(|point| isometry * (layout_anchor + point).extend(0.)),
