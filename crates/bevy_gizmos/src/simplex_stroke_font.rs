@@ -1,6 +1,6 @@
 //! Static Simplex Hershey font data used by text gizmos
 //!
-//! https://paulbourke.net/dataformats/hershey/
+//! <https://paulbourke.net/dataformats/hershey/>
 
 use core::ops::Range;
 
