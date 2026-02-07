@@ -11,8 +11,8 @@ use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 
 use crate::{
     add_glyph_to_atlas, error::TextError, get_glyph_atlas_info, ComputedTextBlock, Font,
-    FontAtlasKey, FontAtlasSet, FontHinting, FontSmoothing, FontSource, FontStyle, FontWeight,
-    Justify, LineBreak, LineHeight, PositionedGlyph, TextBounds, TextEntity, TextFont, TextLayout,
+    FontAtlasKey, FontAtlasSet, FontSmoothing, FontSource, FontStyle, FontWeight, Justify,
+    LineBreak, LineHeight, PositionedGlyph, TextBounds, TextEntity, TextFont, TextLayout,
 };
 
 // impl CosmicFontSystem {
@@ -120,7 +120,12 @@ impl TextPipeline {
     pub fn update_buffer<'a>(
         &mut self,
         fonts: &Assets<Font>,
-        text_spans: impl Iterator<Item = (Entity, usize, &'a str, &'a TextFont, Color, LineHeight)>,
+        //text_spans: impl Iterator<Item = (Entity, usize, &'a str, &'a TextFont, Color, LineHeight)>,
+        reader: &mut TextReader<T>,
+        layout: &mut Layout<(u32, FontSmoothing)>,
+        font_cx: &'a mut FontContext,
+        layout_cx: &'a mut LayoutContext<(u32, FontSmoothing)>,
+
         linebreak: LineBreak,
         justify: Justify,
         bounds: TextBounds,
