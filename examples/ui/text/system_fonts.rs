@@ -54,7 +54,7 @@ fn setup(mut commands: Commands, mut font_system: ResMut<FontCx>) {
                 })
                 .with_children(|builder| {
                     for family in families {
-                        let family_for_font = family.clone();
+                        let font = FontSource::Family(family.clone().into());
                         builder.spawn((
                             Node {
                                 display: Display::Grid,
@@ -70,10 +70,7 @@ fn setup(mut commands: Commands, mut font_system: ResMut<FontCx>) {
                             children![
                                 (
                                     Text::new(&family),
-                                    TextFont {
-                                        font: FontSource::Family(family_for_font.into()),
-                                        ..default()
-                                    },
+                                    TextFont { font, ..default() },
                                     TextLayout::new_with_no_wrap()
                                 ),
                                 (Text::new(family), TextLayout::new_with_no_wrap()),
