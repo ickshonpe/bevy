@@ -1,4 +1,4 @@
-use crate::{FontAtlas, FontSmoothing, GlyphCacheKey};
+use crate::{FontAtlas, FontHinting, FontSmoothing, GlyphCacheKey};
 use bevy_asset::Assets;
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::resource::Resource;
@@ -18,6 +18,8 @@ pub struct FontAtlasKey {
     pub font_size_bits: u32,
     /// Hash of normalized variation coords for this run.
     pub variations_hash: u64,
+    /// Hinting
+    pub hinting: FontHinting,
     /// Antialiasing method
     pub font_smoothing: FontSmoothing,
 }

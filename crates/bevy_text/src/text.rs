@@ -1076,7 +1076,7 @@ pub enum FontSmoothing {
     // SubpixelAntiAliased,
 }
 
-#[derive(Component, Debug, Copy, Clone, Default, Reflect, PartialEq)]
+#[derive(Component, Debug, Copy, Clone, Default, Reflect, PartialEq, Hash, Eq)]
 #[reflect(Component, Default, Debug, Clone, PartialEq)]
 /// Font hinting strategy.
 pub enum FontHinting {

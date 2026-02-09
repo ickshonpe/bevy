@@ -274,6 +274,7 @@ impl TextPipeline {
         scale_cx: &mut ScaleCx,
         bounds: TextBounds,
         justify: Justify,
+        hinting: FontHinting,
     ) -> Result<(), TextError> {
         computed.needs_rerender = false;
         layout_info.clear();
@@ -299,6 +300,7 @@ impl TextPipeline {
                         index: font.index,
                         font_size_bits: font_size.to_bits(),
                         variations_hash,
+                        hinting,
                         font_smoothing,
                     };
 
@@ -377,7 +379,7 @@ impl TextPipeline {
             }
         }
 
-        layout_info.size = buffer_dimensions(layout);
+        layout_info.size = Vec2::new(layout.full_width(), layout.height()).ceil();
         Ok(())
     }
 }
@@ -409,30 +411,39 @@ fn resolve_font_source<'a>(
 }
 
 /// Render information for a corresponding text block.
+///
+/// Contains scaled glyphs and their size. Generated via [`TextPipeline::update_text_layout_info`] when an entity has
+/// [`TextLayout`] and [`ComputedTextBlock`] components.
 #[derive(Component, Clone, Default, Debug, Reflect)]
 #[reflect(Component, Default, Debug, Clone)]
 pub struct TextLayoutInfo {
-    /// The target scale factor for this text layout.
+    /// The target scale factor for this text layout
     pub scale_factor: f32,
-    /// Scaled and positioned glyphs in screenspace.
+    /// Scaled and positioned glyphs in screenspace
     pub glyphs: Vec<PositionedGlyph>,
-    /// Geometry of each text run used to render text decorations.
+    /// Geometry of each text run used to render text decorations like background colors, strikethrough, and underline.
+    /// A run in `bevy_text` is a contiguous sequence of glyphs on a line that share the same text attributes like font,
+    /// font size, and line height. A text entity that extends over multiple lines will have multiple corresponding runs.
+    ///
+    /// The coordinates are unscaled and relative to the top left corner of the text layout.
     pub run_geometry: Vec<RunGeometry>,
-    /// The glyphs resulting size.
+    /// The glyphs resulting size
     pub size: Vec2,
 }
 
 impl TextLayoutInfo {
-    /// Clear the layout, retaining capacity.
+    /// Clear the layout, retaining capacity
     pub fn clear(&mut self) {
-        self.scale_factor = 1.0;
+        self.scale_factor = 1.;
         self.glyphs.clear();
         self.run_geometry.clear();
         self.size = Vec2::ZERO;
     }
 }
 
-/// Geometry of a text run used to render text decorations.
+/// Geometry of a text run used to render text decorations like background colors, strikethrough, and underline.
+/// A run in `bevy_text` is a contiguous sequence of glyphs on a line that share the same text attributes like font,
+/// font size, and line height.
 #[derive(Default, Debug, Clone, Reflect)]
 pub struct RunGeometry {
     /// The index of the text entity in [`ComputedTextBlock`] that this run belongs to.
@@ -525,7 +536,7 @@ fn layout_with_bounds(
 
 /// Calculate the size of the text area for the given buffer.
 fn buffer_dimensions(buffer: &Layout<(u32, FontSmoothing)>) -> Vec2 {
-    let size = Vec2::new(buffer.width(), buffer.height());
+    let size = Vec2::new(buffer.full_width(), buffer.height());
     if size.is_finite() {
         size.ceil()
     } else {

@@ -345,10 +345,13 @@ pub fn text_system(
         &mut TextLayoutInfo,
         &mut TextNodeFlags,
         &mut ComputedTextBlock,
+        &FontHinting,
     )>,
     mut scale_cx: ResMut<ScaleCx>,
 ) {
-    for (node, block, mut text_layout_info, mut text_flags, mut computed) in &mut text_query {
+    for (node, block, mut text_layout_info, mut text_flags, mut computed, hinting) in
+        &mut text_query
+    {
         if node.is_changed() || text_flags.needs_recompute {
             // Skip the text node if it is waiting for a new measure func
             if text_flags.needs_measure_fn {
@@ -372,6 +375,7 @@ pub fn text_system(
                 &mut scale_cx,
                 physical_node_size,
                 block.justify,
+                *hinting,
             ) {
                 Err(
                     TextError::NoSuchFont
