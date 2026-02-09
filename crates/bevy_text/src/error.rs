@@ -7,6 +7,10 @@ pub enum TextError {
     /// that the font failed to load for some other reason
     #[error("font not found")]
     NoSuchFont,
+    /// Font was not found, this could be that the font has not yet been loaded, or
+    /// that the font failed to load for some other reason
+    #[error("No such font family {0:?}")]
+    NoSuchFontFamily(String),
     /// Failed to add glyph to a newly created atlas for some reason
     #[error("failed to add glyph to newly-created atlas {0:?}")]
     FailedToAddGlyph(u16),

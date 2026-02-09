@@ -16,6 +16,8 @@ pub struct FontAtlasKey {
     pub index: u32,
     /// Font size via `f32::to_bits`
     pub font_size_bits: u32,
+    /// Hash of normalized variation coords for this run.
+    pub variations_hash: u64,
     /// Antialiasing method
     pub font_smoothing: FontSmoothing,
 }

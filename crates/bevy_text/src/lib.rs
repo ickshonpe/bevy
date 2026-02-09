@@ -23,8 +23,8 @@
 //! or `bevy_sprite::text2d::update_text2d_layout` system (in a 2d world space context)
 //! passes it into [`TextPipeline::update_text_layout_info`], which:
 //!
-//! 1. updates a [`Buffer`](cosmic_text::Buffer) from the [`TextSpan`]s, generating new [`FontAtlas`]es if necessary.
-//! 2. iterates over each glyph in the [`Buffer`](cosmic_text::Buffer) to create a [`PositionedGlyph`],
+//! 1. updates a [`Layout`](parley::Layout) from the [`TextSpan`]s, generating new [`FontAtlas`]es if necessary.
+//! 2. iterates over each glyph in the [`Layout`](parley::Layout) to create a [`PositionedGlyph`],
 //!    retrieving glyphs from the cache, or rasterizing to a [`FontAtlas`] if necessary.
 //! 3. [`PositionedGlyph`]s are stored in a [`TextLayoutInfo`],
 //!    which contains all the information that downstream systems need for rendering.
@@ -32,13 +32,13 @@
 extern crate alloc;
 
 mod bounds;
-pub mod context;
 mod error;
 mod font;
 mod font_atlas;
 mod font_atlas_set;
 mod font_loader;
 mod glyph;
+mod parley_context;
 mod pipeline;
 mod text;
 mod text_access;
@@ -51,6 +51,7 @@ pub use font_atlas::*;
 pub use font_atlas_set::*;
 pub use font_loader::*;
 pub use glyph::*;
+pub use parley_context::*;
 pub use pipeline::*;
 pub use text::*;
 pub use text_access::*;
@@ -61,19 +62,15 @@ pub use text_access::*;
 pub mod prelude {
     #[doc(hidden)]
     pub use crate::{
-        Font, FontSize, FontSmoothing, FontSource, FontStyle, FontWeight, FontWidth, Justify,
-        LineBreak, Strikethrough, StrikethroughColor, TextColor, TextError, TextFont, TextLayout,
-        TextSpan, Underline, UnderlineColor,
+        Font, FontHinting, FontSize, FontSmoothing, FontSource, FontStyle, FontWeight, FontWidth,
+        Justify, LineBreak, Strikethrough, StrikethroughColor, TextColor, TextError, TextFont,
+        TextLayout, TextSpan, Underline, UnderlineColor,
     };
 }
 
 use bevy_app::prelude::*;
 use bevy_asset::AssetApp;
 use bevy_ecs::prelude::*;
-
-use crate::context::FontCx;
-use crate::context::LayoutCx;
-use crate::context::ScaleCx;
 
 /// The raw data for the default font used by `bevy_text`
 #[cfg(feature = "default_font")]
@@ -103,9 +100,9 @@ impl Plugin for TextPlugin {
             .init_resource::<RemSize>()
             .add_systems(
                 PostUpdate,
-                load_font_assets_into_fontdb_system.after(AssetEventSystems),
+                load_font_assets_into_font_collection.after(AssetEventSystems),
             )
-            .add_systems(Last, trim_cosmic_cache);
+            .add_systems(Last, trim_source_cache);
 
         #[cfg(feature = "default_font")]
         {

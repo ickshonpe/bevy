@@ -1,6 +1,5 @@
-use crate::context::FontCx;
 use crate::ComputedTextBlock;
-use crate::TextFont;
+use crate::FontCx;
 use bevy_asset::Asset;
 use bevy_asset::AssetEvent;
 use bevy_asset::Assets;
@@ -43,12 +42,11 @@ impl Font {
     }
 }
 
-/// Add new font assets to the font system's database.
-pub fn load_font_assets_into_fontdb_system(
-    mut cx: ResMut<FontCx>,
+/// Add new font assets to the internal font collection.
+pub fn load_font_assets_into_font_collection(
     mut fonts: ResMut<Assets<Font>>,
     mut events: MessageReader<AssetEvent<Font>>,
-    mut text_font_query: Query<&mut TextFont>,
+    mut font_cx: ResMut<FontCx>,
     mut text_block_query: Query<&mut ComputedTextBlock>,
 ) {
     let mut new_fonts_added = false;
@@ -57,20 +55,13 @@ pub fn load_font_assets_into_fontdb_system(
         if let AssetEvent::Added { id } = event
             && let Some(font) = fonts.get_mut(*id)
         {
-            if let Some(font) = fonts.get_mut(*id) {
-                cx.collection.register_fonts(
-                    font.data.clone(),
-                    Some(FontInfoOverride {
-                        family_name: Some(font.family_name.as_str()),
-                        ..Default::default()
-                    }),
-                );
-                // for mut font in text_font_query.iter_mut() {
-                //     if font.font. == *id {
-                //         font.set_changed();
-                //     }
-                // }
-            }
+            font_cx.0.collection.register_fonts(
+                font.data.clone(),
+                Some(FontInfoOverride {
+                    family_name: Some(font.family_name.as_str()),
+                    ..Default::default()
+                }),
+            );
             new_fonts_added = true;
         }
     }

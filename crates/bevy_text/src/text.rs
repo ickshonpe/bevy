@@ -8,7 +8,7 @@ use bevy_reflect::prelude::*;
 use bevy_utils::{default, once};
 use core::fmt::{Debug, Formatter};
 use core::str::from_utf8;
-use parley::{FontFamily, FontFeature};
+use parley::{FontFeature, Layout};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use smol_str::SmolStr;
@@ -33,9 +33,12 @@ pub struct TextEntity {
 /// See [`TextLayout`].
 ///
 /// Automatically updated by 2d and UI text systems.
-#[derive(Component, Debug, Clone, Reflect)]
+#[derive(Component, Clone, Reflect)]
 #[reflect(Component, Debug, Default, Clone)]
 pub struct ComputedTextBlock {
+    /// Text layout, used to generate [`TextLayoutInfo`].
+    #[reflect(ignore, clone)]
+    pub(crate) layout: Layout<(u32, FontSmoothing)>,
     /// Entities for all text spans in the block, including the root-level text.
     ///
     /// The [`TextEntity::depth`] field can be used to reconstruct the hierarchy.
@@ -61,6 +64,21 @@ pub struct ComputedTextBlock {
     // Used by dependents to determine if they should update a text block on changes to
     // the rem size.
     pub(crate) uses_rem_sizes: bool,
+    /// Hinting mode to use when rasterizing glyphs for this block.
+    pub(crate) font_hinting: FontHinting,
+}
+
+impl Debug for ComputedTextBlock {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ComputedTextBlock")
+            .field("buffer", &"Layout(..)")
+            .field("entities", &self.entities)
+            .field("needs_rerender", &self.needs_rerender)
+            .field("uses_viewport_sizes", &self.uses_viewport_sizes)
+            .field("uses_rem_sizes", &self.uses_rem_sizes)
+            .field("font_hinting", &self.font_hinting)
+            .finish()
+    }
 }
 
 impl ComputedTextBlock {
@@ -85,15 +103,22 @@ impl ComputedTextBlock {
             || (is_viewport_size_changed && self.uses_viewport_sizes)
             || (is_rem_size_changed && self.uses_rem_sizes)
     }
+
+    /// Accesses the shaped layout buffer.
+    pub fn buffer(&self) -> &Layout<(u32, FontSmoothing)> {
+        &self.layout
+    }
 }
 
 impl Default for ComputedTextBlock {
     fn default() -> Self {
         Self {
+            layout: Layout::new(),
             entities: SmallVec::default(),
             needs_rerender: true,
             uses_rem_sizes: false,
             uses_viewport_sizes: false,
+            font_hinting: FontHinting::Disabled,
         }
     }
 }
@@ -248,14 +273,14 @@ impl From<Justify> for parley::Alignment {
 /// Determines how the font face for a text sections is selected.
 ///
 /// A `FontSource` can be a handle to a font asset, a font family name,
-/// or a generic font category that is resolved using Cosmic Text's font database.
+/// or a generic font category that is resolved using Parley's font database.
 ///
-/// The `CosmicFontSystem` resource can be used to change the font family
+/// The `FontCx` resource can be used to change the font family
 /// associated to a generic font variant:
 /// ```
-/// # use bevy_text::CosmicFontSystem;
+/// # use bevy_text::FontCx;
 /// # use bevy_text::FontSource;
-/// let mut font_system = CosmicFontSystem::default();
+/// let mut font_system = FontCx::default();
 /// let mut font_database = font_system.db_mut();
 /// font_database.set_serif_family("Allegro");
 /// font_database.set_sans_serif_family("Encode Sans");
@@ -263,7 +288,7 @@ impl From<Justify> for parley::Alignment {
 /// font_database.set_fantasy_family("Argusho");
 /// font_database.set_monospace_family("Lucida Console");
 ///
-/// // `CosmicFontSystem::get_family` can be used to look up the name
+/// // `FontCx::get_family` can be used to look up the name
 /// // of a `FontSource`'s associated family
 /// let family_name = font_system.get_family(&FontSource::Serif).unwrap();
 /// assert_eq!(family_name.as_str(), "Allegro");
@@ -304,24 +329,27 @@ pub enum FontSource {
     /// Monospace fonts are commonly used for code, tabular data, and text
     /// where vertical alignment is important.
     Monospace,
-}
-
-impl FontSource {
-    /// Returns this `FontSource` as a `fontdb` family, or `None`
-    /// if this source is a `Handle`.
-    pub(crate) fn as_family<'a>(&'a self) -> Option<FontFamily<'a>> {
-        Some(match self {
-            FontSource::Family(family) => {
-                FontFamily::Named(alloc::borrow::Cow::from(family.as_str()))
-            }
-            FontSource::Serif => FontFamily::Generic(parley::GenericFamily::Serif),
-            FontSource::SansSerif => FontFamily::Generic(parley::GenericFamily::SansSerif),
-            FontSource::Cursive => FontFamily::Generic(parley::GenericFamily::Cursive),
-            FontSource::Fantasy => FontFamily::Generic(parley::GenericFamily::Fantasy),
-            FontSource::Monospace => FontFamily::Generic(parley::GenericFamily::Monospace),
-            _ => return None,
-        })
-    }
+    /// The default user interface system font.
+    SystemUi,
+    /// Alternative serif font for user interfaces.
+    UiSerif,
+    /// Alternative sans-erif font for user interfaces.
+    UiSansSerif,
+    /// Alternative monospace font for user interfaces.
+    UiMonospace,
+    /// Fonts that have rounded features.
+    UiRounded,
+    /// Fonts that are specifically designed to render emoji.
+    Emoji,
+    /// This is for the particular stylistic concerns of representing
+    /// mathematics: superscript and subscript, brackets that cross several
+    /// lines, nesting expressions, and double struck glyphs with distinct
+    /// meanings.
+    Math,
+    /// A particular style of Chinese characters that are between serif-style
+    /// Song and cursive-style Kai forms. This style is often used for
+    /// government documents.
+    FangSong,
 }
 
 impl Default for FontSource {
@@ -897,6 +925,15 @@ pub enum LineHeight {
     RelativeToFont(f32),
 }
 
+impl LineHeight {
+    pub(crate) fn eval(self, _font_size: f32) -> parley::LineHeight {
+        match self {
+            LineHeight::Px(px) => parley::LineHeight::Absolute(px),
+            LineHeight::RelativeToFont(scale) => parley::LineHeight::FontSizeRelative(scale),
+        }
+    }
+}
+
 impl Default for LineHeight {
     fn default() -> Self {
         LineHeight::RelativeToFont(1.2)
@@ -1037,6 +1074,23 @@ pub enum FontSmoothing {
     AntiAliased,
     // TODO: Add subpixel antialias support
     // SubpixelAntiAliased,
+}
+
+#[derive(Component, Debug, Copy, Clone, Default, Reflect, PartialEq)]
+#[reflect(Component, Default, Debug, Clone, PartialEq)]
+/// Font hinting strategy.
+pub enum FontHinting {
+    #[default]
+    /// Glyphs are rasterized without hinting.
+    Disabled,
+    /// Glyphs are rasterized with hinting.
+    Enabled,
+}
+
+impl FontHinting {
+    pub(crate) fn should_hint(self) -> bool {
+        matches!(self, FontHinting::Enabled)
+    }
 }
 
 /// System that detects changes to text blocks and sets `ComputedTextBlock::should_rerender`.
