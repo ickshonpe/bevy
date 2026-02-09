@@ -71,7 +71,7 @@ pub struct ComputedTextBlock {
 impl Debug for ComputedTextBlock {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("ComputedTextBlock")
-            .field("buffer", &"Layout(..)")
+            .field("layout", &"Layout(..)")
             .field("entities", &self.entities)
             .field("needs_rerender", &self.needs_rerender)
             .field("uses_viewport_sizes", &self.uses_viewport_sizes)
