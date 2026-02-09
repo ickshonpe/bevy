@@ -534,6 +534,11 @@ fn buffer_dimensions(buffer: &Layout<(u32, FontSmoothing)>) -> Vec2 {
 }
 
 /// Discards stale data cached in the font system.
-pub(crate) fn trim_source_cache(mut font_system: ResMut<FontCx>) {
-    font_system.0.source_cache.prune(2, false);
+pub(crate) fn trim_source_cache(mut font_cx: ResMut<FontCx>) {
+    // A trim age of 2 was found to reduce frame time variance vs age of 1 when tested with dynamic text.
+    // See https://github.com/bevyengine/bevy/pull/15037
+    //
+    // We assume only text updated frequently benefits from the shape cache (e.g. animated text, or
+    // text that is dynamically measured for UI).
+    font_cx.0.source_cache.prune(2, false);
 }
