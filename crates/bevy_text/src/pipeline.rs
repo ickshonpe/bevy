@@ -478,6 +478,8 @@ impl RunGeometry {
 }
 
 /// Size information for a corresponding [`ComputedTextBlock`] component.
+///
+/// Generated via [`TextPipeline::create_text_measure`].
 #[derive(Debug)]
 pub struct TextMeasureInfo {
     /// Minimum size for a text area in pixels, to be used when laying out widgets with taffy.
@@ -496,6 +498,8 @@ impl TextMeasureInfo {
         computed: &mut ComputedTextBlock,
         _font_system: &mut FontCx,
     ) -> Vec2 {
+        // Note that this arbitrarily adjusts the buffer layout. We assume the buffer is always 'refreshed'
+        // whenever a canonical state is required.
         let layout = &mut computed.layout;
         layout.break_all_lines(bounds.width);
         layout.align(bounds.width, Alignment::Start, AlignmentOptions::default());
