@@ -272,26 +272,25 @@ impl From<Justify> for parley::Alignment {
 #[derive(Clone, Debug, Reflect, PartialEq)]
 /// Determines how the font face for a text sections is selected.
 ///
-/// A `FontSource` can be a handle to a font asset, a font family name,
+/// A [`FontSource`] can be a handle to a font asset, a font family name,
 /// or a generic font category that is resolved using Parley's font database.
 ///
-/// The `FontCx` resource can be used to change the font family
+/// The [`FontCx`](crate::FontCx) resource can be used to change the font family
 /// associated to a generic font variant:
 /// ```
 /// # use bevy_text::FontCx;
 /// # use bevy_text::FontSource;
-/// let mut font_system = FontCx::default();
-/// let mut font_database = font_system.db_mut();
-/// font_database.set_serif_family("Allegro");
-/// font_database.set_sans_serif_family("Encode Sans");
-/// font_database.set_cursive_family("Cedarville Cursive");
-/// font_database.set_fantasy_family("Argusho");
-/// font_database.set_monospace_family("Lucida Console");
+/// let mut font_context = FontCx::default();
+/// font_context.set_serif_family("Allegro");
+/// font_context.set_sans_serif_family("Encode Sans");
+/// font_context.set_cursive_family("Cedarville Cursive");
+/// font_context.set_fantasy_family("Argusho");
+/// font_context.set_monospace_family("Lucida Console");
 ///
 /// // `FontCx::get_family` can be used to look up the name
 /// // of a `FontSource`'s associated family
-/// let family_name = font_system.get_family(&FontSource::Serif).unwrap();
-/// assert_eq!(family_name.as_str(), "Allegro");
+/// let family_name = font_context.get_family(&FontSource::Serif).unwrap();
+/// assert_eq!(family_name, "Allegro");
 /// ```
 pub enum FontSource {
     /// Use a specific font face referenced by a [`Font`] asset handle.
