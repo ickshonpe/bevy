@@ -187,6 +187,10 @@ pub fn add_glyph_to_atlas(
 }
 
 /// Get the texture of the glyph as a rendered image, and its offset
+#[expect(
+    clippy::identity_op,
+    reason = "Alignment improves clarity during RGBA operations."
+)]
 pub fn get_outlined_glyph_texture(
     scaler: &mut Scaler,
     glyph_id: u16,

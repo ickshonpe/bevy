@@ -308,7 +308,7 @@ pub fn update_text2d_layout(
             &mut scale_cx,
             text_bounds,
             block.justify,
-            hinting.clone(),
+            *hinting,
         ) {
             Err(TextError::NoSuchFont | TextError::NoSuchFontFamily(_)) => {
                 // There was an error processing the text layout.
