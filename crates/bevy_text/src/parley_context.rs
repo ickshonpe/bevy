@@ -126,3 +126,19 @@ pub struct LayoutCx(pub LayoutContext<(u32, FontSmoothing)>);
 /// Text scaler context
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct ScaleCx(pub ScaleContext);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn setting_and_getting_family() {
+        let mut font_context = FontCx::default();
+        font_context.set_serif_family("Allegro").unwrap();
+
+        let family_name = font_context
+            .get_family(&FontSource::Serif)
+            .expect("Could not find family.");
+        assert_eq!(family_name, "Allegro");
+    }
+}
