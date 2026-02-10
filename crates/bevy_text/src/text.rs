@@ -1082,7 +1082,7 @@ pub enum FontSmoothing {
 #[reflect(Component, Default, Debug, Clone, PartialEq)]
 /// Font hinting strategy, which controls the rasterization for fonts.
 ///
-/// Font hinting tries to make fonts "snap" to a pixel grid at the expense of subtle distortion.
+/// Font hinting specializes the vector outlines to make them more clearer / more legible at a specific font size.
 /// It is particularly noticeable with small text and low resolutions.
 pub enum FontHinting {
     #[default]
