@@ -715,6 +715,8 @@ pub enum FontStyle {
     /// A form that is generally cursive in nature.
     Italic,
     /// A typically sloped version of the regular face.
+    ///
+    /// The contained f32 is the slant angle of the text, in degrees.
     Oblique(Option<f32>),
 }
 
