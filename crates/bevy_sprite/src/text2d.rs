@@ -441,12 +441,12 @@ mod tests {
 
         let mut font = fonts.get_mut(bevy_asset::AssetId::default()).unwrap();
         font.family_name = "Fira Mono".into();
-        let data = font.into_inner().data.as_ref().clone();
+        let data = font.into_inner().data.clone();
 
         world
             .resource_mut::<FontCx>()
             .collection
-            .register_fonts(font.data.clone(), None);
+            .register_fonts(data, None);
 
         let entity = app.world_mut().spawn(Text2d::new(FIRST_TEXT)).id();
 

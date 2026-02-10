@@ -5,6 +5,7 @@ use bevy_asset::AssetEvent;
 use bevy_asset::Assets;
 use bevy_ecs::message::MessageReader;
 use bevy_ecs::system::Query;
+use bevy_ecs::system::Res;
 use bevy_ecs::system::ResMut;
 use bevy_reflect::TypePath;
 use parley::fontique::Blob;
@@ -44,7 +45,7 @@ impl Font {
 
 /// Add new font assets to the internal font collection.
 pub fn load_font_assets_into_font_collection(
-    mut fonts: ResMut<Assets<Font>>,
+    fonts: Res<Assets<Font>>,
     mut events: MessageReader<AssetEvent<Font>>,
     mut font_cx: ResMut<FontCx>,
     mut text_block_query: Query<&mut ComputedTextBlock>,
@@ -53,7 +54,7 @@ pub fn load_font_assets_into_font_collection(
 
     for event in events.read() {
         if let AssetEvent::Added { id } = event
-            && let Some(mut font) = fonts.get_mut(*id)
+            && let Some(font) = fonts.get(*id)
         {
             font_cx.0.collection.register_fonts(
                 font.data.clone(),
