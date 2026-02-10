@@ -53,7 +53,7 @@ pub fn load_font_assets_into_font_collection(
 
     for event in events.read() {
         if let AssetEvent::Added { id } = event
-            && let Some(font) = fonts.get_mut(*id)
+            && let Some(mut font) = fonts.get_mut(*id)
         {
             font_cx.0.collection.register_fonts(
                 font.data.clone(),

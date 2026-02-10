@@ -437,8 +437,11 @@ mod tests {
 
         let world = app.world_mut();
 
-        let fonts = world.resource_mut::<Assets<Font>>();
-        let font = fonts.get(bevy_asset::AssetId::default()).unwrap().clone();
+        let mut fonts = world.resource_mut::<Assets<Font>>();
+
+        let mut font = fonts.get_mut(bevy_asset::AssetId::default()).unwrap();
+        font.family_name = "Fira Mono".into();
+        let data = font.into_inner().data.as_ref().clone();
 
         world
             .resource_mut::<FontCx>()
