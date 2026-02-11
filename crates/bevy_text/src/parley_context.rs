@@ -7,7 +7,9 @@ use parley::LayoutContext;
 use parley::{FontContext, GenericFamily};
 use swash::scale::ScaleContext;
 
-/// Font context
+/// A font database and cache, used for font family resolution and text layout.
+///
+/// This resource is a wrapper around [`parley::FontContext`].
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct FontCx(pub FontContext);
 
