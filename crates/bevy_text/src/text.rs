@@ -275,23 +275,15 @@ impl From<Justify> for parley::Alignment {
 /// A [`FontSource`] can be a handle to a font asset, a font family name,
 /// or a generic font category that is resolved using Parley's font database.
 ///
-/// The [`FontCx`](crate::FontCx) resource can be used to change the font family
-/// associated to a generic font variant:
-/// ```
-/// # use bevy_text::FontCx;
-/// # use bevy_text::FontSource;
-/// let mut font_context = FontCx::default();
-/// font_context.set_serif_family("Allegro");
-/// font_context.set_sans_serif_family("Encode Sans");
-/// font_context.set_cursive_family("Cedarville Cursive");
-/// font_context.set_fantasy_family("Argusho");
-/// font_context.set_monospace_family("Lucida Console");
+/// Font family fallback (selection of a font when the requested font is not found)
+/// is automatically handled by [`parley::fontique`].
+/// Be sure to enable the `parley/system` feature for automatic discovery of system fonts.
 ///
-/// // `FontCx::get_family` can be used to look up the name
-/// // of a `FontSource`'s associated family
-/// let family_name = font_context.get_family(&FontSource::Serif).unwrap();
-/// assert_eq!(family_name, "Allegro");
-/// ```
+/// Generally speaking, these fallbacks are OS-specific,
+/// and do not require manual configuration.
+///
+/// You can check which font family is used for a given [`FontSource`]
+/// by calling [`FontCx::get_family`](crate::FontCx::get_family).
 pub enum FontSource {
     /// Use a specific font face referenced by a [`Font`] asset handle.
     ///

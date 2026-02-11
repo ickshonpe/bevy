@@ -41,7 +41,15 @@ impl FontCx {
         family_id.and_then(|id| self.0.collection.family_name(id))
     }
 
-    fn set_generic_family(
+    /// Sets the fallback font for a given generic family.
+    ///
+    /// In most cases, these methods do not need to called manually,
+    /// as [`parley::fontique`] will automatically select appropriate default fonts based based on available system fonts.
+    ///
+    /// Note that the `parley/system` feature must be enabled to allow automatic system font discovery.
+    ///
+    /// These methods will return an error if the provided family name does not already exist in the font collection.
+    pub fn set_generic_family(
         &mut self,
         generic: GenericFamily,
         family_name: &str,
