@@ -24,7 +24,7 @@ pub struct GlyphCacheKey {
 /// In practice, ranges of subpixel offsets are grouped into subpixel bins to limit the number of rasterized glyphs,
 /// providing a trade-off between visual quality and performance.
 ///
-/// A [`CacheKey`](cosmic_text::CacheKey) encodes all of the information of a subpixel-offset glyph and is used to
+/// A [`GlyphCacheKey`] encodes all of the information of a subpixel-offset glyph and is used to
 /// find that glyphs raster in a [`TextureAtlas`] through its corresponding [`GlyphAtlasLocation`].
 pub struct FontAtlas {
     /// Used to update the [`TextureAtlasLayout`].
