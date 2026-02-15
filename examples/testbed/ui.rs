@@ -166,12 +166,29 @@ mod text {
 
         let mut top = 230.;
 
-        for hinting in [FontHinting::Enabled, FontHinting::Disabled] {
+        for (hinting, x) in [(FontHinting::Enabled, 0.), (FontHinting::Disabled, 400.)] {
             top = 230.;
 
             commands.spawn((
                 Node {
-                    left: px(100.),
+                    left: px(100. + x),
+                    top: px(top),
+                    ..Default::default()
+                },
+                Text::new(format!("FontHinting::{:?}", hinting)),
+                TextFont {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
+                    ..default()
+                },
+                hinting,
+                DespawnOnExit(super::Scene::Text),
+            ));
+
+            top += 30.;
+
+            commands.spawn((
+                Node {
+                    left: px(100. + x),
                     top: px(top),
                     ..Default::default()
                 },
@@ -180,6 +197,7 @@ mod text {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
                     ..default()
                 },
+                hinting,
                 DespawnOnExit(super::Scene::Text),
                 children![
                     (TextSpan::new("red "), TextColor(RED.into()),),
@@ -200,7 +218,7 @@ mod text {
             top += 30.;
             commands.spawn((
                 Node {
-                    left: px(100.),
+                    left: px(100. + x),
                     top: px(top),
                     ..Default::default()
                 },
@@ -209,6 +227,7 @@ mod text {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
                     ..default()
                 },
+                hinting,
                 DespawnOnExit(super::Scene::Text),
                 children![
                     (
@@ -236,7 +255,7 @@ mod text {
             top += 30.;
             commands.spawn((
                 Node {
-                    left: px(100.),
+                    left: px(100. + x),
                     top: px(top),
                     ..Default::default()
                 },
@@ -245,6 +264,7 @@ mod text {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
                     ..default()
                 },
+                hinting,
                 DespawnOnExit(super::Scene::Text),
                 children![
                     (TextSpan::new(""), TextColor(YELLOW.into()),),
