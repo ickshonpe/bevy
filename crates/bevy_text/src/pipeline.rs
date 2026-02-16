@@ -343,16 +343,15 @@ impl TextPipeline {
                         let glyph_rect = texture_atlas.textures[location.glyph_index];
                         let glyph_size =
                             UVec2::new(glyph_rect.width(), glyph_rect.height()).as_vec2();
-
-                        let mut glyph_pos = Vec2::new(glyph.x, glyph.y);
-
-                        if font_smoothing == FontSmoothing::None {
-                            glyph_pos = glyph_pos.round();
-                        }
+                        let glyph_pos = Vec2::new(glyph.x, glyph.y);
 
                         layout_info.glyphs.push(PositionedGlyph {
                             position: glyph_size / 2.
-                                + glyph_pos
+                                + if font_smoothing == FontSmoothing::None {
+                                    glyph_pos.floor()
+                                } else {
+                                    glyph_pos
+                                }
                                 + location.offset.as_vec2() * Vec2::new(1., -1.),
                             size: glyph_size,
                             atlas_info,
