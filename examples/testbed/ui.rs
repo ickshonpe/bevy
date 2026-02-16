@@ -309,6 +309,7 @@ mod text {
                     top: px(top),
                     ..Default::default()
                 },
+                hinting,
                 Text::new("FiraSans_"),
                 TextFont {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
@@ -350,6 +351,7 @@ mod text {
                     top: px(top),
                     ..Default::default()
                 },
+                hinting,
                 Text::new("FiraSans "),
                 TextFont {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
@@ -392,6 +394,7 @@ mod text {
                     top: px(top),
                     ..Default::default()
                 },
+                hinting,
                 Text::new("FiraSans "),
                 TextFont {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
@@ -434,6 +437,7 @@ mod text {
                     top: px(top),
                     ..Default::default()
                 },
+                hinting,
                 Text::new("FiraSans"),
                 TextFont {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
@@ -479,6 +483,7 @@ mod text {
                     top: px(top),
                     ..Default::default()
                 },
+                hinting,
                 Text::new("Fira Sans_"),
                 TextFont {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
@@ -521,6 +526,7 @@ mod text {
                     top: px(top),
                     ..Default::default()
                 },
+                hinting,
                 Text::new("FontWeight(100)_"),
                 TextFont {
                     font: asset_server.load("fonts/MonaSans-VariableFont.ttf").into(),
@@ -558,6 +564,7 @@ mod text {
                     top: px(top),
                     ..Default::default()
                 },
+                hinting,
                 Text::new("FiraSans_"),
                 TextFont {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
@@ -604,6 +611,7 @@ mod text {
                     top: px(top),
                     ..Default::default()
                 },
+                hinting,
                 Text::new("FiraSans\t"),
                 TextFont {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf").into(),
