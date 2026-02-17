@@ -40,7 +40,7 @@ pub struct GlyphAtlasInfo {
     ///
     /// An asset ID of the handle held by the [`FontAtlas`](crate::FontAtlas).
     pub texture: AssetId<Image>,
-    /// Bounds of glyph in the alas texture
+    /// Bounds of the glyph in the atlas texture
     pub rect: Rect,
     /// The required offset (relative positioning) when placed
     pub offset: Vec2,
