@@ -32,7 +32,7 @@ pub struct FontAtlas {
     /// A mapping between subpixel-offset glyphs and their [`GlyphAtlasLocation`].
     pub glyph_to_atlas_index: HashMap<GlyphCacheKey, GlyphAtlasLocation>,
     /// The handle to the [`TextureAtlasLayout`] that holds the rasterized glyphs.
-    pub texture_atlas: Handle<TextureAtlasLayout>,
+    pub texture_atlas_layout: TextureAtlasLayout,
     /// The texture where this font atlas is located
     pub texture: Handle<Image>,
 }
@@ -41,7 +41,6 @@ impl FontAtlas {
     /// Create a new [`FontAtlas`] with the given size, adding it to the appropriate asset collections.
     pub fn new(
         textures: &mut Assets<Image>,
-        texture_atlases_layout: &mut Assets<TextureAtlasLayout>,
         size: UVec2,
         font_smoothing: FontSmoothing,
     ) -> FontAtlas {
@@ -57,9 +56,8 @@ impl FontAtlas {
             image.sampler = ImageSampler::nearest();
         }
         let texture = textures.add(image);
-        let texture_atlas = texture_atlases_layout.add(TextureAtlasLayout::new_empty(size));
         Self {
-            texture_atlas,
+            texture_atlas_layout: TextureAtlasLayout::new_empty(size),
             glyph_to_atlas_index: HashMap::default(),
             dynamic_texture_atlas_builder: DynamicTextureAtlasBuilder::new(size, 2),
             texture,
@@ -90,20 +88,16 @@ impl FontAtlas {
     pub fn add_glyph(
         &mut self,
         textures: &mut Assets<Image>,
-        atlas_layouts: &mut Assets<TextureAtlasLayout>,
         key: GlyphCacheKey,
         texture: &Image,
         offset: IVec2,
     ) -> Result<(), TextError> {
-        let mut atlas_layout = atlas_layouts
-            .get_mut(&self.texture_atlas)
-            .ok_or(TextError::MissingAtlasLayout)?;
         let mut atlas_texture = textures
             .get_mut(&self.texture)
             .ok_or(TextError::MissingAtlasTexture)?;
 
         if let Ok(glyph_index) = self.dynamic_texture_atlas_builder.add_texture(
-            &mut atlas_layout,
+            &mut self.texture_atlas_layout,
             texture,
             &mut atlas_texture,
         ) {
@@ -125,7 +119,7 @@ impl core::fmt::Debug for FontAtlas {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("FontAtlas")
             .field("glyph_to_atlas_index", &self.glyph_to_atlas_index)
-            .field("texture_atlas", &self.texture_atlas)
+            .field("texture_atlas", &self.texture_atlas_layout)
             .field("texture", &self.texture)
             .field("dynamic_texture_atlas_builder", &"[...]")
             .finish()
@@ -135,7 +129,6 @@ impl core::fmt::Debug for FontAtlas {
 /// Adds the given subpixel-offset glyph to the given font atlases
 pub fn add_glyph_to_atlas(
     font_atlases: &mut Vec<FontAtlas>,
-    texture_atlases: &mut Assets<TextureAtlasLayout>,
     textures: &mut Assets<Image>,
     scaler: &mut Scaler,
     font_smoothing: FontSmoothing,
@@ -143,13 +136,7 @@ pub fn add_glyph_to_atlas(
 ) -> Result<GlyphAtlasInfo, TextError> {
     let (glyph_texture, offset) = get_outlined_glyph_texture(scaler, glyph_id, font_smoothing)?;
     let mut add_char_to_font_atlas = |atlas: &mut FontAtlas| -> Result<(), TextError> {
-        atlas.add_glyph(
-            textures,
-            texture_atlases,
-            GlyphCacheKey { glyph_id },
-            &glyph_texture,
-            offset,
-        )
+        atlas.add_glyph(textures, GlyphCacheKey { glyph_id }, &glyph_texture, offset)
     };
     if !font_atlases
         .iter_mut()
@@ -164,20 +151,9 @@ pub fn add_glyph_to_atlas(
         // Pick the higher of 512 or the smallest power of 2 greater than glyph_max_size
         let containing = (1u32 << (32 - glyph_max_size.leading_zeros())).max(512);
 
-        let mut new_atlas = FontAtlas::new(
-            textures,
-            texture_atlases,
-            UVec2::splat(containing),
-            font_smoothing,
-        );
+        let mut new_atlas = FontAtlas::new(textures, UVec2::splat(containing), font_smoothing);
 
-        new_atlas.add_glyph(
-            textures,
-            texture_atlases,
-            GlyphCacheKey { glyph_id },
-            &glyph_texture,
-            offset,
-        )?;
+        new_atlas.add_glyph(textures, GlyphCacheKey { glyph_id }, &glyph_texture, offset)?;
 
         font_atlases.push(new_atlas);
     }
@@ -259,7 +235,7 @@ pub fn get_glyph_atlas_info(
             .get_glyph_index(cache_key)
             .map(|location| GlyphAtlasInfo {
                 location,
-                texture_atlas: atlas.texture_atlas.id(),
+                rect: atlas.texture_atlas_layout.textures[location.glyph_index],
                 texture: atlas.texture.id(),
             })
     })

@@ -364,7 +364,6 @@ pub fn text_system(
             match text_pipeline.update_text_layout_info(
                 &mut text_layout_info,
                 &mut font_atlas_set,
-                &mut texture_atlases,
                 &mut textures,
                 &mut computed,
                 &mut scale_cx,

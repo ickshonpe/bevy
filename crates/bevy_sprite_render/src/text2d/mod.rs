@@ -122,11 +122,7 @@ pub fn extract_text2d_sprite(
                 },
             ) in text_layout_info.glyphs.iter().enumerate()
             {
-                let rect = texture_atlases
-                    .get(atlas_info.texture_atlas)
-                    .unwrap()
-                    .textures[atlas_info.location.glyph_index]
-                    .as_rect();
+                let rect = atlas_info.rect.as_rect();
                 extracted_slices.slices.push(ExtractedSlice {
                     offset: *position,
                     rect,
@@ -239,11 +235,7 @@ pub fn extract_text2d_sprite(
                     .unwrap_or_default();
                 current_span = *span_index;
             }
-            let rect = texture_atlases
-                .get(atlas_info.texture_atlas)
-                .unwrap()
-                .textures[atlas_info.location.glyph_index]
-                .as_rect();
+            let rect = atlas_info.rect.as_rect();
             extracted_slices.slices.push(ExtractedSlice {
                 offset: *position,
                 rect,

@@ -264,7 +264,6 @@ impl TextPipeline {
         &mut self,
         layout_info: &mut TextLayoutInfo,
         font_atlas_set: &mut FontAtlasSet,
-        texture_atlases: &mut Assets<TextureAtlasLayout>,
         textures: &mut Assets<Image>,
         computed: &mut ComputedTextBlock,
         scale_cx: &mut ScaleCx,
@@ -326,7 +325,6 @@ impl TextPipeline {
                                 .unwrap_or_else(|| {
                                     add_glyph_to_atlas(
                                         font_atlases,
-                                        texture_atlases,
                                         textures,
                                         &mut scaler,
                                         font_smoothing,
@@ -334,9 +332,8 @@ impl TextPipeline {
                                     )
                                 })?;
 
-                        let texture_atlas = texture_atlases.get(atlas_info.texture_atlas).unwrap();
                         let location = atlas_info.location;
-                        let glyph_rect = texture_atlas.textures[location.glyph_index];
+                        let glyph_rect = atlas_info.rect;
                         let glyph_size =
                             UVec2::new(glyph_rect.width(), glyph_rect.height()).as_vec2();
                         let glyph_pos = Vec2::new(glyph.x, glyph.y);
