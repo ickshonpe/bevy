@@ -44,8 +44,8 @@ pub struct GlyphAtlasInfo {
     pub texture: AssetId<Image>,
     /// Bounds of glyph in the alas texture
     pub rect: URect,
-    /// Location and offset of a glyph within the texture atlas.
-    pub location: GlyphAtlasLocation,
+    /// The required offset (relative positioning) when placed
+    pub offset: IVec2,
 }
 
 /// The location of a glyph in an atlas,

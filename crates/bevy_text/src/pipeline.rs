@@ -332,7 +332,6 @@ impl TextPipeline {
                                     )
                                 })?;
 
-                        let location = atlas_info.location;
                         let glyph_rect = atlas_info.rect;
                         let glyph_size =
                             UVec2::new(glyph_rect.width(), glyph_rect.height()).as_vec2();
@@ -345,7 +344,7 @@ impl TextPipeline {
                                 } else {
                                     glyph_pos
                                 }
-                                + location.offset.as_vec2() * Vec2::new(1., -1.),
+                                + atlas_info.offset.as_vec2() * Vec2::new(1., -1.),
                             size: glyph_size,
                             atlas_info,
                             span_index,
