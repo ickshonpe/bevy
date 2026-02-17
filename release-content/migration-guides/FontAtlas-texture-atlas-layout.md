@@ -7,7 +7,7 @@ The texture atlas layout for font atlases is no longer stored as a separate asse
 
 The `TextAtlasLayout` parameters of `FontAtlas`'s `new` and `add_glyph_to_atlas` methods have been removed.
 
-`FontAtlas::add_glyph`'s offset paramter has been changed from an `IVec2` to a `Vec2`
+`FontAtlas::add_glyph`'s offset parameter has been changed from an `IVec2` to a `Vec2`
 
 `GlyphAtlasInfo`'s `texture_atlas` and `location` fields have been removed, replaced by `rect` and offset fields.
 
