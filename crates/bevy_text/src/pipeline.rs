@@ -342,7 +342,7 @@ impl TextPipeline {
                                 } else {
                                     glyph_pos
                                 }
-                                + atlas_info.offset * Vec2::new(1., -1.),
+                                + atlas_info.offset,
                             atlas_info,
                             span_index,
                             byte_index: text_range.start,

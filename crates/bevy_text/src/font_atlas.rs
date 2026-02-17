@@ -1,6 +1,6 @@
 use bevy_asset::{Assets, Handle, RenderAssetUsages};
 use bevy_image::{prelude::*, ImageSampler, ToExtents};
-use bevy_math::{IVec2, UVec2};
+use bevy_math::{UVec2, Vec2};
 use bevy_platform::collections::HashMap;
 use swash::scale::Scaler;
 use wgpu_types::{Extent3d, TextureDimension, TextureFormat};
@@ -90,7 +90,7 @@ impl FontAtlas {
         textures: &mut Assets<Image>,
         key: GlyphCacheKey,
         texture: &Image,
-        offset: IVec2,
+        offset: Vec2,
     ) -> Result<(), TextError> {
         let mut atlas_texture = textures
             .get_mut(&self.texture)
@@ -171,7 +171,7 @@ pub fn get_outlined_glyph_texture(
     scaler: &mut Scaler,
     glyph_id: u16,
     font_smoothing: FontSmoothing,
-) -> Result<(Image, IVec2), TextError> {
+) -> Result<(Image, Vec2), TextError> {
     let image = swash::scale::Render::new(&[
         swash::scale::Source::ColorOutline(0),
         swash::scale::Source::ColorBitmap(swash::scale::StrikeWith::BestFit),
@@ -221,7 +221,7 @@ pub fn get_outlined_glyph_texture(
             TextureFormat::Rgba8UnormSrgb,
             RenderAssetUsages::MAIN_WORLD,
         ),
-        IVec2::new(left, top),
+        Vec2::new(left as f32, -top as f32),
     ))
 }
 
@@ -234,7 +234,7 @@ pub fn get_glyph_atlas_info(
         atlas
             .get_glyph_index(cache_key)
             .map(|location| GlyphAtlasInfo {
-                offset: location.offset.as_vec2(),
+                offset: location.offset,
                 rect: atlas.texture_atlas_layout.textures[location.glyph_index].as_rect(),
                 texture: atlas.texture.id(),
             })

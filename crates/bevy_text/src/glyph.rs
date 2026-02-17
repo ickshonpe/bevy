@@ -2,7 +2,7 @@
 
 use bevy_asset::AssetId;
 use bevy_image::prelude::*;
-use bevy_math::{IVec2, Rect, Vec2};
+use bevy_math::{Rect, Vec2};
 use bevy_reflect::Reflect;
 
 /// A glyph of a font, typically representing a single character, positioned in screen space.
@@ -56,5 +56,5 @@ pub struct GlyphAtlasLocation {
     /// The index of the glyph in the atlas
     pub glyph_index: usize,
     /// The required offset (relative positioning) when placed
-    pub offset: IVec2,
+    pub offset: Vec2,
 }
