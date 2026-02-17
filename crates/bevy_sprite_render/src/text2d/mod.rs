@@ -120,11 +120,10 @@ pub fn extract_text2d_sprite(
                 },
             ) in text_layout_info.glyphs.iter().enumerate()
             {
-                let rect = atlas_info.rect.as_rect();
                 extracted_slices.slices.push(ExtractedSlice {
                     offset: *position,
-                    rect,
-                    size: rect.size(),
+                    rect: atlas_info.rect,
+                    size: atlas_info.rect.size(),
                 });
 
                 if text_layout_info
@@ -233,11 +232,10 @@ pub fn extract_text2d_sprite(
                     .unwrap_or_default();
                 current_span = *span_index;
             }
-            let rect = atlas_info.rect.as_rect();
             extracted_slices.slices.push(ExtractedSlice {
                 offset: *position,
-                rect,
-                size: rect.size(),
+                rect: atlas_info.rect,
+                size: atlas_info.rect.size(),
             });
 
             if text_layout_info.glyphs.get(i + 1).is_none_or(|info| {

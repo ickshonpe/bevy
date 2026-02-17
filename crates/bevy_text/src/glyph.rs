@@ -2,7 +2,7 @@
 
 use bevy_asset::AssetId;
 use bevy_image::prelude::*;
-use bevy_math::{IVec2, URect, Vec2};
+use bevy_math::{IVec2, Rect, Vec2};
 use bevy_reflect::Reflect;
 
 /// A glyph of a font, typically representing a single character, positioned in screen space.
@@ -43,9 +43,9 @@ pub struct GlyphAtlasInfo {
     /// An asset ID of the handle held by the [`FontAtlas`](crate::FontAtlas).
     pub texture: AssetId<Image>,
     /// Bounds of glyph in the alas texture
-    pub rect: URect,
+    pub rect: Rect,
     /// The required offset (relative positioning) when placed
-    pub offset: IVec2,
+    pub offset: Vec2,
 }
 
 /// The location of a glyph in an atlas,

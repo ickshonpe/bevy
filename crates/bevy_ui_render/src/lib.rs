@@ -911,11 +911,10 @@ pub fn extract_text_sections(
                 current_span_index = *span_index;
             }
 
-            let rect = atlas_info.rect.as_rect();
             extracted_uinodes.glyphs.push(ExtractedGlyph {
                 color,
                 translation: *position,
-                rect,
+                rect: atlas_info.rect,
             });
 
             if text_layout_info
@@ -1000,11 +999,10 @@ pub fn extract_text_shadows(
             },
         ) in text_layout_info.glyphs.iter().enumerate()
         {
-            let rect = atlas_info.rect.as_rect();
             extracted_uinodes.glyphs.push(ExtractedGlyph {
                 color: shadow.color.into(),
                 translation: *position,
-                rect,
+                rect: atlas_info.rect,
             });
 
             if text_layout_info.glyphs.get(i + 1).is_none_or(|info| {

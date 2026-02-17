@@ -234,8 +234,8 @@ pub fn get_glyph_atlas_info(
         atlas
             .get_glyph_index(cache_key)
             .map(|location| GlyphAtlasInfo {
-                offset: location.offset,
-                rect: atlas.texture_atlas_layout.textures[location.glyph_index],
+                offset: location.offset.as_vec2(),
+                rect: atlas.texture_atlas_layout.textures[location.glyph_index].as_rect(),
                 texture: atlas.texture.id(),
             })
     })
