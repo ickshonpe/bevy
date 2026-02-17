@@ -9,7 +9,7 @@ The `TextAtlasLayout` parameters of `FontAtlas`'s `new` and `add_glyph_to_atlas`
 
 `FontAtlas::add_glyph`'s offset parameter has been changed from an `IVec2` to a `Vec2`
 
-`GlyphAtlasInfo`'s `texture_atlas` and `location` fields have been removed, replaced by `rect` and offset fields.
+`GlyphAtlasInfo`'s `texture_atlas` and `location` fields have been removed, replaced by `rect` and `offset` fields.
 
 The `size` field has been removed from `PositionedGlyph`. The glyph’s size can now be obtained from the `Rect` stored in the `atlas_info: GlyphAtlasInfo` field.
 
