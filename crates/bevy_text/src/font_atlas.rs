@@ -31,7 +31,7 @@ pub struct FontAtlas {
     pub dynamic_texture_atlas_builder: DynamicTextureAtlasBuilder,
     /// A mapping between subpixel-offset glyphs and their [`GlyphAtlasLocation`].
     pub glyph_to_atlas_index: HashMap<GlyphCacheKey, GlyphAtlasLocation>,
-    /// The handle to the [`TextureAtlasLayout`] that holds the rasterized glyphs.
+    /// The layout for the font atlas.
     pub texture_atlas: TextureAtlasLayout,
     /// The texture where this font atlas is located
     pub texture: Handle<Image>,
