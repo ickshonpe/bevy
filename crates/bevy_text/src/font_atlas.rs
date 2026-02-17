@@ -32,7 +32,7 @@ pub struct FontAtlas {
     /// A mapping between subpixel-offset glyphs and their [`GlyphAtlasLocation`].
     pub glyph_to_atlas_index: HashMap<GlyphCacheKey, GlyphAtlasLocation>,
     /// The handle to the [`TextureAtlasLayout`] that holds the rasterized glyphs.
-    pub texture_atlas_layout: TextureAtlasLayout,
+    pub texture_atlas: TextureAtlasLayout,
     /// The texture where this font atlas is located
     pub texture: Handle<Image>,
 }
@@ -57,7 +57,7 @@ impl FontAtlas {
         }
         let texture = textures.add(image);
         Self {
-            texture_atlas_layout: TextureAtlasLayout::new_empty(size),
+            texture_atlas: TextureAtlasLayout::new_empty(size),
             glyph_to_atlas_index: HashMap::default(),
             dynamic_texture_atlas_builder: DynamicTextureAtlasBuilder::new(size, 2),
             texture,
@@ -97,7 +97,7 @@ impl FontAtlas {
             .ok_or(TextError::MissingAtlasTexture)?;
 
         if let Ok(glyph_index) = self.dynamic_texture_atlas_builder.add_texture(
-            &mut self.texture_atlas_layout,
+            &mut self.texture_atlas,
             texture,
             &mut atlas_texture,
         ) {
@@ -119,7 +119,7 @@ impl core::fmt::Debug for FontAtlas {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("FontAtlas")
             .field("glyph_to_atlas_index", &self.glyph_to_atlas_index)
-            .field("texture_atlas", &self.texture_atlas_layout)
+            .field("texture_atlas", &self.texture_atlas)
             .field("texture", &self.texture)
             .field("dynamic_texture_atlas_builder", &"[...]")
             .finish()
@@ -235,7 +235,7 @@ pub fn get_glyph_atlas_info(
             .get_glyph_index(cache_key)
             .map(|location| GlyphAtlasInfo {
                 offset: location.offset,
-                rect: atlas.texture_atlas_layout.textures[location.glyph_index].as_rect(),
+                rect: atlas.texture_atlas.textures[location.glyph_index].as_rect(),
                 texture: atlas.texture.id(),
             })
     })
