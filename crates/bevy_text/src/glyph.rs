@@ -15,8 +15,6 @@ use bevy_reflect::Reflect;
 pub struct PositionedGlyph {
     /// The position of the glyph in the text block's bounding box.
     pub position: Vec2,
-    /// The width and height of the glyph in logical pixels.
-    pub size: Vec2,
     /// Information about the glyph's atlas.
     pub atlas_info: GlyphAtlasInfo,
     /// The index of the glyph in the [`ComputedTextBlock`](crate::ComputedTextBlock)'s tracked spans.
