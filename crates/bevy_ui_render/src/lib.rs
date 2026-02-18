@@ -28,7 +28,7 @@ use bevy_sprite_render::SpriteAssetEvents;
 use bevy_ui::widget::{ImageNode, TextShadow, ViewportNode};
 use bevy_ui::{
     BackgroundColor, BorderColor, CalculatedClip, ComputedNode, ComputedUiTargetCamera, Display,
-    Node, Outline, ResolvedBorderRadius, UiGlobalTransform,
+    InvertNode, Node, Outline, ResolvedBorderRadius, UiGlobalTransform,
 };
 
 use bevy_app::prelude::*;
@@ -75,6 +75,8 @@ pub use pipeline::*;
 pub use render_pass::*;
 pub use ui_material_pipeline::*;
 use ui_texture_slice_pipeline::UiTextureSlicerPlugin;
+
+use crate::shader_flags::INVERT;
 
 pub mod prelude {
     #[cfg(feature = "bevy_ui_debug")]
@@ -328,6 +330,7 @@ pub struct ExtractedUiNode {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum NodeType {
     Rect,
+    Inverted,
     Border(u32), // shader flags
 }
 
@@ -384,13 +387,14 @@ pub fn extract_uinode_background_colors(
             Option<&CalculatedClip>,
             &ComputedUiTargetCamera,
             &BackgroundColor,
+            Has<InvertNode>,
         )>,
     >,
     camera_map: Extract<UiCameraMap>,
 ) {
     let mut camera_mapper = camera_map.get_mapper();
 
-    for (entity, uinode, transform, inherited_visibility, clip, camera, background_color) in
+    for (entity, uinode, transform, inherited_visibility, clip, camera, background_color, invert) in
         &uinode_query
     {
         // Skip invisible backgrounds
@@ -421,9 +425,17 @@ pub fn extract_uinode_background_colors(
                 atlas_scaling: None,
                 flip_x: false,
                 flip_y: false,
-                border: uinode.border(),
+                border: if invert {
+                    BorderRect::ZERO
+                } else {
+                    uinode.border()
+                },
                 border_radius: uinode.border_radius(),
-                node_type: NodeType::Rect,
+                node_type: if invert {
+                    NodeType::Inverted
+                } else {
+                    NodeType::Rect
+                },
             },
             main_entity: entity.into(),
         });
@@ -1304,6 +1316,7 @@ pub mod shader_flags {
     pub const BORDER_RIGHT: u32 = 1024;
     pub const BORDER_BOTTOM: u32 = 2048;
     pub const BORDER_ALL: u32 = BORDER_LEFT + BORDER_TOP + BORDER_RIGHT + BORDER_BOTTOM;
+    pub const INVERT: u32 = 4096;
 }
 
 pub fn queue_uinodes(
@@ -1623,8 +1636,14 @@ pub fn prepare_uinodes(
                         };
 
                         let color = color.to_f32_array();
-                        if let NodeType::Border(border_flags) = *node_type {
-                            flags |= border_flags;
+                        match *node_type {
+                            NodeType::Border(border_flags) => {
+                                flags |= border_flags;
+                            }
+                            NodeType::Inverted => {
+                                flags |= INVERT;
+                            }
+                            _ => {}
                         }
 
                         for i in 0..4 {

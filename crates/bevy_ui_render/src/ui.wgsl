@@ -198,9 +198,10 @@ fn draw_uinode_background(
     size: vec2<f32>,
     radius: vec4<f32>,
     border: vec4<f32>,
+    flags: u32,
 ) -> vec4<f32> {
     // When drawing the background only draw the internal area and not the border.
-    let internal_distance = sd_inset_rounded_box(point, size, radius, border);
+    let internal_distance = sd_inset_rounded_box(point, size, radius, border) * select(1., -1, enabled(flags, INVERT));
 
 #ifdef ANTI_ALIAS
     let t = antialias(internal_distance);
@@ -222,6 +223,6 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     if enabled(in.flags, BORDER_ANY) {
         return draw_uinode_border(color, in.point, in.size, in.radius, in.border, in.flags);
     } else {
-        return draw_uinode_background(color, in.point, in.size, in.radius, in.border);
+        return draw_uinode_background(color, in.point, in.size, in.radius, in.border, in.flags);
     }
 }

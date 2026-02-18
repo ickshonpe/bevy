@@ -2424,6 +2424,11 @@ pub struct ZIndex(pub i32);
 #[reflect(Component, Default, Debug, PartialEq, Clone)]
 pub struct GlobalZIndex(pub i32);
 
+/// Draw the node's background color outside the border, filling the area created by the border radius and
+/// leaving the interior of the node transparent.
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct InvertNode;
+
 /// Used to add rounded corners to a UI node. You can set a UI node to have uniformly
 /// rounded corners or specify different radii for each corner. If a given radius exceeds half
 /// the length of the smallest dimension between the node's height or width, the radius will
