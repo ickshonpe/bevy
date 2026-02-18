@@ -52,7 +52,7 @@ pub mod prelude {
     #[cfg(feature = "bevy_picking")]
     pub use crate::picking_backend::{UiPickingCamera, UiPickingPlugin, UiPickingSettings};
     #[doc(hidden)]
-    pub use crate::widget::{Text, TextShadow, TextUiReader, TextUiWriter};
+    pub use crate::widget::{Text, TextInput, TextShadow, TextUiReader, TextUiWriter};
     #[doc(hidden)]
     pub use {
         crate::{
@@ -78,6 +78,8 @@ use layout::ui_surface::UiSurface;
 use stack::ui_stack_system;
 pub use stack::UiStack;
 use update::{propagate_ui_target_cameras, update_clipping_system};
+
+use crate::widget::EditorModifiers;
 
 /// The basic plugin for Bevy UI
 #[derive(Default)]
@@ -137,6 +139,8 @@ impl Plugin for UiPlugin {
         app.init_resource::<UiSurface>()
             .init_resource::<UiScale>()
             .init_resource::<UiStack>()
+            .init_resource::<EditorModifiers>()
+            .init_resource::<widget::EditorClipboard>()
             .configure_sets(
                 PostUpdate,
                 (

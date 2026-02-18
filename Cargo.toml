@@ -3987,6 +3987,18 @@ category = "UI (User Interface)"
 wasm = true
 
 [[example]]
+name = "text_field"
+path = "examples/ui/text/text_field.rs"
+# Causes an ICE on docs.rs
+doc-scrape-examples = false
+
+[package.metadata.example.text_field]
+name = "Text Field"
+description = "Text field demo"
+category = "UI (User Interface)"
+wasm = true
+
+[[example]]
 name = "text_background_colors"
 path = "examples/ui/text/text_background_colors.rs"
 # Causes an ICE on docs.rs
