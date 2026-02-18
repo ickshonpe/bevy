@@ -3,7 +3,7 @@ title: "`FontAtlas` changes"
 pull_requests: [23012]
 ---
 
-The texture atlas layout for font atlases is no longer stored as a separate asset. Instead, it is stored directly in the `text_atlas_layout` field of `FontAtlas`.
+The texture atlas layout for font atlases is no longer stored as a separate asset. Instead, it is stored directly in the `texture_atlas` field of `FontAtlas`.
 
 The `TextAtlasLayout` parameters of `FontAtlas`'s `new` and `add_glyph_to_atlas` methods have been removed.
 
