@@ -180,7 +180,6 @@ fn on_focused_keyboard_input(
                     drv.insert_or_replace_selection(" ");
                 }
                 Key::Character(str) => {
-                    println!("key: {str}");
                     drv.insert_or_replace_selection(str);
                 }
                 Key::ArrowLeft => {
@@ -238,6 +237,9 @@ fn on_focused_keyboard_input(
                 Key::Escape => {
                     drv.collapse_selection();
                 }
+                Key::Enter => {
+                    drv.insert_or_replace_selection("\n");
+                }
                 _ => {}
             }
         }
@@ -276,15 +278,16 @@ pub fn update_editor_system(
     {
         let Ok(font_family) = resolve_font_source(&text_font.font, fonts.as_ref()) else {
             // Retry next frame while font assets/generic family mappings are unavailable.
-            println!("No font");
             continue;
         };
 
-        let family = font_family.clone();
+        let family = match font_family {
+            FontFamily::Named(name) => FontFamily::Named(name.into_owned().into()),
+            FontFamily::Generic(generic) => FontFamily::Generic(generic),
+        };
         let style_set = editor.editor.edit_styles();
-        let _ = style_set
-            .insert(parley::StyleProperty::LineHeight(line_height.eval()))
-            .insert(parley::StyleProperty::FontStack(FontStack::Single(family)));
+        style_set.insert(parley::StyleProperty::LineHeight(line_height.eval()));
+        style_set.insert(parley::StyleProperty::FontStack(FontStack::Single(family)));
 
         if text_field.is_changed() {
             editor.editor.set_text(text_field.0.as_str());
