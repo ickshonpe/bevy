@@ -25,7 +25,7 @@ use bevy_reflect::prelude::ReflectDefault;
 use bevy_reflect::Reflect;
 use bevy_shader::load_shader_library;
 use bevy_sprite_render::SpriteAssetEvents;
-use bevy_ui::widget::{ImageNode, TextShadow, ViewportNode};
+use bevy_ui::widget::{ImageNode, TextInput, TextShadow, ViewportNode};
 use bevy_ui::{
     BackgroundColor, BorderColor, CalculatedClip, ComputedNode, ComputedUiTargetCamera, Display,
     Node, Outline, ResolvedBorderRadius, UiGlobalTransform,
@@ -236,6 +236,7 @@ impl Plugin for UiRenderPlugin {
                     extract_text_decorations.in_set(RenderUiSystems::ExtractTextBackgrounds),
                     extract_text_shadows.in_set(RenderUiSystems::ExtractTextShadows),
                     extract_text_sections.in_set(RenderUiSystems::ExtractText),
+                    extract_text_fields.in_set(RenderUiSystems::ExtractText),
                     #[cfg(feature = "bevy_ui_debug")]
                     debug_overlay::extract_debug_overlay.in_set(RenderUiSystems::ExtractDebug),
                 ),
@@ -1242,6 +1243,98 @@ pub fn extract_text_decorations(
                     main_entity: entity.into(),
                 });
             }
+        }
+    }
+}
+
+pub fn extract_text_fields(
+    mut commands: Commands,
+    mut extracted_uinodes: ResMut<ExtractedUiNodes>,
+    texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
+    uinode_query: Extract<
+        Query<
+            (
+                Entity,
+                &ComputedNode,
+                &UiGlobalTransform,
+                &InheritedVisibility,
+                Option<&CalculatedClip>,
+                &ComputedUiTargetCamera,
+                &TextColor,
+                &TextLayoutInfo,
+            ),
+            With<TextInput>,
+        >,
+    >,
+    camera_map: Extract<UiCameraMap>,
+) {
+    let mut start = extracted_uinodes.glyphs.len();
+    let mut end = start + 1;
+
+    let mut camera_mapper = camera_map.get_mapper();
+    for (
+        entity,
+        uinode,
+        transform,
+        inherited_visibility,
+        clip,
+        camera,
+        text_color,
+        text_layout_info,
+    ) in &uinode_query
+    {
+        // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
+        if !inherited_visibility.get() || uinode.is_empty() {
+            continue;
+        }
+
+        let Some(extracted_camera_entity) = camera_mapper.map(camera) else {
+            continue;
+        };
+
+        let transform = Affine2::from(*transform) * Affine2::from_translation(-0.5 * uinode.size());
+
+        let color = text_color.0.to_linear();
+
+        for (
+            i,
+            PositionedGlyph {
+                position,
+                atlas_info,
+                ..
+            },
+        ) in text_layout_info.glyphs.iter().enumerate()
+        {
+            let rect = texture_atlases
+                .get(atlas_info.texture_atlas)
+                .unwrap()
+                .textures[atlas_info.location.glyph_index]
+                .as_rect();
+            extracted_uinodes.glyphs.push(ExtractedGlyph {
+                color,
+                translation: *position,
+                rect,
+            });
+
+            if text_layout_info
+                .glyphs
+                .get(i + 1)
+                .is_none_or(|info| info.atlas_info.texture != atlas_info.texture)
+            {
+                extracted_uinodes.uinodes.push(ExtractedUiNode {
+                    z_order: uinode.stack_index as f32 + stack_z_offsets::TEXT,
+                    render_entity: commands.spawn(TemporaryRenderEntity).id(),
+                    image: atlas_info.texture,
+                    clip: clip.map(|clip| clip.clip),
+                    extracted_camera_entity,
+                    item: ExtractedUiItem::Glyphs { range: start..end },
+                    main_entity: entity.into(),
+                    transform,
+                });
+                start = end;
+            }
+
+            end += 1;
         }
     }
 }
