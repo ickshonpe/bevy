@@ -254,7 +254,7 @@ fn build_text_interop(app: &mut App) {
                 .ambiguous_with(bevy_text::detect_text_needs_rerender::<bevy_sprite::Text2d>)
                 .ambiguous_with(bevy_sprite::update_text2d_layout)
                 .ambiguous_with(bevy_sprite::calculate_bounds_text2d),
-            crate::widget::update_editor_system.in_set(UiSystems::PostLayout),
+            widget::update_editor_system.in_set(UiSystems::PostLayout),
         ),
     );
 

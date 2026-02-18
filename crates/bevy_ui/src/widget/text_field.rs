@@ -56,7 +56,8 @@ impl Default for TextEditor {
     LineHeight,
     TextEditor,
     TextLayoutInfo,
-    ComputedUiRenderTargetInfo
+    ComputedUiRenderTargetInfo,
+    FontHinting::Enabled
 )]
 #[component(
     on_add = on_add_textinputnode,
