@@ -11,6 +11,7 @@ const BORDER_TOP: u32 = 512u;
 const BORDER_RIGHT: u32 = 1024u;
 const BORDER_BOTTOM: u32 = 2048u;
 const BORDER_ANY: u32 = BORDER_LEFT + BORDER_TOP + BORDER_RIGHT + BORDER_BOTTOM;
+const INVERT: u32 = 4096u;
 
 fn enabled(flags: u32, mask: u32) -> bool {
     return (flags & mask) != 0u;
