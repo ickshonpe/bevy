@@ -10,7 +10,7 @@ use bevy_ecs::resource::Resource;
 use bevy_ecs::world::DeferredWorld;
 use bevy_ecs::{
     change_detection::DetectChanges,
-    system::{Query, ResMut},
+    system::{Query, Res, ResMut},
     world::Ref,
 };
 use bevy_image::prelude::*;
@@ -26,7 +26,7 @@ use bevy_text::{
     TextLayoutInfo,
 };
 use parley::swash::FontRef;
-use parley::{PlainEditor, PositionedLayoutItem};
+use parley::{FontFamily, FontStack, PlainEditor, PositionedLayoutItem};
 
 #[derive(Component)]
 pub struct TextEditor {
@@ -71,7 +71,6 @@ impl TextInput {
 }
 
 fn on_add_textinputnode(mut world: DeferredWorld, context: HookContext) {
-    println!("add text input observer");
     for mut observer in [Observer::new(on_focused_keyboard_input)] {
         observer.watch_entity(context.entity);
         world.commands().spawn(observer);
@@ -95,9 +94,7 @@ fn on_focused_keyboard_input(
     mut modifiers: ResMut<EditorModifiers>,
     mut clipboard: ResMut<EditorClipboard>,
 ) {
-    println!("on_focused_keyboard_input");
     if let Ok(mut editor) = query.get_mut(trigger.focused_entity) {
-        println!("got editor");
         let drv = &mut editor.editor.driver(&mut font_cx.0, &mut layout_cx.0);
         let keyboard = &trigger.input;
 
@@ -248,6 +245,7 @@ fn on_focused_keyboard_input(
 }
 
 pub fn update_editor_system(
+    fonts: Res<Assets<Font>>,
     mut font_cx: ResMut<FontCx>,
     mut layout_cx: ResMut<LayoutCx>,
     mut scale_cx: ResMut<ScaleCx>,
@@ -267,7 +265,7 @@ pub fn update_editor_system(
 ) {
     for (
         text_font,
-        _line_height,
+        line_height,
         hinting,
         target,
         mut editor,
@@ -276,6 +274,18 @@ pub fn update_editor_system(
         computed_node,
     ) in input_field_query.iter_mut()
     {
+        let Ok(font_family) = resolve_font_source(&text_font.font, fonts.as_ref()) else {
+            // Retry next frame while font assets/generic family mappings are unavailable.
+            println!("No font");
+            continue;
+        };
+
+        let family = font_family.clone();
+        let style_set = editor.editor.edit_styles();
+        let _ = style_set
+            .insert(parley::StyleProperty::LineHeight(line_height.eval()))
+            .insert(parley::StyleProperty::FontStack(FontStack::Single(family)));
+
         if text_field.is_changed() {
             editor.editor.set_text(text_field.0.as_str());
         }
@@ -303,7 +313,6 @@ pub fn update_editor_system(
         info.glyphs.clear();
         info.run_geometry.clear();
 
-        // println!("info.size: {}", info.size);
         for line in layout.lines() {
             for (line_index, item) in line.items().enumerate() {
                 match item {

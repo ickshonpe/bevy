@@ -1038,7 +1038,10 @@ pub fn extract_text_shadows(
         }
 
         for run in text_layout_info.run_geometry.iter() {
-            let section_entity = computed_block.entities()[run.span_index].entity;
+            let Some(section_entity) = computed_block.entities().get(run.span_index).map(|t| t.entity)
+            else {
+                continue;
+            };
             let Ok((has_strikethrough, has_underline)) = text_decoration_query.get(section_entity)
             else {
                 continue;
@@ -1148,7 +1151,10 @@ pub fn extract_text_decorations(
             Affine2::from(global_transform) * Affine2::from_translation(-0.5 * uinode.size());
 
         for run in text_layout_info.run_geometry.iter() {
-            let section_entity = computed_block.entities()[run.span_index].entity;
+            let Some(section_entity) = computed_block.entities().get(run.span_index).map(|t| t.entity)
+            else {
+                continue;
+            };
             let Ok((
                 (text_background_color, maybe_strikethrough, maybe_underline),
                 text_color,
