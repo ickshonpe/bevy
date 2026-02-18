@@ -1026,7 +1026,10 @@ pub fn extract_text_shadows(
         }
 
         for run in text_layout_info.run_geometry.iter() {
-            let Some(section_entity) = computed_block.entities().get(run.span_index).map(|t| t.entity)
+            let Some(section_entity) = computed_block
+                .entities()
+                .get(run.span_index)
+                .map(|t| t.entity)
             else {
                 continue;
             };
@@ -1139,7 +1142,10 @@ pub fn extract_text_decorations(
             Affine2::from(global_transform) * Affine2::from_translation(-0.5 * uinode.size());
 
         for run in text_layout_info.run_geometry.iter() {
-            let Some(section_entity) = computed_block.entities().get(run.span_index).map(|t| t.entity)
+            let Some(section_entity) = computed_block
+                .entities()
+                .get(run.span_index)
+                .map(|t| t.entity)
             else {
                 continue;
             };
@@ -1244,7 +1250,6 @@ pub fn extract_text_decorations(
 pub fn extract_text_fields(
     mut commands: Commands,
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
-    texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
     uinode_query: Extract<
         Query<
             (
@@ -1299,15 +1304,10 @@ pub fn extract_text_fields(
             },
         ) in text_layout_info.glyphs.iter().enumerate()
         {
-            let rect = texture_atlases
-                .get(atlas_info.texture_atlas)
-                .unwrap()
-                .textures[atlas_info.location.glyph_index]
-                .as_rect();
             extracted_uinodes.glyphs.push(ExtractedGlyph {
                 color,
                 translation: *position,
-                rect,
+                rect: atlas_info.rect,
             });
 
             if text_layout_info

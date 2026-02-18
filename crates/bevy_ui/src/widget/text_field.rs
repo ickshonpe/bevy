@@ -17,7 +17,7 @@ use bevy_image::prelude::*;
 use bevy_input::keyboard::{Key, KeyboardInput};
 use bevy_input::ButtonState;
 use bevy_input_focus::FocusedInput;
-use bevy_math::{Rect, UVec2, Vec2};
+use bevy_math::{Rect, Vec2};
 use bevy_platform::hash::FixedHasher;
 use bevy_text::*;
 use bevy_text::{
@@ -252,7 +252,6 @@ pub fn update_editor_system(
     mut layout_cx: ResMut<LayoutCx>,
     mut scale_cx: ResMut<ScaleCx>,
     mut font_atlas_set: ResMut<FontAtlasSet>,
-    mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
     mut textures: ResMut<Assets<Image>>,
     mut input_field_query: Query<(
         &TextFont,
@@ -360,7 +359,6 @@ pub fn update_editor_system(
                                     .build();
                                 add_glyph_to_atlas(
                                     font_atlases,
-                                    texture_atlases.as_mut(),
                                     textures.as_mut(),
                                     &mut scaler,
                                     text_font.font_smoothing,
@@ -370,17 +368,10 @@ pub fn update_editor_system(
                                 continue;
                             };
 
-                            let texture_atlas =
-                                texture_atlases.get(atlas_info.texture_atlas).unwrap();
-                            let location = atlas_info.location;
-                            let glyph_rect = texture_atlas.textures[location.glyph_index];
-                            let glyph_size = UVec2::new(glyph_rect.width(), glyph_rect.height());
-                            let x = glyph_size.x as f32 / 2. + glyph.x + location.offset.x as f32;
-                            let y = glyph_size.y as f32 / 2. + glyph.y - location.offset.y as f32;
-
                             info.glyphs.push(PositionedGlyph {
-                                position: (x, y).into(),
-                                size: glyph_size.as_vec2(),
+                                position: Vec2::new(glyph.x, glyph.y)
+                                    + atlas_info.rect.size() / 2.
+                                    + atlas_info.offset,
                                 atlas_info,
                                 span_index: span_index as usize,
                                 line_index,
