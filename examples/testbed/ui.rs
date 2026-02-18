@@ -1803,7 +1803,6 @@ mod outer_color {
                                 border,
                                 ..default()
                             },
-                            BackgroundColor(Color::WHITE),
                             BorderColor::all(bevy::color::palettes::css::RED),
                         ))
                         .insert_if(BackgroundColor(Color::WHITE), || !invert)
