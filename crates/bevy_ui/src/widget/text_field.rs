@@ -276,7 +276,6 @@ pub fn update_editor_system(
     ) in input_field_query.iter_mut()
     {
         let Ok(font_family) = resolve_font_source(&text_font.font, fonts.as_ref()) else {
-            // Retry next frame while font assets/generic family mappings are unavailable.
             continue;
         };
 
