@@ -2424,10 +2424,32 @@ pub struct ZIndex(pub i32);
 #[reflect(Component, Default, Debug, PartialEq, Clone)]
 pub struct GlobalZIndex(pub i32);
 
-/// Draw the node's background color outside the border, filling the area created by the border radius and
-/// leaving the interior of the node transparent.
-#[derive(Component, Debug, Clone, Copy, Default)]
-pub struct InvertNode;
+/// Sets a color to fill the regions outside the Node's border created when a border radius is set.
+#[derive(Component, Copy, Clone, Debug, Deref, DerefMut, PartialEq, Reflect)]
+#[reflect(Component, Default, Debug, PartialEq, Clone)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
+pub struct OuterColor(pub Color);
+
+impl OuterColor {
+    /// Outer color is transparent by default.
+    pub const DEFAULT: Self = Self(Color::NONE);
+}
+
+impl Default for OuterColor {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+impl<T: Into<Color>> From<T> for OuterColor {
+    fn from(color: T) -> Self {
+        Self(color.into())
+    }
+}
 
 /// Used to add rounded corners to a UI node. You can set a UI node to have uniformly
 /// rounded corners or specify different radii for each corner. If a given radius exceeds half

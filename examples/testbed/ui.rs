@@ -46,7 +46,7 @@ fn main() {
     .add_systems(OnEnter(Scene::RadialGradient), radial_gradient::setup)
     .add_systems(OnEnter(Scene::Transformations), transformations::setup)
     .add_systems(OnEnter(Scene::ViewportCoords), viewport_coords::setup)
-    .add_systems(OnEnter(Scene::InvertedNode), inverted_node::setup)
+    .add_systems(OnEnter(Scene::OuterColor), outer_color::setup)
     .add_systems(Update, switch_scene);
 
     match args.scene {
@@ -85,7 +85,7 @@ enum Scene {
     #[cfg(feature = "bevy_ui_debug")]
     DebugOutlines,
     ViewportCoords,
-    InvertedNode,
+    OuterColor,
 }
 
 impl std::str::FromStr for Scene {
@@ -123,8 +123,8 @@ impl Next for Scene {
             #[cfg(not(feature = "bevy_ui_debug"))]
             Scene::RadialGradient => Scene::Transformations,
             Scene::Transformations => Scene::ViewportCoords,
-            Scene::ViewportCoords => Scene::InvertedNode,
-            Scene::InvertedNode => Scene::Image,
+            Scene::ViewportCoords => Scene::OuterColor,
+            Scene::OuterColor => Scene::Image,
         }
     }
 }
@@ -1763,14 +1763,14 @@ mod viewport_coords {
     }
 }
 
-mod inverted_node {
+mod outer_color {
     use bevy::prelude::*;
 
     pub fn setup(mut commands: Commands) {
         let radius = percent(33.);
         let width = px(10.);
 
-        commands.spawn((Camera2d, DespawnOnExit(super::Scene::InvertedNode)));
+        commands.spawn((Camera2d, DespawnOnExit(super::Scene::OuterColor)));
         commands
             .spawn((
                 Node {
@@ -1780,7 +1780,7 @@ mod inverted_node {
                     margin: UiRect::AUTO,
                     ..default()
                 },
-                DespawnOnExit(super::Scene::InvertedNode),
+                DespawnOnExit(super::Scene::OuterColor),
             ))
             .with_children(|builder| {
                 for (border, border_radius, invert) in [
@@ -1806,7 +1806,8 @@ mod inverted_node {
                             BackgroundColor(Color::WHITE),
                             BorderColor::all(bevy::color::palettes::css::RED),
                         ))
-                        .insert_if(InvertNode, || invert);
+                        .insert_if(BackgroundColor(Color::WHITE), || !invert)
+                        .insert_if(OuterColor(Color::WHITE), || invert);
                 }
             });
     }
