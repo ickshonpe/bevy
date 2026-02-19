@@ -2425,6 +2425,9 @@ pub struct ZIndex(pub i32);
 pub struct GlobalZIndex(pub i32);
 
 /// Sets a color to fill the regions outside the Node's border created when a border radius is set.
+///
+/// This can be useful to create artistic "inner radius" effects when used with extra nodes beside existing nodes,
+/// such as when creating tab widgets.
 #[derive(Component, Copy, Clone, Debug, Deref, DerefMut, PartialEq, Reflect)]
 #[reflect(Component, Default, Debug, PartialEq, Clone)]
 #[cfg_attr(
