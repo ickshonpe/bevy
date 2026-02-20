@@ -433,8 +433,8 @@ mod texture_atlas_builder {
     const ATLAS_SIZE: UVec2 = UVec2::splat(64);
     const IMAGE_SIZE: UVec2 = UVec2::splat(28);
     const PADDING_SIZE: UVec2 = UVec2::splat(2);
-    const ATLAS_SCALE: f32 = 5.;
-    const IMAGE_SCALE: f32 = 3.;
+    const ATLAS_SCALE: f32 = 4.;
+    const IMAGE_SCALE: f32 = 4.;
 
     pub fn setup(
         mut commands: Commands,
@@ -443,83 +443,92 @@ mod texture_atlas_builder {
     ) {
         commands.spawn((Camera2d, DespawnOnExit(super::Scene::TextureAtlasBuilder)));
 
-        // generate solid red green and blue and yellow images
-        let images = [
-            [255, 0, 0, 255],
-            [0, 255, 0, 255],
-            [0, 0, 255, 255],
-            [255, 255, 0, 255],
-        ]
-        .map(|pixel| {
-            Image::new_fill(
-                Extent3d {
-                    width: 28,
-                    height: 28,
-                    depth_or_array_layers: 1,
-                },
-                TextureDimension::D2,
-                &pixel,
-                TextureFormat::Rgba8UnormSrgb,
-                RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
-            )
-        });
+        for (i, padding) in [UVec2::ZERO, PADDING_SIZE].into_iter().enumerate() {
+            // generate solid red green and blue and yellow images
+            let images = [
+                [255, 0, 0, 255],
+                [0, 255, 0, 255],
+                [0, 0, 255, 255],
+                [255, 255, 0, 255],
+            ]
+            .map(|pixel| {
+                Image::new_fill(
+                    Extent3d {
+                        width: 28,
+                        height: 28,
+                        depth_or_array_layers: 1,
+                    },
+                    TextureDimension::D2,
+                    &pixel,
+                    TextureFormat::Rgba8UnormSrgb,
+                    RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
+                )
+            });
 
-        let mut texture_atlas_builder = TextureAtlasBuilder::default();
-        texture_atlas_builder
-            .initial_size(ATLAS_SIZE)
-            .max_size(ATLAS_SIZE)
-            .padding(PADDING_SIZE);
-        for image in &images {
-            texture_atlas_builder.add_texture(None, image);
-        }
+            let mut texture_atlas_builder = TextureAtlasBuilder::default();
+            texture_atlas_builder
+                .initial_size(ATLAS_SIZE)
+                .max_size(ATLAS_SIZE)
+                .padding(padding);
+            for image in &images {
+                texture_atlas_builder.add_texture(None, image);
+            }
 
-        let (atlas_layout, _, atlas_texture) = texture_atlas_builder
-            .build()
-            .expect("The images are 28 pixels square, so they should fit with 4 pixels left over");
-        let atlas_layout = texture_atlases.add(atlas_layout);
+            let (atlas_layout, _, atlas_texture) = texture_atlas_builder.build().expect(
+                "The images are 28 pixels square, so they should fit with 4 pixels left over",
+            );
+            let atlas_layout = texture_atlases.add(atlas_layout);
 
-        let mut nearest_atlas_image = atlas_texture.clone();
-        nearest_atlas_image.sampler = ImageSampler::nearest();
+            let mut nearest_atlas_image = atlas_texture.clone();
+            nearest_atlas_image.sampler = ImageSampler::nearest();
 
-        let atlas_handle = textures.add(atlas_texture);
-        let nearest_atlas_handle = textures.add(nearest_atlas_image);
+            let atlas_handle = textures.add(atlas_texture);
+            let nearest_atlas_handle = textures.add(nearest_atlas_image);
 
-        commands.spawn((
-            Sprite {
-                image: nearest_atlas_handle,
-                custom_size: Some(ATLAS_SIZE.as_vec2() * ATLAS_SCALE),
-                ..default()
-            },
-            Anchor::BOTTOM_CENTER,
-            ShowAabbGizmo::default(),
-            DespawnOnExit(super::Scene::TextureAtlasBuilder),
-        ));
+            let position = ((2. * i as f32 - 1.) * (0.625 * ATLAS_SIZE.x as f32 * ATLAS_SCALE))
+                .round()
+                * Vec3::X;
 
-        for (index, anchor) in [
-            Anchor::BOTTOM_RIGHT,
-            Anchor::BOTTOM_LEFT,
-            Anchor::TOP_LEFT,
-            Anchor::TOP_RIGHT,
-        ]
-        .into_iter()
-        .enumerate()
-        {
             commands.spawn((
                 Sprite {
-                    image: atlas_handle.clone(),
-                    texture_atlas: Some(TextureAtlas {
-                        layout: atlas_layout.clone(),
-                        index,
-                    }),
-                    custom_size: Some(IMAGE_SIZE.as_vec2() * IMAGE_SCALE),
+                    image: nearest_atlas_handle,
+                    custom_size: Some(ATLAS_SIZE.as_vec2() * ATLAS_SCALE),
                     ..default()
                 },
-                Transform::from_translation(
-                    -2. * IMAGE_SCALE
-                        * (Vec3::Y * IMAGE_SIZE.y as f32 + anchor.as_vec().extend(0.)),
-                ),
-                anchor,
+                Anchor::BOTTOM_CENTER,
+                ShowAabbGizmo::default(),
+                DespawnOnExit(super::Scene::TextureAtlasBuilder),
+                Transform::from_translation(position),
             ));
+
+            for (index, anchor) in [
+                Anchor::BOTTOM_RIGHT,
+                Anchor::BOTTOM_LEFT,
+                Anchor::TOP_LEFT,
+                Anchor::TOP_RIGHT,
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                commands.spawn((
+                    Sprite {
+                        image: atlas_handle.clone(),
+                        texture_atlas: Some(TextureAtlas {
+                            layout: atlas_layout.clone(),
+                            index,
+                        }),
+                        custom_size: Some(IMAGE_SIZE.as_vec2() * IMAGE_SCALE),
+                        ..default()
+                    },
+                    Transform::from_translation(
+                        position
+                            + -2.
+                                * IMAGE_SCALE
+                                * (Vec3::Y * IMAGE_SIZE.y as f32 + anchor.as_vec().extend(0.)),
+                    ),
+                    anchor,
+                ));
+            }
         }
     }
 }
