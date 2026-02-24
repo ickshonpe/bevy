@@ -189,7 +189,7 @@ impl DynamicTextureAtlasBuilder {
             }
         }
 
-        let row_width = (source_width + 2 * padding) * pixel_size;
+        let row_width = rect.size().width as usize * pixel_size;
         let first_row_start = (target_min_y * atlas_width + min_x) * pixel_size;
         let last_row_start =
             ((target_min_y + source_height - 1) * atlas_width + min_x) * pixel_size;
