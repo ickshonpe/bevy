@@ -155,7 +155,7 @@ impl DynamicTextureAtlasBuilder {
         let Some(ref mut atlas_data) = atlas_texture.data else {
             return Err(DynamicTextureAtlasBuilderError::UninitializedAtlas);
         };
-        let Some(ref data) = texture.data else {
+        let Some(ref source_data) = texture.data else {
             return Err(DynamicTextureAtlasBuilderError::UninitializedSourceTexture);
         };
 
@@ -164,7 +164,10 @@ impl DynamicTextureAtlasBuilder {
         let target_min_x = min_x + padding;
         let target_min_y = min_y + padding;
 
-        for (source_y, source_row) in data.chunks_exact(source_width * pixel_size).enumerate() {
+        for (source_y, source_row) in source_data
+            .chunks_exact(source_width * pixel_size)
+            .enumerate()
+        {
             let target_y = target_min_y + source_y;
 
             let target_start = (target_y * target_width + target_min_x) * pixel_size;
@@ -185,7 +188,7 @@ impl DynamicTextureAtlasBuilder {
                 let dst_start =
                     (target_y * target_width + target_min_x + source_width + x) * pixel_size;
                 let dst_end = dst_start + pixel_size;
-                atlas_data[dst_start..dst_end].copy_from_slice(right_pixel);
+                atlas_row[dst_start..dst_end].copy_from_slice(right_pixel);
             }
         }
 
