@@ -499,12 +499,9 @@ mod tests {
                 [4, 0, 0, 255],
             ],
         ];
-        for y in 0..4 {
-            for x in 0..4 {
-                assert_eq!(
-                    pixel_value_at(&atlas_texture, x as u32, y as u32),
-                    expected[y][x]
-                );
+        for (y, row) in expected.iter().enumerate() {
+            for (x, &expected) in row.iter().enumerate() {
+                assert_eq!(pixel_value_at(&atlas_texture, x as u32, y as u32), expected);
             }
         }
     }
