@@ -149,6 +149,10 @@ impl DynamicTextureAtlasBuilder {
         let target_width = atlas_texture.width() as usize;
         let source_width = texture.width() as usize;
         let source_height = texture.height() as usize;
+
+        if source_width * source_height == 0 {
+            return Ok(to_rect(allocation.rectangle).inflate(-(self.padding as i32)));
+        }
         let padding = self.padding as usize;
         let pixel_size = atlas_texture.texture_descriptor.format.pixel_size()?;
 
@@ -188,7 +192,7 @@ impl DynamicTextureAtlasBuilder {
                 let dst_start =
                     (target_y * target_width + target_min_x + source_width + x) * pixel_size;
                 let dst_end = dst_start + pixel_size;
-                atlas_row[dst_start..dst_end].copy_from_slice(right_pixel);
+                atlas_data[dst_start..dst_end].copy_from_slice(right_pixel);
             }
         }
 

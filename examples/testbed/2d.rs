@@ -637,7 +637,7 @@ mod dynamic_texture_atlas_builder {
                 Sprite::from_image(nearest_atlas_handle),
                 Anchor::BOTTOM_CENTER,
                 ShowAabbGizmo::default(),
-                DespawnOnExit(super::Scene::TextureAtlasBuilder),
+                DespawnOnExit(super::Scene::DynamicTextureAtlasBuilder),
                 Transform::from_translation(position),
             ));
 
@@ -654,6 +654,7 @@ mod dynamic_texture_atlas_builder {
                     ),
                     Transform::from_translation(sprite_postion),
                     Anchor::TOP_CENTER,
+                    DespawnOnExit(super::Scene::DynamicTextureAtlasBuilder),
                 ));
             }
         }
