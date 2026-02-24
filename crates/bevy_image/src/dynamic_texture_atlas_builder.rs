@@ -191,17 +191,16 @@ impl DynamicTextureAtlasBuilder {
 
         let row_width = rect.size().width as usize * pixel_size;
         let first_row_start = (target_min_y * atlas_width + min_x) * pixel_size;
-        let last_row_start =
-            ((target_min_y + source_height - 1) * atlas_width + min_x) * pixel_size;
-
-        for y in 0..padding {
-            let dst_start = ((min_y + y) * atlas_width + min_x) * pixel_size;
-            atlas_data.copy_within(first_row_start..(first_row_start + row_width), dst_start);
+        let first_row = first_row_start..(first_row_start + row_width);
+        for y in min_y..min_y + padding {
+            atlas_data.copy_within(first_row.clone(), y * atlas_width + min_x * pixel_size);
         }
 
-        for y in 0..padding {
-            let dst_start = ((target_min_y + source_height + y) * atlas_width + min_x) * pixel_size;
-            atlas_data.copy_within(last_row_start..(last_row_start + row_width), dst_start);
+        let last_row_start =
+            ((target_min_y + source_height - 1) * atlas_width + min_x) * pixel_size;
+        let last_row = last_row_start..(last_row_start + row_width);
+        for y in target_min_y + source_height..rect.max.y as usize {
+            atlas_data.copy_within(last_row.clone(), y * atlas_width + min_x * pixel_size);
         }
 
         Ok(to_rect(allocation.rectangle).inflate(-(self.padding as i32)))
