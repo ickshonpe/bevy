@@ -7,6 +7,7 @@ mod helpers;
 use argh::FromArgs;
 use bevy::prelude::*;
 
+use bevy::window::WindowResolution;
 use helpers::Next;
 
 #[derive(FromArgs)]
@@ -23,7 +24,13 @@ fn main() {
     let args: Args = Args::from_args(&[], &[]).unwrap();
 
     let mut app = App::new();
-    app.add_plugins((DefaultPlugins,))
+    app.add_plugins((DefaultPlugins.set(WindowPlugin {
+        primary_window: Some(Window {
+            resolution: WindowResolution::default().with_scale_factor_override(3.),
+            ..Default::default()
+        }),
+        ..Default::default()
+    }),))
         .add_systems(OnEnter(Scene::Shapes), shapes::setup)
         .add_systems(OnEnter(Scene::Bloom), bloom::setup)
         .add_systems(OnEnter(Scene::Text), text::setup)
@@ -630,8 +637,9 @@ mod dynamic_texture_atlas_builder {
             let atlas_handle = textures.add(atlas_texture);
             let nearest_atlas_handle = textures.add(nearest_atlas_image);
 
-            let position =
-                (-0.5 * WIDTH + (i as f32 * WIDTH / CASES.len() as f32).round()) * Vec3::X;
+            let position = (-0.5 * WIDTH + (i as f32 * WIDTH / CASES.len() as f32).round())
+                * Vec3::X
+                + ATLAS_SIZE.y as f32 * Vec3::Y;
 
             commands.spawn((
                 Sprite::from_image(nearest_atlas_handle),
