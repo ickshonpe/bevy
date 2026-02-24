@@ -40,20 +40,23 @@ impl DynamicTextureAtlasBuilder {
     /// * `size` - total size for the atlas
     /// * `padding` - gap added between textures in the atlas (and the atlas edge), both in x axis
     ///   and y axis
-    /// * `extrude_images` - if true, the border pixels of the each texture in the atlas will be duplicated
-    /// (extruded) outward into the padding area.
-    /// If false, the padding area is transparent.
+    /// * `extrude_images`:
+    ///   - false => Between each texture and around the atlas edge there is a gap of `padding` width filled with transparent pixels.
+    ///   - true => The border pixels of the each texture in the atlas are duplicated (extruded) outwards into the padding area.
+    /// Extrusion uses more space for padding, the gaps between each texture are `2 * padding` pixels wide.
     pub fn new(mut size: UVec2, padding: u32, extrude_textures: bool) -> Self {
-        if !extrude_textures {
+        if extrude_textures {
             // This doesn't need to be >= since `AtlasAllocator` requires non-zero size.
+            debug_assert!(size.x > 2 * padding && size.y > 2 * padding);
+        } else {
             debug_assert!(size.x > padding && size.y > padding);
 
+            // Leave out padding at the right and bottom, so we don't put textures on the edge of
+            // atlas.
             size -= padding;
         }
 
         Self {
-            // Leave out padding at the right and bottom, so we don't put textures on the edge of
-            // atlas.
             atlas_allocator: AtlasAllocator::new(to_size2(size)),
             padding,
             extrude_textures,
@@ -88,31 +91,17 @@ impl DynamicTextureAtlasBuilder {
             (texture.width() + padding).try_into().unwrap(),
             (texture.height() + padding).try_into().unwrap(),
         ));
-        if let Some(mut allocation) = allocation {
+        if let Some(allocation) = allocation {
             assert!(
                 atlas_texture.asset_usage.contains(RenderAssetUsages::MAIN_WORLD),
                 "The atlas_texture image must have the RenderAssetUsages::MAIN_WORLD usage flag set"
             );
-            let atlas_rect = if self.extrude_textures {
-                self.place_texture_with_extrusion(atlas_texture, allocation, texture)?;
-
-                let mut rect = allocation.rectangle;
-                rect.min.x += self.padding as i32;
-                rect.min.y += self.padding as i32;
-                rect.max.x -= self.padding as i32;
-                rect.max.y -= self.padding as i32;
-                rect
+            let atlas_rect = if 0 < padding && self.extrude_textures {
+                self.place_texture_with_extrusion(atlas_texture, allocation, texture)?
             } else {
-                let rect = &mut allocation.rectangle;
-                // Remove the padding from the top and left (bottom and right padding is taken care of
-                // by the "next" allocation and the border restriction).
-                rect.min.x += self.padding as i32;
-                rect.min.y += self.padding as i32;
-
-                self.place_texture(atlas_texture, allocation, texture)?;
-                allocation.rectangle
+                self.place_texture(atlas_texture, allocation, texture)?
             };
-            Ok(atlas_layout.add_texture(to_rect(atlas_rect)))
+            Ok(atlas_layout.add_texture(atlas_rect))
         } else {
             Err(DynamicTextureAtlasBuilderError::FailedToAllocateSpace)
         }
@@ -121,10 +110,15 @@ impl DynamicTextureAtlasBuilder {
     fn place_texture(
         &mut self,
         atlas_texture: &mut Image,
-        allocation: Allocation,
+        mut allocation: Allocation,
         texture: &Image,
-    ) -> Result<(), DynamicTextureAtlasBuilderError> {
-        let rect = &allocation.rectangle;
+    ) -> Result<URect, DynamicTextureAtlasBuilderError> {
+        // Remove the padding from the top and left (bottom and right padding is taken care of
+        // by the "next" allocation and the border restriction).
+        let rect = &mut allocation.rectangle;
+        rect.min.x += self.padding as i32;
+        rect.min.y += self.padding as i32;
+
         let atlas_width = atlas_texture.width() as usize;
         let rect_width = rect.width() as usize;
         let format_size = atlas_texture.texture_descriptor.format.pixel_size()?;
@@ -142,7 +136,7 @@ impl DynamicTextureAtlasBuilder {
             let texture_end = texture_begin + rect_width * format_size;
             atlas_data[begin..end].copy_from_slice(&data[texture_begin..texture_end]);
         }
-        Ok(())
+        Ok(to_rect(*rect))
     }
 
     fn place_texture_with_extrusion(
@@ -150,13 +144,13 @@ impl DynamicTextureAtlasBuilder {
         atlas_texture: &mut Image,
         allocation: Allocation,
         texture: &Image,
-    ) -> Result<(), DynamicTextureAtlasBuilderError> {
+    ) -> Result<URect, DynamicTextureAtlasBuilderError> {
         let rect = &allocation.rectangle;
-        let atlas_width = atlas_texture.width() as usize;
-        let texture_width = texture.width() as usize;
-        let texture_height = texture.height() as usize;
+        let target_width = atlas_texture.width() as usize;
+        let source_width = texture.width() as usize;
+        let source_height = texture.height() as usize;
         let padding = self.padding as usize;
-        let format_size = atlas_texture.texture_descriptor.format.pixel_size()?;
+        let pixel_size = atlas_texture.texture_descriptor.format.pixel_size()?;
 
         let Some(ref mut atlas_data) = atlas_texture.data else {
             return Err(DynamicTextureAtlasBuilderError::UninitializedAtlas);
@@ -165,64 +159,53 @@ impl DynamicTextureAtlasBuilder {
             return Err(DynamicTextureAtlasBuilderError::UninitializedSourceTexture);
         };
 
-        if texture_width == 0 || texture_height == 0 {
-            return Ok(());
-        }
+        let min_x = rect.min.x as usize;
+        let min_y = rect.min.y as usize;
+        let target_min_x = min_x + padding;
+        let target_min_y = min_y + padding;
 
-        let rect_min_x = rect.min.x as usize;
-        let rect_min_y = rect.min.y as usize;
-        let content_min_x = rect_min_x + padding;
-        let content_min_y = rect_min_y + padding;
+        for (source_y, source_row) in data.chunks_exact(source_width * pixel_size).enumerate() {
+            let target_y = target_min_y + source_y;
 
-        for texture_y in 0..texture_height {
-            let atlas_y = content_min_y + texture_y;
-            let texture_row_start = texture_y * texture_width * format_size;
-            let texture_row_end = texture_row_start + texture_width * format_size;
+            let target_start = (target_y * target_width + target_min_x) * pixel_size;
+            let target_end = target_start + source_width * pixel_size;
 
-            let atlas_texture_start = (atlas_y * atlas_width + content_min_x) * format_size;
-            let atlas_texture_end = atlas_texture_start + texture_width * format_size;
-            atlas_data[atlas_texture_start..atlas_texture_end]
-                .copy_from_slice(&data[texture_row_start..texture_row_end]);
+            atlas_data[target_start..target_end].copy_from_slice(source_row);
 
-            if padding > 0 {
-                let left_pixel = &data[texture_row_start..(texture_row_start + format_size)];
-                for x in 0..padding {
-                    let dst_start = (atlas_y * atlas_width + rect_min_x + x) * format_size;
-                    let dst_end = dst_start + format_size;
-                    atlas_data[dst_start..dst_end].copy_from_slice(left_pixel);
-                }
-
-                let right_pixel_start =
-                    texture_row_start + (texture_width.saturating_sub(1)) * format_size;
-                let right_pixel = &data[right_pixel_start..(right_pixel_start + format_size)];
-                for x in 0..padding {
-                    let dst_start =
-                        (atlas_y * atlas_width + content_min_x + texture_width + x) * format_size;
-                    let dst_end = dst_start + format_size;
-                    atlas_data[dst_start..dst_end].copy_from_slice(right_pixel);
-                }
-            }
-        }
-
-        if padding > 0 {
-            let row_width = (texture_width + 2 * padding) * format_size;
-            let first_row_start = (content_min_y * atlas_width + rect_min_x) * format_size;
-            let last_row_start =
-                ((content_min_y + texture_height - 1) * atlas_width + rect_min_x) * format_size;
-
-            for y in 0..padding {
-                let dst_start = ((rect_min_y + y) * atlas_width + rect_min_x) * format_size;
-                atlas_data.copy_within(first_row_start..(first_row_start + row_width), dst_start);
+            let left_pixel = &source_row[0..pixel_size];
+            for x in 0..padding {
+                let dst_start = (target_y * target_width + min_x + x) * pixel_size;
+                let dst_end = dst_start + pixel_size;
+                atlas_data[dst_start..dst_end].copy_from_slice(left_pixel);
             }
 
-            for y in 0..padding {
+            let right_pixel_start = (source_width.saturating_sub(1)) * pixel_size;
+            let right_pixel = &source_row[right_pixel_start..(right_pixel_start + pixel_size)];
+            for x in 0..padding {
                 let dst_start =
-                    ((content_min_y + texture_height + y) * atlas_width + rect_min_x) * format_size;
-                atlas_data.copy_within(last_row_start..(last_row_start + row_width), dst_start);
+                    (target_y * target_width + target_min_x + source_width + x) * pixel_size;
+                let dst_end = dst_start + pixel_size;
+                atlas_data[dst_start..dst_end].copy_from_slice(right_pixel);
             }
         }
 
-        Ok(())
+        let row_width = (source_width + 2 * padding) * pixel_size;
+        let first_row_start = (target_min_y * target_width + min_x) * pixel_size;
+        let last_row_start =
+            ((target_min_y + source_height - 1) * target_width + min_x) * pixel_size;
+
+        for y in 0..padding {
+            let dst_start = ((min_y + y) * target_width + min_x) * pixel_size;
+            atlas_data.copy_within(first_row_start..(first_row_start + row_width), dst_start);
+        }
+
+        for y in 0..padding {
+            let dst_start =
+                ((target_min_y + source_height + y) * target_width + min_x) * pixel_size;
+            atlas_data.copy_within(last_row_start..(last_row_start + row_width), dst_start);
+        }
+
+        Ok(to_rect(allocation.rectangle).inflate(-(self.padding as i32)))
     }
 }
 
