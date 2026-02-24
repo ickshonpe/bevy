@@ -642,7 +642,7 @@ mod dynamic_texture_atlas_builder {
             ));
 
             for index in 0..4 {
-                let sprite_postion =
+                let sprite_position =
                     position - Vec3::Y * (ROW_GAP + index as f32 * (ROW_GAP + IMAGE_SIZE.y as f32));
                 commands.spawn((
                     Sprite::from_atlas_image(
@@ -652,7 +652,7 @@ mod dynamic_texture_atlas_builder {
                             index,
                         },
                     ),
-                    Transform::from_translation(sprite_postion),
+                    Transform::from_translation(sprite_position),
                     Anchor::TOP_CENTER,
                     DespawnOnExit(super::Scene::DynamicTextureAtlasBuilder),
                 ));
