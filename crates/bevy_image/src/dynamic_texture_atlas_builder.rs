@@ -146,7 +146,7 @@ impl DynamicTextureAtlasBuilder {
         texture: &Image,
     ) -> Result<URect, DynamicTextureAtlasBuilderError> {
         let rect = &allocation.rectangle;
-        let target_width = atlas_texture.width() as usize;
+        let atlas_width = atlas_texture.width() as usize;
         let source_width = texture.width() as usize;
         let source_height = texture.height() as usize;
 
@@ -165,18 +165,12 @@ impl DynamicTextureAtlasBuilder {
 
         let min_x = rect.min.x as usize;
         let min_y = rect.min.y as usize;
-        let target_min_x = min_x + padding;
         let target_min_y = min_y + padding;
 
         for (source_row, atlas_row) in source_data.chunks_exact(source_width * pixel_size).zip(
-            atlas_data[target_min_y * target_width * pixel_size..]
-                .chunks_exact_mut(target_width * pixel_size),
+            atlas_data[target_min_y * atlas_width * pixel_size..]
+                .chunks_exact_mut(atlas_width * pixel_size),
         ) {
-            let target_start = target_min_x * pixel_size;
-            let target_end = target_start + source_width * pixel_size;
-
-            atlas_row[target_start..target_end].copy_from_slice(source_row);
-
             let (padding_left, rest) =
                 atlas_row[min_x * pixel_size..].split_at_mut(padding * pixel_size);
             let (target, padding_right) = rest[..(source_width + padding) * pixel_size]
@@ -184,35 +178,29 @@ impl DynamicTextureAtlasBuilder {
 
             target.copy_from_slice(source_row);
 
-            let left_pixel = &source_row[0..pixel_size];
-            for x in 0..padding {
-                let dst_start = (min_x + x) * pixel_size;
-                let dst_end = dst_start + pixel_size;
-                atlas_row[dst_start..dst_end].copy_from_slice(left_pixel);
+            let left_pixel = &source_row[..pixel_size];
+            for px in padding_left.chunks_exact_mut(pixel_size) {
+                px.copy_from_slice(left_pixel);
             }
 
-            let right_pixel_start = (source_width.saturating_sub(1)) * pixel_size;
-            let right_pixel = &source_row[right_pixel_start..(right_pixel_start + pixel_size)];
-            for x in 0..padding {
-                let dst_start = (target_min_x + source_width + x) * pixel_size;
-                let dst_end = dst_start + pixel_size;
-                atlas_row[dst_start..dst_end].copy_from_slice(right_pixel);
+            let right_pixel = &source_row[source_row.len() - pixel_size..];
+            for px in padding_right.chunks_exact_mut(pixel_size) {
+                px.copy_from_slice(right_pixel);
             }
         }
 
         let row_width = (source_width + 2 * padding) * pixel_size;
-        let first_row_start = (target_min_y * target_width + min_x) * pixel_size;
+        let first_row_start = (target_min_y * atlas_width + min_x) * pixel_size;
         let last_row_start =
-            ((target_min_y + source_height - 1) * target_width + min_x) * pixel_size;
+            ((target_min_y + source_height - 1) * atlas_width + min_x) * pixel_size;
 
         for y in 0..padding {
-            let dst_start = ((min_y + y) * target_width + min_x) * pixel_size;
+            let dst_start = ((min_y + y) * atlas_width + min_x) * pixel_size;
             atlas_data.copy_within(first_row_start..(first_row_start + row_width), dst_start);
         }
 
         for y in 0..padding {
-            let dst_start =
-                ((target_min_y + source_height + y) * target_width + min_x) * pixel_size;
+            let dst_start = ((target_min_y + source_height + y) * atlas_width + min_x) * pixel_size;
             atlas_data.copy_within(last_row_start..(last_row_start + row_width), dst_start);
         }
 
