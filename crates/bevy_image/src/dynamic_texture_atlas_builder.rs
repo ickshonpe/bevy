@@ -29,7 +29,7 @@ pub enum DynamicTextureAtlasBuilderError {
 pub struct DynamicTextureAtlasBuilder {
     atlas_allocator: AtlasAllocator,
     padding: u32,
-    extrude_textures: bool,
+    extrude: bool,
 }
 
 impl DynamicTextureAtlasBuilder {
@@ -40,12 +40,12 @@ impl DynamicTextureAtlasBuilder {
     /// * `size` - total size for the atlas
     /// * `padding` - gap added between textures in the atlas (and the atlas edge), both in x axis
     ///   and y axis
-    /// * `extrude_images`:
+    /// * `extrude`
     ///   - false => Between each texture and around the atlas edge there is a gap of `padding` width filled with transparent pixels.
     ///   - true => The border pixels of the each texture in the atlas are duplicated (extruded) outwards into the padding area.
     /// Extrusion uses more space for padding, the gaps between each texture are `2 * padding` pixels wide.
-    pub fn new(mut size: UVec2, padding: u32, extrude_textures: bool) -> Self {
-        if extrude_textures {
+    pub fn new(mut size: UVec2, padding: u32, extrude: bool) -> Self {
+        if extrude {
             // This doesn't need to be >= since `AtlasAllocator` requires non-zero size.
             debug_assert!(size.x > 2 * padding && size.y > 2 * padding);
         } else {
@@ -59,7 +59,7 @@ impl DynamicTextureAtlasBuilder {
         Self {
             atlas_allocator: AtlasAllocator::new(to_size2(size)),
             padding,
-            extrude_textures,
+            extrude,
         }
     }
 
@@ -81,7 +81,7 @@ impl DynamicTextureAtlasBuilder {
         atlas_texture: &mut Image,
     ) -> Result<usize, DynamicTextureAtlasBuilderError> {
         let mut padding = self.padding;
-        if self.extrude_textures {
+        if self.extrude {
             padding *= 2;
         }
 
@@ -96,7 +96,7 @@ impl DynamicTextureAtlasBuilder {
                 atlas_texture.asset_usage.contains(RenderAssetUsages::MAIN_WORLD),
                 "The atlas_texture image must have the RenderAssetUsages::MAIN_WORLD usage flag set"
             );
-            let atlas_rect = if 0 < padding && self.extrude_textures {
+            let atlas_rect = if 0 < padding && self.extrude {
                 self.place_texture_with_extrusion(atlas_texture, allocation, texture)?
             } else {
                 self.place_texture(atlas_texture, allocation, texture)?
