@@ -43,7 +43,7 @@ impl DynamicTextureAtlasBuilder {
     /// * `extrude`
     ///   - false => Between each texture and around the atlas edge there is a gap of `padding` width filled with transparent pixels.
     ///   - true => The border pixels of the each texture in the atlas are duplicated (extruded) outwards into the padding area.
-    /// Extrusion uses more space for padding, the gaps between each texture are `2 * padding` pixels wide.
+    ///     Extrusion uses more space for padding, the gaps between each texture are `2 * padding` pixels wide.
     pub fn new(mut size: UVec2, padding: u32, extrude: bool) -> Self {
         if extrude {
             // This doesn't need to be >= since `AtlasAllocator` requires non-zero size.
