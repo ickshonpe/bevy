@@ -216,8 +216,8 @@ impl DynamicTextureAtlasBuilder {
             }
 
             for y in 0..padding {
-                let dst_start = ((content_min_y + texture_height + y) * atlas_width + rect_min_x)
-                    * format_size;
+                let dst_start =
+                    ((content_min_y + texture_height + y) * atlas_width + rect_min_x) * format_size;
                 atlas_data.copy_within(last_row_start..(last_row_start + row_width), dst_start);
             }
         }
@@ -493,14 +493,37 @@ mod tests {
         assert_eq!(layout.textures[texture_index], expected_rect);
 
         let expected = [
-            [[1, 0, 0, 255], [1, 0, 0, 255], [2, 0, 0, 255], [2, 0, 0, 255]],
-            [[1, 0, 0, 255], [1, 0, 0, 255], [2, 0, 0, 255], [2, 0, 0, 255]],
-            [[3, 0, 0, 255], [3, 0, 0, 255], [4, 0, 0, 255], [4, 0, 0, 255]],
-            [[3, 0, 0, 255], [3, 0, 0, 255], [4, 0, 0, 255], [4, 0, 0, 255]],
+            [
+                [1, 0, 0, 255],
+                [1, 0, 0, 255],
+                [2, 0, 0, 255],
+                [2, 0, 0, 255],
+            ],
+            [
+                [1, 0, 0, 255],
+                [1, 0, 0, 255],
+                [2, 0, 0, 255],
+                [2, 0, 0, 255],
+            ],
+            [
+                [3, 0, 0, 255],
+                [3, 0, 0, 255],
+                [4, 0, 0, 255],
+                [4, 0, 0, 255],
+            ],
+            [
+                [3, 0, 0, 255],
+                [3, 0, 0, 255],
+                [4, 0, 0, 255],
+                [4, 0, 0, 255],
+            ],
         ];
         for y in 0..4 {
             for x in 0..4 {
-                assert_eq!(pixel_value_at(&atlas_texture, x as u32, y as u32), expected[y][x]);
+                assert_eq!(
+                    pixel_value_at(&atlas_texture, x as u32, y as u32),
+                    expected[y][x]
+                );
             }
         }
     }
