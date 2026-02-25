@@ -26,6 +26,7 @@ pub mod popover;
 mod radio;
 mod scrollbar;
 mod slider;
+mod text_input;
 
 pub use button::*;
 pub use checkbox::*;
@@ -34,6 +35,7 @@ pub use observe::*;
 pub use radio::*;
 pub use scrollbar::*;
 pub use slider::*;
+pub use text_input::*;
 
 use bevy_app::{PluginGroup, PluginGroupBuilder};
 use bevy_ecs::{entity::Entity, event::EntityEvent};
