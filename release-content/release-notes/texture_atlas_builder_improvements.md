@@ -1,5 +1,5 @@
 ---
-title: "Improvements to texture atlas builders"
+title: "Texture atlas builder padding changes"
 authors: ["@Wuketuke", "@andriyDev", "@ickshonpe"]
 pull_requests: [23091, 23056, 23074, 23132]
 ---
@@ -21,4 +21,3 @@ cargo run --example testbed_2d -- DynamicTextureAtlasBuilder
 ```
 cargo run --example testbed_2d -- TextureAtlasBuilder
 ```
-
