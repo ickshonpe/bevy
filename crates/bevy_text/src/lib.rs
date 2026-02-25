@@ -32,6 +32,7 @@
 extern crate alloc;
 
 mod bounds;
+pub mod editing;
 mod error;
 mod font;
 mod font_atlas;
