@@ -5206,6 +5206,17 @@ category = "UI (User Interface)"
 wasm = true
 
 [[example]]
+name = "text_input_widget"
+path = "examples/ui/widgets/text_input_widgett.rs"
+doc-scrape-examples = true
+
+[package.metadata.example.text_input_widget]
+name = "Text Input Widget"
+description = "Text Input widget example"
+category = "UI (User Interface)"
+wasm = true
+
+[[example]]
 name = "render_depth_to_texture"
 path = "examples/shader_advanced/render_depth_to_texture.rs"
 doc-scrape-examples = true
