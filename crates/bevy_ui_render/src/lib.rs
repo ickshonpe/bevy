@@ -893,29 +893,17 @@ pub fn extract_text_sections(
             &InheritedVisibility,
             Option<&CalculatedClip>,
             &ComputedUiTargetCamera,
-            &ComputedTextBlock,
-            &TextColor,
             &TextLayoutInfo,
         )>,
     >,
-    text_styles: Extract<Query<&TextColor>>,
     camera_map: Extract<UiCameraMap>,
 ) {
     let mut start = extracted_uinodes.glyphs.len();
     let mut end = start + 1;
 
     let mut camera_mapper = camera_map.get_mapper();
-    for (
-        entity,
-        uinode,
-        transform,
-        inherited_visibility,
-        clip,
-        camera,
-        computed_block,
-        text_color,
-        text_layout_info,
-    ) in &uinode_query
+    for (entity, uinode, transform, inherited_visibility, clip, camera, text_layout_info) in
+        &uinode_query
     {
         // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
         if !inherited_visibility.get() || uinode.is_empty() {
@@ -928,33 +916,18 @@ pub fn extract_text_sections(
 
         let transform = Affine2::from(*transform) * Affine2::from_translation(-0.5 * uinode.size());
 
-        let mut color = text_color.0.to_linear();
-
-        let mut current_span_index = 0;
-
         for (
             i,
             PositionedGlyph {
                 position,
                 atlas_info,
-                span_index,
+                color,
                 ..
             },
         ) in text_layout_info.glyphs.iter().enumerate()
         {
-            if current_span_index != *span_index
-                && let Some(span_entity) =
-                    computed_block.entities().get(*span_index).map(|t| t.entity)
-            {
-                color = text_styles
-                    .get(span_entity)
-                    .map(|text_color| LinearRgba::from(text_color.0))
-                    .unwrap_or_default();
-                current_span_index = *span_index;
-            }
-
             extracted_uinodes.glyphs.push(ExtractedGlyph {
-                color,
+                color: *color,
                 translation: *position,
                 rect: atlas_info.rect,
             });

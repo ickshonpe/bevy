@@ -1,5 +1,6 @@
 use crate::{ExtractedSlice, TextureAtlasLayout};
 use bevy_asset::{AssetEvent, Assets};
+use bevy_color::LinearRgba;
 use bevy_ecs::prelude::*;
 use bevy_image::Image;
 use bevy_math::{Rect, Vec2};
@@ -36,6 +37,7 @@ impl ComputedTextureSlices {
                 .custom_size
                 .unwrap_or(sprite.rect.unwrap_or_default().size());
         self.0.iter().map(move |slice| ExtractedSlice {
+            color: LinearRgba::WHITE,
             offset: slice.offset * flip - anchor,
             rect: slice.texture_rect,
             size: slice.draw_size,

@@ -37,11 +37,9 @@ pub fn extract_text2d_sprite(
             &GlobalTransform,
         )>,
     >,
-    text_colors: Extract<Query<&TextColor>>,
     text_background_colors_query: Extract<Query<&TextBackgroundColor>>,
     decoration_query: Extract<
         Query<(
-            &TextColor,
             Has<Strikethrough>,
             Has<Underline>,
             Option<&StrikethroughColor>,
@@ -121,6 +119,7 @@ pub fn extract_text2d_sprite(
             ) in text_layout_info.glyphs.iter().enumerate()
             {
                 extracted_slices.slices.push(ExtractedSlice {
+                    color,
                     offset: *position,
                     rect: atlas_info.rect,
                     size: atlas_info.rect.size(),
@@ -152,7 +151,7 @@ pub fn extract_text2d_sprite(
 
             for run in text_layout_info.run_geometry.iter() {
                 let section_entity = computed_block.entities()[run.span_index].entity;
-                let Ok((_, has_strikethrough, has_underline, _, _)) =
+                let Ok((has_strikethrough, has_underline, _, _)) =
                     decoration_query.get(section_entity)
                 else {
                     continue;
@@ -215,24 +214,13 @@ pub fn extract_text2d_sprite(
                 position,
                 atlas_info,
                 span_index,
+                color,
                 ..
             },
         ) in text_layout_info.glyphs.iter().enumerate()
         {
-            if *span_index != current_span {
-                color = text_colors
-                    .get(
-                        computed_block
-                            .entities()
-                            .get(*span_index)
-                            .map(|t| t.entity)
-                            .unwrap_or(Entity::PLACEHOLDER),
-                    )
-                    .map(|text_color| LinearRgba::from(text_color.0))
-                    .unwrap_or_default();
-                current_span = *span_index;
-            }
             extracted_slices.slices.push(ExtractedSlice {
+                color: *color,
                 offset: *position,
                 rect: atlas_info.rect,
                 size: atlas_info.rect.size(),
@@ -246,13 +234,13 @@ pub fn extract_text2d_sprite(
                     main_entity,
                     render_entity,
                     transform,
-                    color,
                     image_handle_id: atlas_info.texture,
                     flip_x: false,
                     flip_y: true,
                     kind: ExtractedSpriteKind::Slices {
                         indices: start..end,
                     },
+                    color: *color,
                 });
                 start = end;
             }
@@ -263,7 +251,6 @@ pub fn extract_text2d_sprite(
         for run in text_layout_info.run_geometry.iter() {
             let section_entity = computed_block.entities()[run.span_index].entity;
             let Ok((
-                text_color,
                 has_strike_through,
                 has_underline,
                 maybe_strikethrough_color,
@@ -275,7 +262,7 @@ pub fn extract_text2d_sprite(
             if has_strike_through {
                 let color = maybe_strikethrough_color
                     .map(|c| c.0)
-                    .unwrap_or(text_color.0)
+                    .unwrap_or(bevy_color::Color::WHITE)
                     .to_linear();
                 let render_entity = commands.spawn(TemporaryRenderEntity).id();
                 let offset = run.strikethrough_position();
@@ -303,7 +290,7 @@ pub fn extract_text2d_sprite(
             if has_underline {
                 let color = maybe_underline_color
                     .map(|c| c.0)
-                    .unwrap_or(text_color.0)
+                    .unwrap_or(bevy_color::Color::WHITE)
                     .to_linear();
                 let render_entity = commands.spawn(TemporaryRenderEntity).id();
                 let offset = run.underline_position();

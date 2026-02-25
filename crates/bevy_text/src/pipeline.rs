@@ -348,6 +348,7 @@ impl TextPipeline {
                             byte_index: text_range.start,
                             byte_length: text_range.len(),
                             line_index,
+                            color: Color::WHITE.into(),
                         });
                     }
 

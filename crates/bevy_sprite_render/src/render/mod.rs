@@ -270,6 +270,7 @@ impl SpecializedRenderPipeline for SpritePipeline {
 }
 
 pub struct ExtractedSlice {
+    pub color: LinearRgba,
     pub offset: Vec2,
     pub rect: Rect,
     pub size: Vec2,
@@ -796,7 +797,7 @@ pub fn prepare_sprite_image_bind_groups(
                             .sprite_instance_buffer
                             .push(SpriteInstance::from(
                                 &transform,
-                                &extracted_sprite.color,
+                                &slice.color,
                                 &uv_offset_scale,
                             ));
 
