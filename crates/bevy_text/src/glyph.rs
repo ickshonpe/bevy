@@ -1,6 +1,7 @@
 //! This module exports types related to rendering glyphs.
 
 use bevy_asset::AssetId;
+use bevy_color::LinearRgba;
 use bevy_image::prelude::*;
 use bevy_math::{Rect, Vec2};
 use bevy_reflect::Reflect;
@@ -25,6 +26,8 @@ pub struct PositionedGlyph {
     pub byte_index: usize,
     /// The byte length of the glyph.
     pub byte_length: usize,
+    /// The color of the glyph.
+    pub color: LinearRgba,
 }
 
 /// Information about a glyph in an atlas.
