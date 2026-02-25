@@ -1,5 +1,5 @@
 ---
-title: "Texture atlas builder padding changes"
+title: "texture atlas builder padding improvements"
 authors: ["@Wuketuke", "@andriyDev", "@ickshonpe"]
 pull_requests: [23091, 23056, 23074, 23132]
 ---
@@ -14,10 +14,10 @@ To enable edge extrusion, call `DynamicTextureAtlasBuilder::new` with its `extru
 
 Two new scenes have been added to `testbed_2d` that demonstrate these changes:
 
-```
+```bash
 cargo run --example testbed_2d -- DynamicTextureAtlasBuilder
 ```
 
-```
+```bash
 cargo run --example testbed_2d -- TextureAtlasBuilder
 ```
