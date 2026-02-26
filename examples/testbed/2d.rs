@@ -636,7 +636,9 @@ mod dynamic_texture_atlas_builder {
             commands.spawn((
                 Sprite::from_image(nearest_atlas_handle),
                 Anchor::BOTTOM_CENTER,
-                ShowAabbGizmo::default(),
+                ShowAabbGizmo {
+                    color: Some(Color::WHITE),
+                },
                 DespawnOnExit(super::Scene::DynamicTextureAtlasBuilder),
                 Transform::from_translation(position),
             ));
