@@ -103,7 +103,8 @@ impl Plugin for TextPlugin {
                 (
                     detect_text_needs_rerender,
                     load_font_assets_into_font_collection.after(AssetEventSystems),
-                ),
+                )
+                    .chain(),
             )
             .add_systems(Last, trim_source_cache);
 
