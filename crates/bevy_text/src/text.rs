@@ -1102,8 +1102,7 @@ pub struct TextRootMarker;
 
 /// System that detects changes to text blocks and sets `ComputedTextBlock::should_rerender`.
 ///
-/// Generic over the root text component and text span component. For example, `Text2d`/[`TextSpan`] for
-/// 2d or `Text`/[`TextSpan`] for UI.
+/// Does not check root text components (e.g. `Text`/`Text2d`) for changes. Their systems must handle change detection.
 pub fn detect_text_needs_rerender(
     changed_roots: Query<
         Entity,
