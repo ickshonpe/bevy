@@ -397,7 +397,7 @@ mod tests {
             .add_systems(
                 Update,
                 (
-                    detect_text_needs_rerender::<Text2d>,
+                    detect_text_needs_rerender,
                     update_text2d_layout,
                     calculate_bounds_text2d,
                 )
