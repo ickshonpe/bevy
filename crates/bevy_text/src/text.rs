@@ -128,7 +128,7 @@ impl Default for ComputedTextBlock {
 /// See `Text2d` in `bevy_sprite` for the core component of 2d text, and `Text` in `bevy_ui` for UI text.
 #[derive(Component, Debug, Copy, Clone, Default, Reflect)]
 #[reflect(Component, Default, Debug, Clone)]
-#[require(ComputedTextBlock, TextLayoutInfo, TextRootMarker)]
+#[require(ComputedTextBlock, TextLayoutInfo)]
 pub struct TextLayout {
     /// The text's internal alignment.
     /// Should not affect its position within a container.
@@ -1096,10 +1096,6 @@ impl FontHinting {
     }
 }
 
-/// Marker component used to identify root text entities by `detect_text_needs_rerender`.
-#[derive(Component, Default)]
-pub struct TextRootMarker;
-
 /// System that detects changes to text blocks and sets `ComputedTextBlock::should_rerender`.
 ///
 /// Does not check root text components (e.g. `Text`/`Text2d`) for changes. Their systems must handle change detection.
@@ -1113,7 +1109,6 @@ pub fn detect_text_needs_rerender(
                 Changed<LineHeight>,
                 Changed<Children>,
             )>,
-            With<TextRootMarker>,
             With<TextFont>,
             With<TextLayout>,
         ),
@@ -1146,8 +1141,8 @@ pub fn detect_text_needs_rerender(
     // - Root children changed (can include additions and removals).
     for root in changed_roots.iter() {
         let Ok((_, Some(mut computed), _)) = computed.get_mut(root) else {
-            once!(warn!("found entity {} with a root text component ({}) but no ComputedTextBlock; this warning only \
-                prints once", root, core::any::type_name::<TextRootMarker>()));
+            once!(warn!("found entity {} with a root text component but no ComputedTextBlock; this warning only \
+                prints once", root));
             continue;
         };
         computed.needs_rerender = true;
