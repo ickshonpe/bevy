@@ -382,8 +382,6 @@ impl TextPipeline {
                                 + atlas_info.offset,
                             atlas_info,
                             section_index,
-                            byte_index: text_range.start,
-                            byte_length: text_range.len(),
                             line_index,
                         });
                     }
