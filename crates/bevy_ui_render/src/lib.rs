@@ -987,11 +987,14 @@ pub fn extract_text_sections(
             }
 
             let color = if let Some(selected_text_color) = selected_text_color
-                && text_layout_info.selection_rects.iter().any(|selection_rect| {
-                    let glyph_rect = Rect::from_center_size(*position, atlas_info.rect.size());
-                    selection_rect.contains(glyph_rect.min) && selection_rect.contains(glyph_rect.max)
-                })
-            {
+                && text_layout_info
+                    .selection_rects
+                    .iter()
+                    .any(|selection_rect| {
+                        let glyph_rect = Rect::from_center_size(*position, atlas_info.rect.size());
+                        selection_rect.contains(glyph_rect.min)
+                            && selection_rect.contains(glyph_rect.max)
+                    }) {
                 selected_text_color
             } else {
                 color
