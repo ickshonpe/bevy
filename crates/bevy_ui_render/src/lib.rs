@@ -959,8 +959,7 @@ pub fn extract_text_sections(
 
         let selected_text_color = cursor_style
             .and_then(|cursor_style| cursor_style.selected_text_color)
-            .map(|selected_text_color| selected_text_color.to_linear())
-            .unwrap_or(color);
+            .map(|selected_text_color| selected_text_color.to_linear());
 
         let mut current_section_index = 0;
 
@@ -970,7 +969,6 @@ pub fn extract_text_sections(
                 position,
                 atlas_info,
                 section_index,
-                byte_index,
                 ..
             },
         ) in text_layout_info.glyphs.iter().enumerate()
@@ -988,12 +986,19 @@ pub fn extract_text_sections(
                 current_section_index = *section_index;
             }
 
+            let color = if let Some(selected_text_color) = selected_text_color
+                && text_layout_info.selection_rects.iter().any(|selection_rect| {
+                    let glyph_rect = Rect::from_center_size(*position, atlas_info.rect.size());
+                    selection_rect.contains(glyph_rect.min) && selection_rect.contains(glyph_rect.max)
+                })
+            {
+                selected_text_color
+            } else {
+                color
+            };
+
             extracted_uinodes.glyphs.push(ExtractedGlyph {
-                color: if text_layout_info.selection_text_range.contains(byte_index) {
-                    selected_text_color
-                } else {
-                    color
-                },
+                color,
                 translation: *position,
                 rect: atlas_info.rect,
             });
