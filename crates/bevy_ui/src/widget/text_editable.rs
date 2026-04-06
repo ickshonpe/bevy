@@ -239,8 +239,10 @@ pub fn editable_text_system(
                                 .run()
                                 .visual_clusters()
                                 .flat_map(|cluster| {
-                                    core::iter::repeat(cluster.text_range())
-                                        .take(cluster.glyphs().count())
+                                    core::iter::repeat_n(
+                                        cluster.text_range(),
+                                        cluster.glyphs().count(),
+                                    )
                                 })
                                 .skip(run_count)
                                 .take(glyph_run_count),
