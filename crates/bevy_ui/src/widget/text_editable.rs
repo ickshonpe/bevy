@@ -184,8 +184,6 @@ pub fn editable_text_system(
                 .set_width(Some(computed_node.content_box().width()));
         }
 
-        info.selection_text_range = editable_text.editor.raw_selection().text_range();
-
         let mut driver = editable_text
             .editor
             .driver(&mut font_cx.0, &mut layout_cx.0);
@@ -203,22 +201,14 @@ pub fn editable_text_system(
 
         info.glyphs.clear();
         info.run_geometry.clear();
-        info.selection_rects.clear();
 
-        for (line_index, line) in layout.lines().enumerate() {
-            let mut current_run_index = usize::MAX;
-            let mut run_count = 0;
-
-            for item in line.items() {
+        for line in layout.lines() {
+            for (line_index, item) in line.items().enumerate() {
                 match item {
                     PositionedLayoutItem::GlyphRun(glyph_run) => {
                         let brush = glyph_run.style().brush;
 
                         let run = glyph_run.run();
-                        if run.index() != current_run_index {
-                            current_run_index = run.index();
-                            run_count = 0;
-                        }
 
                         let font_data = run.font();
                         let font_size = run.font_size();
@@ -233,20 +223,7 @@ pub fn editable_text_system(
                             font_smoothing: brush.font_smoothing,
                         };
 
-                        let glyph_run_count = glyph_run.glyphs().count();
-                        for (glyph, cluster_text_range) in glyph_run.positioned_glyphs().zip(
-                            glyph_run
-                                .run()
-                                .visual_clusters()
-                                .flat_map(|cluster| {
-                                    core::iter::repeat_n(
-                                        cluster.text_range(),
-                                        cluster.glyphs().count(),
-                                    )
-                                })
-                                .skip(run_count)
-                                .take(glyph_run_count),
-                        ) {
+                        for glyph in glyph_run.positioned_glyphs() {
                             let font_atlases = font_atlas_set.entry(font_atlas_key).or_default();
                             let Ok(atlas_info) = get_glyph_atlas_info(
                                 font_atlases,
@@ -285,12 +262,10 @@ pub fn editable_text_system(
                                 atlas_info,
                                 section_index: brush.section_index as usize,
                                 line_index,
-                                byte_index: cluster_text_range.start,
-                                byte_length: cluster_text_range.len(),
+                                byte_index: line.text_range().start,
+                                byte_length: line.text_range().len(),
                             });
                         }
-
-                        run_count += glyph_run_count;
 
                         info.run_geometry.push(RunGeometry {
                             section_index: brush.section_index as usize,
