@@ -323,7 +323,7 @@ impl TextPipeline {
                     let run = glyph_run.run();
                     let font = run.font();
                     let font_size = run.font_size();
-                    let coords = run.normalized_coords();                    
+                    let coords = run.normalized_coords();
                     let variations_hash = FixedHasher.hash_one(coords);
                     let font_atlas_key = FontAtlasKey {
                         id: font.data.id() as u32,
