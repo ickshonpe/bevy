@@ -146,15 +146,13 @@ impl Default for EditableText {
 }
 
 impl EditableText {
-    /// Creates a new `EditableText` with its buffer already containing some initial text.
+    /// Creates a new `EditableText` with its buffer already containing some initial text and
+    /// its cursor positioned at the end.
     pub fn new(initial_text: impl AsRef<str>) -> Self {
-        let mut editor = PlainEditor::new(100.);
-        editor.set_text(initial_text.as_ref());
-
-        Self {
-            editor,
-            ..Default::default()
-        }
+        let mut editable_text = Self::default();
+        editable_text.editor.set_text(initial_text.as_ref());
+        editable_text.queue_edit(TextEdit::TextEnd(false));
+        editable_text
     }
 
     /// Access the internal [`PlainEditor`].
