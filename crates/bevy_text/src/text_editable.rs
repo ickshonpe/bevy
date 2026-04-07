@@ -210,15 +210,9 @@ impl EditableText {
 #[derive(Component)]
 pub struct EditableTextFilter(pub Box<dyn Fn(char) -> bool + Send + Sync + 'static>);
 
-impl Default for EditableTextFilter {
-    fn default() -> Self {
-        Self(Box::new(|_| true))
-    }
-}
-
 /// Applies pending text edit actions to all [`EditableText`] widgets.
 pub fn apply_text_edits(
-    mut query: Query<(Entity, &mut EditableText, &EditableTextFilter)>,
+    mut query: Query<(Entity, &mut EditableText, Option<&EditableTextFilter>)>,
     mut font_context: ResMut<FontCx>,
     mut layout_context: ResMut<LayoutCx>,
     mut clipboard_text: ResMut<Clipboard>,
@@ -232,7 +226,10 @@ pub fn apply_text_edits(
                 &mut font_context.0,
                 &mut layout_context.0,
                 &mut clipboard_text.0,
-                filter.0.as_ref(),
+                match filter {
+                    Some(filter) => filter.0.as_ref(),
+                    None => &|_| true,
+                },
             );
 
             commands.trigger(TextEditChange { entity });
