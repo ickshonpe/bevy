@@ -177,6 +177,7 @@ impl EditableText {
         font_context: &mut FontContext,
         layout_context: &mut LayoutContext<TextBrush>,
         clipboard_text: &mut String,
+        char_filter: impl Fn(char) -> bool,
     ) {
         let Self {
             editor,
@@ -188,7 +189,7 @@ impl EditableText {
         let mut driver = editor.driver(font_context, layout_context);
 
         for edit in pending_edits.drain(..) {
-            edit.apply(&mut driver, clipboard_text, *max_characters);
+            edit.apply(&mut driver, clipboard_text, *max_characters, &char_filter);
         }
     }
 
@@ -205,15 +206,19 @@ impl EditableText {
     }
 }
 
+/// Sets a per-character filter for this text input. Insert and paste edits are ignored if the filter rejects any character.
+#[derive(Component)]
+pub struct EditableTextFilter(pub Box<dyn Fn(char) -> bool + Send + Sync + 'static>);
+
 /// Applies pending text edit actions to all [`EditableText`] widgets.
 pub fn apply_text_edits(
-    mut query: Query<(Entity, &mut EditableText)>,
+    mut query: Query<(Entity, &mut EditableText, &EditableTextFilter)>,
     mut font_context: ResMut<FontCx>,
     mut layout_context: ResMut<LayoutCx>,
     mut clipboard_text: ResMut<Clipboard>,
     mut commands: Commands,
 ) {
-    for (entity, mut editable_text) in query.iter_mut() {
+    for (entity, mut editable_text, filter) in query.iter_mut() {
         editable_text.text_edited = !editable_text.pending_edits.is_empty();
 
         if editable_text.text_edited {
@@ -221,6 +226,7 @@ pub fn apply_text_edits(
                 &mut font_context.0,
                 &mut layout_context.0,
                 &mut clipboard_text.0,
+                filter.0.as_ref(),
             );
 
             commands.trigger(TextEditChange { entity });
