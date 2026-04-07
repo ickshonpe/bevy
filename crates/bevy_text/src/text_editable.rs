@@ -147,9 +147,9 @@ impl Default for EditableText {
 
 impl EditableText {
     /// Creates a new `EditableText` with its buffer already containing some initial text.
-    pub fn new(initial_text: &str) -> Self {
+    pub fn new(initial_text: impl AsRef<str>) -> Self {
         let mut editor = PlainEditor::new(100.);
-        editor.set_text(initial_text);
+        editor.set_text(initial_text.as_ref());
 
         Self {
             editor,
