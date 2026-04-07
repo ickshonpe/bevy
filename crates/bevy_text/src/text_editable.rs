@@ -210,6 +210,12 @@ impl EditableText {
 #[derive(Component)]
 pub struct EditableTextFilter(pub Box<dyn Fn(char) -> bool + Send + Sync + 'static>);
 
+impl Default for EditableTextFilter {
+    fn default() -> Self {
+        Self(Box::new(|_| true))
+    }
+}
+
 /// Applies pending text edit actions to all [`EditableText`] widgets.
 pub fn apply_text_edits(
     mut query: Query<(Entity, &mut EditableText, Option<&EditableTextFilter>)>,
