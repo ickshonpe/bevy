@@ -210,6 +210,13 @@ impl EditableText {
 #[derive(Component)]
 pub struct EditableTextFilter(pub Box<dyn Fn(char) -> bool + Send + Sync + 'static>);
 
+impl EditableTextFilter {
+    /// Create a new `EditableTextFilter` from the given filter function.
+    pub fn new(filter: impl Fn(char) -> bool + Send + Sync + 'static) -> Self {
+        Self(Box::new(filter))
+    }
+}
+
 impl Default for EditableTextFilter {
     fn default() -> Self {
         Self(Box::new(|_| true))
