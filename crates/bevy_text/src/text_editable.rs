@@ -146,6 +146,17 @@ impl Default for EditableText {
 }
 
 impl EditableText {
+    /// Creates a new `EditableText` with its buffer already containing some initial text.
+    pub fn new(initial_text: &str) -> Self {
+        let mut editor = PlainEditor::new(100.);
+        editor.set_text(initial_text);
+
+        Self {
+            editor,
+            ..default()
+        }
+    }
+
     /// Access the internal [`PlainEditor`].
     pub fn editor(&self) -> &PlainEditor<TextBrush> {
         &self.editor
