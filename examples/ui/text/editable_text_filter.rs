@@ -3,7 +3,7 @@
 use bevy::color::palettes::css::{DARK_SLATE_GRAY, YELLOW};
 use bevy::input_focus::AutoFocus;
 use bevy::prelude::*;
-use bevy::text::{EditableText, EditableTextFilter};
+use bevy::text::{EditableText, EditableTextFilter, TextCursorStyle};
 
 fn main() {
     App::new()
@@ -35,6 +35,7 @@ fn setup(mut commands: Commands) {
                     max_characters: Some(8),
                     ..default()
                 },
+                TextCursorStyle::default(),
                 EditableTextFilter::new(|c| c.is_ascii_hexdigit()),
                 TextFont::from_font_size(32.),
                 BackgroundColor(DARK_SLATE_GRAY.into()),
