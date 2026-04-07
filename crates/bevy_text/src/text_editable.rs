@@ -73,6 +73,7 @@ use crate::{
     text_edit::TextEdit, FontCx, FontHinting, LayoutCx, LineHeight, TextBrush, TextColor, TextFont,
     TextLayout,
 };
+use alloc::sync::Arc;
 use bevy_ecs::prelude::*;
 use core::time::Duration;
 use parley::{FontContext, LayoutContext, PlainEditor, SplitString};
@@ -207,19 +208,19 @@ impl EditableText {
 }
 
 /// Sets a per-character filter for this text input. Insert and paste edits are ignored if the filter rejects any character.
-#[derive(Component)]
-pub struct EditableTextFilter(pub Box<dyn Fn(char) -> bool + Send + Sync + 'static>);
+#[derive(Component, Clone)]
+pub struct EditableTextFilter(Arc<dyn Fn(char) -> bool + Send + Sync + 'static>);
 
 impl EditableTextFilter {
     /// Create a new `EditableTextFilter` from the given filter function.
     pub fn new(filter: impl Fn(char) -> bool + Send + Sync + 'static) -> Self {
-        Self(Box::new(filter))
+        Self(Arc::new(filter))
     }
 }
 
 impl Default for EditableTextFilter {
     fn default() -> Self {
-        Self(Box::new(|_| true))
+        Self(Arc::new(|_| true))
     }
 }
 

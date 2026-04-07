@@ -35,7 +35,7 @@ fn setup(mut commands: Commands) {
                     max_characters: Some(8),
                     ..default()
                 },
-                EditableTextFilter(Box::new(|c| c.is_ascii_hexdigit())),
+                EditableTextFilter::new(|c| c.is_ascii_hexdigit()),
                 TextFont::from_font_size(32.),
                 BackgroundColor(DARK_SLATE_GRAY.into()),
                 BorderColor::all(YELLOW),
