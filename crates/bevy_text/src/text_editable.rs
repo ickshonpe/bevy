@@ -208,19 +208,13 @@ impl EditableText {
 }
 
 /// Sets a per-character filter for this text input. Insert and paste edits are ignored if the filter rejects any character.
-#[derive(Component, Clone)]
-pub struct EditableTextFilter(Arc<dyn Fn(char) -> bool + Send + Sync + 'static>);
+#[derive(Component, Clone, Default)]
+pub struct EditableTextFilter(Option<Arc<dyn Fn(char) -> bool + Send + Sync + 'static>>);
 
 impl EditableTextFilter {
     /// Create a new `EditableTextFilter` from the given filter function.
     pub fn new(filter: impl Fn(char) -> bool + Send + Sync + 'static) -> Self {
-        Self(Arc::new(filter))
-    }
-}
-
-impl Default for EditableTextFilter {
-    fn default() -> Self {
-        Self(Arc::new(|_| true))
+        Self(Some(Arc::new(filter)))
     }
 }
 
@@ -241,8 +235,8 @@ pub fn apply_text_edits(
                 &mut layout_context.0,
                 &mut clipboard_text.0,
                 match filter {
-                    Some(filter) => filter.0.as_ref(),
-                    None => &|_| true,
+                    Some(EditableTextFilter(Some(filter))) => filter.as_ref(),
+                    _ => &|_| true,
                 },
             );
 
