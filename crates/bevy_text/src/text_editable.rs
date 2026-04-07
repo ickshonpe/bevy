@@ -209,7 +209,7 @@ impl EditableText {
 
 /// Sets a per-character filter for this text input. Insert and paste edits are ignored if the filter rejects any character.
 ///
-/// The filter does not apply to characters already within the buffer.
+/// The filter does not apply to characters already within the `EditableText`'s text buffer.
 #[derive(Component, Clone, Default)]
 pub struct EditableTextFilter(Option<Arc<dyn Fn(char) -> bool + Send + Sync + 'static>>);
 
