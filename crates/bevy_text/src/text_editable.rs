@@ -153,7 +153,7 @@ impl EditableText {
 
         Self {
             editor,
-            ..default()
+            ..Default::default()
         }
     }
 
