@@ -82,18 +82,24 @@ pub fn update_editable_text_content_size(
             continue;
         }
 
-        if let Some(visible_lines) = editable_text.visible_lines {
+        let width = None;
+
+        let height = editable_text.visible_lines.map(|visible_lines| {
             let font_size = text_font.font_size.eval(target.logical_size(), rem_size.0);
             let logical_line_height = match *line_height {
                 LineHeight::Px(px) => px,
                 LineHeight::RelativeToFont(scale) => scale * font_size,
             };
+            visible_lines * logical_line_height * target.scale_factor()
+        });
+
+        if width.is_some() || height.is_some() {
             content_size.set(NodeMeasure::Custom(Box::new(TextInputMeasure {
-                width: None,
-                height: Some(visible_lines * logical_line_height * target.scale_factor()),
+                width,
+                height,
             })));
         } else {
-            content_size.measure = None;
+            content_size.clear();
         }
     }
 }
