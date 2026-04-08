@@ -295,7 +295,7 @@ fn demo_root() -> impl Scene {
                             Children [
                                 (
                                     text_input(TextInputProps {
-                                        visible_width: Some(9.),
+                                        visible_width: Some(10.),
                                         max_characters: Some(9),
                                     })
                                     BackgroundColor(palettes::css::MAROON)

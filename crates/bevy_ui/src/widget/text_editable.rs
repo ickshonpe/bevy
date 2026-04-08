@@ -87,13 +87,11 @@ pub fn update_editable_text_content_size(
         let font_size = text_font.font_size.eval(target.logical_size(), rem_size.0);
 
         let width = editable_text.visible_width.and_then(|visible_width| {
-            let family = resolve_font_source(&text_font.font, fonts.as_ref()).ok()?;
-
             let font_context = &mut font_cx.0;
             let mut query = font_context
                 .collection
                 .query(&mut font_context.source_cache);
-            match family {
+            match resolve_font_source(&text_font.font, fonts.as_ref()).ok()? {
                 parley::FontFamily::Single(parley::FontFamilyName::Named(name)) => {
                     query.set_families([parley::fontique::QueryFamily::Named(name.as_ref())]);
                 }
@@ -110,15 +108,14 @@ pub fn update_editable_text_content_size(
 
             let mut width = None;
             query.matches_with(|query_font| {
-                let Some(glyph_id) = query_font
+                let Some((glyph_id, font_ref)) = query_font
                     .charmap()
                     .and_then(|char_map| char_map.map('0'))
                     .and_then(|glyph_id| u16::try_from(glyph_id).ok())
-                else {
-                    return parley::fontique::QueryStatus::Continue;
-                };
-                let Some(font_ref) =
-                    FontRef::from_index(query_font.blob.as_ref(), query_font.index as usize)
+                    .zip(FontRef::from_index(
+                        query_font.blob.as_ref(),
+                        query_font.index as usize,
+                    ))
                 else {
                     return parley::fontique::QueryStatus::Continue;
                 };
