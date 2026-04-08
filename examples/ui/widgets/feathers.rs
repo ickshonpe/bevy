@@ -290,13 +290,15 @@ fn demo_root() -> impl Scene {
                         (
                             :text_input_container
                             Node {
-                                flex_grow: 1.0,
+                                flex_grow: 0.
                             }
                             Children [
                                 (
                                     text_input(TextInputProps {
+                                        visible_width: Some(9.),
                                         max_characters: Some(9),
                                     })
+                                    BackgroundColor(palettes::css::MAROON)
                                     HexColorInput
                                     on(handle_hex_color_change)
                                 )

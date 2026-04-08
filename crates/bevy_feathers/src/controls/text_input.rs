@@ -36,6 +36,8 @@ struct FeathersTextInput;
 
 /// Parameters for the text input template, passed to [`text_input`] function.
 pub struct TextInputProps {
+    /// Visible width
+    pub visible_width: Option<f32>,
     /// Max characters
     pub max_characters: Option<usize>,
 }
@@ -82,11 +84,18 @@ pub fn text_input_container() -> impl Scene {
 pub fn text_input(props: TextInputProps) -> impl Scene {
     bsn! {
         Node {
-            flex_grow: 1.0,
+            flex_grow: {
+                if props.visible_width.is_some() {
+                    0.
+                } else {
+                    1.
+                }
+            } ,
         }
         FeathersTextInput
         EditableText {
             cursor_width: 0.3,
+            visible_width: {props.visible_width},
             max_characters: {props.max_characters},
         }
         TextLayout {
