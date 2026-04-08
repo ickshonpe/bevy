@@ -58,8 +58,9 @@ impl crate::Measure for TextInputMeasure {
     }
 }
 
-/// If `visible_lines` is `Some`, sets a `ContentSize` that determines the node's height
-/// as `line_height * visible_lines`, using the resolved font line height.
+/// If `visible_lines` or `visible_width` are `Some`, sets a `ContentSize` that determines:
+/// - node height as `line_height * visible_lines`, using the resolved font line height.
+/// - node width as `advance('0') * visible_width`, where `advance('0')` is looked up from font metrics.
 pub fn update_editable_text_content_size(
     mut text_input_query: Query<(
         Ref<EditableText>,
@@ -69,6 +70,7 @@ pub fn update_editable_text_content_size(
         &mut ContentSize,
     )>,
     fonts: Res<Assets<Font>>,
+    mut font_cx: ResMut<FontCx>,
     rem_size: Res<RemSize>,
 ) {
     for (editable_text, text_font, line_height, target, mut content_size) in &mut text_input_query {
@@ -82,10 +84,61 @@ pub fn update_editable_text_content_size(
             continue;
         }
 
-        let width = None;
+        let font_size = text_font.font_size.eval(target.logical_size(), rem_size.0);
+
+        let width = editable_text.visible_width.and_then(|visible_width| {
+            let family = resolve_font_source(&text_font.font, fonts.as_ref()).ok()?;
+
+            let font_context = &mut font_cx.0;
+            let mut query = font_context
+                .collection
+                .query(&mut font_context.source_cache);
+            match family {
+                parley::FontFamily::Single(parley::FontFamilyName::Named(name)) => {
+                    query.set_families([parley::fontique::QueryFamily::Named(name.as_ref())]);
+                }
+                parley::FontFamily::Single(parley::FontFamilyName::Generic(generic)) => {
+                    query.set_families([parley::fontique::QueryFamily::Generic(generic)]);
+                }
+                _ => return None,
+            }
+            query.set_attributes(parley::fontique::Attributes::new(
+                text_font.width.into(),
+                text_font.style.into(),
+                text_font.weight.into(),
+            ));
+
+            let mut width = None;
+            query.matches_with(|query_font| {
+                let Some(glyph_id) = query_font
+                    .charmap()
+                    .and_then(|char_map| char_map.map('0'))
+                    .and_then(|glyph_id| u16::try_from(glyph_id).ok())
+                else {
+                    return parley::fontique::QueryStatus::Continue;
+                };
+                let Some(font_ref) =
+                    FontRef::from_index(query_font.blob.as_ref(), query_font.index as usize)
+                else {
+                    return parley::fontique::QueryStatus::Continue;
+                };
+
+                let advance = font_ref
+                    .glyph_metrics(&[])
+                    .scale(font_size)
+                    .advance_width(glyph_id);
+                if advance.is_finite() {
+                    width = Some(advance.max(0.0));
+                    parley::fontique::QueryStatus::Stop
+                } else {
+                    parley::fontique::QueryStatus::Continue
+                }
+            });
+
+            width.map(|width| width * visible_width * target.scale_factor())
+        });
 
         let height = editable_text.visible_lines.map(|visible_lines| {
-            let font_size = text_font.font_size.eval(target.logical_size(), rem_size.0);
             let logical_line_height = match *line_height {
                 LineHeight::Px(px) => px,
                 LineHeight::RelativeToFont(scale) => scale * font_size,
