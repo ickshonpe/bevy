@@ -30,7 +30,8 @@ use taffy::MaybeMath;
 pub struct TextScroll(pub Vec2);
 
 struct TextInputMeasure {
-    height: f32,
+    width: Option<f32>,
+    height: Option<f32>,
 }
 
 impl crate::Measure for TextInputMeasure {
@@ -40,14 +41,17 @@ impl crate::Measure for TextInputMeasure {
 
         let x = width
             .effective
-            .unwrap_or(match measure_args.available_width {
+            .unwrap_or(self.width.unwrap_or(match measure_args.available_width {
                 crate::AvailableSpace::Definite(x) => x,
                 crate::AvailableSpace::MinContent | crate::AvailableSpace::MaxContent => 0.0,
-            })
+            }))
             .maybe_clamp(width.min, width.max);
         let y = height
             .effective
-            .unwrap_or(self.height)
+            .unwrap_or(self.height.unwrap_or(match measure_args.available_height {
+                crate::AvailableSpace::Definite(y) => y,
+                crate::AvailableSpace::MinContent | crate::AvailableSpace::MaxContent => 0.0,
+            }))
             .maybe_clamp(height.min, height.max);
 
         Vec2::new(x, y).ceil()
@@ -85,7 +89,8 @@ pub fn update_editable_text_content_size(
                 LineHeight::RelativeToFont(scale) => scale * font_size,
             };
             content_size.set(NodeMeasure::Custom(Box::new(TextInputMeasure {
-                height: visible_lines * logical_line_height * target.scale_factor(),
+                width: None,
+                height: Some(visible_lines * logical_line_height * target.scale_factor()),
             })));
         } else {
             content_size.measure = None;
