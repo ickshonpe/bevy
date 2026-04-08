@@ -3,6 +3,7 @@
 use bevy::{
     color::palettes,
     feathers::{
+        constants::fonts,
         controls::{
             button, checkbox, color_plane, color_slider, color_swatch, radio, slider, text_input,
             text_input_container, toggle_switch, ButtonProps, ButtonVariant, ColorChannel,
@@ -11,6 +12,7 @@ use bevy::{
         },
         cursor::{EntityCursor, OverrideCursor},
         dark_theme::create_dark_theme,
+        font_styles::InheritableFont,
         rounded_corners::RoundedCorners,
         theme::{ThemeBackgroundColor, ThemedText, UiTheme},
         tokens, FeathersPlugins,
@@ -291,6 +293,7 @@ fn demo_root() -> impl Scene {
                             :text_input_container
                             Node {
                                 flex_grow: 0.
+                                padding: { px(4.).left().with_right(px(0.)) },
                             }
                             Children [
                                 (
@@ -298,7 +301,9 @@ fn demo_root() -> impl Scene {
                                         visible_width: Some(10.),
                                         max_characters: Some(9),
                                     })
-                                    BackgroundColor(palettes::css::MAROON)
+                                    InheritableFont {
+                                        font: fonts::MONO
+                                    }
                                     HexColorInput
                                     on(handle_hex_color_change)
                                 )
