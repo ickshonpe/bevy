@@ -199,8 +199,6 @@ pub fn editable_text_system(
     for (entity, text_font, hinting, target, mut editable_text, mut info, computed_node) in
         input_field_query.iter_mut()
     {
-        let logical_viewport_size = target.logical_size();
-        let font_size = text_font.font_size.eval(logical_viewport_size, rem_size.0);
         let cursor_width = editable_text.cursor_width;
         let cursor_blink_period = editable_text.cursor_blink_period;
         let text_edited = editable_text.text_edited;
@@ -211,14 +209,15 @@ pub fn editable_text_system(
                 .set_width(Some(computed_node.content_box().width()));
         }
 
-        let old_generation = editable_text.editor.generation();
+        let editor_generation = editable_text.editor.generation();
         let mut driver = editable_text
             .editor
             .driver(&mut font_cx.0, &mut layout_cx.0);
 
         driver.refresh_layout();
-        let layout_changed = driver.editor.generation() != old_generation;
-        let needs_text_layout_update = text_edited || layout_changed || hinting.is_changed();
+
+        let needs_text_layout_update =
+            text_edited || driver.editor.generation() != editor_generation || hinting.is_changed();
 
         if needs_text_layout_update {
             let layout = driver.layout();
@@ -321,8 +320,6 @@ pub fn editable_text_system(
             }
         }
 
-        let geom = driver.editor.cursor_geometry(cursor_width * font_size);
-
         if let Some(input_focus) = input_focus.as_ref()
             && Some(entity) == input_focus.0
         {
@@ -331,7 +328,12 @@ pub fn editable_text_system(
             }
 
             if *cursor_timer < cursor_blink_period / 2 {
-                info.cursor = geom.map(bounding_box_to_rect);
+                info.cursor = driver
+                    .editor
+                    .cursor_geometry(
+                        cursor_width * text_font.font_size.eval(target.logical_size(), rem_size.0),
+                    )
+                    .map(bounding_box_to_rect);
             } else {
                 info.cursor = None;
             }
