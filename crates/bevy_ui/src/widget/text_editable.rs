@@ -120,6 +120,7 @@ pub fn update_editable_text_styles(
             || text_layout.is_changed()
             || font_size_changed
         {
+            println!("update style");
             let style_set = editable_text.editor.edit_styles();
 
             if text_font.is_changed() {
@@ -219,10 +220,12 @@ pub fn editable_text_system(
 
         driver.refresh_layout();
         let layout_changed = driver.editor.generation() != old_generation;
-        let needs_text_layout_update =
-            text_edited || layout_changed || hinting.is_changed() || info.glyphs.is_empty();
+        let needs_text_layout_update = text_edited || layout_changed || hinting.is_changed();
 
         if needs_text_layout_update {
+            println!("update layout");
+            println!("text_edited = {text_edited}");
+            println!("layout changed = {layout_changed}");
             let layout = driver.layout();
 
             info.scale_factor = layout.scale();
