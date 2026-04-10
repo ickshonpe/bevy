@@ -110,7 +110,6 @@ pub fn update_editable_text_styles(
         editable_text_query.iter_mut()
     {
         let Ok(font_family) = resolve_font_source(&text_font.font, fonts.as_ref()) else {
-            println!("look up failed");
             continue;
         };
 
@@ -167,7 +166,6 @@ pub fn update_editable_text_styles(
 /// Adds required glyphs to the texture atlas
 // TODO: add change detection logic here to improve performance
 pub fn editable_text_system(
-    fonts: Res<Assets<Font>>,
     mut font_cx: ResMut<FontCx>,
     mut layout_cx: ResMut<LayoutCx>,
     mut scale_cx: ResMut<ScaleCx>,
@@ -176,13 +174,11 @@ pub fn editable_text_system(
     mut input_field_query: Query<(
         Entity,
         &TextFont,
-        &LineHeight,
         &FontHinting,
         Ref<ComputedUiRenderTargetInfo>,
         &mut EditableText,
         &mut TextLayoutInfo,
         Ref<ComputedNode>,
-        &TextLayout,
     )>,
     rem_size: Res<RemSize>,
     input_focus: Option<Res<InputFocus>>,
@@ -191,61 +187,11 @@ pub fn editable_text_system(
 ) {
     *cursor_timer += time.delta();
 
-    for (
-        entity,
-        text_font,
-        line_height,
-        hinting,
-        target,
-        mut editable_text,
-        mut info,
-        computed_node,
-        text_layout,
-    ) in input_field_query.iter_mut()
+    for (entity, text_font, hinting, target, mut editable_text, mut info, computed_node) in
+        input_field_query.iter_mut()
     {
-        let Ok(font_family) = resolve_font_source(&text_font.font, fonts.as_ref()) else {
-            continue;
-        };
-
-        let family = font_family.into_owned();
-        let style_set = editable_text.editor.edit_styles();
-        style_set.insert(StyleProperty::LineHeight(line_height.eval()));
-        style_set.insert(StyleProperty::FontFamily(family));
-
         let logical_viewport_size = target.logical_size();
         let font_size = text_font.font_size.eval(logical_viewport_size, rem_size.0);
-        style_set.insert(StyleProperty::FontSize(font_size));
-        style_set.insert(StyleProperty::Brush(TextBrush::new(
-            0,
-            text_font.font_smoothing,
-        )));
-
-        match text_layout.linebreak {
-            LineBreak::AnyCharacter => {
-                style_set.insert(StyleProperty::WordBreak(parley::WordBreak::BreakAll));
-                style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
-                style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
-            }
-            LineBreak::WordOrCharacter => {
-                style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
-                style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Anywhere));
-                style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
-            }
-            LineBreak::NoWrap => {
-                style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
-                style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
-                style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::NoWrap));
-            }
-            LineBreak::WordBoundary => {
-                style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
-                style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
-                style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
-            }
-        }
-
-        if target.is_changed() {
-            editable_text.editor.set_scale(target.scale_factor());
-        }
 
         if computed_node.is_changed() {
             editable_text

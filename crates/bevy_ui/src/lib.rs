@@ -253,6 +253,8 @@ fn build_text_interop(app: &mut App) {
             )
                 .chain()
                 .in_set(UiSystems::Content)
+                .after(bevy_text::load_font_assets_into_font_collection)
+                .before(EditableTextSystems)
                 .ambiguous_with(widget::update_image_content_size_system)
                 .ambiguous_with(widget::measure_text_system),
             (widget::editable_text_system, widget::scroll_editable_text)
@@ -284,5 +286,5 @@ fn build_text_interop(app: &mut App) {
     );
 
     // We cannot set this up in bevy_text as this would create a circular dependency between bevy_ui and bevy_text
-    app.configure_sets(PostUpdate, EditableTextSystems.in_set(UiSystems::Prepare));
+    app.configure_sets(PostUpdate, EditableTextSystems.in_set(UiSystems::Content));
 }
