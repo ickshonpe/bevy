@@ -22,7 +22,7 @@ use bevy_text::{
     TextLayoutInfo,
 };
 use bevy_time::{Real, Time};
-use parley::{BoundingBox, PositionedLayoutItem, StyleProperty};
+use parley::{layout, BoundingBox, PositionedLayoutItem, StyleProperty};
 use swash::FontRef;
 use taffy::MaybeMath;
 
@@ -97,53 +97,59 @@ pub fn update_editable_text_styles(
     fonts: Res<Assets<Font>>,
     mut editable_text_query: Query<(
         &mut EditableText,
-        &TextFont,
-        &LineHeight,
+        Ref<TextFont>,
+        Ref<LineHeight>,
         Ref<ComputedUiRenderTargetInfo>,
-        &TextLayout,
+        Ref<TextLayout>,
     )>,
     rem_size: Res<RemSize>,
 ) {
     for (mut editable_text, text_font, line_height, target, text_layout) in
         editable_text_query.iter_mut()
     {
-        let Ok(font_family) = resolve_font_source(&text_font.font, fonts.as_ref()) else {
-            continue;
-        };
-
-        let family = font_family.into_owned();
         let style_set = editable_text.editor.edit_styles();
-        style_set.insert(StyleProperty::LineHeight(line_height.eval()));
-        style_set.insert(StyleProperty::FontFamily(family));
+        if text_font.is_changed() {
+            let Ok(font_family) = resolve_font_source(&text_font.font, fonts.as_ref()) else {
+                continue;
+            };
 
-        let logical_viewport_size = target.logical_size();
-        let font_size = text_font.font_size.eval(logical_viewport_size, rem_size.0);
-        style_set.insert(StyleProperty::FontSize(font_size));
-        style_set.insert(StyleProperty::Brush(TextBrush::new(
-            0,
-            text_font.font_smoothing,
-        )));
+            let family = font_family.into_owned();
+            style_set.insert(StyleProperty::FontFamily(family));
+            style_set.insert(StyleProperty::Brush(TextBrush::new(
+                0,
+                text_font.font_smoothing,
+            )));
+        }
 
-        match text_layout.linebreak {
-            LineBreak::AnyCharacter => {
-                style_set.insert(StyleProperty::WordBreak(parley::WordBreak::BreakAll));
-                style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
-                style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
-            }
-            LineBreak::WordOrCharacter => {
-                style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
-                style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Anywhere));
-                style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
-            }
-            LineBreak::NoWrap => {
-                style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
-                style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
-                style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::NoWrap));
-            }
-            LineBreak::WordBoundary => {
-                style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
-                style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
-                style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
+        if text_font.is_changed() || target.is_changed() || line_height.is_changed() {
+            let logical_viewport_size = target.logical_size();
+            let font_size = text_font.font_size.eval(logical_viewport_size, rem_size.0);
+            style_set.insert(StyleProperty::FontSize(font_size));
+            style_set.insert(StyleProperty::LineHeight(line_height.eval()));
+        }
+
+        if text_layout.is_changed() {
+            match text_layout.linebreak {
+                LineBreak::AnyCharacter => {
+                    style_set.insert(StyleProperty::WordBreak(parley::WordBreak::BreakAll));
+                    style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
+                    style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
+                }
+                LineBreak::WordOrCharacter => {
+                    style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
+                    style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Anywhere));
+                    style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
+                }
+                LineBreak::NoWrap => {
+                    style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
+                    style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
+                    style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::NoWrap));
+                }
+                LineBreak::WordBoundary => {
+                    style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
+                    style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
+                    style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
+                }
             }
         }
 
