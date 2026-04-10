@@ -102,8 +102,6 @@ pub fn update_editable_text_styles(
         Ref<ComputedUiRenderTargetInfo>,
         &TextLayout,
     )>,
-    mut font_cx: ResMut<FontCx>,
-    mut layout_cx: ResMut<LayoutCx>,
     rem_size: Res<RemSize>,
 ) {
     for (mut editable_text, text_font, line_height, target, text_layout) in
@@ -152,12 +150,6 @@ pub fn update_editable_text_styles(
         if target.is_changed() {
             editable_text.editor.set_scale(target.scale_factor());
         }
-
-        let mut driver = editable_text
-            .editor
-            .driver(&mut font_cx.0, &mut layout_cx.0);
-
-        driver.refresh_layout();
     }
 }
 
