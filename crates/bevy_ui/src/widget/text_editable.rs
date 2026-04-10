@@ -17,7 +17,7 @@ use bevy_math::{Rect, Vec2};
 use bevy_platform::hash::FixedHasher;
 use bevy_text::{
     add_glyph_to_atlas, get_glyph_atlas_info, resolve_font_source, EditableText, Font,
-    FontAtlasKey, FontAtlasSet, FontCx, FontHinting, GlyphCacheKey, LayoutCx, LineBreak,
+    FontAtlasKey, FontAtlasSet, FontCx, FontHinting, FontSize, GlyphCacheKey, LayoutCx, LineBreak,
     LineHeight, PositionedGlyph, RemSize, RunGeometry, ScaleCx, TextBrush, TextFont, TextLayout,
     TextLayoutInfo,
 };
@@ -107,10 +107,6 @@ pub fn update_editable_text_styles(
     for (mut editable_text, text_font, line_height, target, text_layout) in
         editable_text_query.iter_mut()
     {
-        let font_size = text_font.font_size.eval(target.logical_size(), rem_size.0);
-        let font_size_changed =
-            f32::EPSILON < (font_size - editable_text.editor.get_font_size()).abs();
-
         if f32::EPSILON < (target.scale_factor() - editable_text.editor.get_scale()).abs() {
             editable_text.editor.set_scale(target.scale_factor());
         }
@@ -118,9 +114,12 @@ pub fn update_editable_text_styles(
         if text_font.is_changed()
             || line_height.is_changed()
             || text_layout.is_changed()
-            || font_size_changed
+            || matches!(text_font.font_size, FontSize::Rem(_)) && rem_size.is_changed()
+            || matches!(
+                text_font.font_size,
+                FontSize::Vw(_) | FontSize::Vh(_) | FontSize::VMin(_) | FontSize::VMax(_)
+            ) && target.is_changed()
         {
-            println!("update style");
             let style_set = editable_text.editor.edit_styles();
 
             if text_font.is_changed() {
@@ -134,10 +133,9 @@ pub fn update_editable_text_styles(
                     0,
                     text_font.font_smoothing,
                 )));
-            }
-
-            if font_size_changed {
-                style_set.insert(StyleProperty::FontSize(font_size));
+                style_set.insert(StyleProperty::FontSize(
+                    text_font.font_size.eval(target.logical_size(), rem_size.0),
+                ));
             }
 
             if line_height.is_changed() {
@@ -223,9 +221,6 @@ pub fn editable_text_system(
         let needs_text_layout_update = text_edited || layout_changed || hinting.is_changed();
 
         if needs_text_layout_update {
-            println!("update layout");
-            println!("text_edited = {text_edited}");
-            println!("layout changed = {layout_changed}");
             let layout = driver.layout();
 
             info.scale_factor = layout.scale();
