@@ -107,62 +107,67 @@ pub fn update_editable_text_styles(
     for (mut editable_text, text_font, line_height, target, text_layout) in
         editable_text_query.iter_mut()
     {
-        if !(text_font.is_changed()
+        let font_size = text_font.font_size.eval(target.logical_size(), rem_size.0);
+        let font_size_changed =
+            f32::EPSILON < (font_size - editable_text.editor.get_font_size()).abs();
+
+        if f32::EPSILON < (target.scale_factor() - editable_text.editor.get_scale()).abs() {
+            editable_text.editor.set_scale(target.scale_factor());
+        }
+
+        if text_font.is_changed()
             || line_height.is_changed()
-            || target.is_changed()
-            || text_layout.is_changed())
+            || text_layout.is_changed()
+            || font_size_changed
         {
-            continue;
-        }
+            let style_set = editable_text.editor.edit_styles();
 
-        let style_set = editable_text.editor.edit_styles();
-        if text_font.is_changed() {
-            let Ok(font_family) = resolve_font_source(&text_font.font, fonts.as_ref()) else {
-                continue;
-            };
+            if text_font.is_changed() {
+                let Ok(font_family) = resolve_font_source(&text_font.font, fonts.as_ref()) else {
+                    continue;
+                };
 
-            let family = font_family.into_owned();
-            style_set.insert(StyleProperty::FontFamily(family));
-            style_set.insert(StyleProperty::Brush(TextBrush::new(
-                0,
-                text_font.font_smoothing,
-            )));
-        }
+                let family = font_family.into_owned();
+                style_set.insert(StyleProperty::FontFamily(family));
+                style_set.insert(StyleProperty::Brush(TextBrush::new(
+                    0,
+                    text_font.font_smoothing,
+                )));
+            }
 
-        if text_font.is_changed() || target.is_changed() || line_height.is_changed() {
-            let logical_viewport_size = target.logical_size();
-            let font_size = text_font.font_size.eval(logical_viewport_size, rem_size.0);
-            style_set.insert(StyleProperty::FontSize(font_size));
-            style_set.insert(StyleProperty::LineHeight(line_height.eval()));
-        }
+            if font_size_changed {
+                style_set.insert(StyleProperty::FontSize(font_size));
+            }
 
-        if text_layout.is_changed() {
-            match text_layout.linebreak {
-                LineBreak::AnyCharacter => {
-                    style_set.insert(StyleProperty::WordBreak(parley::WordBreak::BreakAll));
-                    style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
-                    style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
-                }
-                LineBreak::WordOrCharacter => {
-                    style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
-                    style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Anywhere));
-                    style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
-                }
-                LineBreak::NoWrap => {
-                    style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
-                    style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
-                    style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::NoWrap));
-                }
-                LineBreak::WordBoundary => {
-                    style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
-                    style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
-                    style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
+            if line_height.is_changed() {
+                style_set.insert(StyleProperty::LineHeight(line_height.eval()));
+            }
+
+            if text_layout.is_changed() {
+                match text_layout.linebreak {
+                    LineBreak::AnyCharacter => {
+                        style_set.insert(StyleProperty::WordBreak(parley::WordBreak::BreakAll));
+                        style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
+                        style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
+                    }
+                    LineBreak::WordOrCharacter => {
+                        style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
+                        style_set
+                            .insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Anywhere));
+                        style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
+                    }
+                    LineBreak::NoWrap => {
+                        style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
+                        style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
+                        style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::NoWrap));
+                    }
+                    LineBreak::WordBoundary => {
+                        style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
+                        style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
+                        style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
+                    }
                 }
             }
-        }
-
-        if target.is_changed() {
-            editable_text.editor.set_scale(target.scale_factor());
         }
     }
 }
@@ -189,10 +194,8 @@ pub fn editable_text_system(
     input_focus: Option<Res<InputFocus>>,
     mut cursor_timer: Local<Duration>,
     time: Res<Time<Real>>,
-    mut n: Local<u64>,
 ) {
     *cursor_timer += time.delta();
-    *n += 1;
 
     for (entity, text_font, hinting, target, mut editable_text, mut info, computed_node) in
         input_field_query.iter_mut()
@@ -217,10 +220,9 @@ pub fn editable_text_system(
         driver.refresh_layout();
         let layout_changed = driver.editor.generation() != old_generation;
         let needs_text_layout_update =
-            layout_changed || hinting.is_changed() || info.glyphs.is_empty();
+            text_edited || layout_changed || hinting.is_changed() || info.glyphs.is_empty();
 
         if needs_text_layout_update {
-            println!("layout update {}", *n);
             let layout = driver.layout();
 
             info.scale_factor = layout.scale();
