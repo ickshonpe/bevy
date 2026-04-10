@@ -257,7 +257,10 @@ fn build_text_interop(app: &mut App) {
                 .before(EditableTextSystems)
                 .ambiguous_with(widget::update_image_content_size_system)
                 .ambiguous_with(widget::measure_text_system),
-            (widget::editable_text_system, widget::scroll_editable_text)
+            (
+                widget::update_editable_text_layout,
+                widget::scroll_editable_text,
+            )
                 .chain()
                 .in_set(UiSystems::PostLayout)
                 .ambiguous_with(ui_stack_system)

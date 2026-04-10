@@ -174,7 +174,7 @@ pub fn update_editable_text_styles(
 /// Updates [`EditableText::editor`] to match e.g. [`TextFont`]
 /// Writes layout to [`TextLayoutInfo`] for rendering
 /// Adds required glyphs to the texture atlas
-pub fn editable_text_system(
+pub fn update_editable_text_layout(
     mut font_cx: ResMut<FontCx>,
     mut layout_cx: ResMut<LayoutCx>,
     mut scale_cx: ResMut<ScaleCx>,
