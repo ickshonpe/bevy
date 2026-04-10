@@ -216,10 +216,7 @@ pub fn editable_text_system(
 
         driver.refresh_layout();
 
-        let needs_text_layout_update =
-            text_edited || driver.editor.generation() != editor_generation || hinting.is_changed();
-
-        if needs_text_layout_update {
+        if text_edited || driver.editor.generation() != editor_generation || hinting.is_changed() {
             let layout = driver.layout();
 
             info.scale_factor = layout.scale();
