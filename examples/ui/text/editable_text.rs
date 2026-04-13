@@ -151,8 +151,6 @@ fn text_submission(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut text_input: Query<(&mut EditableText, &Name)>,
     mut text_output: Single<&mut Text, With<TextOutput>>,
-    mut font_context: ResMut<FontCx>,
-    mut layout_context: ResMut<LayoutCx>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Enter)
         && (keyboard_input.pressed(KeyCode::ControlLeft)
