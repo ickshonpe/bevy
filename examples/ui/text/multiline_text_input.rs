@@ -1,13 +1,14 @@
 //! Demonstrates a single, minimal multiline [`EditableText`] widget.
 
 use bevy::color::palettes::css::{DARK_SLATE_GRAY, YELLOW};
+use bevy::input_focus::tab_navigation::{TabGroup, TabIndex, TabNavigationPlugin};
 use bevy::input_focus::AutoFocus;
 use bevy::prelude::*;
 use bevy::text::{EditableText, TextCursorStyle};
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins((DefaultPlugins, TabNavigationPlugin))
         .add_systems(Startup, setup)
         .run();
 }
@@ -21,37 +22,126 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             height: percent(100.),
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
+
             ..default()
         })
         .with_children(|parent| {
-            parent.spawn((
-                Node {
-                    width: px(300.),
-                    border: px(2.).all(),
-                    padding: px(8.).all(),
-                    ..default()
-                },
-                EditableText {
-                    visible_lines: Some(8.),
-                    allow_newlines: true,
-                    ..default()
-                },
-                TextLayout {
-                    linebreak: LineBreak::AnyCharacter,
-                    ..default()
-                },
-                TextCursorStyle {
-                    selected_text_color: Some(Color::BLACK),
-                    ..default()
-                },
-                TextFont {
-                    font: asset_server.load("fonts/FiraMono-Medium.ttf").into(),
-                    font_size: FontSize::Px(30.),
-                    ..default()
-                },
-                BackgroundColor(DARK_SLATE_GRAY.into()),
-                BorderColor::all(YELLOW),
-                AutoFocus,
-            ));
+            parent
+                .spawn((
+                    Node {
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::End,
+                        row_gap: px(10.),
+                        ..default()
+                    },
+                    TabGroup::default(),
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
+                        Node {
+                            width: px(450.),
+                            border: px(2.).all(),
+                            padding: px(8.).all(),
+                            ..default()
+                        },
+                        EditableText {
+                            visible_lines: Some(8.),
+                            allow_newlines: true,
+                            ..default()
+                        },
+                        TextLayout {
+                            linebreak: LineBreak::AnyCharacter,
+                            ..default()
+                        },
+                        TextCursorStyle {
+                            selected_text_color: Some(Color::BLACK),
+                            ..default()
+                        },
+                        TextFont {
+                            font: asset_server.load("fonts/FiraMono-Medium.ttf").into(),
+                            font_size: FontSize::Px(30.),
+                            ..default()
+                        },
+                        BackgroundColor(DARK_SLATE_GRAY.into()),
+                        BorderColor::all(YELLOW),
+                        TabIndex(0),
+                    ));
+
+                    parent.spawn((
+                        Node {
+                            flex_direction: FlexDirection::Row,
+                            column_gap: px(10.),
+                            ..default()
+                        },
+                        children![
+                            (
+                                Text::new("visible lines:"),
+                                TextFont {
+                                    font: asset_server.load("fonts/FiraMono-Medium.ttf").into(),
+                                    font_size: FontSize::Px(30.),
+                                    ..default()
+                                },
+                            ),
+                            (
+                                Node {
+                                    width: px(100.),
+                                    border: px(2.).all(),
+                                    ..default()
+                                },
+                                TextFont {
+                                    font: asset_server.load("fonts/FiraMono-Medium.ttf").into(),
+                                    font_size: FontSize::Px(30.),
+                                    ..default()
+                                },
+                                TextLayout {
+                                    justify: Justify::End,
+                                    ..default()
+                                },
+                                BackgroundColor(DARK_SLATE_GRAY.into()),
+                                BorderColor::all(YELLOW),
+                                EditableText::new("8"),
+                                TabIndex(1),
+                            )
+                        ],
+                    ));
+
+                    parent.spawn((
+                        Node {
+                            flex_direction: FlexDirection::Row,
+                            column_gap: px(10.),
+                            ..default()
+                        },
+                        children![
+                            (
+                                Text::new("font size:"),
+                                TextFont {
+                                    font: asset_server.load("fonts/FiraMono-Medium.ttf").into(),
+                                    font_size: FontSize::Px(30.),
+                                    ..default()
+                                },
+                            ),
+                            (
+                                Node {
+                                    width: px(100.),
+                                    border: px(2.).all(),
+                                    ..default()
+                                },
+                                TextFont {
+                                    font: asset_server.load("fonts/FiraMono-Medium.ttf").into(),
+                                    font_size: FontSize::Px(30.),
+                                    ..default()
+                                },
+                                TextLayout {
+                                    justify: Justify::End,
+                                    ..default()
+                                },
+                                BackgroundColor(DARK_SLATE_GRAY.into()),
+                                BorderColor::all(YELLOW),
+                                EditableText::new("30"),
+                                TabIndex(3),
+                            )
+                        ],
+                    ));
+                });
         });
 }
