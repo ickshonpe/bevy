@@ -210,7 +210,6 @@ pub fn update_editable_text_layout(
     {
         let cursor_width = editable_text.cursor_width;
         let cursor_blink_period = editable_text.cursor_blink_period;
-        let text_edited = editable_text.text_edited;
 
         if computed_node.is_changed() {
             editable_text
@@ -224,8 +223,7 @@ pub fn update_editable_text_layout(
 
         driver.refresh_layout();
 
-        if text_edited || driver.editor.generation() != **generation || hinting.is_changed() {
-            **generation = driver.editor.generation();
+        if driver.editor.generation() != **generation || hinting.is_changed() {
             let layout = driver.layout();
 
             info.scale_factor = layout.scale();
@@ -329,7 +327,10 @@ pub fn update_editable_text_layout(
         if let Some(input_focus) = input_focus.as_ref()
             && Some(entity) == input_focus.get()
         {
-            if input_focus.is_changed() || text_edited || *cursor_timer >= cursor_blink_period {
+            if input_focus.is_changed()
+                || driver.editor.generation() != **generation
+                || *cursor_timer >= cursor_blink_period
+            {
                 *cursor_timer = Duration::ZERO;
             }
 
@@ -353,6 +354,8 @@ pub fn update_editable_text_layout(
         } else {
             info.cursor = None;
         }
+
+        **generation = driver.editor.generation();
     }
 }
 
@@ -370,9 +373,16 @@ fn bounding_box_to_rect(geom: BoundingBox) -> Rect {
 }
 
 /// Scroll editable text to keep cursor in view after edits.
-pub fn scroll_editable_text(mut query: Query<(&EditableText, &mut TextScroll, &ComputedNode)>) {
-    for (editable_text, mut scroll, node) in query.iter_mut() {
-        if !editable_text.text_edited {
+pub fn scroll_editable_text(
+    mut query: Query<(
+        &EditableText,
+        &mut TextScroll,
+        &ComputedNode,
+        &EditableTextGeneration,
+    )>,
+) {
+    for (editable_text, mut scroll, node, generation) in query.iter_mut() {
+        if editable_text.editor.generation() == **generation {
             continue;
         }
 

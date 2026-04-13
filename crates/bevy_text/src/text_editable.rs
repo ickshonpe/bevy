@@ -125,8 +125,6 @@ pub struct EditableText {
     pub cursor_width: f32,
     /// Cursor blink period in seconds.
     pub cursor_blink_period: Duration,
-    /// True if a `TextEdit` was applied this frame
-    pub text_edited: bool,
     /// Maximum number of characters the text input can contain.
     ///
     /// Edits which would cause the length to exceed the maximum are ignored.
@@ -146,7 +144,6 @@ impl Default for EditableText {
             pending_edits: Vec::new(),
             cursor_width: 0.2,
             cursor_blink_period: Duration::from_secs(1),
-            text_edited: false,
             max_characters: None,
             visible_lines: Some(1.),
             allow_newlines: false,
@@ -239,26 +236,29 @@ impl EditableTextFilter {
 
 /// Applies pending text edit actions to all [`EditableText`] widgets.
 pub fn apply_text_edits(
-    mut query: Query<(Entity, &mut EditableText, Option<&EditableTextFilter>)>,
+    mut query: Query<(
+        Entity,
+        &mut EditableText,
+        Option<&EditableTextFilter>,
+        &EditableTextGeneration,
+    )>,
     mut font_context: ResMut<FontCx>,
     mut layout_context: ResMut<LayoutCx>,
     mut clipboard_text: ResMut<Clipboard>,
     mut commands: Commands,
 ) {
-    for (entity, mut editable_text, filter) in query.iter_mut() {
-        editable_text.text_edited = !editable_text.pending_edits.is_empty();
+    for (entity, mut editable_text, filter, generation) in query.iter_mut() {
+        editable_text.apply_pending_edits(
+            &mut font_context.0,
+            &mut layout_context.0,
+            &mut clipboard_text.0,
+            match filter {
+                Some(EditableTextFilter(Some(filter))) => filter.as_ref(),
+                _ => &|_| true,
+            },
+        );
 
-        if editable_text.text_edited {
-            editable_text.apply_pending_edits(
-                &mut font_context.0,
-                &mut layout_context.0,
-                &mut clipboard_text.0,
-                match filter {
-                    Some(EditableTextFilter(Some(filter))) => filter.as_ref(),
-                    _ => &|_| true,
-                },
-            );
-
+        if **generation != editable_text.editor.generation() {
             commands.trigger(TextEditChange { entity });
         }
     }
