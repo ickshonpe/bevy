@@ -65,6 +65,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                         BackgroundColor(DARK_SLATE_GRAY.into()),
                         BorderColor::all(YELLOW),
                         TabIndex(0),
+                        AutoFocus,
                     ));
 
                     parent.spawn((
