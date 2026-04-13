@@ -160,7 +160,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 }
 
                                 let visible_lines_query = query_set.p0();
-                                let Ok(input) = visible_lines_query.get(on.focused_entity) else {
+                                let Ok(input) =
+                                    visible_lines_query.get(on.original_event_target())
+                                else {
                                     return;
                                 };
 
@@ -179,7 +181,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                     return;
                                 };
 
-                                multiline_input.visible_lines = Some(lines);
+                                multiline_input.visible_lines = Some(lines.clamp(1., 10.));
                             },
                         );
 
@@ -240,7 +242,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                     return;
                                 }
 
-                                let Ok(input) = font_size_input_query.get(on.focused_entity) else {
+                                let Ok(input) =
+                                    font_size_input_query.get(on.original_event_target())
+                                else {
                                     return;
                                 };
 
