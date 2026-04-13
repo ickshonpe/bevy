@@ -318,7 +318,7 @@ pub fn update_editable_text_layout(
         }
 
         if let Some(input_focus) = input_focus.as_ref()
-            && Some(entity) == input_focus.0
+            && Some(entity) == input_focus.get()
         {
             if input_focus.is_changed() || text_edited || *cursor_timer >= cursor_blink_period {
                 *cursor_timer = Duration::ZERO;
