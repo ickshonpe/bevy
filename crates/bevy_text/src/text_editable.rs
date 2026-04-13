@@ -74,6 +74,7 @@ use crate::{
     TextLayout,
 };
 use alloc::sync::Arc;
+use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::prelude::*;
 use core::time::Duration;
 use parley::{FontContext, LayoutContext, PlainEditor, SplitString};
@@ -96,7 +97,14 @@ pub struct Clipboard(pub String);
 /// and provides methods for applying text edits and cursor movements correctly
 /// according to Unicode rules.
 #[derive(Component, Clone)]
-#[require(TextLayout, TextFont, TextColor, LineHeight, FontHinting)]
+#[require(
+    TextLayout,
+    TextFont,
+    TextColor,
+    LineHeight,
+    FontHinting,
+    EditableTextGeneration
+)]
 pub struct EditableText {
     /// A [`parley::PlainEditor`], tracking both the text content and cursor position.
     ///
@@ -128,8 +136,6 @@ pub struct EditableText {
     pub visible_lines: Option<f32>,
     /// Allow new lines
     pub allow_newlines: bool,
-    /// The editor generation of the last `TextLayoutInfo` update.
-    pub text_layout_info_generation: parley::Generation,
 }
 
 impl Default for EditableText {
@@ -144,10 +150,6 @@ impl Default for EditableText {
             max_characters: None,
             visible_lines: Some(1.),
             allow_newlines: false,
-            // The `Generation` set on `editor` with `PlainEditor::new` is not equal to
-            // the default `Generation` value, so the `TextLayoutInfo` will always be given an
-            // initial update.
-            text_layout_info_generation: parley::Generation::default(),
         }
     }
 }
@@ -215,6 +217,12 @@ impl EditableText {
         self.pending_edits.clear();
     }
 }
+
+/// Wrapper around a `parley::Generation`. Used to track when `TextLayoutInfo` is stale and needs reupdating.
+/// The intial `Generation` of the `PlainEditor` is not equal to the default `Generation` value, so the
+/// `TextLayoutInfo` will always be given an initial update.
+#[derive(Component, PartialEq, Eq, Default, Clone, Copy, Deref, DerefMut)]
+pub struct EditableTextGeneration(parley::Generation);
 
 /// Sets a per-character filter for this text input. Insert and paste edits are ignored if the filter rejects any character.
 ///

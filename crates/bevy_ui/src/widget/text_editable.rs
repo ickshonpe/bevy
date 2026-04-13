@@ -16,10 +16,10 @@ use bevy_input_focus::InputFocus;
 use bevy_math::{Rect, Vec2};
 use bevy_platform::hash::FixedHasher;
 use bevy_text::{
-    add_glyph_to_atlas, get_glyph_atlas_info, resolve_font_source, EditableText, Font,
-    FontAtlasKey, FontAtlasSet, FontCx, FontHinting, FontSize, GlyphCacheKey, LayoutCx, LineBreak,
-    LineHeight, PositionedGlyph, RemSize, RunGeometry, ScaleCx, TextBrush, TextFont, TextLayout,
-    TextLayoutInfo,
+    add_glyph_to_atlas, get_glyph_atlas_info, resolve_font_source, EditableText,
+    EditableTextGeneration, Font, FontAtlasKey, FontAtlasSet, FontCx, FontHinting, FontSize,
+    GlyphCacheKey, LayoutCx, LineBreak, LineHeight, PositionedGlyph, RemSize, RunGeometry, ScaleCx,
+    TextBrush, TextFont, TextLayout, TextLayoutInfo,
 };
 use bevy_time::{Real, Time};
 use parley::{BoundingBox, PositionedLayoutItem, StyleProperty};
@@ -188,6 +188,7 @@ pub fn update_editable_text_layout(
         &mut EditableText,
         &mut TextLayoutInfo,
         Ref<ComputedNode>,
+        &mut EditableTextGeneration,
     )>,
     rem_size: Res<RemSize>,
     input_focus: Option<Res<InputFocus>>,
@@ -196,8 +197,16 @@ pub fn update_editable_text_layout(
 ) {
     *cursor_timer += time.delta();
 
-    for (entity, text_font, hinting, target, mut editable_text, mut info, computed_node) in
-        input_field_query.iter_mut()
+    for (
+        entity,
+        text_font,
+        hinting,
+        target,
+        mut editable_text,
+        mut info,
+        computed_node,
+        mut generation,
+    ) in input_field_query.iter_mut()
     {
         let cursor_width = editable_text.cursor_width;
         let cursor_blink_period = editable_text.cursor_blink_period;
@@ -209,14 +218,14 @@ pub fn update_editable_text_layout(
                 .set_width(Some(computed_node.content_box().width()));
         }
 
-        let editor_generation = editable_text.editor.generation();
         let mut driver = editable_text
             .editor
             .driver(&mut font_cx.0, &mut layout_cx.0);
 
         driver.refresh_layout();
 
-        if text_edited || driver.editor.generation() != editor_generation || hinting.is_changed() {
+        if text_edited || driver.editor.generation() != **generation || hinting.is_changed() {
+            **generation = driver.editor.generation();
             let layout = driver.layout();
 
             info.scale_factor = layout.scale();
