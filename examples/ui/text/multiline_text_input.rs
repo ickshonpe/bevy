@@ -101,6 +101,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 BackgroundColor(DARK_SLATE_GRAY.into()),
                                 BorderColor::all(YELLOW),
                                 EditableText::new("8"),
+                                TextCursorStyle {
+                                    selected_text_color: Some(Color::BLACK),
+                                    ..default()
+                                },
                                 TabIndex(1),
                             )
                         ],
@@ -139,6 +143,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 BackgroundColor(DARK_SLATE_GRAY.into()),
                                 BorderColor::all(YELLOW),
                                 EditableText::new("30"),
+                                TextCursorStyle {
+                                    selected_text_color: Some(Color::BLACK),
+                                    ..default()
+                                },
                                 TabIndex(3),
                             )
                         ],
