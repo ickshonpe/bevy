@@ -166,6 +166,10 @@ pub fn update_editable_text_styles(
                         style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
                     }
                 }
+
+                editable_text
+                    .editor
+                    .set_alignment(text_layout.justify.into());
             }
         }
     }
