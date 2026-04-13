@@ -216,7 +216,7 @@ impl EditableText {
 }
 
 /// Wrapper around a `parley::Generation`. Used to track when `TextLayoutInfo` is stale and needs reupdating.
-/// The intial `Generation` of the `PlainEditor` is not equal to the default `Generation` value, so the
+/// The initial `Generation` of the `PlainEditor` is not equal to the default `Generation` value, so the
 /// `TextLayoutInfo` will always be given an initial update.
 #[derive(Component, PartialEq, Eq, Default, Clone, Copy, Deref, DerefMut)]
 pub struct EditableTextGeneration(parley::Generation);
