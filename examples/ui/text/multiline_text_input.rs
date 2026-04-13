@@ -32,7 +32,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             height: percent(100.),
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
-
             ..default()
         })
         .with_children(|parent| {
@@ -160,8 +159,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 }
 
                                 let visible_lines_query = query_set.p0();
-                                let Ok(input) =
-                                    visible_lines_query.get(on.original_event_target())
+                                let Ok(input) = visible_lines_query.get(on.original_event_target())
                                 else {
                                     return;
                                 };
