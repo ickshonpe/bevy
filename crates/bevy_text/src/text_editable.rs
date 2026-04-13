@@ -128,6 +128,8 @@ pub struct EditableText {
     pub visible_lines: Option<f32>,
     /// Allow new lines
     pub allow_newlines: bool,
+    /// The editor generation of the last `TextLayoutInfo` update.
+    pub text_layout_info_generation: parley::Generation,
 }
 
 impl Default for EditableText {
@@ -142,6 +144,10 @@ impl Default for EditableText {
             max_characters: None,
             visible_lines: Some(1.),
             allow_newlines: false,
+            // The `Generation` set on `editor` with `PlainEditor::new` is not equal to
+            // the default `Generation` value, so the `TextLayoutInfo` will always be given an
+            // initial update.
+            text_layout_info_generation: parley::Generation::default(),
         }
     }
 }
