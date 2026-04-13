@@ -58,11 +58,14 @@ struct BindlessIndexTableRangeAttr {
 }
 
 pub fn derive_as_bind_group(ast: syn::DeriveInput) -> Result<TokenStream> {
-    let manifest = BevyManifest::shared();
-    let render_path = manifest.get_path("bevy_render");
-    let image_path = manifest.get_path("bevy_image");
-    let asset_path = manifest.get_path("bevy_asset");
-    let ecs_path = manifest.get_path("bevy_ecs");
+    let (render_path, image_path, asset_path, ecs_path) = BevyManifest::shared(|manifest| {
+        let render_path = manifest.get_path("bevy_render");
+        let image_path = manifest.get_path("bevy_image");
+        let asset_path = manifest.get_path("bevy_asset");
+        let ecs_path = manifest.get_path("bevy_ecs");
+
+        (render_path, image_path, asset_path, ecs_path)
+    });
 
     let mut binding_states: Vec<BindingState> = Vec::new();
     let mut binding_impls = Vec::new();
@@ -70,6 +73,12 @@ pub fn derive_as_bind_group(ast: syn::DeriveInput) -> Result<TokenStream> {
     let mut non_bindless_binding_layouts = Vec::new();
     let mut bindless_resource_types = Vec::new();
     let mut bindless_buffer_descriptors = Vec::new();
+    // Whether this material needs buffer binding arrays (BUFFER_BINDING_ARRAY feature).
+    // False when only #[data(...)], textures, and samplers are used.
+    // NOTE: When wgpu adds support for buffer binding arrays on Metal
+    // (see https://github.com/gfx-rs/wgpu/pull/9081), this conditional
+    // can be removed and BUFFER_BINDING_ARRAY required unconditionally.
+    let mut has_buffer_binding_arrays = false;
     let mut attr_prepared_data_ident = None;
     // After the first attribute pass, this will be `None` if the object isn't
     // bindless and `Some` if it is.
@@ -154,17 +163,18 @@ pub fn derive_as_bind_group(ast: syn::DeriveInput) -> Result<TokenStream> {
 
     // Read struct-level attributes, second pass.
     for attr in &ast.attrs {
-        if let Some(attr_ident) = attr.path().get_ident() {
-            if attr_ident == UNIFORM_ATTRIBUTE_NAME || attr_ident == DATA_ATTRIBUTE_NAME {
-                let UniformBindingAttr {
-                    binding_type,
-                    binding_index,
-                    converted_shader_type,
-                    binding_array: binding_array_binding,
-                } = get_uniform_binding_attr(attr)?;
-                match binding_type {
-                    UniformBindingAttrType::Uniform => {
-                        binding_impls.push(quote! {{
+        if let Some(attr_ident) = attr.path().get_ident()
+            && (attr_ident == UNIFORM_ATTRIBUTE_NAME || attr_ident == DATA_ATTRIBUTE_NAME)
+        {
+            let UniformBindingAttr {
+                binding_type,
+                binding_index,
+                converted_shader_type,
+                binding_array: binding_array_binding,
+            } = get_uniform_binding_attr(attr)?;
+            match binding_type {
+                UniformBindingAttrType::Uniform => {
+                    binding_impls.push(quote! {{
                             use #render_path::render_resource::AsBindGroupShaderType;
                             let mut buffer = #render_path::render_resource::encase::UniformBuffer::new(Vec::new());
                             let converted: #converted_shader_type = self.as_bind_group_shader_type(&images);
@@ -181,26 +191,26 @@ pub fn derive_as_bind_group(ast: syn::DeriveInput) -> Result<TokenStream> {
                             )
                         }});
 
-                        match (&binding_array_binding, &attr_bindless_count) {
-                            (&None, &Some(_)) => {
-                                return Err(Error::new_spanned(
-                                    attr,
-                                    "Must specify `binding_array(...)` with `#[uniform]` if the \
+                    match (&binding_array_binding, &attr_bindless_count) {
+                        (&None, &Some(_)) => {
+                            return Err(Error::new_spanned(
+                                attr,
+                                "Must specify `binding_array(...)` with `#[uniform]` if the \
                                     object is bindless",
-                                ));
-                            }
-                            (&Some(_), &None) => {
-                                return Err(Error::new_spanned(
-                                    attr,
-                                    "`binding_array(...)` with `#[uniform]` requires the object to \
-                                    be bindless",
-                                ));
-                            }
-                            _ => {}
+                            ));
                         }
+                        (&Some(_), &None) => {
+                            return Err(Error::new_spanned(
+                                attr,
+                                "`binding_array(...)` with `#[uniform]` requires the object to \
+                                    be bindless",
+                            ));
+                        }
+                        _ => {}
+                    }
 
-                        let binding_array_binding = binding_array_binding.unwrap_or(0);
-                        bindless_binding_layouts.push(quote! {
+                    let binding_array_binding = binding_array_binding.unwrap_or(0);
+                    bindless_binding_layouts.push(quote! {
                             #bind_group_layout_entries.push(
                                 #render_path::render_resource::BindGroupLayoutEntry {
                                     binding: #binding_array_binding,
@@ -215,16 +225,17 @@ pub fn derive_as_bind_group(ast: syn::DeriveInput) -> Result<TokenStream> {
                             );
                         });
 
-                        add_bindless_resource_type(
-                            &render_path,
-                            &mut bindless_resource_types,
-                            binding_index,
-                            quote! { #render_path::render_resource::BindlessResourceType::Buffer },
-                        );
-                    }
+                    add_bindless_resource_type(
+                        &render_path,
+                        &mut bindless_resource_types,
+                        binding_index,
+                        quote! { #render_path::render_resource::BindlessResourceType::Buffer },
+                    );
+                    has_buffer_binding_arrays = true;
+                }
 
-                    UniformBindingAttrType::Data => {
-                        binding_impls.push(quote! {{
+                UniformBindingAttrType::Data => {
+                    binding_impls.push(quote! {{
                             use #render_path::render_resource::AsBindGroupShaderType;
                             use #render_path::render_resource::encase::{ShaderType, internal::WriteInto};
                             let mut buffer: Vec<u8> = Vec::new();
@@ -248,8 +259,8 @@ pub fn derive_as_bind_group(ast: syn::DeriveInput) -> Result<TokenStream> {
                             )
                         }});
 
-                        let binding_array_binding = binding_array_binding.unwrap_or(0);
-                        bindless_binding_layouts.push(quote! {
+                    let binding_array_binding = binding_array_binding.unwrap_or(0);
+                    bindless_binding_layouts.push(quote! {
                             #bind_group_layout_entries.push(
                                 #render_path::render_resource::BindGroupLayoutEntry {
                                     binding: #binding_array_binding,
@@ -264,18 +275,18 @@ pub fn derive_as_bind_group(ast: syn::DeriveInput) -> Result<TokenStream> {
                             );
                         });
 
-                        add_bindless_resource_type(
-                            &render_path,
-                            &mut bindless_resource_types,
-                            binding_index,
-                            quote! { #render_path::render_resource::BindlessResourceType::DataBuffer },
-                        );
-                    }
+                    add_bindless_resource_type(
+                        &render_path,
+                        &mut bindless_resource_types,
+                        binding_index,
+                        quote! { #render_path::render_resource::BindlessResourceType::DataBuffer },
+                    );
                 }
+            }
 
-                // Push the non-bindless binding layout.
+            // Push the non-bindless binding layout.
 
-                non_bindless_binding_layouts.push(quote!{
+            non_bindless_binding_layouts.push(quote!{
                     #bind_group_layout_entries.push(
                         #render_path::render_resource::BindGroupLayoutEntry {
                             binding: #binding_index,
@@ -290,33 +301,32 @@ pub fn derive_as_bind_group(ast: syn::DeriveInput) -> Result<TokenStream> {
                     );
                 });
 
-                bindless_buffer_descriptors.push(quote! {
-                    #render_path::render_resource::BindlessBufferDescriptor {
-                        // Note that, because this is bindless, *binding
-                        // index* here refers to the index in the
-                        // bindless index table (`bindless_index`), and
-                        // the actual binding number is the *binding
-                        // array binding*.
-                        binding_number: #render_path::render_resource::BindingNumber(
-                            #binding_array_binding
-                        ),
-                        bindless_index:
-                            #render_path::render_resource::BindlessIndex(#binding_index),
-                                size: Some(
-                                    <
-                                        #converted_shader_type as
-                                        #render_path::render_resource::ShaderType
-                                    >::min_size().get() as usize
-                                ),
-                    }
-                });
-
-                let required_len = binding_index as usize + 1;
-                if required_len > binding_states.len() {
-                    binding_states.resize(required_len, BindingState::Free);
+            bindless_buffer_descriptors.push(quote! {
+                #render_path::render_resource::BindlessBufferDescriptor {
+                    // Note that, because this is bindless, *binding
+                    // index* here refers to the index in the
+                    // bindless index table (`bindless_index`), and
+                    // the actual binding number is the *binding
+                    // array binding*.
+                    binding_number: #render_path::render_resource::BindingNumber(
+                        #binding_array_binding
+                    ),
+                    bindless_index:
+                        #render_path::render_resource::BindlessIndex(#binding_index),
+                            size: Some(
+                                <
+                                    #converted_shader_type as
+                                    #render_path::render_resource::ShaderType
+                                >::min_size().get() as usize
+                            ),
                 }
-                binding_states[binding_index as usize] = BindingState::OccupiedConvertedUniform;
+            });
+
+            let required_len = binding_index as usize + 1;
+            if required_len > binding_states.len() {
+                binding_states.resize(required_len, BindingState::Free);
             }
+            binding_states[binding_index as usize] = BindingState::OccupiedConvertedUniform;
         }
     }
 
@@ -463,7 +473,7 @@ pub fn derive_as_bind_group(ast: syn::DeriveInput) -> Result<TokenStream> {
                         (
                             #binding_index,
                             #render_path::render_resource::OwnedBindingResource::Buffer({
-                                let handle: &#asset_path::Handle<#render_path::storage::ShaderStorageBuffer> = (&self.#field_name);
+                                let handle: &#asset_path::Handle<#render_path::storage::ShaderBuffer> = (&self.#field_name);
                                 storage_buffers.get(handle).ok_or_else(|| #render_path::render_resource::AsBindGroupError::RetryNextUpdate)?.buffer.clone()
                             })
                         )
@@ -497,6 +507,8 @@ pub fn derive_as_bind_group(ast: syn::DeriveInput) -> Result<TokenStream> {
                             binding_index,
                             bindless_resource_type,
                         );
+
+                        has_buffer_binding_arrays = true;
 
                         // Push the buffer descriptor.
                         bindless_buffer_descriptors.push(quote! {
@@ -713,13 +725,13 @@ pub fn derive_as_bind_group(ast: syn::DeriveInput) -> Result<TokenStream> {
                             #binding_index,
                             #render_path::render_resource::OwnedBindingResource::Sampler(
                                 // TODO: Support other types.
-                                #render_path::render_resource::WgpuSamplerBindingType::Filtering,
+                                #render_path::render_resource::SamplerBindingType::Filtering,
                                 {
                                 let handle: Option<&#asset_path::Handle<#image_path::Image>> = (&self.#field_name).into();
                                 if let Some(handle) = handle {
                                     let image = images.get(handle).ok_or_else(|| #render_path::render_resource::AsBindGroupError::RetryNextUpdate)?;
 
-                                    let Some(sample_type) = image.texture_format.sample_type(None, Some(render_device.features())) else {
+                                    let Some(sample_type) = image.texture_descriptor.format.sample_type(None, Some(render_device.features())) else {
                                         return Err(#render_path::render_resource::AsBindGroupError::InvalidSamplerType(
                                             #binding_index,
                                             "None".to_string(),
@@ -950,16 +962,29 @@ pub fn derive_as_bind_group(ast: syn::DeriveInput) -> Result<TokenStream> {
     let (bindless_slot_count, actual_bindless_slot_count_declaration, bindless_descriptor_syntax) =
         match attr_bindless_count {
             Some(ref bindless_count) => {
+                // Only require BUFFER_BINDING_ARRAY when the material actually uses
+                // buffer binding arrays. Materials using only textures, samplers, and
+                // data buffers can use bindless without it (e.g. on Metal).
+                let required_features = if has_buffer_binding_arrays {
+                    quote! {
+                        #render_path::settings::WgpuFeatures::BUFFER_BINDING_ARRAY |
+                        #render_path::settings::WgpuFeatures::TEXTURE_BINDING_ARRAY
+                    }
+                } else {
+                    quote! {
+                        #render_path::settings::WgpuFeatures::TEXTURE_BINDING_ARRAY
+                    }
+                };
+
                 let bindless_supported_syntax = quote! {
                         fn bindless_supported(
                             render_device: &#render_path::renderer::RenderDevice
                         ) -> bool {
                             render_device.features().contains(
-                                #render_path::settings::WgpuFeatures::BUFFER_BINDING_ARRAY |
-                                #render_path::settings::WgpuFeatures::TEXTURE_BINDING_ARRAY
+                                #required_features
                             ) &&
                             render_device.limits().max_storage_buffers_per_shader_stage > 0 &&
-                                render_device.limits().max_samplers_per_shader_stage >=
+                                render_device.limits().max_binding_array_sampler_elements_per_shader_stage >=
                                     (#sampler_binding_count * #bindless_count_syntax)
                         }
                 };
@@ -1046,13 +1071,13 @@ pub fn derive_as_bind_group(ast: syn::DeriveInput) -> Result<TokenStream> {
             type Param = (
                 #ecs_path::system::lifetimeless::SRes<#render_path::render_asset::RenderAssets<#render_path::texture::GpuImage>>,
                 #ecs_path::system::lifetimeless::SRes<#render_path::texture::FallbackImage>,
-                #ecs_path::system::lifetimeless::SRes<#render_path::render_asset::RenderAssets<#render_path::storage::GpuShaderStorageBuffer>>,
+                #ecs_path::system::lifetimeless::SRes<#render_path::render_asset::RenderAssets<#render_path::storage::GpuShaderBuffer>>,
             );
 
             #bindless_slot_count
 
-            fn label() -> Option<&'static str> {
-                Some(#struct_name_literal)
+            fn label() -> &'static str {
+                #struct_name_literal
             }
 
             fn unprepared_bind_group(
@@ -1087,12 +1112,16 @@ pub fn derive_as_bind_group(ast: syn::DeriveInput) -> Result<TokenStream> {
                 match #actual_bindless_slot_count {
                     Some(bindless_slot_count) => {
                         let bindless_index_table_range = #bindless_index_table_range;
+                        let used_resource_types = &[
+                            #(#bindless_resource_types),*
+                        ];
                         #bind_group_layout_entries.extend(
                             #render_path::render_resource::create_bindless_bind_group_layout_entries(
                                 bindless_index_table_range.end.0 -
                                     bindless_index_table_range.start.0,
                                 bindless_slot_count.into(),
                                 #bindless_index_table_binding_number,
+                                used_resource_types,
                             ).into_iter()
                         );
                         #(#bindless_binding_layouts)*;
@@ -1390,13 +1419,13 @@ fn get_visibility_flag_value(meta_list: &MetaList) -> Result<ShaderStageVisibili
         ));
     }
 
-    if flags.len() == 1 {
-        if let Some(flag) = flags.first() {
-            if flag == VISIBILITY_ALL {
-                return Ok(ShaderStageVisibility::All);
-            } else if flag == VISIBILITY_NONE {
-                return Ok(ShaderStageVisibility::None);
-            }
+    if flags.len() == 1
+        && let Some(flag) = flags.first()
+    {
+        if flag == VISIBILITY_ALL {
+            return Ok(ShaderStageVisibility::All);
+        } else if flag == VISIBILITY_NONE {
+            return Ok(ShaderStageVisibility::None);
         }
     }
 

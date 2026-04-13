@@ -4,12 +4,12 @@ use bevy_ecs::prelude::*;
 use bevy_math::{Vec3, Vec4};
 use bevy_render::{
     extract_component::ExtractComponentPlugin,
-    load_shader_library,
     render_resource::{DynamicUniformBuffer, ShaderType},
     renderer::{RenderDevice, RenderQueue},
     view::ExtractedView,
-    Render, RenderApp, RenderSystems,
+    GpuResourceAppExt, Render, RenderApp, RenderSystems,
 };
+use bevy_shader::load_shader_library;
 
 use crate::{DistanceFog, FogFalloff};
 
@@ -133,12 +133,11 @@ impl Plugin for FogPlugin {
     fn build(&self, app: &mut App) {
         load_shader_library!(app, "fog.wgsl");
 
-        app.register_type::<DistanceFog>();
         app.add_plugins(ExtractComponentPlugin::<DistanceFog>::default());
 
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app
-                .init_resource::<FogMeta>()
+                .init_gpu_resource::<FogMeta>()
                 .add_systems(Render, prepare_fog.in_set(RenderSystems::PrepareResources));
         }
     }

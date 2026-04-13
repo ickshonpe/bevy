@@ -1,5 +1,5 @@
 use bevy_app::{Plugin, PreUpdate};
-use bevy_core_widgets::CoreRadio;
+use bevy_camera::visibility::Visibility;
 use bevy_ecs::{
     bundle::Bundle,
     children,
@@ -8,34 +8,93 @@ use bevy_ecs::{
     hierarchy::{ChildOf, Children},
     lifecycle::RemovedComponents,
     query::{Added, Changed, Has, Or, With},
+    reflect::ReflectComponent,
     schedule::IntoScheduleConfigs,
     spawn::{Spawn, SpawnRelated, SpawnableList},
     system::{Commands, Query},
 };
 use bevy_input_focus::tab_navigation::TabIndex;
 use bevy_picking::{hover::Hovered, PickingSystems};
-use bevy_render::view::Visibility;
+use bevy_reflect::{prelude::ReflectDefault, Reflect};
+use bevy_scene::prelude::*;
+use bevy_text::{FontSize, FontWeight};
 use bevy_ui::{
     AlignItems, BorderRadius, Checked, Display, FlexDirection, InteractionDisabled, JustifyContent,
     Node, UiRect, Val,
 };
+use bevy_ui_widgets::RadioButton;
 
 use crate::{
     constants::{fonts, size},
     cursor::EntityCursor,
+    focus::FocusIndicator,
     font_styles::InheritableFont,
-    handle_or_path::HandleOrPath,
     theme::{ThemeBackgroundColor, ThemeBorderColor, ThemeFontColor},
     tokens,
 };
 
 /// Marker for the radio outline
-#[derive(Component, Default, Clone)]
+#[derive(Component, Default, Clone, Reflect)]
+#[reflect(Component, Clone, Default)]
 struct RadioOutline;
 
 /// Marker for the radio check mark
-#[derive(Component, Default, Clone)]
+#[derive(Component, Default, Clone, Reflect)]
+#[reflect(Component, Clone, Default)]
 struct RadioMark;
+
+/// Scene function to spawn a radio.
+///
+/// # Emitted events
+/// * [`bevy_ui_widgets::ValueChange<bool>`] with the value true when it becomes checked.
+/// * [`bevy_ui_widgets::ValueChange<Entity>`] with the selected entity's id when a new radio button is selected.
+///
+///  These events can be disabled by adding an [`bevy_ui::InteractionDisabled`] component to the entity
+pub fn radio() -> impl Scene {
+    bsn! {
+        Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Row,
+            justify_content: JustifyContent::Start,
+            align_items: AlignItems::Center,
+            column_gap: Val::Px(4.0),
+        }
+        RadioButton
+        Hovered
+        EntityCursor::System(bevy_window::SystemCursorIcon::Pointer)
+        TabIndex(0)
+        ThemeFontColor(tokens::RADIO_TEXT)
+        InheritableFont {
+            font: fonts::REGULAR,
+            font_size: FontSize::Px(14.0),
+            weight: FontWeight::NORMAL,
+        }
+        Children [(
+            Node {
+                display: Display::Flex,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                width: size::RADIO_SIZE,
+                height: size::RADIO_SIZE,
+                border: UiRect::all(Val::Px(2.0)),
+                border_radius: BorderRadius::MAX,
+            }
+            RadioOutline
+            FocusIndicator
+            ThemeBorderColor(tokens::RADIO_BORDER)
+            Children [(
+                // Cheesy checkmark: rotated node with L-shaped border.
+                Node {
+                    width: Val::Px(8.),
+                    height: Val::Px(8.),
+                    border_radius: BorderRadius::MAX,
+                }
+                RadioMark
+                ThemeBackgroundColor(tokens::RADIO_MARK)
+            )]
+        )]
+    }
+}
 
 /// Template function to spawn a radio.
 ///
@@ -43,7 +102,14 @@ struct RadioMark;
 /// * `props` - construction properties for the radio.
 /// * `overrides` - a bundle of components that are merged in with the normal radio components.
 /// * `label` - the label of the radio.
-pub fn radio<C: SpawnableList<ChildOf> + Send + Sync + 'static, B: Bundle>(
+///
+/// # Emitted events
+/// * [`bevy_ui_widgets::ValueChange<bool>`] with the value true when it becomes checked.
+/// * [`bevy_ui_widgets::ValueChange<Entity>`] with the selected entity's id when a new radio button is selected.
+///
+///  These events can be disabled by adding an [`bevy_ui::InteractionDisabled`] component to the entity
+#[deprecated(since = "0.19.0", note = "Use the radio() BSN function")]
+pub fn radio_bundle<C: SpawnableList<ChildOf> + Send + Sync + 'static, B: Bundle>(
     overrides: B,
     label: C,
 ) -> impl Bundle {
@@ -56,14 +122,15 @@ pub fn radio<C: SpawnableList<ChildOf> + Send + Sync + 'static, B: Bundle>(
             column_gap: Val::Px(4.0),
             ..Default::default()
         },
-        CoreRadio,
+        RadioButton,
         Hovered::default(),
         EntityCursor::System(bevy_window::SystemCursorIcon::Pointer),
         TabIndex(0),
         ThemeFontColor(tokens::RADIO_TEXT),
         InheritableFont {
-            font: HandleOrPath::Path(fonts::REGULAR.to_owned()),
-            font_size: 14.0,
+            font_size: FontSize::Px(14.0),
+            weight: FontWeight::NORMAL,
+            ..Default::default()
         },
         overrides,
         Children::spawn((
@@ -75,19 +142,20 @@ pub fn radio<C: SpawnableList<ChildOf> + Send + Sync + 'static, B: Bundle>(
                     width: size::RADIO_SIZE,
                     height: size::RADIO_SIZE,
                     border: UiRect::all(Val::Px(2.0)),
+                    border_radius: BorderRadius::MAX,
                     ..Default::default()
                 },
                 RadioOutline,
-                BorderRadius::MAX,
+                FocusIndicator,
                 ThemeBorderColor(tokens::RADIO_BORDER),
                 children![(
                     // Cheesy checkmark: rotated node with L-shaped border.
                     Node {
                         width: Val::Px(8.),
                         height: Val::Px(8.),
+                        border_radius: BorderRadius::MAX,
                         ..Default::default()
                     },
-                    BorderRadius::MAX,
                     RadioMark,
                     ThemeBackgroundColor(tokens::RADIO_MARK),
                 )],
@@ -107,7 +175,7 @@ fn update_radio_styles(
             &ThemeFontColor,
         ),
         (
-            With<CoreRadio>,
+            With<RadioButton>,
             Or<(Changed<Hovered>, Added<Checked>, Added<InteractionDisabled>)>,
         ),
     >,
@@ -131,7 +199,7 @@ fn update_radio_styles(
         };
         let outline_border = q_outline.get_mut(outline_ent).unwrap();
         let mark_color = q_mark.get_mut(mark_ent).unwrap();
-        set_radio_colors(
+        set_radio_styles(
             radio_ent,
             outline_ent,
             mark_ent,
@@ -155,7 +223,7 @@ fn update_radio_styles_remove(
             &Hovered,
             &ThemeFontColor,
         ),
-        With<CoreRadio>,
+        With<RadioButton>,
     >,
     q_children: Query<&Children>,
     mut q_outline: Query<&ThemeBorderColor, With<RadioOutline>>,
@@ -183,7 +251,7 @@ fn update_radio_styles_remove(
                 };
                 let outline_border = q_outline.get_mut(outline_ent).unwrap();
                 let mark_color = q_mark.get_mut(mark_ent).unwrap();
-                set_radio_colors(
+                set_radio_styles(
                     radio_ent,
                     outline_ent,
                     mark_ent,
@@ -199,7 +267,7 @@ fn update_radio_styles_remove(
         });
 }
 
-fn set_radio_colors(
+fn set_radio_styles(
     radio_ent: Entity,
     outline_ent: Entity,
     mark_ent: Entity,
@@ -227,6 +295,11 @@ fn set_radio_colors(
         false => tokens::RADIO_TEXT,
     };
 
+    let cursor_shape = match disabled {
+        true => bevy_window::SystemCursorIcon::NotAllowed,
+        false => bevy_window::SystemCursorIcon::Pointer,
+    };
+
     // Change outline border
     if outline_border.0 != outline_border_token {
         commands
@@ -243,7 +316,7 @@ fn set_radio_colors(
 
     // Change mark visibility
     commands.entity(mark_ent).insert(match checked {
-        true => Visibility::Visible,
+        true => Visibility::Inherited,
         false => Visibility::Hidden,
     });
 
@@ -253,6 +326,11 @@ fn set_radio_colors(
             .entity(radio_ent)
             .insert(ThemeFontColor(font_color_token));
     }
+
+    // Change cursor shape
+    commands
+        .entity(radio_ent)
+        .insert(EntityCursor::System(cursor_shape));
 }
 
 /// Plugin which registers the systems for updating the radio styles.
