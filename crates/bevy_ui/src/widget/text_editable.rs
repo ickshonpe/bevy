@@ -8,6 +8,7 @@ use bevy_ecs::{
     change_detection::DetectChanges,
     component::Component,
     entity::Entity,
+    query::Changed,
     system::{Local, Query, Res, ResMut},
     world::Ref,
 };
@@ -378,18 +379,12 @@ fn bounding_box_to_rect(geom: BoundingBox) -> Rect {
 
 /// Scroll editable text to keep cursor in view after edits.
 pub fn scroll_editable_text(
-    mut query: Query<(
-        &EditableText,
-        &mut TextScroll,
-        &ComputedNode,
-        &EditableTextGeneration,
-    )>,
+    mut query: Query<
+        (&EditableText, &mut TextScroll, &ComputedNode),
+        Changed<EditableTextGeneration>,
+    >,
 ) {
-    for (editable_text, mut scroll, node, generation) in query.iter_mut() {
-        if editable_text.editor.generation() == **generation {
-            continue;
-        }
-
+    for (editable_text, mut scroll, node) in query.iter_mut() {
         let view_size = node.content_box().size();
         if view_size.cmple(Vec2::ZERO).any() {
             continue;
