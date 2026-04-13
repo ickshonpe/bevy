@@ -239,7 +239,8 @@ fn build_text_interop(app: &mut App) {
                 .ambiguous_with(bevy_sprite::update_text2d_layout)
                 // We assume Text is on disjoint UI entities to ImageNode and UiTextureAtlasImage
                 // FIXME: Add an archetype invariant for this https://github.com/bevyengine/bevy/issues/1481.
-                .ambiguous_with(widget::update_image_content_size_system),
+                .ambiguous_with(widget::update_image_content_size_system)
+                .ambiguous_with(EditableTextSystems),
             widget::text_system
                 .in_set(UiSystems::PostLayout)
                 .after(bevy_text::load_font_assets_into_font_collection)
@@ -265,7 +266,8 @@ fn build_text_interop(app: &mut App) {
                 .in_set(UiSystems::PostLayout)
                 .ambiguous_with(ui_stack_system)
                 .ambiguous_with(widget::text_system)
-                .ambiguous_with(bevy_sprite::calculate_bounds_text2d),
+                .ambiguous_with(bevy_sprite::calculate_bounds_text2d)
+                .ambiguous_with(bevy_sprite::update_text2d_layout),
         ),
     );
 
