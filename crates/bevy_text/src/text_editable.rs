@@ -203,15 +203,9 @@ impl EditableText {
         }
     }
 
-    /// Clears the current input and resets the cursor position.
-    pub fn clear(
-        &mut self,
-        font_context: &mut FontContext,
-        layout_context: &mut LayoutContext<TextBrush>,
-    ) {
+    /// Clears the input's text buffer and any pending edits.
+    pub fn clear(&mut self) {
         self.editor.set_text("");
-        let mut driver = self.editor_mut().driver(font_context, layout_context);
-        driver.move_to_byte(0);
         self.pending_edits.clear();
     }
 }

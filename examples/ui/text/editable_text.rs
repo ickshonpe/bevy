@@ -162,6 +162,6 @@ fn text_submission(
     {
         text_output.0 = format!("{:}: {:}", name, text_input.value());
 
-        text_input.clear(&mut font_context.0, &mut layout_context.0);
+        text_input.clear();
     }
 }

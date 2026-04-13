@@ -210,7 +210,7 @@ fn submit_text(
                 break;
             }
         }
-        editable_text.clear(&mut font_context.0, &mut layout_context.0);
+        editable_text.clear();
     }
 }
 
