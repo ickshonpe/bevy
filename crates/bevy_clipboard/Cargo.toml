@@ -10,7 +10,12 @@ keywords = ["bevy", "clipboard"]
 
 [features]
 default = ["image"]
-image = ["dep:bevy_asset", "dep:bevy_image", "dep:wgpu-types", "arboard/image-data"]
+image = [
+    "dep:bevy_asset",
+    "dep:bevy_image",
+    "dep:wgpu-types",
+    "arboard/image-data",
+]
 
 [dependencies]
 # bevy
