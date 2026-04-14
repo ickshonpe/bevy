@@ -2,7 +2,11 @@
 
 extern crate alloc;
 
+use alloc::borrow::Cow;
+use bevy_asset::RenderAssetUsages;
 use bevy_ecs::resource::Resource;
+use bevy_image::Image;
+use wgpu_types::{Extent3d, TextureDimension, TextureFormat};
 
 #[cfg(target_arch = "wasm32")]
 use {alloc::sync::Arc, bevy_platform::sync::Mutex, wasm_bindgen_futures::JsFuture};
@@ -27,18 +31,18 @@ impl bevy_app::Plugin for ClipboardPlugin {
 /// On desktop targets the result is available immediately.
 /// On wasm32 the result is fetched asynchronously.
 #[derive(Debug)]
-pub enum ClipboardRead {
+pub enum ClipboardRead<T = String> {
     /// The clipboard contents are ready to be accessed.
-    Ready(Result<String, ClipboardError>),
+    Ready(Result<T, ClipboardError>),
     #[cfg(target_arch = "wasm32")]
     /// The clipboard contents are being fetched asynchronously.
-    Pending(Arc<Mutex<Option<Result<String, ClipboardError>>>>),
+    Pending(Arc<Mutex<Option<Result<T, ClipboardError>>>>),
 }
 
-impl ClipboardRead {
+impl<T> ClipboardRead<T> {
     /// The result of an attempt to read from the clipboard, once ready.
     /// If the result is still pending, returns `None`.
-    pub fn poll_result(&mut self) -> Option<Result<String, ClipboardError>> {
+    pub fn poll_result(&mut self) -> Option<Result<T, ClipboardError>> {
         match self {
             #[cfg(target_arch = "wasm32")]
             Self::Pending(shared) => {
@@ -54,6 +58,46 @@ impl ClipboardRead {
             }
         }
     }
+}
+
+#[cfg(any(windows, unix))]
+fn try_image_from_imagedata(image: arboard::ImageData<'static>) -> Result<Image, ClipboardError> {
+    let size = Extent3d {
+        width: u32::try_from(image.width).map_err(|_| ClipboardError::ConversionFailure)?,
+        height: u32::try_from(image.height).map_err(|_| ClipboardError::ConversionFailure)?,
+        depth_or_array_layers: 1,
+    };
+    Ok(Image::new(
+        size,
+        TextureDimension::D2,
+        image.bytes.into_owned(),
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::default(),
+    ))
+}
+
+#[cfg(any(windows, unix))]
+fn try_imagedata_from_image(image: &Image) -> Result<arboard::ImageData<'_>, ClipboardError> {
+    let width = image.width() as usize;
+    let height = image.height() as usize;
+    let data = image
+        .data
+        .as_ref()
+        .ok_or(ClipboardError::ConversionFailure)?;
+    if data.len()
+        != width
+            .checked_mul(height)
+            .and_then(|pixels| pixels.checked_mul(4))
+            .ok_or(ClipboardError::ConversionFailure)?
+    {
+        return Err(ClipboardError::ConversionFailure);
+    }
+
+    Ok(arboard::ImageData {
+        width,
+        height,
+        bytes: Cow::Borrowed(data.as_slice()),
+    })
 }
 
 /// Resource providing access to the clipboard
@@ -123,6 +167,39 @@ impl Clipboard {
         }
     }
 
+    /// Fetches image data from the clipboard and returns it via a [`ClipboardRead`].
+    ///
+    /// On Windows and Unix image reads are completed instantly.
+    /// On wasm32 clipboard image transfer is currently unsupported.
+    pub fn fetch_image(&mut self) -> ClipboardRead<Image> {
+        #[cfg(unix)]
+        {
+            ClipboardRead::Ready(if let Some(clipboard) = self.0.as_mut() {
+                clipboard
+                    .get_image()
+                    .map_err(ClipboardError::from)
+                    .and_then(try_image_from_imagedata)
+            } else {
+                Err(ClipboardError::ClipboardNotSupported)
+            })
+        }
+
+        #[cfg(windows)]
+        {
+            ClipboardRead::Ready(
+                arboard::Clipboard::new()
+                    .and_then(|mut clipboard| clipboard.get_image())
+                    .map_err(ClipboardError::from)
+                    .and_then(try_image_from_imagedata),
+            )
+        }
+
+        #[cfg(not(any(unix, windows)))]
+        {
+            ClipboardRead::Ready(Err(ClipboardError::ClipboardNotSupported))
+        }
+    }
+
     /// Asynchronously retrieves UTF-8 text from the system clipboard.
     pub async fn fetch_text_async(&mut self) -> Result<String, ClipboardError> {
         #[cfg(unix)]
@@ -168,10 +245,7 @@ impl Clipboard {
     /// # Errors
     ///
     /// Returns error if `text` failed to be stored on the clipboard.
-    pub fn set_text<'a, T: Into<alloc::borrow::Cow<'a, str>>>(
-        &mut self,
-        text: T,
-    ) -> Result<(), ClipboardError> {
+    pub fn set_text<'a, T: Into<Cow<'a, str>>>(&mut self, text: T) -> Result<(), ClipboardError> {
         #[cfg(unix)]
         {
             if let Some(clipboard) = self.0.as_mut() {
@@ -203,6 +277,41 @@ impl Clipboard {
 
         #[cfg(not(any(unix, windows, target_arch = "wasm32")))]
         {
+            Err(ClipboardError::ClipboardNotSupported)
+        }
+    }
+
+    /// Places image data onto the clipboard.
+    ///
+    /// The image must contain initialized 2D pixel data in packed RGBA8 row-major order.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the image data is invalid or the clipboard write fails.
+    pub fn set_image(&mut self, image: &Image) -> Result<(), ClipboardError> {
+        #[cfg(unix)]
+        {
+            if let Some(clipboard) = self.0.as_mut() {
+                let image_data = try_imagedata_from_image(image)?;
+                clipboard
+                    .set_image(image_data)
+                    .map_err(ClipboardError::from)
+            } else {
+                Err(ClipboardError::ClipboardNotSupported)
+            }
+        }
+
+        #[cfg(windows)]
+        {
+            let image_data = try_imagedata_from_image(image)?;
+            arboard::Clipboard::new()
+                .and_then(|mut clipboard| clipboard.set_image(image_data))
+                .map_err(ClipboardError::from)
+        }
+
+        #[cfg(not(any(unix, windows)))]
+        {
+            let _ = image;
             Err(ClipboardError::ClipboardNotSupported)
         }
     }

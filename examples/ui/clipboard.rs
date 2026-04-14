@@ -1,16 +1,17 @@
 //! This example demonstrates accessing the clipboard to retrieve and display text.
 
 use bevy::{
-    clipboard::{Clipboard, ClipboardRead},
+    clipboard::{Clipboard, ClipboardError, ClipboardRead},
     color::palettes::css::{GREY, NAVY, RED},
     diagnostic::FrameTimeDiagnosticsPlugin,
     prelude::*,
+    ui::widget::NodeImageMode,
 };
 
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, FrameTimeDiagnosticsPlugin::default()))
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (setup, load_clipboard_image).chain())
         .add_systems(Update, paste_text_system)
         .run();
 }
@@ -31,6 +32,14 @@ pub enum ButtonAction {
 #[derive(Component)]
 pub struct PasteTarget;
 
+/// Marker component for the image display target.
+#[derive(Component)]
+pub struct ImageTarget;
+
+/// Marker component for the image status line.
+#[derive(Component)]
+pub struct ImageStatus;
+
 fn setup(mut commands: Commands) {
     // UI camera
     commands.spawn(Camera2d);
@@ -45,9 +54,10 @@ fn setup(mut commands: Commands) {
         },
         children![(
             Node {
+                width: px(560.),
                 flex_direction: FlexDirection::Column,
-                padding: UiRect::all(Val::Px(30.)),
-                row_gap: Val::Px(20.),
+                padding: px(30.).all(),
+                row_gap: px(20.),
                 justify_content: JustifyContent::SpaceBetween,
                 align_items: AlignItems::Stretch,
                 ..default()
@@ -63,10 +73,41 @@ fn setup(mut commands: Commands) {
                 ),
                 (
                     Node {
-                        width: Val::Px(500.),
-                        height: Val::Px(250.),
-                        padding: UiRect::all(Val::Px(3.)),
-                        border: UiRect::all(Val::Px(2.)),
+                        width: px(500.),
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(8.),
+                        align_items: AlignItems::Center,
+                        padding: px(10.).all(),
+                        border: px(2.).all(),
+                        ..Default::default()
+                    },
+                    BorderColor::all(Color::WHITE),
+                    BackgroundColor(Color::BLACK),
+                    children![
+                        (
+                            Node {
+                                width: px(240.),
+                                height: px(240.),
+                                border: px(1.).all(),
+                                ..Default::default()
+                            },
+                            BorderColor::all(GREY),
+                            ImageNode::default().with_mode(NodeImageMode::Stretch),
+                            ImageTarget,
+                        ),
+                        (
+                            Text::new("Checking clipboard for image..."),
+                            TextColor(GREY.into()),
+                            ImageStatus,
+                        ),
+                    ],
+                ),
+                (
+                    Node {
+                        width: px(500.),
+                        min_height: px(90.),
+                        padding: px(8.).all(),
+                        border: px(2.).all(),
                         ..Default::default()
                     },
                     BorderColor::all(Color::WHITE),
@@ -79,8 +120,8 @@ fn setup(mut commands: Commands) {
                 ),
                 (
                     Node {
-                        border: UiRect::all(Val::Px(2.)),
-                        padding: UiRect::all(Val::Px(10.)),
+                        border: px(2.).all(),
+                        padding: px(10.).all(),
                         align_self: AlignSelf::Center,
                         ..Default::default()
                     },
@@ -92,8 +133,8 @@ fn setup(mut commands: Commands) {
                 ),
                 (
                     Node {
-                        border: UiRect::all(Val::Px(2.)),
-                        padding: UiRect::all(Val::Px(10.)),
+                        border: px(2.).all(),
+                        padding: px(10.).all(),
                         align_self: AlignSelf::Center,
                         ..Default::default()
                     },
@@ -106,6 +147,36 @@ fn setup(mut commands: Commands) {
             ]
         ),],
     ));
+}
+
+fn load_clipboard_image(
+    mut clipboard: ResMut<Clipboard>,
+    mut images: ResMut<Assets<Image>>,
+    mut image_node: Single<&mut ImageNode, With<ImageTarget>>,
+    mut status_node: Single<(&mut Text, &mut TextColor), With<ImageStatus>>,
+) {
+    let mut read = clipboard.fetch_image();
+
+    let (message, color) = match read.poll_result() {
+        Some(Ok(clipboard_image)) => {
+            let width = clipboard_image.width();
+            let height = clipboard_image.height();
+            image_node.image = images.add(clipboard_image);
+
+            (
+                format!("Loaded clipboard image ({width} x {height})"),
+                Color::WHITE,
+            )
+        }
+        Some(Err(ClipboardError::ContentNotAvailable)) => {
+            ("No image found on the clipboard.".to_owned(), GREY.into())
+        }
+        Some(Err(error)) => (format!("Clipboard image error: {error:?}"), RED.into()),
+        None => unreachable!(),
+    };
+
+    status_node.0 .0 = message.clone();
+    status_node.1 .0 = color;
 }
 
 fn paste_text_system(
@@ -122,19 +193,20 @@ fn paste_text_system(
     >,
     mut text_query: Query<(&mut Text, &mut TextColor), With<PasteTarget>>,
 ) {
-    if let Some(contents) = paste.as_mut() {
-        if let Some(contents) = contents.poll_result() {
-            let (message, color) = match contents {
-                Ok(text) => (text, Color::WHITE),
-                Err(error) => (format!("{error:?}"), RED.into()),
-            };
-            for (mut text, mut text_color) in text_query.iter_mut() {
-                text.0 = message.clone();
-                text_color.0 = color;
-            }
-            *paste = None;
+    if let Some(contents) = paste.as_mut()
+        && let Some(contents) = contents.poll_result()
+    {
+        let (message, color) = match contents {
+            Ok(text) => (text, Color::WHITE),
+            Err(error) => (format!("{error:?}"), RED.into()),
+        };
+        for (mut text, mut text_color) in text_query.iter_mut() {
+            text.0 = message.clone();
+            text_color.0 = color;
         }
+        *paste = None;
     }
+
     for (interaction, mut color, mut border_color, button_action) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
