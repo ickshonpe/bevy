@@ -217,11 +217,10 @@ impl Clipboard {
 
         #[cfg(target_arch = "wasm32")]
         {
-            use wasm_bindgen::JsCast;
             use wasm_bindgen_futures::JsFuture;
 
             let clipboard = web_sys::window()
-                .and_then(|w| w.navigator().clipboard())
+                .map(|w| w.navigator().clipboard())
                 .ok_or(ClipboardError::ClipboardNotSupported)?;
 
             let result = JsFuture::from(clipboard.read_text()).await;
