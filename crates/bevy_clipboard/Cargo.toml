@@ -8,19 +8,21 @@ repository = "https://github.com/bevyengine/bevy"
 license = "MIT OR Apache-2.0"
 keywords = ["bevy", "clipboard"]
 
+[features]
+default = ["image"]
+image = ["dep:bevy_asset", "dep:bevy_image", "dep:wgpu-types", "arboard/image-data"]
+
 [dependencies]
 # bevy
 bevy_app = { path = "../bevy_app", version = "0.19.0-dev", default-features = false }
-bevy_asset = { path = "../bevy_asset", version = "0.19.0-dev", default-features = false }
 bevy_ecs = { path = "../bevy_ecs", version = "0.19.0-dev", default-features = false }
-bevy_image = { path = "../bevy_image", version = "0.19.0-dev", default-features = false }
 bevy_platform = { path = "../bevy_platform", version = "0.19.0-dev", default-features = false }
-wgpu-types = { version = "29.0.1", default-features = false }
 
 [target.'cfg(any(windows, unix))'.dependencies]
-arboard = { version = "3.6.1", default-features = false, features = [
-    "image-data",
-] }
+bevy_asset = { path = "../bevy_asset", version = "0.19.0-dev", default-features = false, optional = true }
+bevy_image = { path = "../bevy_image", version = "0.19.0-dev", default-features = false, optional = true }
+wgpu-types = { version = "29.0.1", default-features = false, optional = true }
+arboard = { version = "3.6.1", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "0.2" }

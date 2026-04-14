@@ -3,9 +3,12 @@
 extern crate alloc;
 
 use alloc::borrow::Cow;
+#[cfg(all(feature = "image", any(windows, unix)))]
 use bevy_asset::RenderAssetUsages;
 use bevy_ecs::resource::Resource;
+#[cfg(all(feature = "image", any(windows, unix)))]
 use bevy_image::Image;
+#[cfg(all(feature = "image", any(windows, unix)))]
 use wgpu_types::{Extent3d, TextureDimension, TextureFormat};
 
 #[cfg(target_arch = "wasm32")]
@@ -60,7 +63,7 @@ impl<T> ClipboardRead<T> {
     }
 }
 
-#[cfg(any(windows, unix))]
+#[cfg(all(feature = "image", any(windows, unix)))]
 fn try_image_from_imagedata(image: arboard::ImageData<'static>) -> Result<Image, ClipboardError> {
     let size = Extent3d {
         width: u32::try_from(image.width).map_err(|_| ClipboardError::ConversionFailure)?,
@@ -76,7 +79,7 @@ fn try_image_from_imagedata(image: arboard::ImageData<'static>) -> Result<Image,
     ))
 }
 
-#[cfg(any(windows, unix))]
+#[cfg(all(feature = "image", any(windows, unix)))]
 fn try_imagedata_from_image(image: &Image) -> Result<arboard::ImageData<'_>, ClipboardError> {
     let width = image.width() as usize;
     let height = image.height() as usize;
@@ -169,8 +172,8 @@ impl Clipboard {
 
     /// Fetches image data from the clipboard and returns it via a [`ClipboardRead`].
     ///
-    /// On Windows and Unix image reads are completed instantly.
-    /// On wasm32 clipboard image transfer is currently unsupported.
+    /// Only supported on Windows and Unix platforms with the `image` feature enabled.
+    #[cfg(all(feature = "image", any(windows, unix)))]
     pub fn fetch_image(&mut self) -> ClipboardRead<Image> {
         #[cfg(unix)]
         {
@@ -192,11 +195,6 @@ impl Clipboard {
                     .map_err(ClipboardError::from)
                     .and_then(try_image_from_imagedata),
             )
-        }
-
-        #[cfg(not(any(unix, windows)))]
-        {
-            ClipboardRead::Ready(Err(ClipboardError::ClipboardNotSupported))
         }
     }
 
@@ -284,10 +282,12 @@ impl Clipboard {
     /// Places image data onto the clipboard.
     ///
     /// The image must contain initialized 2D pixel data in packed RGBA8 row-major order.
+    /// Only supported on Windows and Unix platforms with the `image` feature enabled.
     ///
     /// # Errors
     ///
     /// Returns an error if the image data is invalid or the clipboard write fails.
+    #[cfg(all(feature = "image", any(windows, unix)))]
     pub fn set_image(&mut self, image: &Image) -> Result<(), ClipboardError> {
         #[cfg(unix)]
         {
@@ -307,12 +307,6 @@ impl Clipboard {
             arboard::Clipboard::new()
                 .and_then(|mut clipboard| clipboard.set_image(image_data))
                 .map_err(ClipboardError::from)
-        }
-
-        #[cfg(not(any(unix, windows)))]
-        {
-            let _ = image;
-            Err(ClipboardError::ClipboardNotSupported)
         }
     }
 }
