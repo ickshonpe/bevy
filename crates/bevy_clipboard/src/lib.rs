@@ -170,31 +170,30 @@ impl Clipboard {
         }
     }
 
-    /// Fetches image data from the clipboard and returns it via a [`ClipboardRead`].
+    /// Fetches image data from the clipboard.
     ///
     /// Only supported on Windows and Unix platforms with the `image` feature enabled.
     #[cfg(all(feature = "image", any(windows, unix)))]
-    pub fn fetch_image(&mut self) -> ClipboardRead<Image> {
+    pub fn fetch_image(&mut self) -> Result<Image, ClipboardError> {
         #[cfg(unix)]
         {
-            ClipboardRead::Ready(if let Some(clipboard) = self.0.as_mut() {
-                clipboard
-                    .get_image()
-                    .map_err(ClipboardError::from)
-                    .and_then(try_image_from_imagedata)
-            } else {
-                Err(ClipboardError::ClipboardNotSupported)
-            })
+            self.0
+                .as_mut()
+                .ok_or(ClipboardError::ClipboardNotSupported)
+                .and_then(|clipboard| {
+                    clipboard
+                        .get_image()
+                        .map_err(ClipboardError::from)
+                        .and_then(try_image_from_imagedata)
+                })
         }
 
         #[cfg(windows)]
         {
-            ClipboardRead::Ready(
-                arboard::Clipboard::new()
-                    .and_then(|mut clipboard| clipboard.get_image())
-                    .map_err(ClipboardError::from)
-                    .and_then(try_image_from_imagedata),
-            )
+            arboard::Clipboard::new()
+                .and_then(|mut clipboard| clipboard.get_image())
+                .map_err(ClipboardError::from)
+                .and_then(try_image_from_imagedata)
         }
     }
 
@@ -246,11 +245,10 @@ impl Clipboard {
     pub fn set_text<'a, T: Into<Cow<'a, str>>>(&mut self, text: T) -> Result<(), ClipboardError> {
         #[cfg(unix)]
         {
-            if let Some(clipboard) = self.0.as_mut() {
-                clipboard.set_text(text).map_err(ClipboardError::from)
-            } else {
-                Err(ClipboardError::ClipboardNotSupported)
-            }
+            self.0
+                .as_mut()
+                .ok_or(ClipboardError::ClipboardNotSupported)
+                .and_then(|clipboard| clipboard.set_text(text).map_err(ClipboardError::from))
         }
 
         #[cfg(windows)]
@@ -262,15 +260,15 @@ impl Clipboard {
 
         #[cfg(target_arch = "wasm32")]
         {
-            if let Some(clipboard) = web_sys::window().map(|w| w.navigator().clipboard()) {
-                let text = text.into().to_string();
-                wasm_bindgen_futures::spawn_local(async move {
-                    let _ = JsFuture::from(clipboard.write_text(&text)).await;
-                });
-                Ok(())
-            } else {
-                Err(ClipboardError::ClipboardNotSupported)
-            }
+            web_sys::window()
+                .map(|w| w.navigator().clipboard())
+                .ok_or(ClipboardError::ClipboardNotSupported)
+                .map(|clipboard| {
+                    let text = text.into().to_string();
+                    wasm_bindgen_futures::spawn_local(async move {
+                        let _ = JsFuture::from(clipboard.write_text(&text)).await;
+                    });
+                })
         }
 
         #[cfg(not(any(unix, windows, target_arch = "wasm32")))]
