@@ -129,11 +129,12 @@ impl Clipboard {
     pub fn fetch_text(&mut self) -> ClipboardRead {
         #[cfg(unix)]
         {
-            ClipboardRead::Ready(if let Some(clipboard) = self.0.as_mut() {
-                clipboard.get_text().map_err(ClipboardError::from)
-            } else {
-                Err(ClipboardError::ClipboardNotSupported)
-            })
+            ClipboardRead::Ready(
+                self.0
+                    .as_mut()
+                    .ok_or(ClipboardError::ClipboardNotSupported)
+                    .and_then(|clipboard| clipboard.get_text().map_err(ClipboardError::from)),
+            )
         }
 
         #[cfg(windows)]
@@ -201,11 +202,10 @@ impl Clipboard {
     pub async fn fetch_text_async(&mut self) -> Result<String, ClipboardError> {
         #[cfg(unix)]
         {
-            if let Some(clipboard) = self.0.as_mut() {
-                clipboard.get_text().map_err(ClipboardError::from)
-            } else {
-                Err(ClipboardError::ClipboardNotSupported)
-            }
+            self.0
+                .as_mut()
+                .ok_or(ClipboardError::ClipboardNotSupported)
+                .and_then(|clipboard| clipboard.get_text().map_err(ClipboardError::from))
         }
 
         #[cfg(windows)]
@@ -289,14 +289,14 @@ impl Clipboard {
     pub fn set_image(&mut self, image: &Image) -> Result<(), ClipboardError> {
         #[cfg(unix)]
         {
-            if let Some(clipboard) = self.0.as_mut() {
-                let image_data = try_imagedata_from_image(image)?;
-                clipboard
-                    .set_image(image_data)
-                    .map_err(ClipboardError::from)
-            } else {
-                Err(ClipboardError::ClipboardNotSupported)
-            }
+            self.0
+                .as_mut()
+                .ok_or(ClipboardError::ClipboardNotSupported)
+                .and_then(|clipboard| {
+                    clipboard
+                        .set_image(try_imagedata_from_image(image)?)
+                        .map_err(ClipboardError::from)
+                })
         }
 
         #[cfg(windows)]
