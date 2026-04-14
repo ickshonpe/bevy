@@ -155,10 +155,8 @@ fn load_clipboard_image(
     mut image_node: Single<&mut ImageNode, With<ImageTarget>>,
     mut status_node: Single<(&mut Text, &mut TextColor), With<ImageStatus>>,
 ) {
-    let mut read = clipboard.fetch_image();
-
-    let (message, color) = match read.poll_result() {
-        Some(Ok(clipboard_image)) => {
+    let (message, color) = match clipboard.fetch_image() {
+        Ok(clipboard_image) => {
             let width = clipboard_image.width();
             let height = clipboard_image.height();
             image_node.image = images.add(clipboard_image);
@@ -168,11 +166,10 @@ fn load_clipboard_image(
                 Color::WHITE,
             )
         }
-        Some(Err(ClipboardError::ContentNotAvailable)) => {
+        Err(ClipboardError::ContentNotAvailable) => {
             ("No image found on the clipboard.".to_owned(), GREY.into())
         }
-        Some(Err(error)) => (format!("Clipboard image error: {error:?}"), RED.into()),
-        None => unreachable!(),
+        Err(error) => (format!("Clipboard image error: {error:?}"), RED.into()),
     };
 
     status_node.0 .0 = message.clone();
@@ -193,9 +190,7 @@ fn paste_text_system(
     >,
     mut text_query: Query<(&mut Text, &mut TextColor), With<PasteTarget>>,
 ) {
-    if let Some(contents) = paste.as_mut()
-        && let Some(contents) = contents.poll_result()
-    {
+    if let Some(contents) = paste.as_mut().and_then(ClipboardRead::poll_result) {
         let (message, color) = match contents {
             Ok(text) => (text, Color::WHITE),
             Err(error) => (format!("{error:?}"), RED.into()),
