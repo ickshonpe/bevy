@@ -16,7 +16,7 @@ use {alloc::sync::Arc, bevy_platform::sync::Mutex, wasm_bindgen_futures::JsFutur
 
 /// The clipboard prelude
 pub mod prelude {
-    pub use crate::{Clipboard, ClipboardRead};
+    pub use crate::{Clipboard, ClipboardPlugin, ClipboardRead};
 }
 
 /// Clipboard plugin
