@@ -12,7 +12,7 @@ use bevy_ecs::{
 use bevy_input_focus::{tab_navigation::TabIndex, InputFocus, InputFocusVisible};
 use bevy_picking::PickingSystems;
 use bevy_scene::prelude::*;
-use bevy_text::{EditableText, FontSize, FontWeight, LineBreak, TextCursorStyle, TextLayout};
+use bevy_text::{EditableText, FontWeight, LineBreak, TextCursorStyle, TextLayout};
 use bevy_ui::{
     px, AlignItems, BorderColor, BorderRadius, Display, InteractionDisabled, JustifyContent, Node,
     UiRect, Val,
@@ -63,7 +63,7 @@ pub fn text_input_container() -> impl Scene {
         ThemeFontColor(tokens::TEXT_INPUT_TEXT)
         InheritableFont {
             font: fonts::REGULAR,
-            font_size: FontSize::Px(13.0),
+            font_size: size::COMPACT_FONT,
             weight: FontWeight::NORMAL,
         }
     }
@@ -155,7 +155,7 @@ fn update_text_input_focus(
     // We're not using FocusIndicator here because (a) the focus ring is inset rather than
     // an outline, and (b) we want to detect focus on a descendant rather than an ancestor.
     if focus.is_changed() {
-        let focus_parent = focus.0.and_then(|focus_ent| {
+        let focus_parent = focus.get().and_then(|focus_ent| {
             if focus_visible.0 && q_inputs.contains(focus_ent) {
                 parents
                     .iter_ancestors(focus_ent)

@@ -51,6 +51,20 @@ pub const BUTTON_PRIMARY_TEXT: ThemeToken = ThemeToken::new_static("feathers.but
 pub const BUTTON_PRIMARY_TEXT_DISABLED: ThemeToken =
     ThemeToken::new_static("feathers.button.primary.txt.disabled");
 
+// Plain buttons (transparent background)
+
+/// Plain button background
+pub const BUTTON_PLAIN_BG: ThemeToken = ThemeToken::new_static("feathers.button.plain.bg");
+/// Plain button background (hovered)
+pub const BUTTON_PLAIN_BG_HOVER: ThemeToken =
+    ThemeToken::new_static("feathers.button.plain.bg.hover");
+/// Plain button background (disabled)
+pub const BUTTON_PLAIN_BG_DISABLED: ThemeToken =
+    ThemeToken::new_static("feathers.button.plain.bg.disabled");
+/// Plain button background (pressed)
+pub const BUTTON_PLAIN_BG_PRESSED: ThemeToken =
+    ThemeToken::new_static("feathers.button.plain.bg.pressed");
+
 // Slider
 
 /// Background for slider
@@ -64,6 +78,16 @@ pub const SLIDER_TEXT: ThemeToken = ThemeToken::new_static("feathers.slider.text
 /// Background for slider text (disabled)
 pub const SLIDER_TEXT_DISABLED: ThemeToken =
     ThemeToken::new_static("feathers.slider.text.disabled");
+
+// Scrollbar
+
+/// Background for scrollbar
+pub const SCROLLBAR_BG: ThemeToken = ThemeToken::new_static("feathers.scrollbar.bg");
+/// Background for scrollbar moving bar
+pub const SCROLLBAR_THUMB: ThemeToken = ThemeToken::new_static("feathers.scrollbar.thumb");
+/// Background for scrollbar moving bar (hovered)
+pub const SCROLLBAR_THUMB_HOVER: ThemeToken =
+    ThemeToken::new_static("feathers.scrollbar.thumb.hover");
 
 // Checkbox
 
@@ -143,6 +167,24 @@ pub const SWITCH_SLIDE_DISABLED: ThemeToken =
 /// Color plane frame background
 pub const COLOR_PLANE_BG: ThemeToken = ThemeToken::new_static("feathers.colorplane.bg");
 
+// Menus
+
+/// Menu background
+pub const MENU_BG: ThemeToken = ThemeToken::new_static("feathers.menu.bg");
+/// Menu border
+pub const MENU_BORDER: ThemeToken = ThemeToken::new_static("feathers.menu.border");
+/// Menu item hovered
+pub const MENUITEM_BG_HOVER: ThemeToken = ThemeToken::new_static("feathers.menuitem.bg.hover");
+/// Menu item pressed
+pub const MENUITEM_BG_PRESSED: ThemeToken = ThemeToken::new_static("feathers.menuitem.bg.pressed");
+/// Menu item focused
+pub const MENUITEM_BG_FOCUSED: ThemeToken = ThemeToken::new_static("feathers.menuitem.bg.focused");
+/// Menu item text
+pub const MENUITEM_TEXT: ThemeToken = ThemeToken::new_static("feathers.menuitem.text");
+/// Menu item text (disabled)
+pub const MENUITEM_TEXT_DISABLED: ThemeToken =
+    ThemeToken::new_static("feathers.menuitem.text.disabled");
+
 // Text Input
 
 /// Background for text input
@@ -156,3 +198,43 @@ pub const TEXT_INPUT_TEXT_DISABLED: ThemeToken =
 pub const TEXT_INPUT_CURSOR: ThemeToken = ThemeToken::new_static("feathers.textinput.cursor");
 /// Selection color for text input
 pub const TEXT_INPUT_SELECTION: ThemeToken = ThemeToken::new_static("feathers.textinput.selection");
+
+// Pane
+
+/// Pane header background
+pub const PANE_HEADER_BG: ThemeToken = ThemeToken::new_static("feathers.pane.header.bg");
+/// Pane header border
+pub const PANE_HEADER_BORDER: ThemeToken = ThemeToken::new_static("feathers.pane.header.border");
+/// Pane header text color
+pub const PANE_HEADER_TEXT: ThemeToken = ThemeToken::new_static("feathers.pane.header.text");
+/// Pane header divider color
+pub const PANE_HEADER_DIVIDER: ThemeToken = ThemeToken::new_static("feathers.pane.header.divider");
+/// Pane body background
+pub const PANE_BODY_BG: ThemeToken = ThemeToken::new_static("feathers.pane.body.bg");
+
+// Subpane
+
+/// Subpane background
+pub const SUBPANE_HEADER_BG: ThemeToken = ThemeToken::new_static("feathers.subpane.header.bg");
+/// Subpane header border
+pub const SUBPANE_HEADER_BORDER: ThemeToken =
+    ThemeToken::new_static("feathers.subpane.header.border");
+/// Subpane header text color
+pub const SUBPANE_HEADER_TEXT: ThemeToken = ThemeToken::new_static("feathers.subpane.header.text");
+/// Subpane body background
+pub const SUBPANE_BODY_BG: ThemeToken = ThemeToken::new_static("feathers.subpane.body.bg");
+/// Subpane body border
+pub const SUBPANE_BODY_BORDER: ThemeToken = ThemeToken::new_static("feathers.subpane.body.border");
+
+// Group
+
+/// Group background
+pub const GROUP_HEADER_BG: ThemeToken = ThemeToken::new_static("feathers.group.header.bg");
+/// Group header border
+pub const GROUP_HEADER_BORDER: ThemeToken = ThemeToken::new_static("feathers.group.header.border");
+/// Group header text color
+pub const GROUP_HEADER_TEXT: ThemeToken = ThemeToken::new_static("feathers.group.header.text");
+/// Group body background
+pub const GROUP_BODY_BG: ThemeToken = ThemeToken::new_static("feathers.group.body.bg");
+/// Group body border
+pub const GROUP_BODY_BORDER: ThemeToken = ThemeToken::new_static("feathers.group.body.border");
