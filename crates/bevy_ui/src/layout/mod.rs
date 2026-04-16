@@ -298,7 +298,7 @@ pub fn ui_layout_system(
                         target_size,
                     )
                     .unwrap_or(0.)
-                    .max(0.);
+                    .max(-0.5 * node.size.min_element());
             }
 
             node.bypass_change_detection().scrollbar_size =
