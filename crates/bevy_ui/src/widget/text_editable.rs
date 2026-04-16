@@ -239,8 +239,8 @@ pub fn update_editable_text_styles(
     }
 }
 
-/// Updates [`EditableText::editor`] to match e.g. [`TextFont`]
-/// Writes layout to [`TextLayoutInfo`] for rendering
+/// Refreshes the [`EditableText`]'s layout if stale and then writes it
+/// it to [`TextLayoutInfo`] for rendering and picking.
 /// Adds required glyphs to the texture atlas
 pub fn update_editable_text_layout(
     mut font_cx: ResMut<FontCx>,
@@ -423,7 +423,9 @@ pub fn update_editable_text_layout(
             info.cursor = None;
         }
 
-        **generation = driver.editor.generation();
+        if driver.editor.generation() != **generation {
+            **generation = driver.editor.generation();
+        }
     }
 }
 
