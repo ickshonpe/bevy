@@ -294,7 +294,6 @@ pub fn update_editable_text_layout(
 
         let layout_changed = driver.editor.generation() != **generation;
         if layout_changed {
-            println!("regenerate");
             **generation = driver.editor.generation();
         }
 
