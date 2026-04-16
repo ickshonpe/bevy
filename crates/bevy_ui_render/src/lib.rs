@@ -114,6 +114,7 @@ pub mod stack_z_offsets {
     pub const TEXT: f32 = 0.06;
     pub const TEXT_STRIKETHROUGH: f32 = 0.07;
     pub const TEXT_CURSOR: f32 = 0.08;
+    pub const FOCUS: f32 = 0.09;
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
