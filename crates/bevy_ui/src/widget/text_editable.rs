@@ -155,6 +155,8 @@ pub fn update_editable_text_content_size(
     }
 }
 
+/// Syncs each [`EditableText`] entity's [`PlainEditor`](parley::PlainEditor)
+/// style properties to match its [`TextFont`], [`LineHeight`], and [`TextLayout`] components.
 pub fn update_editable_text_styles(
     fonts: Res<Assets<Font>>,
     mut editable_text_query: Query<(
