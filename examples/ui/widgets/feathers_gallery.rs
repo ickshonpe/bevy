@@ -713,6 +713,8 @@ fn handle_hex_color_change(
 ) {
     let editable_text = *q_text_input;
     if let Ok(color) = Srgba::hex(editable_text.value().to_string()) {
-        colors.rgb_color = color;
+        if color != colors.rgb_color {
+            colors.rgb_color = color;
+        }
     }
 }
