@@ -67,9 +67,9 @@ pub struct FocusOutlinesPlugin;
 
 impl Plugin for FocusOutlinesPlugin {
     fn build(&self, app: &mut bevy_app::App) {
-        app.add_systems(
-            PostUpdate,
-            manage_focus_indicators.in_set(UiSystems::Content),
-        );
+        // app.add_systems(
+        //     PostUpdate,
+        //     manage_focus_indicators.in_set(UiSystems::Content),
+        // );
     }
 }

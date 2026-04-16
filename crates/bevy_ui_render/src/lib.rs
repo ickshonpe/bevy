@@ -21,6 +21,7 @@ mod debug_overlay;
 
 use bevy_camera::visibility::InheritedVisibility;
 use bevy_camera::{Camera, Camera2d, Camera3d, RenderTarget};
+use bevy_input_focus::{InputFocus, InputFocusVisible};
 use bevy_reflect::prelude::ReflectDefault;
 use bevy_reflect::Reflect;
 use bevy_render::camera::{extract_cameras, CameraMainPassTextureFormats};
@@ -132,6 +133,7 @@ pub enum RenderUiSystems {
     ExtractCursor,
     ExtractDebug,
     ExtractGradient,
+    ExtractFocusOutlines,
 }
 
 /// Marker for controlling whether UI is rendered with or without anti-aliasing
@@ -229,6 +231,7 @@ impl Plugin for UiRenderPlugin {
                     RenderUiSystems::ExtractText,
                     RenderUiSystems::ExtractCursor,
                     RenderUiSystems::ExtractDebug,
+                    RenderUiSystems::ExtractFocusOutlines,
                 )
                     .chain(),
             )
@@ -247,6 +250,7 @@ impl Plugin for UiRenderPlugin {
                     extract_text_shadows.in_set(RenderUiSystems::ExtractTextShadows),
                     extract_text_sections.in_set(RenderUiSystems::ExtractText),
                     extract_text_cursor.in_set(RenderUiSystems::ExtractCursor),
+                    extract_focus_outline.in_set(RenderUiSystems::ExtractFocusOutlines),
                     #[cfg(feature = "bevy_ui_debug")]
                     debug_overlay::extract_debug_overlay.in_set(RenderUiSystems::ExtractDebug),
                 ),
@@ -697,6 +701,73 @@ pub fn extract_uinode_borders(
                 main_entity: entity.into(),
             });
         }
+    }
+}
+
+pub fn extract_focus_outline(
+    input_focus: Extract<Res<InputFocus>>,
+    input_focus_visible: Extract<Res<InputFocusVisible>>,
+    mut extracted_uinodes: ResMut<ExtractedUiNodes>,
+    uinode_query: Extract<
+        Query<(
+            Option<&Node>,
+            &ComputedNode,
+            &UiGlobalTransform,
+            &InheritedVisibility,
+            Option<&CalculatedClip>,
+            &ComputedUiTargetCamera,
+        )>,
+    >,
+    camera_map: Extract<UiCameraMap>,
+    mut commands: Commands,
+) {
+    if !input_focus_visible.0 {
+        return;
+    }
+
+    let Some(input_focus) = input_focus.get() else {
+        return;
+    };
+
+    let image = AssetId::<Image>::default();
+    let mut camera_mapper = camera_map.get_mapper();
+
+    if let Ok((node, computed_node, transform, inherited_visibility, maybe_clip, camera)) =
+        uinode_query.get(input_focus)
+    {
+        // Skip invisible borders and removed nodes
+        if !inherited_visibility.get() || node.is_some_and(|node| node.display == Display::None) {
+            return;
+        }
+
+        let Some(extracted_camera_entity) = camera_mapper.map(camera) else {
+            return;
+        };
+
+        let outline_size =
+            computed_node.size() + 12. * computed_node.inverse_scale_factor().recip();
+        extracted_uinodes.uinodes.push(ExtractedUiNode {
+            z_order: computed_node.stack_index as f32 + stack_z_offsets::FOCUS,
+            render_entity: commands.spawn(TemporaryRenderEntity).id(),
+            image,
+            clip: maybe_clip.map(|clip| clip.clip),
+            extracted_camera_entity,
+            transform: transform.into(),
+            item: ExtractedUiItem::Node {
+                color: bevy_color::Color::WHITE.into(),
+                rect: Rect {
+                    max: outline_size,
+                    ..Default::default()
+                },
+                atlas_scaling: None,
+                flip_x: false,
+                flip_y: false,
+                border: BorderRect::all(4. * computed_node.inverse_scale_factor().recip()),
+                border_radius: computed_node.outline_radius(),
+                node_type: NodeType::Border(shader_flags::BORDER_ALL),
+            },
+            main_entity: input_focus.into(),
+        });
     }
 }
 
