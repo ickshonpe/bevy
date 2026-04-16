@@ -294,6 +294,7 @@ pub fn update_editable_text_layout(
 
         let layout_changed = driver.editor.generation() != **generation;
         if layout_changed {
+            println!("regenerate");
             **generation = driver.editor.generation();
         }
 
@@ -396,6 +397,13 @@ pub fn update_editable_text_layout(
                     }
                 }
             }
+
+            info.selection_rects = driver
+                .editor
+                .selection_geometry()
+                .iter()
+                .map(|&b| bounding_box_to_rect(b.0))
+                .collect();
         }
 
         if let Some(input_focus) = input_focus.as_ref()
@@ -415,13 +423,6 @@ pub fn update_editable_text_layout(
             } else {
                 info.cursor = None;
             }
-
-            info.selection_rects = driver
-                .editor
-                .selection_geometry()
-                .iter()
-                .map(|&b| bounding_box_to_rect(b.0))
-                .collect();
         } else {
             info.cursor = None;
         }
