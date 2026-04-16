@@ -18,9 +18,9 @@ use bevy_math::{Rect, Vec2};
 use bevy_platform::hash::FixedHasher;
 use bevy_text::{
     add_glyph_to_atlas, get_glyph_atlas_info, resolve_font_source, EditableText,
-    EditableTextGeneration, Font, FontAtlasKey, FontAtlasSet, FontCx, FontHinting, FontSize,
-    GlyphCacheKey, LayoutCx, LineBreak, LineHeight, PositionedGlyph, RemSize, RunGeometry, ScaleCx,
-    TextBrush, TextFont, TextLayout, TextLayoutInfo,
+    EditableTextGeneration, Font, FontAtlasKey, FontAtlasSet, FontCx, FontHinting, GlyphCacheKey,
+    LayoutCx, LineBreak, LineHeight, PositionedGlyph, RemSize, RunGeometry, ScaleCx, TextBrush,
+    TextFont, TextLayout, TextLayoutInfo,
 };
 use bevy_time::{Real, Time};
 use parley::{BoundingBox, PositionedLayoutItem, StyleProperty};
@@ -171,70 +171,67 @@ pub fn update_editable_text_styles(
     for (mut editable_text, text_font, line_height, target, text_layout) in
         editable_text_query.iter_mut()
     {
-        if f32::EPSILON < (target.scale_factor() - editable_text.editor.get_scale()).abs() {
-            editable_text.editor.set_scale(target.scale_factor());
+        let editor = editable_text.editor_mut();
+
+        if f32::EPSILON < (target.scale_factor() - editor.get_scale()).abs() {
+            editor.set_scale(target.scale_factor());
         }
 
-        if text_font.is_changed()
-            || line_height.is_changed()
-            || text_layout.is_changed()
-            || matches!(text_font.font_size, FontSize::Rem(_)) && rem_size.is_changed()
-            || matches!(
-                text_font.font_size,
-                FontSize::Vw(_) | FontSize::Vh(_) | FontSize::VMin(_) | FontSize::VMax(_)
-            ) && target.is_changed()
-        {
+        let font_size = text_font.font_size.eval(target.logical_size(), rem_size.0);
+
+        if font_size != editor.get_font_size() {
+            editor.edit_styles().insert(StyleProperty::FontSize(
+                text_font.font_size.eval(target.logical_size(), rem_size.0),
+            ));
+        }
+
+        if text_font.is_changed() {
+            let Ok(font_family) = resolve_font_source(&text_font.font, fonts.as_ref()) else {
+                continue;
+            };
+
+            let family = font_family.into_owned();
             let style_set = editable_text.editor.edit_styles();
+            style_set.insert(StyleProperty::FontFamily(family));
+            style_set.insert(StyleProperty::Brush(TextBrush::new(
+                0,
+                text_font.font_smoothing,
+            )));
+        }
 
-            if text_font.is_changed() {
-                let Ok(font_family) = resolve_font_source(&text_font.font, fonts.as_ref()) else {
-                    continue;
-                };
+        if line_height.is_changed() {
+            let style_set = editable_text.editor.edit_styles();
+            style_set.insert(StyleProperty::LineHeight(line_height.eval()));
+        }
 
-                let family = font_family.into_owned();
-                style_set.insert(StyleProperty::FontFamily(family));
-                style_set.insert(StyleProperty::Brush(TextBrush::new(
-                    0,
-                    text_font.font_smoothing,
-                )));
-                style_set.insert(StyleProperty::FontSize(
-                    text_font.font_size.eval(target.logical_size(), rem_size.0),
-                ));
-            }
-
-            if line_height.is_changed() {
-                style_set.insert(StyleProperty::LineHeight(line_height.eval()));
-            }
-
-            if text_layout.is_changed() {
-                match text_layout.linebreak {
-                    LineBreak::AnyCharacter => {
-                        style_set.insert(StyleProperty::WordBreak(parley::WordBreak::BreakAll));
-                        style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
-                        style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
-                    }
-                    LineBreak::WordOrCharacter => {
-                        style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
-                        style_set
-                            .insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Anywhere));
-                        style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
-                    }
-                    LineBreak::NoWrap => {
-                        style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
-                        style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
-                        style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::NoWrap));
-                    }
-                    LineBreak::WordBoundary => {
-                        style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
-                        style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
-                        style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
-                    }
+        if text_layout.is_changed() {
+            let style_set = editable_text.editor.edit_styles();
+            match text_layout.linebreak {
+                LineBreak::AnyCharacter => {
+                    style_set.insert(StyleProperty::WordBreak(parley::WordBreak::BreakAll));
+                    style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
+                    style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
                 }
-
-                editable_text
-                    .editor
-                    .set_alignment(text_layout.justify.into());
+                LineBreak::WordOrCharacter => {
+                    style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
+                    style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Anywhere));
+                    style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
+                }
+                LineBreak::NoWrap => {
+                    style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
+                    style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
+                    style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::NoWrap));
+                }
+                LineBreak::WordBoundary => {
+                    style_set.insert(StyleProperty::WordBreak(parley::WordBreak::Normal));
+                    style_set.insert(StyleProperty::OverflowWrap(parley::OverflowWrap::Normal));
+                    style_set.insert(StyleProperty::TextWrapMode(parley::TextWrapMode::Wrap));
+                }
             }
+
+            editable_text
+                .editor
+                .set_alignment(text_layout.justify.into());
         }
     }
 }
