@@ -252,15 +252,17 @@ pub fn apply_text_edits(
     mut commands: Commands,
 ) {
     for (entity, mut editable_text, filter, generation) in query.iter_mut() {
-        editable_text.apply_pending_edits(
-            &mut font_context.0,
-            &mut layout_context.0,
-            &mut clipboard_text.0,
-            match filter {
-                Some(EditableTextFilter(Some(filter))) => filter.as_ref(),
-                _ => &|_| true,
-            },
-        );
+        if !editable_text.pending_edits.is_empty() {
+            editable_text.apply_pending_edits(
+                &mut font_context.0,
+                &mut layout_context.0,
+                &mut clipboard_text.0,
+                match filter {
+                    Some(EditableTextFilter(Some(filter))) => filter.as_ref(),
+                    _ => &|_| true,
+                },
+            );
+        }
 
         if **generation != editable_text.editor.generation() {
             commands.trigger(TextEditChange { entity });
