@@ -288,7 +288,12 @@ pub fn update_editable_text_layout(
 
         driver.refresh_layout();
 
-        if driver.editor.generation() != **generation || hinting.is_changed() {
+        let layout_changed = driver.editor.generation() != **generation;
+        if layout_changed {
+            **generation = driver.editor.generation();
+        }
+
+        if layout_changed || hinting.is_changed() {
             let layout = driver.layout();
 
             info.scale_factor = layout.scale();
@@ -392,10 +397,7 @@ pub fn update_editable_text_layout(
         if let Some(input_focus) = input_focus.as_ref()
             && Some(entity) == input_focus.get()
         {
-            if input_focus.is_changed()
-                || driver.editor.generation() != **generation
-                || *cursor_timer >= cursor_blink_period
-            {
+            if input_focus.is_changed() || layout_changed || *cursor_timer >= cursor_blink_period {
                 *cursor_timer = Duration::ZERO;
             }
 
@@ -418,10 +420,6 @@ pub fn update_editable_text_layout(
                 .collect();
         } else {
             info.cursor = None;
-        }
-
-        if driver.editor.generation() != **generation {
-            **generation = driver.editor.generation();
         }
     }
 }
