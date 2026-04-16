@@ -18,9 +18,9 @@ use bevy_math::{Rect, Vec2};
 use bevy_platform::hash::FixedHasher;
 use bevy_text::{
     add_glyph_to_atlas, get_glyph_atlas_info, resolve_font_source, EditableText,
-    EditableTextGeneration, Font, FontAtlasKey, FontAtlasSet, FontCx, FontHinting, GlyphCacheKey,
-    LayoutCx, LineBreak, LineHeight, PositionedGlyph, RemSize, RunGeometry, ScaleCx, TextBrush,
-    TextFont, TextLayout, TextLayoutInfo,
+    EditableTextGeneration, Font, FontAtlasKey, FontAtlasSet, FontCx, FontHinting, FontSize,
+    GlyphCacheKey, LayoutCx, LineBreak, LineHeight, PositionedGlyph, RemSize, RunGeometry, ScaleCx,
+    TextBrush, TextFont, TextLayout, TextLayoutInfo,
 };
 use bevy_time::{Real, Time};
 use parley::{BoundingBox, PositionedLayoutItem, StyleProperty};
@@ -177,9 +177,13 @@ pub fn update_editable_text_styles(
             editor.set_scale(target.scale_factor());
         }
 
-        let font_size = text_font.font_size.eval(target.logical_size(), rem_size.0);
-
-        if font_size != editor.get_font_size() {
+        if text_font.is_changed()
+            || matches!(text_font.font_size, FontSize::Rem(_)) && rem_size.is_changed()
+            || matches!(
+                text_font.font_size,
+                FontSize::Vw(_) | FontSize::Vh(_) | FontSize::VMin(_) | FontSize::VMax(_)
+            ) && target.is_changed()
+        {
             editor.edit_styles().insert(StyleProperty::FontSize(
                 text_font.font_size.eval(target.logical_size(), rem_size.0),
             ));
