@@ -52,14 +52,13 @@ fn sync_bounds_and_transforms(
             0.5 * node.size.y as f64,
         ));
 
-        // If the node has an accessible parent, its transform in the accessiblity tree needs to be relative to the parent.
+        // If the node has an accessible parent, its transform in the accessibility tree must be relative to the parent.
         let transform = accessible_transform_query
             .get(child_of.parent())
             .ok()
             .and_then(UiGlobalTransform::try_inverse)
-            .map_or(ui_transform.affine(), |inverse| {
-                inverse * ui_transform.affine()
-            });
+            .unwrap_or_default()
+            * ui_transform.affine();
 
         if transform.is_finite() && transform != Affine2::IDENTITY {
             accessible.set_transform(Affine::new(transform.to_cols_array().map(f64::from)));
