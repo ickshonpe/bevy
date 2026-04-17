@@ -47,9 +47,16 @@ fn sync_bounds_and_transforms(
     accessible_transform_query: Query<Ref<UiGlobalTransform>, With<AccessibilityNode>>,
 ) {
     for (mut accessible, node, ui_transform, maybe_child_of) in &mut accessible_nodes_query {
-        if !(node.is_changed() || ui_transform.is_changed() || maybe_child_of.is_some()) {
+        let maybe_parent_transform = maybe_child_of
+            .and_then(|child_of| accessible_transform_query.get(child_of.parent()).ok());
+
+        if !(node.is_changed()
+            || ui_transform.is_changed()
+            || maybe_parent_transform.is_some_and(|transform| transform.is_changed()))
+        {
             continue;
         }
+
         accessible.set_bounds(Rect::new(
             -0.5 * node.size.x as f64,
             -0.5 * node.size.y as f64,
@@ -58,8 +65,7 @@ fn sync_bounds_and_transforms(
         ));
 
         // If the node has an accessible parent, its transform in the accessibility tree must be relative to the parent.
-        let transform = maybe_child_of
-            .and_then(|child_of| accessible_transform_query.get(child_of.parent()).ok())
+        let transform = maybe_parent_transform
             .and_then(|transform| transform.try_inverse())
             .unwrap_or_default()
             * ui_transform.affine();
