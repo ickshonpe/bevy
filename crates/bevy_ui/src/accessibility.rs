@@ -8,11 +8,13 @@ use crate::{
 use bevy_a11y::{AccessibilityNode, AccessibilitySystems};
 use bevy_app::{App, Plugin, PostUpdate};
 use bevy_ecs::{
+    change_detection::DetectChanges,
     hierarchy::ChildOf,
     prelude::Entity,
     query::{Changed, With, Without},
     schedule::IntoScheduleConfigs,
     system::{Commands, Query},
+    world::Ref,
 };
 use bevy_math::Affine2;
 
@@ -38,13 +40,16 @@ fn calc_label(
 fn sync_bounds_and_transforms(
     mut accessible_nodes_query: Query<(
         &mut AccessibilityNode,
-        &ComputedNode,
-        &UiGlobalTransform,
-        &ChildOf,
+        Ref<ComputedNode>,
+        Ref<UiGlobalTransform>,
+        Option<&ChildOf>,
     )>,
-    accessible_transform_query: Query<&UiGlobalTransform, With<AccessibilityNode>>,
+    accessible_transform_query: Query<Ref<UiGlobalTransform>, With<AccessibilityNode>>,
 ) {
-    for (mut accessible, node, ui_transform, child_of) in &mut accessible_nodes_query {
+    for (mut accessible, node, ui_transform, maybe_child_of) in &mut accessible_nodes_query {
+        if !(node.is_changed() || ui_transform.is_changed() || maybe_child_of.is_some()) {
+            continue;
+        }
         accessible.set_bounds(Rect::new(
             -0.5 * node.size.x as f64,
             -0.5 * node.size.y as f64,
@@ -53,10 +58,9 @@ fn sync_bounds_and_transforms(
         ));
 
         // If the node has an accessible parent, its transform in the accessibility tree must be relative to the parent.
-        let transform = accessible_transform_query
-            .get(child_of.parent())
-            .ok()
-            .and_then(UiGlobalTransform::try_inverse)
+        let transform = maybe_child_of
+            .and_then(|child_of| accessible_transform_query.get(child_of.parent()).ok())
+            .and_then(|transform| transform.try_inverse())
             .unwrap_or_default()
             * ui_transform.affine();
 
