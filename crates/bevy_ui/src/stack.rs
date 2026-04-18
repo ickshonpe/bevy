@@ -7,6 +7,10 @@ use crate::{
 use bevy_ecs::{entity::EntityHashSet, prelude::*};
 use core::ops::Range;
 
+/// Draw order of the of the node, lower value is drawn below higher.
+#[derive(Component, PartialEq, Eq)]
+pub struct UiStackIndex(pub u32);
+
 /// The current UI stack, which contains all UI nodes ordered by their depth (back-to-front).
 ///
 /// The first entry is the furthest node from the camera and is the first one to get rendered
