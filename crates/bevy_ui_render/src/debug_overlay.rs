@@ -27,10 +27,10 @@ use bevy_sprite::BorderRect;
 use bevy_ui::ui_transform::UiGlobalTransform;
 use bevy_ui::CalculatedClip;
 use bevy_ui::ComputedNode;
+use bevy_ui::ComputedStackIndex;
 use bevy_ui::ComputedUiTargetCamera;
 use bevy_ui::ResolvedBorderRadius;
 use bevy_ui::UiStack;
-use bevy_ui::ComputedStackIndex;
 
 /// Configuration for the UI debug overlay
 ///

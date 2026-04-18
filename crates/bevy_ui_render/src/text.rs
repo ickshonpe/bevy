@@ -7,8 +7,8 @@ use bevy_render::{sync_world::TemporaryRenderEntity, Extract};
 use bevy_sprite::BorderRect;
 use bevy_text::{TextCursorStyle, TextLayoutInfo};
 use bevy_ui::{
-    widget::TextScroll, CalculatedClip, ComputedNode, ComputedUiTargetCamera, ResolvedBorderRadius,
-    UiGlobalTransform, ComputedStackIndex,
+    widget::TextScroll, CalculatedClip, ComputedNode, ComputedStackIndex, ComputedUiTargetCamera,
+    ResolvedBorderRadius, UiGlobalTransform,
 };
 
 use crate::{

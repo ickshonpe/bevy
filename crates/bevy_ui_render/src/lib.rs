@@ -28,8 +28,9 @@ use bevy_shader::load_shader_library;
 use bevy_sprite_render::SpriteAssetEvents;
 use bevy_ui::widget::{ImageNode, TextScroll, TextShadow, ViewportNode};
 use bevy_ui::{
-    BackgroundColor, BorderColor, CalculatedClip, ComputedNode, ComputedUiTargetCamera, Display,
-    Node, OuterColor, Outline, ResolvedBorderRadius, UiGlobalTransform, ComputedStackIndex,
+    BackgroundColor, BorderColor, CalculatedClip, ComputedNode, ComputedStackIndex,
+    ComputedUiTargetCamera, Display, Node, OuterColor, Outline, ResolvedBorderRadius,
+    UiGlobalTransform,
 };
 
 use bevy_app::prelude::*;
