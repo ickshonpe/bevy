@@ -28,7 +28,7 @@ use bevy_shader::Shader;
 use bevy_sprite::{SliceScaleMode, SpriteImageMode, TextureSlicer};
 use bevy_sprite_render::SpriteAssetEvents;
 use bevy_ui::widget;
-use bevy_ui::UiStackIndex;
+use bevy_ui::ComputedStackIndex;
 use bevy_utils::default;
 use binding_types::{sampler, texture_2d};
 use bytemuck::{Pod, Zeroable};
@@ -220,7 +220,7 @@ pub fn extract_ui_texture_slices(
         Query<(
             Entity,
             &ComputedNode,
-            &UiStackIndex,
+            &ComputedStackIndex,
             &UiGlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,

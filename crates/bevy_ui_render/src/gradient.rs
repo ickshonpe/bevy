@@ -33,9 +33,9 @@ use bevy_render::{sync_world::MainEntity, GpuResourceAppExt, RenderStartup};
 use bevy_shader::Shader;
 use bevy_sprite::BorderRect;
 use bevy_ui::{
-    BackgroundGradient, BorderGradient, ColorStop, ComputedUiRenderTargetInfo, ConicGradient,
-    Gradient, InterpolationColorSpace, LinearGradient, RadialGradient, ResolvedBorderRadius,
-    UiStackIndex, Val,
+    BackgroundGradient, BorderGradient, ColorStop, ComputedStackIndex, ComputedUiRenderTargetInfo,
+    ConicGradient, Gradient, InterpolationColorSpace, LinearGradient, RadialGradient,
+    ResolvedBorderRadius, Val,
 };
 use bevy_utils::default;
 use bytemuck::{Pod, Zeroable};
@@ -344,7 +344,7 @@ pub fn extract_gradients(
         Query<(
             Entity,
             &ComputedNode,
-            &UiStackIndex,
+            &ComputedStackIndex,
             &ComputedUiTargetCamera,
             &ComputedUiRenderTargetInfo,
             &UiGlobalTransform,

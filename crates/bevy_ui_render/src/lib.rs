@@ -29,7 +29,7 @@ use bevy_sprite_render::SpriteAssetEvents;
 use bevy_ui::widget::{ImageNode, TextScroll, TextShadow, ViewportNode};
 use bevy_ui::{
     BackgroundColor, BorderColor, CalculatedClip, ComputedNode, ComputedUiTargetCamera, Display,
-    Node, OuterColor, Outline, ResolvedBorderRadius, UiGlobalTransform, UiStackIndex,
+    Node, OuterColor, Outline, ResolvedBorderRadius, UiGlobalTransform, ComputedStackIndex,
 };
 
 use bevy_app::prelude::*;
@@ -389,7 +389,7 @@ pub fn extract_uinode_background_colors(
         Query<(
             Entity,
             &ComputedNode,
-            &UiStackIndex,
+            &ComputedStackIndex,
             &UiGlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,
@@ -489,7 +489,7 @@ pub fn extract_uinode_images(
         Query<(
             Entity,
             &ComputedNode,
-            &UiStackIndex,
+            &ComputedStackIndex,
             &UiGlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,
@@ -577,7 +577,7 @@ pub fn extract_uinode_borders(
             Entity,
             Option<&Node>,
             &ComputedNode,
-            &UiStackIndex,
+            &ComputedStackIndex,
             &UiGlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,
@@ -856,7 +856,7 @@ pub fn extract_viewport_nodes(
         Query<(
             Entity,
             &ComputedNode,
-            &UiStackIndex,
+            &ComputedStackIndex,
             &UiGlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,
@@ -930,7 +930,7 @@ pub fn extract_text_sections(
         Query<(
             Entity,
             &ComputedNode,
-            &UiStackIndex,
+            &ComputedStackIndex,
             &UiGlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,
@@ -1070,7 +1070,7 @@ pub fn extract_text_shadows(
         Query<(
             Entity,
             &ComputedNode,
-            &UiStackIndex,
+            &ComputedStackIndex,
             &UiGlobalTransform,
             &ComputedUiTargetCamera,
             &InheritedVisibility,
@@ -1238,7 +1238,7 @@ pub fn extract_text_decorations(
         Query<(
             Entity,
             &ComputedNode,
-            &UiStackIndex,
+            &ComputedStackIndex,
             &ComputedTextBlock,
             &UiGlobalTransform,
             &InheritedVisibility,

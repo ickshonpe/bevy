@@ -30,7 +30,7 @@ use bevy_ui::ComputedNode;
 use bevy_ui::ComputedUiTargetCamera;
 use bevy_ui::ResolvedBorderRadius;
 use bevy_ui::UiStack;
-use bevy_ui::UiStackIndex;
+use bevy_ui::ComputedStackIndex;
 
 /// Configuration for the UI debug overlay
 ///
@@ -177,7 +177,7 @@ pub fn extract_debug_overlay(
         Query<(
             Entity,
             &ComputedNode,
-            &UiStackIndex,
+            &ComputedStackIndex,
             &UiGlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,

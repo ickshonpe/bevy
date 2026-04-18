@@ -24,7 +24,7 @@ use bevy_render::{
 use bevy_render::{GpuResourceAppExt, RenderApp, RenderStartup};
 use bevy_shader::{load_shader_library, Shader, ShaderRef};
 use bevy_sprite::BorderRect;
-use bevy_ui::UiStackIndex;
+use bevy_ui::ComputedStackIndex;
 use bevy_utils::default;
 use bytemuck::{Pod, Zeroable};
 use core::{hash::Hash, marker::PhantomData, ops::Range};
@@ -326,7 +326,7 @@ pub fn extract_ui_material_nodes<M: UiMaterial>(
         Query<(
             Entity,
             &ComputedNode,
-            &UiStackIndex,
+            &ComputedStackIndex,
             &UiGlobalTransform,
             &MaterialNode<M>,
             &InheritedVisibility,

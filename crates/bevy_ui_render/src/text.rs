@@ -8,7 +8,7 @@ use bevy_sprite::BorderRect;
 use bevy_text::{TextCursorStyle, TextLayoutInfo};
 use bevy_ui::{
     widget::TextScroll, CalculatedClip, ComputedNode, ComputedUiTargetCamera, ResolvedBorderRadius,
-    UiGlobalTransform, UiStackIndex,
+    UiGlobalTransform, ComputedStackIndex,
 };
 
 use crate::{
@@ -22,7 +22,7 @@ pub fn extract_text_cursor(
         Query<(
             Entity,
             &ComputedNode,
-            &UiStackIndex,
+            &ComputedStackIndex,
             &UiGlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,

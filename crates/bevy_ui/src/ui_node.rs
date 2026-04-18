@@ -1,6 +1,6 @@
 use crate::{
     ui_transform::{UiGlobalTransform, UiTransform},
-    ContentSize, FocusPolicy, UiRect, UiStackIndex, Val,
+    ContentSize, FocusPolicy, UiRect, ComputedStackIndex, Val,
 };
 use bevy_camera::{visibility::Visibility, Camera, RenderTarget};
 use bevy_color::{Alpha, Color};
@@ -25,6 +25,7 @@ use tracing::warn;
 /// handle size without any delays.
 #[derive(Component, Debug, Copy, Clone, PartialEq, Reflect)]
 #[reflect(Component, Default, Debug, Clone)]
+#[require(ComputedStackIndex)]
 pub struct ComputedNode {
     /// The size of the node as width and height in physical pixels.
     ///
@@ -467,7 +468,7 @@ impl From<BVec2> for IgnoreScroll {
 #[derive(Component, Clone, PartialEq, Debug, Reflect)]
 #[require(
     ComputedNode,
-    UiStackIndex,
+    ComputedStackIndex,
     ContentSize,
     ComputedUiTargetCamera,
     ComputedUiRenderTargetInfo,

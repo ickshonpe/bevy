@@ -27,8 +27,8 @@ use bevy_render::{
 use bevy_render::{GpuResourceAppExt, RenderApp, RenderStartup};
 use bevy_shader::{Shader, ShaderDefVal};
 use bevy_ui::{
-    BoxShadow, CalculatedClip, ComputedNode, ComputedUiRenderTargetInfo, ComputedUiTargetCamera,
-    ResolvedBorderRadius, UiGlobalTransform, UiStackIndex, Val,
+    BoxShadow, CalculatedClip, ComputedNode, ComputedStackIndex, ComputedUiRenderTargetInfo,
+    ComputedUiTargetCamera, ResolvedBorderRadius, UiGlobalTransform, Val,
 };
 use bevy_utils::default;
 use bytemuck::{Pod, Zeroable};
@@ -210,7 +210,7 @@ pub fn extract_shadows(
         Query<(
             Entity,
             &ComputedNode,
-            &UiStackIndex,
+            &ComputedStackIndex,
             &UiGlobalTransform,
             &InheritedVisibility,
             &BoxShadow,
