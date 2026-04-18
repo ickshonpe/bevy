@@ -1,6 +1,6 @@
 use crate::{
     ui_transform::{UiGlobalTransform, UiTransform},
-    ContentSize, FocusPolicy, UiRect, Val,
+    ContentSize, FocusPolicy, UiRect, UiStackIndex, Val,
 };
 use bevy_camera::{visibility::Visibility, Camera, RenderTarget};
 use bevy_color::{Alpha, Color};
@@ -26,11 +26,6 @@ use tracing::warn;
 #[derive(Component, Debug, Copy, Clone, PartialEq, Reflect)]
 #[reflect(Component, Default, Debug, Clone)]
 pub struct ComputedNode {
-    /// The order of the node in the UI layout.
-    /// Nodes with a higher stack index are drawn on top of and receive interactions before nodes with lower stack indices.
-    ///
-    /// Automatically calculated in [`UiSystems::Stack`](`super::UiSystems::Stack`).
-    pub stack_index: u32,
     /// The size of the node as width and height in physical pixels.
     ///
     /// Automatically calculated by [`ui_layout_system`](`super::layout::ui_layout_system`).
@@ -106,14 +101,6 @@ impl ComputedNode {
     #[inline]
     pub const fn is_empty(&self) -> bool {
         self.size.x <= 0. || self.size.y <= 0.
-    }
-
-    /// The order of the node in the UI layout.
-    /// Nodes with a higher stack index are drawn on top of and receive interactions before nodes with lower stack indices.
-    ///
-    /// Automatically calculated in [`UiSystems::Stack`](super::UiSystems::Stack).
-    pub const fn stack_index(&self) -> u32 {
-        self.stack_index
     }
 
     /// The calculated node size as width and height in physical pixels before rounding.
@@ -393,7 +380,6 @@ impl ComputedNode {
 
 impl ComputedNode {
     pub const DEFAULT: Self = Self {
-        stack_index: 0,
         size: Vec2::ZERO,
         content_size: Vec2::ZERO,
         scrollbar_size: Vec2::ZERO,
@@ -481,6 +467,7 @@ impl From<BVec2> for IgnoreScroll {
 #[derive(Component, Clone, PartialEq, Debug, Reflect)]
 #[require(
     ComputedNode,
+    UiStackIndex,
     ContentSize,
     ComputedUiTargetCamera,
     ComputedUiRenderTargetInfo,

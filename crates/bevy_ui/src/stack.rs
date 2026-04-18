@@ -4,11 +4,15 @@ use crate::{
     experimental::{UiChildren, UiRootNodes},
     ComputedNode, GlobalZIndex, ZIndex,
 };
+use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{entity::EntityHashSet, prelude::*};
 use core::ops::Range;
 
-/// Draw order of the of the node, lower value is drawn below higher.
-#[derive(Component, PartialEq, Eq)]
+/// The order of the node in the UI layout.
+/// Nodes with a higher stack index are drawn on top of and receive interactions before nodes with lower stack indices.
+///
+/// Automatically calculated in [`UiSystems::Stack`](`super::UiSystems::Stack`).
+#[derive(Component, Default, PartialEq, Eq, Deref, DerefMut)]
 pub struct UiStackIndex(pub u32);
 
 /// The current UI stack, which contains all UI nodes ordered by their depth (back-to-front).
@@ -53,7 +57,7 @@ pub fn ui_stack_system(
     zindex_global_node_query: Query<(Entity, &GlobalZIndex, Option<&ZIndex>), With<ComputedNode>>,
     ui_children: UiChildren,
     zindex_query: Query<Option<&ZIndex>, (With<ComputedNode>, Without<GlobalZIndex>)>,
-    mut update_query: Query<&mut ComputedNode>,
+    mut update_query: Query<&mut UiStackIndex>,
 ) {
     ui_stack.partition.clear();
     ui_stack.uinodes.clear();
@@ -100,8 +104,8 @@ pub fn ui_stack_system(
     }
 
     for (i, entity) in ui_stack.uinodes.iter().enumerate() {
-        if let Ok(mut node) = update_query.get_mut(*entity) {
-            node.bypass_change_detection().stack_index = i as u32;
+        if let Ok(mut stack_index) = update_query.get_mut(*entity) {
+            stack_index.0 = i as u32;
         }
     }
 }

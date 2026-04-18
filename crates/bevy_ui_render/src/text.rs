@@ -8,7 +8,7 @@ use bevy_sprite::BorderRect;
 use bevy_text::{TextCursorStyle, TextLayoutInfo};
 use bevy_ui::{
     widget::TextScroll, CalculatedClip, ComputedNode, ComputedUiTargetCamera, ResolvedBorderRadius,
-    UiGlobalTransform,
+    UiGlobalTransform, UiStackIndex,
 };
 
 use crate::{
@@ -22,6 +22,7 @@ pub fn extract_text_cursor(
         Query<(
             Entity,
             &ComputedNode,
+            &UiStackIndex,
             &UiGlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,
@@ -38,6 +39,7 @@ pub fn extract_text_cursor(
     for (
         entity,
         uinode,
+        stack_index,
         global_transform,
         inherited_visibility,
         maybe_clip,
@@ -80,7 +82,7 @@ pub fn extract_text_cursor(
             for selection in text_layout_info.selection_rects.iter() {
                 extracted_uinodes.uinodes.push(ExtractedUiNode {
                     render_entity: commands.spawn(TemporaryRenderEntity).id(),
-                    z_order: uinode.stack_index as f32 + stack_z_offsets::TEXT_SELECTION,
+                    z_order: stack_index.0 as f32 + stack_z_offsets::TEXT_SELECTION,
                     clip,
                     image: AssetId::default(),
                     extracted_camera_entity,
@@ -109,7 +111,7 @@ pub fn extract_text_cursor(
         {
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 render_entity: commands.spawn(TemporaryRenderEntity).id(),
-                z_order: uinode.stack_index as f32 + stack_z_offsets::TEXT_CURSOR,
+                z_order: stack_index.0 as f32 + stack_z_offsets::TEXT_CURSOR,
                 clip,
                 image: AssetId::default(),
                 extracted_camera_entity,
