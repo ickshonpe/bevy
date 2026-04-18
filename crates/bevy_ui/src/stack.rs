@@ -2,7 +2,7 @@
 
 use crate::{
     experimental::{UiChildren, UiRootNodes},
-    ComputedNode, GlobalZIndex, ZIndex,
+    GlobalZIndex, ZIndex,
 };
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{entity::EntityHashSet, prelude::*};
