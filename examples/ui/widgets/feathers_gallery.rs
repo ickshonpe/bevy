@@ -342,7 +342,7 @@ fn demo_column_1() -> impl Scene {
             (
                 checkbox(CheckboxProps {
                     caption: Box::new(bsn_list!(
-                        (Text("Disabled+Checked") ThemedText),
+                        (Text("Checked+Disabled") ThemedText),
                     )),
                 })
                 InteractionDisabled
@@ -384,9 +384,9 @@ fn demo_column_1() -> impl Scene {
                     })),
                     (radio(RadioProps {
                         caption: Box::new(bsn_list!(
-                            (Text("Three") ThemedText),
+                            (Text("Fast Click") ThemedText),
                         )),
-                    })),
+                    }) ActivateOnPress),
                     (radio(RadioProps {
                         caption: Box::new(bsn_list!(
                             (Text("Disabled") ThemedText),
@@ -404,6 +404,7 @@ fn demo_column_1() -> impl Scene {
                 }
                 Children [
                     (toggle_switch() on(checkbox_self_update)),
+                    (toggle_switch() ActivateOnPress on(checkbox_self_update)),
                     (toggle_switch() InteractionDisabled on(checkbox_self_update)),
                     (toggle_switch() InteractionDisabled Checked on(checkbox_self_update)),
                     (disclosure_toggle() on(checkbox_self_update)),
@@ -712,7 +713,9 @@ fn handle_hex_color_change(
     mut colors: ResMut<DemoWidgetStates>,
 ) {
     let editable_text = *q_text_input;
-    if let Ok(color) = Srgba::hex(editable_text.value().to_string()) {
+    if let Ok(color) = Srgba::hex(editable_text.value().to_string())
+        && color != colors.rgb_color
+    {
         colors.rgb_color = color;
     }
 }
