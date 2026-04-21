@@ -413,10 +413,13 @@ pub fn update_editable_text_layout(
                             info.run_geometry.push(RunGeometry {
                                 section_index: brush.section_index as usize,
                                 bounds: Rect {
-                                    min: Vec2::new(glyph_run.offset(), line.metrics().min_coord),
+                                    min: Vec2::new(
+                                        glyph_run.offset(),
+                                        line.metrics().block_min_coord,
+                                    ),
                                     max: Vec2::new(
                                         glyph_run.offset() + glyph_run.advance(),
-                                        line.metrics().max_coord,
+                                        line.metrics().block_max_coord,
                                     ),
                                 },
                                 strikethrough_y: glyph_run.baseline()

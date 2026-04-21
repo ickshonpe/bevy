@@ -389,9 +389,9 @@ impl TextPipeline {
                         section_index,
                         bounds: Rect::new(
                             glyph_run.offset(),
-                            line.metrics().min_coord,
+                            line.metrics().block_min_coord,
                             glyph_run.offset() + glyph_run.advance(),
-                            line.metrics().max_coord,
+                            line.metrics().block_max_coord,
                         ),
                         strikethrough_y: glyph_run.baseline() - run.metrics().strikethrough_offset,
                         strikethrough_thickness: run.metrics().strikethrough_size,
