@@ -187,27 +187,34 @@ pub fn get_outlined_glyph_texture(
     let height = image.placement.height;
 
     let px = (width * height) as usize;
-    let mut rgba = vec![0u8; px * 4];
-    match font_smoothing {
-        FontSmoothing::AntiAliased => {
-            for i in 0..px {
-                let a = image.data[i];
-                rgba[i * 4 + 0] = 255; // R
-                rgba[i * 4 + 1] = 255; // G
-                rgba[i * 4 + 2] = 255; // B
-                rgba[i * 4 + 3] = a; // A from swash
+    let rgba = match image.content {
+        swash::scale::image::Content::Mask => {
+            let mut rgba = vec![0u8; px * 4];
+            match font_smoothing {
+                FontSmoothing::AntiAliased => {
+                    for i in 0..px {
+                        let a = image.data[i];
+                        rgba[i * 4 + 0] = 255; // R
+                        rgba[i * 4 + 1] = 255; // G
+                        rgba[i * 4 + 2] = 255; // B
+                        rgba[i * 4 + 3] = a; // A from swash
+                    }
+                }
+                FontSmoothing::None => {
+                    for i in 0..px {
+                        let a = image.data[i];
+                        rgba[i * 4 + 0] = 255; // R
+                        rgba[i * 4 + 1] = 255; // G
+                        rgba[i * 4 + 2] = 255; // B
+                        rgba[i * 4 + 3] = if 127 < a { 255 } else { 0 }; // A from swash
+                    }
+                }
             }
+            rgba
         }
-        FontSmoothing::None => {
-            for i in 0..px {
-                let a = image.data[i];
-                rgba[i * 4 + 0] = 255; // R
-                rgba[i * 4 + 1] = 255; // G
-                rgba[i * 4 + 2] = 255; // B
-                rgba[i * 4 + 3] = if 127 < a { 255 } else { 0 }; // A from swash
-            }
-        }
-    }
+        swash::scale::image::Content::Color => image.data,
+        swash::scale::image::Content::SubpixelMask => image.data,
+    };
 
     Ok((
         Image::new(
