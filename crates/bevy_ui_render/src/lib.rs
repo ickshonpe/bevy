@@ -35,7 +35,7 @@ use bevy_ui::{
 
 use bevy_app::prelude::*;
 use bevy_asset::{AssetEvent, AssetId, Assets};
-use bevy_color::{Alpha, ColorToComponents, Gray, LinearRgba};
+use bevy_color::{Alpha, ColorToComponents, LinearRgba};
 use bevy_core_pipeline::schedule::{Core2d, Core2dSystems, Core3d, Core3dSystems};
 use bevy_core_pipeline::upscaling::upscaling;
 use bevy_ecs::prelude::*;

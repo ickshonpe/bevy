@@ -91,6 +91,7 @@ impl FontAtlas {
         key: GlyphCacheKey,
         texture: &Image,
         offset: Vec2,
+        is_alpha_mask: bool,
     ) -> Result<(), TextError> {
         let mut atlas_texture = textures
             .get_mut(&self.texture)
@@ -106,6 +107,7 @@ impl FontAtlas {
                 GlyphAtlasLocation {
                     glyph_index,
                     offset,
+                    is_alpha_mask,
                 },
             );
             Ok(())
@@ -137,7 +139,13 @@ pub fn add_glyph_to_atlas(
     let (glyph_texture, offset, is_alpha_mask) =
         get_outlined_glyph_texture(scaler, glyph_id, font_smoothing)?;
     let mut add_char_to_font_atlas = |atlas: &mut FontAtlas| -> Result<(), TextError> {
-        atlas.add_glyph(textures, GlyphCacheKey { glyph_id }, &glyph_texture, offset)
+        atlas.add_glyph(
+            textures,
+            GlyphCacheKey { glyph_id },
+            &glyph_texture,
+            offset,
+            is_alpha_mask,
+        )
     };
     if !font_atlases
         .iter_mut()
@@ -154,12 +162,18 @@ pub fn add_glyph_to_atlas(
 
         let mut new_atlas = FontAtlas::new(textures, UVec2::splat(containing), font_smoothing);
 
-        new_atlas.add_glyph(textures, GlyphCacheKey { glyph_id }, &glyph_texture, offset)?;
+        new_atlas.add_glyph(
+            textures,
+            GlyphCacheKey { glyph_id },
+            &glyph_texture,
+            offset,
+            is_alpha_mask,
+        )?;
 
         font_atlases.push(new_atlas);
     }
 
-    get_glyph_atlas_info(font_atlases, GlyphCacheKey { glyph_id }, is_alpha_mask)
+    get_glyph_atlas_info(font_atlases, GlyphCacheKey { glyph_id })
         .ok_or(TextError::InconsistentAtlasState)
 }
 
@@ -238,7 +252,6 @@ pub fn get_outlined_glyph_texture(
 pub fn get_glyph_atlas_info(
     font_atlases: &mut [FontAtlas],
     cache_key: GlyphCacheKey,
-    is_alpha_mask: bool,
 ) -> Option<GlyphAtlasInfo> {
     font_atlases.iter().find_map(|atlas| {
         atlas
@@ -247,7 +260,7 @@ pub fn get_glyph_atlas_info(
                 offset: location.offset,
                 rect: atlas.texture_atlas.textures[location.glyph_index].as_rect(),
                 texture: atlas.texture.id(),
-                is_alpha_mask,
+                is_alpha_mask: location.is_alpha_mask,
             })
     })
 }

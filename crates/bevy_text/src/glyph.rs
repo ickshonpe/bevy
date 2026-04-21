@@ -40,7 +40,7 @@ pub struct GlyphAtlasInfo {
     pub rect: Rect,
     /// The required offset (relative positioning) when placed
     pub offset: Vec2,
-    /// True if this is an alpha mask
+    /// True if this glyph is stored as a tintable alpha mask
     pub is_alpha_mask: bool,
 }
 
@@ -55,4 +55,6 @@ pub struct GlyphAtlasLocation {
     pub glyph_index: usize,
     /// The required offset (relative positioning) when placed
     pub offset: Vec2,
+    /// True if this glyph is stored as a tintable alpha mask
+    pub is_alpha_mask: bool,
 }
