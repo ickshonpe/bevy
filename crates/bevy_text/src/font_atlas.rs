@@ -134,7 +134,8 @@ pub fn add_glyph_to_atlas(
     font_smoothing: FontSmoothing,
     glyph_id: u16,
 ) -> Result<GlyphAtlasInfo, TextError> {
-    let (glyph_texture, offset) = get_outlined_glyph_texture(scaler, glyph_id, font_smoothing)?;
+    let (glyph_texture, offset, is_alpha_mask) =
+        get_outlined_glyph_texture(scaler, glyph_id, font_smoothing)?;
     let mut add_char_to_font_atlas = |atlas: &mut FontAtlas| -> Result<(), TextError> {
         atlas.add_glyph(textures, GlyphCacheKey { glyph_id }, &glyph_texture, offset)
     };
@@ -158,7 +159,7 @@ pub fn add_glyph_to_atlas(
         font_atlases.push(new_atlas);
     }
 
-    get_glyph_atlas_info(font_atlases, GlyphCacheKey { glyph_id })
+    get_glyph_atlas_info(font_atlases, GlyphCacheKey { glyph_id }, is_alpha_mask)
         .ok_or(TextError::InconsistentAtlasState)
 }
 
@@ -171,7 +172,7 @@ pub fn get_outlined_glyph_texture(
     scaler: &mut Scaler,
     glyph_id: u16,
     font_smoothing: FontSmoothing,
-) -> Result<(Image, Vec2), TextError> {
+) -> Result<(Image, Vec2, bool), TextError> {
     let image = swash::scale::Render::new(&[
         swash::scale::Source::ColorOutline(0),
         swash::scale::Source::ColorBitmap(swash::scale::StrikeWith::BestFit),
@@ -229,6 +230,7 @@ pub fn get_outlined_glyph_texture(
             RenderAssetUsages::MAIN_WORLD,
         ),
         Vec2::new(left as f32, -top as f32),
+        image.content == swash::scale::image::Content::Mask,
     ))
 }
 
@@ -236,6 +238,7 @@ pub fn get_outlined_glyph_texture(
 pub fn get_glyph_atlas_info(
     font_atlases: &mut [FontAtlas],
     cache_key: GlyphCacheKey,
+    is_alpha_mask: bool,
 ) -> Option<GlyphAtlasInfo> {
     font_atlases.iter().find_map(|atlas| {
         atlas
@@ -244,6 +247,7 @@ pub fn get_glyph_atlas_info(
                 offset: location.offset,
                 rect: atlas.texture_atlas.textures[location.glyph_index].as_rect(),
                 texture: atlas.texture.id(),
+                is_alpha_mask,
             })
     })
 }

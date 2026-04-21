@@ -35,7 +35,7 @@ use bevy_ui::{
 
 use bevy_app::prelude::*;
 use bevy_asset::{AssetEvent, AssetId, Assets};
-use bevy_color::{Alpha, ColorToComponents, LinearRgba};
+use bevy_color::{Alpha, ColorToComponents, Gray, LinearRgba};
 use bevy_core_pipeline::schedule::{Core2d, Core2dSystems, Core3d, Core3dSystems};
 use bevy_core_pipeline::upscaling::upscaling;
 use bevy_ecs::prelude::*;
@@ -1022,7 +1022,9 @@ pub fn extract_text_sections(
                 current_section_index = *section_index;
             }
 
-            let color = if let Some(selected_text_color) = selected_text_color
+            let color = if !atlas_info.is_alpha_mask {
+                LinearRgba::WHITE
+            } else if let Some(selected_text_color) = selected_text_color
                 && text_layout_info
                     .selection_rects
                     .iter()
@@ -1030,7 +1032,8 @@ pub fn extract_text_sections(
                         let glyph_rect = Rect::from_center_size(*position, atlas_info.rect.size());
                         selection_rect.contains(glyph_rect.min)
                             && selection_rect.contains(glyph_rect.max)
-                    }) {
+                    })
+            {
                 selected_text_color
             } else {
                 color
