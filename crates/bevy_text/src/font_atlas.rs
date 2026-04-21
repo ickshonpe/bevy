@@ -227,8 +227,9 @@ pub fn get_outlined_glyph_texture(
             }
             rgba
         }
-        swash::scale::image::Content::Color => image.data,
-        swash::scale::image::Content::SubpixelMask => image.data,
+        swash::scale::image::Content::Color | swash::scale::image::Content::SubpixelMask => {
+            image.data
+        }
     };
 
     Ok((
