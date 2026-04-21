@@ -561,21 +561,14 @@ impl TextMeasureInfo {
         // whenever a canonical state is required.
         let layout = &mut computed.layout;
         layout.break_all_lines(bounds.width);
-        layout.align(bounds.width, Alignment::Start, AlignmentOptions::default());
+        layout.align(Alignment::Start, AlignmentOptions::default());
         buffer_dimensions(layout)
     }
 }
 
 fn layout_with_bounds(layout: &mut Layout<TextBrush>, bounds: TextBounds, justify: Justify) {
     layout.break_all_lines(bounds.width);
-
-    let container_width = if bounds.width.is_none() && justify != Justify::Left {
-        Some(layout.width())
-    } else {
-        bounds.width
-    };
-
-    layout.align(container_width, justify.into(), AlignmentOptions::default());
+    layout.align(justify.into(), AlignmentOptions::default());
 }
 
 /// Calculate the size of the text area for the given buffer.
