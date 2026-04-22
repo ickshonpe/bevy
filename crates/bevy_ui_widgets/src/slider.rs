@@ -8,6 +8,7 @@ use bevy_ecs::hierarchy::Children;
 use bevy_ecs::lifecycle::Insert;
 use bevy_ecs::query::Has;
 use bevy_ecs::system::Res;
+use bevy_ecs::template::FromTemplate;
 use bevy_ecs::world::DeferredWorld;
 use bevy_ecs::{
     component::Component,
@@ -21,10 +22,11 @@ use bevy_input::ButtonState;
 use bevy_input_focus::FocusedInput;
 use bevy_log::warn_once;
 use bevy_math::ops;
-use bevy_picking::events::{Drag, DragEnd, DragStart, Pointer, Press};
+use bevy_picking::events::{Cancel, Drag, DragEnd, DragStart, Pointer, Press, Release};
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_ui::{
-    ComputedNode, ComputedUiRenderTargetInfo, InteractionDisabled, UiGlobalTransform, UiScale,
+    ComputedNode, ComputedUiRenderTargetInfo, InteractionDisabled, Pressed, UiGlobalTransform,
+    UiScale,
 };
 
 use crate::ValueChange;
@@ -91,10 +93,10 @@ pub enum TrackClick {
 ///
 /// In cases where overhang is desired for artistic reasons, the thumb may have additional
 /// decorative child elements, absolutely positioned, which don't affect the size measurement.
-#[derive(Component, Debug, Default, Clone)]
+#[derive(Component, FromTemplate, Debug, Default, Clone)]
 #[require(
     AccessibilityNode(accesskit::Node::new(Role::Slider)),
-    CoreSliderDragState,
+    SliderDragState,
     SliderValue,
     SliderRange,
     SliderStep
@@ -107,7 +109,7 @@ pub struct Slider {
 }
 
 /// Marker component that identifies which descendant element is the slider thumb.
-#[derive(Component, Debug, Default, Clone)]
+#[derive(Component, FromTemplate, Debug, Default, Clone)]
 pub struct SliderThumb;
 
 /// A component which stores the current value of the slider.
@@ -222,7 +224,7 @@ impl Default for SliderStep {
 /// The value in this component represents the number of decimal places of desired precision, so a
 /// value of 2 would round to the nearest 1/100th. A value of -3 would round to the nearest
 /// thousand.
-#[derive(Component, Debug, Default, Clone, Copy, Reflect)]
+#[derive(Component, FromTemplate, Debug, Default, Clone, Copy, Reflect)]
 #[reflect(Component, Default)]
 pub struct SliderPrecision(pub i32);
 
@@ -236,7 +238,7 @@ impl SliderPrecision {
 /// Component used to manage the state of a slider during dragging.
 #[derive(Component, Default, Reflect)]
 #[reflect(Component)]
-pub struct CoreSliderDragState {
+pub struct SliderDragState {
     /// Whether the slider is currently being dragged.
     pub dragging: bool,
 
@@ -247,6 +249,7 @@ pub struct CoreSliderDragState {
 pub(crate) fn slider_on_pointer_down(
     mut press: On<Pointer<Press>>,
     q_slider: Query<(
+        Entity,
         &Slider,
         &SliderValue,
         &SliderRange,
@@ -266,6 +269,7 @@ pub(crate) fn slider_on_pointer_down(
         // Thumb click, stop propagation to prevent track click.
         press.propagate(false);
     } else if let Ok((
+        slider_ent,
         slider,
         value,
         range,
@@ -283,6 +287,8 @@ pub(crate) fn slider_on_pointer_down(
         if disabled {
             return;
         }
+
+        commands.entity(slider_ent).insert(Pressed);
 
         let is_vertical = slider.orientation.is_vertical(node);
 
@@ -348,6 +354,7 @@ pub(crate) fn slider_on_pointer_down(
         commands.trigger(ValueChange {
             source: press.entity,
             value: new_value,
+            is_final: false,
         });
     }
 }
@@ -355,11 +362,7 @@ pub(crate) fn slider_on_pointer_down(
 pub(crate) fn slider_on_drag_start(
     mut drag_start: On<Pointer<DragStart>>,
     mut q_slider: Query<
-        (
-            &SliderValue,
-            &mut CoreSliderDragState,
-            Has<InteractionDisabled>,
-        ),
+        (&SliderValue, &mut SliderDragState, Has<InteractionDisabled>),
         With<Slider>,
     >,
 ) {
@@ -374,14 +377,14 @@ pub(crate) fn slider_on_drag_start(
 
 pub(crate) fn slider_on_drag(
     mut event: On<Pointer<Drag>>,
-    mut q_slider: Query<
+    q_slider: Query<
         (
             &Slider,
             &ComputedNode,
             &SliderRange,
             Option<&SliderPrecision>,
             &UiGlobalTransform,
-            &mut CoreSliderDragState,
+            &SliderDragState,
             Has<InteractionDisabled>,
         ),
         With<Slider>,
@@ -392,66 +395,161 @@ pub(crate) fn slider_on_drag(
     ui_scale: Res<UiScale>,
 ) {
     if let Ok((slider, node, range, precision, transform, drag, disabled)) =
-        q_slider.get_mut(event.entity)
+        q_slider.get(event.entity)
     {
         event.propagate(false);
         if drag.dragging && !disabled {
-            let is_vertical = slider.orientation.is_vertical(node);
-
-            let mut distance = event.distance / ui_scale.0;
-            distance.y *= -1.;
-            let distance = transform.transform_vector2(distance);
-
-            // Find thumb size by searching descendants for the first entity with SliderThumb
-            let thumb_size = q_children
-                .iter_descendants(event.entity)
-                .find_map(|child_id| {
-                    q_thumb.get(child_id).ok().map(|thumb| {
-                        if is_vertical {
-                            thumb.size().y
-                        } else {
-                            thumb.size().x
-                        }
-                    })
-                })
-                .unwrap_or(0.0);
-
-            let slider_size = if is_vertical {
-                ((node.size().y - thumb_size) * node.inverse_scale_factor).max(1.0)
-            } else {
-                ((node.size().x - thumb_size) * node.inverse_scale_factor).max(1.0)
-            };
-
-            let drag_distance = if is_vertical { distance.y } else { distance.x };
-
-            let span = range.span();
-            let new_value = if span > 0. {
-                drag.offset + (drag_distance * span) / slider_size
-            } else {
-                range.start() + span * 0.5
-            };
-            let rounded_value = range.clamp(
-                precision
-                    .map(|prec| prec.round(new_value))
-                    .unwrap_or(new_value),
+            emit_slider_drag_value_change(
+                &mut commands,
+                event.entity,
+                slider,
+                node,
+                range,
+                precision,
+                transform,
+                drag,
+                &q_thumb,
+                &q_children,
+                &ui_scale,
+                event.distance,
+                false,
             );
-
-            commands.trigger(ValueChange {
-                source: event.entity,
-                value: rounded_value,
-            });
         }
     }
 }
 
 pub(crate) fn slider_on_drag_end(
     mut drag_end: On<Pointer<DragEnd>>,
-    mut q_slider: Query<(&Slider, &mut CoreSliderDragState)>,
+    mut q_slider: Query<
+        (
+            Entity,
+            &Slider,
+            &ComputedNode,
+            &SliderRange,
+            Option<&SliderPrecision>,
+            &UiGlobalTransform,
+            &mut SliderDragState,
+            Has<InteractionDisabled>,
+        ),
+        With<Slider>,
+    >,
+    q_thumb: Query<&ComputedNode, With<SliderThumb>>,
+    q_children: Query<&Children>,
+    mut commands: Commands,
+    ui_scale: Res<UiScale>,
 ) {
-    if let Ok((_slider, mut drag)) = q_slider.get_mut(drag_end.entity) {
+    if let Ok((slider_ent, slider, node, range, precision, transform, mut drag, disabled)) =
+        q_slider.get_mut(drag_end.entity)
+    {
         drag_end.propagate(false);
         if drag.dragging {
+            if !disabled {
+                emit_slider_drag_value_change(
+                    &mut commands,
+                    drag_end.entity,
+                    slider,
+                    node,
+                    range,
+                    precision,
+                    transform,
+                    &drag,
+                    &q_thumb,
+                    &q_children,
+                    &ui_scale,
+                    drag_end.distance,
+                    true,
+                );
+            }
+            commands.entity(slider_ent).remove::<Pressed>();
             drag.dragging = false;
+        }
+    }
+}
+
+fn emit_slider_drag_value_change(
+    commands: &mut Commands,
+    entity: Entity,
+    slider: &Slider,
+    node: &ComputedNode,
+    range: &SliderRange,
+    precision: Option<&SliderPrecision>,
+    transform: &UiGlobalTransform,
+    drag: &SliderDragState,
+    q_thumb: &Query<&ComputedNode, With<SliderThumb>>,
+    q_children: &Query<&Children>,
+    ui_scale: &UiScale,
+    distance: bevy_math::Vec2,
+    is_final: bool,
+) {
+    let is_vertical = slider.orientation.is_vertical(node);
+
+    let mut distance = distance / ui_scale.0;
+    distance.y *= -1.;
+    let distance = transform.transform_vector2(distance);
+
+    // Find thumb size by searching descendants for the first entity with SliderThumb
+    let thumb_size = q_children
+        .iter_descendants(entity)
+        .find_map(|child_id| {
+            q_thumb.get(child_id).ok().map(|thumb| {
+                if is_vertical {
+                    thumb.size().y
+                } else {
+                    thumb.size().x
+                }
+            })
+        })
+        .unwrap_or(0.0);
+
+    let slider_size = if is_vertical {
+        ((node.size().y - thumb_size) * node.inverse_scale_factor).max(1.0)
+    } else {
+        ((node.size().x - thumb_size) * node.inverse_scale_factor).max(1.0)
+    };
+
+    let drag_distance = if is_vertical { distance.y } else { distance.x };
+
+    let span = range.span();
+    let new_value = if span > 0. {
+        drag.offset + (drag_distance * span) / slider_size
+    } else {
+        range.start() + span * 0.5
+    };
+    let rounded_value = range.clamp(
+        precision
+            .map(|prec| prec.round(new_value))
+            .unwrap_or(new_value),
+    );
+
+    commands.trigger(ValueChange {
+        source: entity,
+        value: rounded_value,
+        is_final,
+    });
+}
+
+fn slider_on_pointer_up(
+    mut release: On<Pointer<Release>>,
+    mut q_slider: Query<(Entity, Has<InteractionDisabled>, Has<Pressed>), With<Slider>>,
+    mut commands: Commands,
+) {
+    if let Ok((slider, disabled, pressed)) = q_slider.get_mut(release.entity) {
+        release.propagate(false);
+        if !disabled && pressed {
+            commands.entity(slider).remove::<Pressed>();
+        }
+    }
+}
+
+fn slider_on_pointer_cancel(
+    mut release: On<Pointer<Cancel>>,
+    mut q_slider: Query<(Entity, Has<InteractionDisabled>, Has<Pressed>), With<Slider>>,
+    mut commands: Commands,
+) {
+    if let Ok((slider, disabled, pressed)) = q_slider.get_mut(release.entity) {
+        release.propagate(false);
+        if !disabled && pressed {
+            commands.entity(slider).remove::<Pressed>();
         }
     }
 }
@@ -485,6 +583,7 @@ fn slider_on_key_input(
             commands.trigger(ValueChange {
                 source: focused_input.focused_entity,
                 value: new_value,
+                is_final: true,
             });
         }
     }
@@ -597,6 +696,7 @@ fn slider_on_set_value(
         commands.trigger(ValueChange {
             source: set_slider_value.entity,
             value: new_value,
+            is_final: true,
         });
     }
 }
@@ -616,6 +716,8 @@ pub struct SliderPlugin;
 impl Plugin for SliderPlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(slider_on_pointer_down)
+            .add_observer(slider_on_pointer_up)
+            .add_observer(slider_on_pointer_cancel)
             .add_observer(slider_on_drag_start)
             .add_observer(slider_on_drag_end)
             .add_observer(slider_on_drag)

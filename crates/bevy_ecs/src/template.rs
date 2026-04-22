@@ -3,14 +3,12 @@
 pub use bevy_ecs_macros::FromTemplate;
 
 use crate::{
-    bundle::Bundle,
     entity::Entity,
-    error::{BevyError, Result},
+    error::Result,
     resource::Resource,
     world::{EntityWorldMut, Mut, World},
 };
-use alloc::{boxed::Box, vec, vec::Vec};
-use downcast_rs::{impl_downcast, Downcast};
+use alloc::{vec, vec::Vec};
 use variadics_please::all_tuples;
 
 /// A [`Template`] is something that, given a spawn context (target [`Entity`], [`World`], etc), can produce a [`Template::Output`].
@@ -405,6 +403,8 @@ pub trait SpecializeFromTemplate: Sized {}
 
 /// A [`Template`] reference to an [`Entity`].
 pub enum EntityReference {
+    /// A reference to a specific [`Entity`]
+    Entity(Entity),
     /// A reference to an entity via a [`ScopedEntityIndex`]
     ScopedEntityIndex(ScopedEntityIndex),
 }
@@ -429,12 +429,19 @@ impl Default for EntityReference {
     }
 }
 
+impl From<Entity> for EntityReference {
+    fn from(entity: Entity) -> Self {
+        Self::Entity(entity)
+    }
+}
+
 impl Template for EntityReference {
     type Output = Entity;
 
     fn build_template(&self, context: &mut TemplateContext) -> Result<Self::Output> {
         Ok(match self {
-            EntityReference::ScopedEntityIndex(scoped_entity_index) => {
+            Self::Entity(entity) => *entity,
+            Self::ScopedEntityIndex(scoped_entity_index) => {
                 context.get_scoped_entity(*scoped_entity_index)
             }
         })
@@ -442,6 +449,7 @@ impl Template for EntityReference {
 
     fn clone_template(&self) -> Self {
         match self {
+            Self::Entity(entity) => Self::Entity(*entity),
             Self::ScopedEntityIndex(scoped_entity_index) => {
                 Self::ScopedEntityIndex(*scoped_entity_index)
             }
@@ -451,29 +459,6 @@ impl Template for EntityReference {
 
 impl FromTemplate for Entity {
     type Template = EntityReference;
-}
-
-/// A type-erased, object-safe, downcastable version of [`Template`].
-pub trait ErasedTemplate: Downcast + Send + Sync {
-    /// Applies this template to the given `entity`.
-    fn apply(&self, context: &mut TemplateContext) -> Result<(), BevyError>;
-
-    /// Clones this template. See [`Clone`].
-    fn clone_template(&self) -> Box<dyn ErasedTemplate>;
-}
-
-impl_downcast!(ErasedTemplate);
-
-impl<T: Template<Output: Bundle> + Send + Sync + 'static> ErasedTemplate for T {
-    fn apply(&self, context: &mut TemplateContext) -> Result<(), BevyError> {
-        let bundle = self.build_template(context)?;
-        context.entity.insert(bundle);
-        Ok(())
-    }
-
-    fn clone_template(&self) -> Box<dyn ErasedTemplate> {
-        Box::new(Template::clone_template(self))
-    }
 }
 
 /// A [`Template`] driven by a function that returns an output. This is used to create "free floating" templates without
