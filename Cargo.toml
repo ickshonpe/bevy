@@ -399,7 +399,7 @@ bevy_log = ["bevy_internal/bevy_log"]
 bevy_input_focus = ["bevy_internal/bevy_input_focus"]
 
 # Clipboard resource and managment. See `system_clipboard` for OS-integrated clipboard support.
-bevy_clipboard = ["bevy_internal/bevy_clipboard"]
+bevy_clipboard = ["bevy_clipboard", "bevy_internal/bevy_clipboard"]
 
 # Headless widget collection for Bevy UI.
 bevy_ui_widgets = ["bevy_internal/bevy_ui_widgets"]
@@ -3763,7 +3763,7 @@ wasm = true
 name = "clipboard"
 path = "examples/ui/clipboard.rs"
 doc-scrape-examples = true
-required-features = ["bevy_clipboard"]
+required-features = ["system_clipboard"]
 
 [package.metadata.example.clipboard]
 name = "Clipboard"
