@@ -9,6 +9,7 @@ use bevy_ecs::{
     query::{Has, With, Without},
     reflect::ReflectComponent,
     system::{Commands, Query},
+    template::FromTemplate,
 };
 use bevy_input::keyboard::{KeyCode, KeyboardInput};
 use bevy_input::ButtonState;
@@ -35,7 +36,7 @@ use crate::{ActivateOnPress, ValueChange};
 /// associated with a particular constant value, and would be checked whenever that value is equal
 /// to the group's value. This also means that as long as each button's associated value is unique
 /// within the group, it should never be the case that more than one button is selected at a time.
-#[derive(Component, Debug, Clone, Default)]
+#[derive(Component, FromTemplate, Debug, Clone, Default)]
 #[require(AccessibilityNode(accesskit::Node::new(Role::RadioGroup)))]
 pub struct RadioGroup;
 
@@ -51,7 +52,7 @@ pub struct RadioGroup;
 /// either through a mouse click or when a [`RadioGroup`] checks the widget.
 /// If the [`RadioButton`] is focusable, it can also be checked using the `Enter` or `Space` keys,
 /// in which case the event will likewise be emitted.
-#[derive(Component, Debug, Clone, Default)]
+#[derive(Component, FromTemplate, Debug, Clone, Default)]
 #[require(AccessibilityNode(accesskit::Node::new(Role::RadioButton)), Checkable)]
 #[derive(Reflect)]
 #[reflect(Component)]
