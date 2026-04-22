@@ -3783,8 +3783,8 @@ doc-scrape-examples = true
 
 [package.metadata.example.font_query]
 name = "Font Queries"
-category = "UI (User Interface)"
 description = "Demonstrates font querying"
+category = "UI (User Interface)"
 wasm = true
 
 [[example]]
@@ -3863,7 +3863,6 @@ name = "Overflow Clip Margin"
 description = "Simple example demonstrating the OverflowClipMargin style property"
 category = "UI (User Interface)"
 wasm = true
-
 
 [[example]]
 name = "overflow_debug"
