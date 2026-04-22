@@ -3769,7 +3769,7 @@ required-features = ["bevy_clipboard"]
 name = "Clipboard"
 description = "Demonstrates accessing the clipboard to retrieve and display text"
 category = "UI (User Interface)"
-wasm = true
+wasm = false
 
 [[example]]
 name = "ui_drag_and_drop"
