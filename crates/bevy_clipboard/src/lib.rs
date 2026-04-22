@@ -13,12 +13,12 @@
 extern crate alloc;
 
 use alloc::borrow::Cow;
-#[cfg(all(feature = "image", any(windows, unix)))]
+#[cfg(feature = "image")]
 use bevy_asset::RenderAssetUsages;
 use bevy_ecs::resource::Resource;
-#[cfg(all(feature = "image", any(windows, unix)))]
+#[cfg(feature = "image")]
 use bevy_image::Image;
-#[cfg(all(feature = "image", any(windows, unix)))]
+#[cfg(feature = "image")]
 use wgpu_types::{Extent3d, TextureDimension, TextureFormat};
 
 #[cfg(target_arch = "wasm32")]
@@ -77,7 +77,7 @@ impl<T> ClipboardRead<T> {
     }
 }
 
-#[cfg(all(feature = "image", any(windows, unix)))]
+#[cfg(feature = "image")]
 fn try_image_from_imagedata(image: arboard::ImageData<'static>) -> Result<Image, ClipboardError> {
     let size = Extent3d {
         width: u32::try_from(image.width).map_err(|_| ClipboardError::ConversionFailure)?,
@@ -93,7 +93,7 @@ fn try_image_from_imagedata(image: arboard::ImageData<'static>) -> Result<Image,
     ))
 }
 
-#[cfg(all(feature = "image", any(windows, unix)))]
+#[cfg(feature = "image")]
 fn try_imagedata_from_image(image: &Image) -> Result<arboard::ImageData<'_>, ClipboardError> {
     let width = image.width() as usize;
     let height = image.height() as usize;
@@ -120,42 +120,55 @@ fn try_imagedata_from_image(image: &Image) -> Result<arboard::ImageData<'_>, Cli
 /// A resource which provides access to the system clipboard.
 ///
 /// Use the methods on this type to read and write clipboard contents.
-#[cfg(unix)]
+/// When the `arboard` feature is disabled, operations read from and write to
+/// an in-process `String` buffer rather than the OS clipboard.
 #[derive(Resource)]
-pub struct Clipboard(Option<arboard::Clipboard>);
+pub struct Clipboard {
+    #[cfg(all(unix, feature = "system_clipboard"))]
+    system_clipboard: Option<arboard::Clipboard>,
+    // Unfortunately, this cannot be simplified to `not(any(feature = "system_clipboard", target_arch = "wasm32"))`.
+    // `system_clipboard` is a platform-conditional dependency (windows/unix only), so on other platforms
+    // (Android, iOS, etc.) `cfg(feature = "system_clipboard")` can be true even though the crate is not
+    // present. Removing the platform guard would leave those targets with an empty struct and a
+    // broken fallback. wasm32 is excluded separately because it calls web-sys directly and stores
+    // no state in the struct.
+    #[cfg(not(any(
+        all(any(windows, unix), feature = "system_clipboard"),
+        target_arch = "wasm32"
+    )))]
+    text: String,
+}
 
-#[cfg(unix)]
 impl Default for Clipboard {
     fn default() -> Self {
-        {
-            Self(arboard::Clipboard::new().ok())
+        Self {
+            #[cfg(all(unix, feature = "system_clipboard"))]
+            system_clipboard: arboard::Clipboard::new().ok(),
+            #[cfg(not(any(
+                all(any(windows, unix), feature = "system_clipboard"),
+                target_arch = "wasm32"
+            )))]
+            text: String::new(),
         }
     }
 }
-
-/// A resource which provides access to the system clipboard.
-///
-/// Use the methods on this type to read and write clipboard contents.
-#[cfg(not(unix))]
-#[derive(Resource, Default)]
-pub struct Clipboard;
 
 impl Clipboard {
     /// Fetches UTF-8 text from the clipboard and returns it via a `ClipboardRead`.
     ///
     /// On Windows and Unix `ClipboardRead`s are completed instantly, on wasm32 the result is fetched asynchronously.
     pub fn fetch_text(&mut self) -> ClipboardRead {
-        #[cfg(unix)]
+        #[cfg(all(unix, feature = "system_clipboard"))]
         {
             ClipboardRead::Ready(
-                self.0
+                self.system_clipboard
                     .as_mut()
                     .ok_or(ClipboardError::ClipboardNotSupported)
                     .and_then(|clipboard| clipboard.get_text().map_err(ClipboardError::from)),
             )
         }
 
-        #[cfg(windows)]
+        #[cfg(all(windows, feature = "system_clipboard"))]
         {
             ClipboardRead::Ready(
                 arboard::Clipboard::new()
@@ -183,20 +196,23 @@ impl Clipboard {
             }
         }
 
-        #[cfg(not(any(unix, windows, target_arch = "wasm32")))]
+        #[cfg(not(any(
+            all(any(windows, unix), feature = "system_clipboard"),
+            target_arch = "wasm32"
+        )))]
         {
-            ClipboardRead::Ready(Err(ClipboardError::ClipboardNotSupported))
+            ClipboardRead::Ready(Ok(self.text.clone()))
         }
     }
 
     /// Fetches image data from the clipboard.
     ///
     /// Only supported on Windows and Unix platforms with the `image` feature enabled.
-    #[cfg(all(feature = "image", any(windows, unix)))]
+    #[cfg(feature = "image")]
     pub fn fetch_image(&mut self) -> Result<Image, ClipboardError> {
         #[cfg(unix)]
         {
-            self.0
+            self.system_clipboard
                 .as_mut()
                 .ok_or(ClipboardError::ClipboardNotSupported)
                 .and_then(|clipboard| {
@@ -218,15 +234,15 @@ impl Clipboard {
 
     /// Asynchronously retrieves UTF-8 text from the system clipboard.
     pub async fn fetch_text_async(&mut self) -> Result<String, ClipboardError> {
-        #[cfg(unix)]
+        #[cfg(all(unix, feature = "system_clipboard"))]
         {
-            self.0
+            self.system_clipboard
                 .as_mut()
                 .ok_or(ClipboardError::ClipboardNotSupported)
                 .and_then(|clipboard| clipboard.get_text().map_err(ClipboardError::from))
         }
 
-        #[cfg(windows)]
+        #[cfg(all(windows, feature = "system_clipboard"))]
         {
             arboard::Clipboard::new()
                 .and_then(|mut clipboard| clipboard.get_text())
@@ -248,9 +264,12 @@ impl Clipboard {
             }
         }
 
-        #[cfg(not(any(unix, windows, target_arch = "wasm32")))]
+        #[cfg(not(any(
+            all(any(windows, unix), feature = "system_clipboard"),
+            target_arch = "wasm32"
+        )))]
         {
-            Err(ClipboardError::ClipboardNotSupported)
+            Ok(self.text.clone())
         }
     }
 
@@ -260,15 +279,15 @@ impl Clipboard {
     ///
     /// Returns error if `text` failed to be stored on the clipboard.
     pub fn set_text<'a, T: Into<Cow<'a, str>>>(&mut self, text: T) -> Result<(), ClipboardError> {
-        #[cfg(unix)]
+        #[cfg(all(unix, feature = "system_clipboard"))]
         {
-            self.0
+            self.system_clipboard
                 .as_mut()
                 .ok_or(ClipboardError::ClipboardNotSupported)
                 .and_then(|clipboard| clipboard.set_text(text).map_err(ClipboardError::from))
         }
 
-        #[cfg(windows)]
+        #[cfg(all(windows, feature = "system_clipboard"))]
         {
             arboard::Clipboard::new()
                 .and_then(|mut clipboard| clipboard.set_text(text))
@@ -288,9 +307,13 @@ impl Clipboard {
                 })
         }
 
-        #[cfg(not(any(unix, windows, target_arch = "wasm32")))]
+        #[cfg(not(any(
+            all(any(windows, unix), feature = "system_clipboard"),
+            target_arch = "wasm32"
+        )))]
         {
-            Err(ClipboardError::ClipboardNotSupported)
+            self.text = text.into().into_owned();
+            Ok(())
         }
     }
 
@@ -302,11 +325,11 @@ impl Clipboard {
     /// # Errors
     ///
     /// Returns an error if the image data is invalid or the clipboard write fails.
-    #[cfg(all(feature = "image", any(windows, unix)))]
+    #[cfg(feature = "image")]
     pub fn set_image(&mut self, image: &Image) -> Result<(), ClipboardError> {
         #[cfg(unix)]
         {
-            self.0
+            self.system_clipboard
                 .as_mut()
                 .ok_or(ClipboardError::ClipboardNotSupported)
                 .and_then(|clipboard| {
@@ -352,7 +375,7 @@ pub enum ClipboardError {
     },
 }
 
-#[cfg(any(windows, unix))]
+#[cfg(all(any(windows, unix), feature = "system_clipboard"))]
 impl From<arboard::Error> for ClipboardError {
     fn from(value: arboard::Error) -> Self {
         match value {
