@@ -125,8 +125,11 @@ fn try_imagedata_from_image(image: &Image) -> Result<arboard::ImageData<'_>, Cli
 /// A resource which provides access to the system clipboard.
 ///
 /// Use the methods on this type to read and write clipboard contents.
-/// When the `arboard` feature is disabled, operations read from and write to
+/// When the `system_clipboard` feature is disabled, operations read from and write to
 /// an in-process `String` buffer rather than the OS clipboard.
+///
+/// Use [`Clipboard::fetch_text`] to read text from the clipboard,
+/// and [`Clipboard::set_text`] to write text to the clipboard.
 #[derive(Resource)]
 pub struct Clipboard {
     #[cfg(all(unix, feature = "system_clipboard"))]
