@@ -1,4 +1,14 @@
-//! This crate provides a platform-agnostic interface for accessing the clipboard
+//! This crate provides a platform-agnostic interface for accessing the clipboard.
+//!
+//! Read (and write) to the [`Clipboard`] resource to interact with the system clipboard.
+//!
+//! Supports:
+//! - Reading and writing UTF-8 text on all platforms.
+//! - Reading and writing images on Windows and Unix platforms with the `image` feature enabled.
+//!
+//! On Windows and Unix, clipboard operations are performed synchronously and results are available immediately.
+//! On wasm32, clipboard operations are asynchronous and results are accessed via the `ClipboardRead`
+//! type, which can be polled for completion.
 
 extern crate alloc;
 
@@ -14,12 +24,16 @@ use wgpu_types::{Extent3d, TextureDimension, TextureFormat};
 #[cfg(target_arch = "wasm32")]
 use {alloc::sync::Arc, bevy_platform::sync::Mutex, wasm_bindgen_futures::JsFuture};
 
-/// The clipboard prelude
+/// Commonly used types and traits from `bevy_clipboard`.
 pub mod prelude {
     pub use crate::{Clipboard, ClipboardPlugin, ClipboardRead};
 }
 
-/// Clipboard plugin
+/// Adds clipboard support to a Bevy app.
+///
+/// The [`Clipboard`] resource is your main entry point.
+///
+/// See the [crate docs](crate) for more details.
 #[derive(Default)]
 pub struct ClipboardPlugin;
 
@@ -103,7 +117,9 @@ fn try_imagedata_from_image(image: &Image) -> Result<arboard::ImageData<'_>, Cli
     })
 }
 
-/// Resource providing access to the clipboard
+/// A resource which provides access to the system clipboard.
+///
+/// Use the methods on this type to read and write clipboard contents.
 #[cfg(unix)]
 #[derive(Resource)]
 pub struct Clipboard(Option<arboard::Clipboard>);
@@ -117,7 +133,9 @@ impl Default for Clipboard {
     }
 }
 
-/// Resource providing access to the clipboard
+/// A resource which provides access to the system clipboard.
+///
+/// Use the methods on this type to read and write clipboard contents.
 #[cfg(not(unix))]
 #[derive(Resource, Default)]
 pub struct Clipboard;
