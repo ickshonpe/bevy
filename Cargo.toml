@@ -173,7 +173,6 @@ picking = ["bevy_picking", "mesh_picking", "sprite_picking", "ui_picking"]
 default_app = [
   "async_executor",
   "bevy_asset",
-  "bevy_clipboard",
   "bevy_input_focus",
   "bevy_log",
   "bevy_state",
@@ -3758,6 +3757,7 @@ wasm = true
 name = "clipboard"
 path = "examples/ui/clipboard.rs"
 doc-scrape-examples = true
+required-features = ["bevy_clipboard"]
 
 [package.metadata.example.clipboard]
 name = "Clipboard"
