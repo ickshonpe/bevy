@@ -132,7 +132,7 @@ fn try_imagedata_from_image(image: &Image) -> Result<arboard::ImageData<'_>, Cli
 /// and [`Clipboard::set_text`] to write text to the clipboard.
 #[derive(Resource)]
 pub struct Clipboard {
-    #[cfg(all(unix, feature = "system_clipboard"))]
+    #[cfg(all(any(unix, windows), feature = "system_clipboard"))]
     system_clipboard: Option<arboard::Clipboard>,
     // Unfortunately, this cannot be simplified to `not(any(feature = "system_clipboard", target_arch = "wasm32"))`.
     // `system_clipboard` is a platform-conditional dependency (windows/unix only), so on other platforms
@@ -150,7 +150,7 @@ pub struct Clipboard {
 impl Default for Clipboard {
     fn default() -> Self {
         Self {
-            #[cfg(all(unix, feature = "system_clipboard"))]
+            #[cfg(all(any(unix, windows), feature = "system_clipboard"))]
             system_clipboard: arboard::Clipboard::new().ok(),
             #[cfg(not(any(
                 all(any(windows, unix), feature = "system_clipboard"),
@@ -166,22 +166,13 @@ impl Clipboard {
     ///
     /// On Windows and Unix `ClipboardRead`s are completed instantly, on wasm32 the result is fetched asynchronously.
     pub fn fetch_text(&mut self) -> ClipboardRead {
-        #[cfg(all(unix, feature = "system_clipboard"))]
+        #[cfg(all(any(unix, windows), feature = "system_clipboard"))]
         {
             ClipboardRead::Ready(
                 self.system_clipboard
                     .as_mut()
                     .ok_or(ClipboardError::ClipboardNotSupported)
                     .and_then(|clipboard| clipboard.get_text().map_err(ClipboardError::from)),
-            )
-        }
-
-        #[cfg(all(windows, feature = "system_clipboard"))]
-        {
-            ClipboardRead::Ready(
-                arboard::Clipboard::new()
-                    .and_then(|mut clipboard| clipboard.get_text())
-                    .map_err(ClipboardError::from),
             )
         }
 
@@ -218,43 +209,25 @@ impl Clipboard {
     /// Only supported on Windows and Unix platforms with the `image` feature enabled.
     #[cfg(feature = "image")]
     pub fn fetch_image(&mut self) -> Result<Image, ClipboardError> {
-        #[cfg(unix)]
-        {
-            self.system_clipboard
-                .as_mut()
-                .ok_or(ClipboardError::ClipboardNotSupported)
-                .and_then(|clipboard| {
-                    clipboard
-                        .get_image()
-                        .map_err(ClipboardError::from)
-                        .and_then(try_image_from_imagedata)
-                })
-        }
-
-        #[cfg(windows)]
-        {
-            arboard::Clipboard::new()
-                .and_then(|mut clipboard| clipboard.get_image())
-                .map_err(ClipboardError::from)
-                .and_then(try_image_from_imagedata)
-        }
+        self.system_clipboard
+            .as_mut()
+            .ok_or(ClipboardError::ClipboardNotSupported)
+            .and_then(|clipboard| {
+                clipboard
+                    .get_image()
+                    .map_err(ClipboardError::from)
+                    .and_then(try_image_from_imagedata)
+            })
     }
 
     /// Asynchronously retrieves UTF-8 text from the system clipboard.
     pub async fn fetch_text_async(&mut self) -> Result<String, ClipboardError> {
-        #[cfg(all(unix, feature = "system_clipboard"))]
+        #[cfg(all(any(unix, windows), feature = "system_clipboard"))]
         {
             self.system_clipboard
                 .as_mut()
                 .ok_or(ClipboardError::ClipboardNotSupported)
                 .and_then(|clipboard| clipboard.get_text().map_err(ClipboardError::from))
-        }
-
-        #[cfg(all(windows, feature = "system_clipboard"))]
-        {
-            arboard::Clipboard::new()
-                .and_then(|mut clipboard| clipboard.get_text())
-                .map_err(ClipboardError::from)
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -287,19 +260,12 @@ impl Clipboard {
     ///
     /// Returns error if `text` failed to be stored on the clipboard.
     pub fn set_text<'a, T: Into<Cow<'a, str>>>(&mut self, text: T) -> Result<(), ClipboardError> {
-        #[cfg(all(unix, feature = "system_clipboard"))]
+        #[cfg(all(any(unix, windows), feature = "system_clipboard"))]
         {
             self.system_clipboard
                 .as_mut()
                 .ok_or(ClipboardError::ClipboardNotSupported)
                 .and_then(|clipboard| clipboard.set_text(text).map_err(ClipboardError::from))
-        }
-
-        #[cfg(all(windows, feature = "system_clipboard"))]
-        {
-            arboard::Clipboard::new()
-                .and_then(|mut clipboard| clipboard.set_text(text))
-                .map_err(ClipboardError::from)
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -335,25 +301,14 @@ impl Clipboard {
     /// Returns an error if the image data is invalid or the clipboard write fails.
     #[cfg(feature = "image")]
     pub fn set_image(&mut self, image: &Image) -> Result<(), ClipboardError> {
-        #[cfg(unix)]
-        {
-            self.system_clipboard
-                .as_mut()
-                .ok_or(ClipboardError::ClipboardNotSupported)
-                .and_then(|clipboard| {
-                    clipboard
-                        .set_image(try_imagedata_from_image(image)?)
-                        .map_err(ClipboardError::from)
-                })
-        }
-
-        #[cfg(windows)]
-        {
-            let image_data = try_imagedata_from_image(image)?;
-            arboard::Clipboard::new()
-                .and_then(|mut clipboard| clipboard.set_image(image_data))
-                .map_err(ClipboardError::from)
-        }
+        self.system_clipboard
+            .as_mut()
+            .ok_or(ClipboardError::ClipboardNotSupported)
+            .and_then(|clipboard| {
+                clipboard
+                    .set_image(try_imagedata_from_image(image)?)
+                    .map_err(ClipboardError::from)
+            })
     }
 }
 
