@@ -124,12 +124,19 @@ fn try_imagedata_from_image(image: &Image) -> Result<arboard::ImageData<'_>, Cli
 
 /// A resource which provides access to the system clipboard.
 ///
-/// Use the methods on this type to read and write clipboard contents.
-/// When the `system_clipboard` feature is disabled, operations read from and write to
-/// an in-process `String` buffer rather than the OS clipboard.
-///
 /// Use [`Clipboard::fetch_text`] to read text from the clipboard,
 /// and [`Clipboard::set_text`] to write text to the clipboard.
+///
+/// # Warning
+///
+/// When the `system_clipboard` feature is disabled, operations read from and write to
+/// an in-process [`String`] buffer rather than the clipboard provided by the operating system.
+/// This means that you will not be able to copy and paste between your application and other applications,
+/// and clipboard contents will not persist after your application exits.
+/// This is a secure-by-default setup, but is not correct for many applications which require clipboard functionality.
+///
+/// The fallback is intended to allow clipboard functionality on platforms where `arboard` is not available (e.g. Android, iOS),
+/// and to allow applications to have basic clipboard-like functionality without requiring enhanced permissions.
 #[derive(Resource)]
 pub struct Clipboard {
     #[cfg(all(any(unix, windows), feature = "system_clipboard"))]
