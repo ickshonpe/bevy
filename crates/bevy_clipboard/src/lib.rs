@@ -2,13 +2,18 @@
 //!
 //! Read (and write) to the [`Clipboard`] resource to interact with the system clipboard.
 //!
-//! Supports:
-//! - Reading and writing UTF-8 text on all platforms.
-//! - Reading and writing images on Windows and Unix platforms with the `image` feature enabled.
+//! ## Platform support
 //!
-//! On Windows and Unix, clipboard operations are performed synchronously and results are available immediately.
-//! On wasm32, clipboard operations are asynchronous and results are accessed via the `ClipboardRead`
-//! type, which can be polled for completion.
+//! On Android and iOS, `arboard` is not available and the `system_clipboard` feature has no
+//! effect. The [`Clipboard`] resource still works, but reads and writes go to an in-process
+//! buffer that is invisible to other applications and does not survive process exit.
+//!
+//! On Windows and Unix, clipboard operations are performed synchronously and results are
+//! available immediately. On wasm32, results are accessed via [`ClipboardRead`], which can
+//! be polled for completion.
+//!
+//! Images are supported on Windows and Unix when the `image` feature is enabled, which depends on `system_clipboard`.
+//! Image support is not available on wasm32, Android, or iOS.
 
 extern crate alloc;
 
