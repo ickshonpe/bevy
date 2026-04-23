@@ -464,8 +464,11 @@ bevy_clipboard = ["dep:bevy_clipboard"]
 system_clipboard = [
   "dep:bevy_clipboard",
   "bevy_clipboard/system_clipboard",
-  "bevy_clipboard/image",
   "bevy_text?/system_clipboard",
+]
+clipboard_image = [
+  "dep:bevy_clipboard",
+  "bevy_clipboard/image",
 ]
 
 hotpatching = ["bevy_app/hotpatching", "bevy_ecs/hotpatching"]

@@ -443,6 +443,9 @@ compressed_image_saver = ["bevy_internal/compressed_image_saver"]
 # Enables system-level clipboard support.
 system_clipboard = ["bevy_clipboard", "bevy_internal/system_clipboard"]
 
+# Enables image copy/paste via the system clipboard. Not supported on WASM.
+clipboard_image = ["system_clipboard", "bevy_internal/clipboard_image"]
+
 # BMP image format support
 bmp = ["bevy_internal/bmp"]
 
