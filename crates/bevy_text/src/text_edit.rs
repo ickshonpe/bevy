@@ -206,18 +206,6 @@ impl TextEdit {
             }
             TextEdit::Cut => {
                 if let Some(text) = driver.editor.selected_text() {
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        // On wasm, set_text fires-and-forgets: the browser clipboard write is
-                        // async and we cannot confirm it succeeded before deleting. To avoid
-                        // silently discarding the selection, we copy only.
-                        bevy_log::warn!(
-                            "Cut on wasm only copies the selection; the text will not be deleted. \
-                             Clipboard writes are asynchronous and cannot be confirmed before deletion."
-                        );
-                        let _ = clipboard.set_text(text);
-                    }
-                    #[cfg(not(target_arch = "wasm32"))]
                     match clipboard.set_text(text) {
                         Ok(()) => driver.delete(),
                         Err(e) => bevy_log::warn!("Failed to write selection to clipboard: {e:?}"),
