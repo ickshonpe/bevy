@@ -124,7 +124,7 @@ pub struct EditableText {
     /// While this field is `Some`, [`apply_pending_edits`](Self::apply_pending_edits) waits for this to resolve,
     /// rather than draining further edits, so that everything after the paste stays correctly ordered *behind* it.
     // TODO: this may cause unexpected stalls if the clipboard read takes too long. We may want to add a timeout.
-    pending_paste: Option<ClipboardRead>,
+    pub pending_paste: Option<ClipboardRead>,
     /// Cursor width, relative to font size
     pub cursor_width: f32,
     /// Cursor blink period in seconds.
