@@ -65,7 +65,7 @@ impl bevy_app::Plugin for ClipboardPlugin {
 /// On desktop targets the result is available immediately.
 /// On web, the result is fetched asynchronously.
 ///
-/// The generic `T` parameter represents the type of clipboard content that we are atttempting to read,
+/// The generic `T` parameter represents the type of clipboard content that we are attempting to read,
 /// which is `String` by default for text reads.
 /// If the clipboard contents do not match this type,
 /// the read will fail with a [`ClipboardError::ContentNotAvailable`]
