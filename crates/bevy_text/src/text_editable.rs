@@ -12,8 +12,7 @@
 //! - Text entry
 //! - Basic keyboard-driven cursor movement (arrow keys, home/end keys)
 //! - Backspace and delete operations
-//! - Clipboard operations (copy, cut, paste) — requires the `system_clipboard` feature on
-//!   `bevy_clipboard` for OS clipboard integration; paste on wasm is not yet supported
+//! - Clipboard operations (copy, cut, paste) — requires the `system_clipboard` feature for OS clipboard integration
 //! - Input Method Editor (IME) support for complex scripts (Japanese, Chinese, Korean, etc.)
 //!
 //! You might use this widget as the basis for text input fields in forms, chat boxes, for naming characters,
