@@ -307,7 +307,7 @@ impl Clipboard {
                     let text = text.into().to_string();
                     wasm_bindgen_futures::spawn_local(async move {
                         if let Err(e) = JsFuture::from(clipboard.write_text(&text)).await {
-                            warn!("Failed to write text to clipboard: {e:?}");
+                            bevy_log::warn!("Failed to write text to clipboard: {e:?}");
                         }
                     });
                 })
