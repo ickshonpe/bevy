@@ -117,7 +117,7 @@ fn try_image_from_imagedata(image: arboard::ImageData<'static>) -> Result<Image,
 fn try_imagedata_from_image(image: &Image) -> Result<arboard::ImageData<'_>, ClipboardError> {
     // arboard expects packed RGBA8.
     // We need to reject anything else: a same-size format like
-    // Bgra8Unorm would pass the length check but produce corrupt colours.
+    // Bgra8Unorm would pass the length check but produce corrupt colors.
     if !matches!(
         image.texture_descriptor.format,
         TextureFormat::Rgba8Unorm | TextureFormat::Rgba8UnormSrgb
