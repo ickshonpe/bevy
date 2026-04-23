@@ -12,6 +12,8 @@
 //! - Text entry
 //! - Basic keyboard-driven cursor movement (arrow keys, home/end keys)
 //! - Backspace and delete operations
+//! - Clipboard operations (copy, cut, paste) — requires the `system_clipboard` feature on
+//!   `bevy_clipboard` for OS clipboard integration; paste on wasm is not yet supported
 //! - Input Method Editor (IME) support for complex scripts (Japanese, Chinese, Korean, etc.)
 //!
 //! You might use this widget as the basis for text input fields in forms, chat boxes, for naming characters,
@@ -46,7 +48,6 @@
 //! - Placeholder text (displayed when the input is empty)
 //! - Click to place cursor
 //! - Cursor blinking
-//! - Clipboard operations (copy, cut, paste)
 //! - Undo/redo functionality
 //! - Newline support for multi-line input
 //! - Text validation (e.g., email format, numeric input, max length)
@@ -78,12 +79,6 @@ use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::prelude::*;
 use core::time::Duration;
 use parley::{FontContext, LayoutContext, PlainEditor, SplitString};
-
-/// Resource containing the current contents of the clipboard.
-///
-/// Placeholder for a proper clipboard implementation with support for the OS clipboard and non-text content.
-#[derive(Resource, Default)]
-pub struct Clipboard(pub String);
 
 /// A plain-text text input field.
 ///
@@ -195,7 +190,7 @@ impl EditableText {
         &mut self,
         font_context: &mut FontContext,
         layout_context: &mut LayoutContext<TextBrush>,
-        clipboard_text: &mut String,
+        clipboard: &mut bevy_clipboard::Clipboard,
         char_filter: impl Fn(char) -> bool,
     ) {
         let Self {
@@ -208,7 +203,7 @@ impl EditableText {
         let mut driver = editor.driver(font_context, layout_context);
 
         for edit in pending_edits.drain(..) {
-            edit.apply(&mut driver, clipboard_text, *max_characters, &char_filter);
+            edit.apply(&mut driver, clipboard, *max_characters, &char_filter);
         }
     }
 
@@ -256,7 +251,7 @@ pub fn apply_text_edits(
     )>,
     mut font_context: ResMut<FontCx>,
     mut layout_context: ResMut<LayoutCx>,
-    mut clipboard_text: ResMut<Clipboard>,
+    mut clipboard: ResMut<bevy_clipboard::Clipboard>,
     mut commands: Commands,
 ) {
     for (entity, mut editable_text, filter, generation) in query.iter_mut() {
@@ -264,7 +259,7 @@ pub fn apply_text_edits(
             editable_text.apply_pending_edits(
                 &mut font_context.0,
                 &mut layout_context.0,
-                &mut clipboard_text.0,
+                &mut clipboard,
                 match filter {
                     Some(EditableTextFilter(Some(filter))) => filter.as_ref(),
                     _ => &|_| true,

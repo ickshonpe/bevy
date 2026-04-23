@@ -65,6 +65,8 @@ plugin_group! {
         bevy_sprite:::SpritePlugin,
         #[cfg(feature = "bevy_sprite_render")]
         bevy_sprite_render:::SpriteRenderPlugin,
+        #[cfg(feature = "bevy_clipboard")]
+        bevy_clipboard:::ClipboardPlugin,
         #[cfg(feature = "bevy_text")]
         bevy_text:::TextPlugin,
         #[cfg(feature = "bevy_ui")]
@@ -89,8 +91,6 @@ plugin_group! {
         bevy_state::app:::StatesPlugin,
         #[cfg(feature = "bevy_ci_testing")]
         bevy_dev_tools::ci_testing:::CiTestingPlugin,
-        #[cfg(feature = "bevy_clipboard")]
-        bevy_clipboard:::ClipboardPlugin,
         #[custom(cfg(all(feature = "bevy_dev_tools", feature = "bevy_pbr")))]
         bevy_dev_tools::render_debug:::RenderDebugOverlayPlugin,
         #[cfg(feature = "hotpatching")]

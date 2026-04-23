@@ -2,6 +2,17 @@
 //!
 //! Read (and write) to the [`Clipboard`] resource to interact with the system clipboard.
 //!
+//! Note that this crate is deliberately low-level with minimal dependencies:
+//! it does not provide any input integration for clipboard operations,
+//! such as Ctrl+C/Ctrl+V support.
+//!
+//! This should be provided by other crates (or your own systems) which depend on `bevy_clipboard`,
+//! such as `bevy_ui_widgets` in the case of text editing.
+//!
+//! `bevy_clipboard`'s primary advantage over using [`arboard`](https://crates.io/crates/arboard) directly is that
+//! it provides a consistent API across all platforms, with a simple but robust fallback when `arboard`
+//! is not available or clipboard permissions are not granted.
+//!
 //! ## Platform support
 //!
 //! On Android and iOS, `arboard` is not available and the `system_clipboard` feature has no
@@ -207,6 +218,11 @@ impl Clipboard {
             target_arch = "wasm32"
         )))]
         {
+            #[cfg(any(windows, unix))]
+            bevy_log::warn_once!(
+                "Clipboard read used an in-process fallback buffer rather than the OS clipboard. \
+                 Enable the `system_clipboard` feature on `bevy_clipboard` to use the OS clipboard."
+            );
             ClipboardRead::Ready(Ok(self.text.clone()))
         }
     }
@@ -293,6 +309,11 @@ impl Clipboard {
             target_arch = "wasm32"
         )))]
         {
+            #[cfg(any(windows, unix))]
+            bevy_log::warn_once!(
+                "Clipboard write used an in-process fallback buffer rather than the OS clipboard. \
+                 Enable the `system_clipboard` feature on `bevy_clipboard` to use the OS clipboard."
+            );
             self.text = text.into().into_owned();
             Ok(())
         }

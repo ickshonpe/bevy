@@ -192,43 +192,77 @@ impl TextEdit {
     pub fn apply<'a>(
         self,
         driver: &'a mut PlainEditorDriver<TextBrush>,
-        clipboard_text: &mut String,
+        clipboard: &mut bevy_clipboard::Clipboard,
         max_characters: Option<usize>,
         char_filter: impl Fn(char) -> bool,
     ) {
         match self {
             TextEdit::Copy => {
                 if let Some(text) = driver.editor.selected_text() {
-                    clipboard_text.clear();
-                    clipboard_text.push_str(text);
+                    if let Err(e) = clipboard.set_text(text) {
+                        bevy_log::warn!("Failed to write selection to clipboard: {e:?}");
+                    }
                 }
             }
             TextEdit::Cut => {
                 if let Some(text) = driver.editor.selected_text() {
-                    clipboard_text.clear();
-                    clipboard_text.push_str(text);
-                    driver.delete();
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        // On wasm, set_text fires-and-forgets: the browser clipboard write is
+                        // async and we cannot confirm it succeeded before deleting. To avoid
+                        // silently discarding the selection, we copy only.
+                        bevy_log::warn!(
+                            "Cut on wasm only copies the selection; the text will not be deleted. \
+                             Clipboard writes are asynchronous and cannot be confirmed before deletion."
+                        );
+                        let _ = clipboard.set_text(text);
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    match clipboard.set_text(text) {
+                        Ok(()) => driver.delete(),
+                        Err(e) => bevy_log::warn!("Failed to write selection to clipboard: {e:?}"),
+                    }
                 }
             }
             TextEdit::Paste => {
-                if !clipboard_text.chars().all(char_filter) {
+                #[cfg(target_arch = "wasm32")]
+                {
+                    bevy_log::warn!(
+                        "Paste is not yet supported on wasm: clipboard reads are \
+                         asynchronous but paste requires an immediate result."
+                    );
                     return;
                 }
-                if let Some(max) = max_characters {
-                    let select_len = driver
-                        .editor
-                        .selected_text()
-                        .map(str::chars)
-                        .map(Iterator::count)
-                        .unwrap_or(0);
-                    if max
-                        < driver.editor.text().chars().count() - select_len
-                            + clipboard_text.chars().count()
-                    {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let text = match clipboard.fetch_text().poll_result() {
+                        Some(Ok(text)) => text,
+                        Some(Err(e)) => {
+                            bevy_log::warn!("Failed to read clipboard for paste: {e:?}");
+                            return;
+                        }
+                        None => return,
+                    };
+                    if !text.chars().all(char_filter) {
+                        bevy_log::warn!("Paste rejected: clipboard contents contained characters not allowed by the char filter.");
                         return;
                     }
+                    if let Some(max) = max_characters {
+                        let select_len = driver
+                            .editor
+                            .selected_text()
+                            .map(str::chars)
+                            .map(Iterator::count)
+                            .unwrap_or(0);
+                        if max
+                            < driver.editor.text().chars().count() - select_len
+                                + text.chars().count()
+                        {
+                            return;
+                        }
+                    }
+                    driver.insert_or_replace_selection(&text);
                 }
-                driver.insert_or_replace_selection(clipboard_text.as_str());
             }
             TextEdit::Insert(text) => {
                 if !text.chars().all(char_filter) {
