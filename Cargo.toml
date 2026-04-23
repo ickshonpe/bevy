@@ -3760,18 +3760,6 @@ category = "UI (User Interface)"
 wasm = true
 
 [[example]]
-name = "clipboard"
-path = "examples/ui/clipboard.rs"
-doc-scrape-examples = true
-required-features = ["system_clipboard"]
-
-[package.metadata.example.clipboard]
-name = "Clipboard"
-description = "Demonstrates accessing the clipboard to retrieve and display text"
-category = "UI (User Interface)"
-wasm = false
-
-[[example]]
 name = "ui_drag_and_drop"
 path = "examples/ui/ui_drag_and_drop.rs"
 doc-scrape-examples = true
