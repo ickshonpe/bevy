@@ -198,10 +198,10 @@ impl TextEdit {
     ) {
         match self {
             TextEdit::Copy => {
-                if let Some(text) = driver.editor.selected_text() {
-                    if let Err(e) = clipboard.set_text(text) {
-                        bevy_log::warn!("Failed to write selection to clipboard: {e:?}");
-                    }
+                if let Some(text) = driver.editor.selected_text()
+                    && let Err(e) = clipboard.set_text(text)
+                {
+                    bevy_log::warn!("Failed to write selection to clipboard: {e:?}");
                 }
             }
             TextEdit::Cut => {
