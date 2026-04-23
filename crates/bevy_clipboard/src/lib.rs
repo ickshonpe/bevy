@@ -281,7 +281,9 @@ impl Clipboard {
                 .map(|clipboard| {
                     let text = text.into().to_string();
                     wasm_bindgen_futures::spawn_local(async move {
-                        let _ = JsFuture::from(clipboard.write_text(&text)).await;
+                        if let Err(e) = JsFuture::from(clipboard.write_text(&text)).await {
+                            warn!("Failed to write text to clipboard: {e:?}");
+                        }
                     });
                 })
         }
@@ -349,16 +351,25 @@ impl core::fmt::Display for ClipboardError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::ContentNotAvailable => {
-                write!(f, "clipboard contents were unavailable or not in the expected format")
+                write!(
+                    f,
+                    "clipboard contents were unavailable or not in the expected format"
+                )
             }
             Self::ClipboardNotSupported => {
                 write!(f, "no suitable clipboard backend was available")
             }
             Self::ClipboardOccupied => {
-                write!(f, "clipboard access is temporarily locked by another process or thread")
+                write!(
+                    f,
+                    "clipboard access is temporarily locked by another process or thread"
+                )
             }
             Self::ConversionFailure => {
-                write!(f, "data could not be converted to or from the required format")
+                write!(
+                    f,
+                    "data could not be converted to or from the required format"
+                )
             }
             Self::Unknown { description } => write!(f, "unknown clipboard error: {description}"),
         }
