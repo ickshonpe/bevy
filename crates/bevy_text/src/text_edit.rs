@@ -219,6 +219,9 @@ impl TextEdit {
                         bevy_log::warn!("Failed to read clipboard for paste: {e:?}");
                         return;
                     }
+                    // TODO: retry if clipboard contents aren't ready yet (especially on wasm)
+                    // I'm pretty sure this method needs to get moved onto `EditableText` itself,
+                    // and then we can requeue a paste event with the stored clipboard read if the clipboard isn't available yet.
                     None => return,
                 };
                 if !text.chars().all(char_filter) {
