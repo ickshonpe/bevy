@@ -378,6 +378,31 @@ pub enum ClipboardError {
     },
 }
 
+impl core::fmt::Display for ClipboardError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::ContentNotAvailable => {
+                write!(f, "clipboard contents were unavailable or not in the expected format")
+            }
+            Self::ClipboardNotSupported => {
+                write!(f, "no suitable clipboard backend was available")
+            }
+            Self::ClipboardOccupied => {
+                write!(f, "clipboard access is temporarily locked by another process or thread")
+            }
+            Self::ConversionFailure => {
+                write!(f, "data could not be converted to or from the required format")
+            }
+            Self::ContentTaken => {
+                write!(f, "clipboard content was already taken from this ClipboardRead")
+            }
+            Self::Unknown { description } => write!(f, "unknown clipboard error: {description}"),
+        }
+    }
+}
+
+impl core::error::Error for ClipboardError {}
+
 #[cfg(all(any(windows, unix), feature = "system_clipboard"))]
 impl From<arboard::Error> for ClipboardError {
     fn from(value: arboard::Error) -> Self {
