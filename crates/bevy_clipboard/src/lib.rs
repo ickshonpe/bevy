@@ -255,40 +255,6 @@ impl Clipboard {
             })
     }
 
-    /// Asynchronously retrieves UTF-8 text from the system clipboard.
-    pub async fn fetch_text_async(&mut self) -> Result<String, ClipboardError> {
-        #[cfg(all(any(unix, windows), feature = "system_clipboard"))]
-        {
-            self.system_clipboard
-                .as_mut()
-                .ok_or(ClipboardError::ClipboardNotSupported)
-                .and_then(|clipboard| clipboard.get_text().map_err(ClipboardError::from))
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            use wasm_bindgen_futures::JsFuture;
-
-            let clipboard = web_sys::window()
-                .map(|w| w.navigator().clipboard())
-                .ok_or(ClipboardError::ClipboardNotSupported)?;
-
-            let result = JsFuture::from(clipboard.read_text()).await;
-            match result {
-                Ok(val) => val.as_string().ok_or(ClipboardError::ConversionFailure),
-                Err(_) => Err(ClipboardError::ContentNotAvailable),
-            }
-        }
-
-        #[cfg(not(any(
-            all(any(windows, unix), feature = "system_clipboard"),
-            target_arch = "wasm32"
-        )))]
-        {
-            Ok(self.text.clone())
-        }
-    }
-
     /// Places the text onto the clipboard. Any valid UTF-8 string is accepted.
     ///
     /// # Errors
