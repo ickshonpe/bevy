@@ -70,10 +70,11 @@
 // and `bevy_ui`, such as text layout and font management.
 
 use crate::{
-    text_edit::TextEdit, FontCx, FontHinting, LayoutCx, LineHeight, TextBrush, TextColor, TextFont,
-    TextLayout,
+    text_edit::{poll_and_apply_paste, TextEdit},
+    FontCx, FontHinting, LayoutCx, LineHeight, TextBrush, TextColor, TextFont, TextLayout,
 };
 use alloc::sync::Arc;
+use bevy_clipboard::ClipboardRead;
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::prelude::*;
 use core::time::Duration;
@@ -115,6 +116,15 @@ pub struct EditableText {
     ///
     /// These edits are processed in first-in, first-out order.
     pub pending_edits: Vec<TextEdit>,
+    /// A paste operation that is awaiting clipboard I/O.
+    ///
+    /// On platforms where system clipboard reads are asynchronous (currently wasm32), a
+    /// [`TextEdit::Paste`] may not resolve in the same frame it was queued.
+    ///
+    /// While this field is `Some`, [`apply_pending_edits`](Self::apply_pending_edits) waits for this to resolve,
+    /// rather than draining further edits, so that everything after the paste stays correctly ordered *behind* it.
+    // TODO: this may cause unexpected stalls if the clipboard read takes too long. We may want to add a timeout.
+    pending_paste: Option<ClipboardRead>,
     /// Cursor width, relative to font size
     pub cursor_width: f32,
     /// Cursor blink period in seconds.
@@ -139,6 +149,7 @@ impl Default for EditableText {
             // Defaults selected to match `Text::default()`
             editor: PlainEditor::new(100.),
             pending_edits: Vec::new(),
+            pending_paste: None,
             cursor_width: 0.2,
             cursor_blink_period: Duration::from_secs(1),
             max_characters: None,
@@ -185,6 +196,12 @@ impl EditableText {
     /// Applies all [`TextEdit`]s in `pending_edits` immediately, updating the [`PlainEditor`] text / cursor state accordingly.
     ///
     /// [`FontContext`] should be gathered from the [`FontCx`] resource, and [`LayoutContext`] should be gathered from the [`LayoutCx`] resource.
+    ///
+    /// On platforms with async clipboard reads (wasm32), a [`TextEdit::Paste`] whose
+    /// contents aren't yet available acts as a barrier: this call parks the in-flight
+    /// read on [`EditableText`] and leaves the remaining edits queued in order. Each
+    /// subsequent frame re-polls the read, and processing resumes once it resolves.
+    /// On native targets clipboard reads are synchronous, so this barrier collapses.
     pub fn apply_pending_edits(
         &mut self,
         font_context: &mut FontContext,
@@ -195,21 +212,51 @@ impl EditableText {
         let Self {
             editor,
             pending_edits,
+            pending_paste,
             max_characters,
             ..
         } = self;
 
         let mut driver = editor.driver(font_context, layout_context);
 
-        for edit in pending_edits.drain(..) {
-            edit.apply(&mut driver, clipboard, *max_characters, &char_filter);
+        // First: resolve any paste carried over from a previous frame. If it's still
+        // pending, hold the remaining edits (untouched in `pending_edits`) for next frame
+        // so ordering relative to the paste is preserved.
+        if let Some(mut read) = pending_paste.take()
+            && !poll_and_apply_paste(&mut read, &mut driver, *max_characters, &char_filter)
+        {
+            *pending_paste = Some(read);
+            return;
+        }
+
+        // Drain edits one at a time. A paste that resolves synchronously (always the case
+        // on native) applies immediately, but a still-pending paste stashes its `ClipboardRead` and
+        // requeues the *remaining* edits, so this loop continually requeues the pending paste until it resolves.
+        let mut edits = core::mem::take(pending_edits).into_iter();
+        while let Some(edit) = edits.next() {
+            match edit {
+                TextEdit::Paste => {
+                    let mut read = clipboard.fetch_text();
+                    if !poll_and_apply_paste(&mut read, &mut driver, *max_characters, &char_filter)
+                    {
+                        *pending_paste = Some(read);
+                        pending_edits.extend(edits);
+                        return;
+                    }
+                }
+                other => other.apply(&mut driver, clipboard, *max_characters, &char_filter),
+            }
         }
     }
 
     /// Clears the input's text buffer and any pending edits.
+    ///
+    /// Also drops any in-flight paste. The underlying clipboard read task
+    /// will still complete, but its result is discarded.
     pub fn clear(&mut self) {
         self.editor.set_text("");
         self.pending_edits.clear();
+        self.pending_paste = None;
     }
 
     /// Is the IME currently composing text for this input?
@@ -254,7 +301,9 @@ pub fn apply_text_edits(
     mut commands: Commands,
 ) {
     for (entity, mut editable_text, filter, generation) in query.iter_mut() {
-        if !editable_text.pending_edits.is_empty() {
+        // `pending_paste` can hold a cross-frame paste even when no new edits are queued,
+        // so check for either before doing work.
+        if !editable_text.pending_edits.is_empty() || editable_text.pending_paste.is_some() {
             editable_text.apply_pending_edits(
                 &mut font_context.0,
                 &mut layout_context.0,

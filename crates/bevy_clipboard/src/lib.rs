@@ -38,7 +38,8 @@ use bevy_image::Image;
 use wgpu_types::{Extent3d, TextureDimension, TextureFormat};
 
 #[cfg(target_arch = "wasm32")]
-use {alloc::sync::Arc, bevy_platform::sync::Mutex, wasm_bindgen_futures::JsFuture};
+use wasm_bindgen_futures::JsFuture;
+use {alloc::sync::Arc, bevy_platform::sync::Mutex};
 
 /// Commonly used types and traits from `bevy_clipboard`.
 pub mod prelude {
@@ -62,13 +63,28 @@ impl bevy_app::Plugin for ClipboardPlugin {
 /// Represents an attempt to read from the clipboard.
 ///
 /// On desktop targets the result is available immediately.
-/// On wasm32 the result is fetched asynchronously.
-#[derive(Debug)]
+/// On web, the result is fetched asynchronously.
+///
+/// The generic `T` parameter represents the type of clipboard content that we are atttempting to read,
+/// which is `String` by default for text reads.
+/// If the clipboard contents do not match this type,
+/// the read will fail with a [`ClipboardError::ContentNotAvailable`]
+/// or [`ClipboardError::ConversionFailure`] error.
+///
+/// ## Note on cloning
+///
+/// [`Clone`] on a [`ClipboardRead::Pending`] shares the underlying in-flight read, since
+/// the inner state is held in an [`Arc`].
+/// Only the first of the clones to successfully [`poll_result`](ClipboardRead::poll_result) will observe the value;
+/// subsequent pollers will see `None` as if the read were still pending.
+#[derive(Debug, Clone)]
 pub enum ClipboardRead<T = String> {
     /// The clipboard contents are ready to be accessed.
     Ready(Result<T, ClipboardError>),
-    #[cfg(target_arch = "wasm32")]
     /// The clipboard contents are being fetched asynchronously.
+    ///
+    /// The `Option` is `None` while the read is still pending, and becomes `Some` once the read completes with either success or error.
+    /// `Some(Ok)` indicates a successful read with the clipboard contents, while `Some(Err)` indicates a failure to read the clipboard.
     Pending(Arc<Mutex<Option<Result<T, ClipboardError>>>>),
     /// The clipboard contents have already been taken by a previous call to [`ClipboardRead::poll_result`].
     Taken,
@@ -80,7 +96,6 @@ impl<T> ClipboardRead<T> {
     /// Returns `None` if the result is still pending or has already been taken.
     pub fn poll_result(&mut self) -> Option<Result<T, ClipboardError>> {
         match self {
-            #[cfg(target_arch = "wasm32")]
             Self::Pending(shared) => {
                 let contents = shared.lock().ok().and_then(|mut inner| inner.take())?;
                 *self = Self::Taken;

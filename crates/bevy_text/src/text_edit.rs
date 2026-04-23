@@ -1,3 +1,4 @@
+use bevy_clipboard::ClipboardRead;
 use bevy_math::Vec2;
 use bevy_reflect::Reflect;
 use parley::PlainEditorDriver;
@@ -188,7 +189,11 @@ impl TextEdit {
         }
     }
 
-    /// Apply the [`TextEdit`] to the text editor driver
+    /// Apply the [`TextEdit`] to the text editor driver.
+    ///
+    /// Note that some edits, such as [`TextEdit::Paste`], may need to be deferred across frames due to asynchronous clipboard I/O.
+    /// For proper handling of deferred edits, use [`EditableText::apply_pending_edits`](super::EditableText::apply_pending_edits) instead,
+    /// which manages the queuing and application of edits by storing them in the [`EditableText`](super::EditableText) component.
     pub fn apply<'a>(
         self,
         driver: &'a mut PlainEditorDriver<TextBrush>,
@@ -213,54 +218,16 @@ impl TextEdit {
                 }
             }
             TextEdit::Paste => {
-                let text = match clipboard.fetch_text().poll_result() {
-                    Some(Ok(text)) => text,
-                    Some(Err(e)) => {
-                        bevy_log::warn!("Failed to read clipboard for paste: {e:?}");
-                        return;
-                    }
-                    // TODO: retry if clipboard contents aren't ready yet (especially on wasm)
-                    // I'm pretty sure this method needs to get moved onto `EditableText` itself,
-                    // and then we can requeue a paste event with the stored clipboard read if the clipboard isn't available yet.
-                    None => return,
-                };
-                if !text.chars().all(char_filter) {
-                    bevy_log::warn!("Paste rejected: clipboard contents contained characters not allowed by the char filter.");
-                    return;
-                }
-                if let Some(max) = max_characters {
-                    let select_len = driver
-                        .editor
-                        .selected_text()
-                        .map(str::chars)
-                        .map(Iterator::count)
-                        .unwrap_or(0);
-                    if max
-                        < driver.editor.text().chars().count() - select_len + text.chars().count()
-                    {
-                        return;
-                    }
-                }
-                driver.insert_or_replace_selection(&text);
+                // It's nice to be able to provide apply as a public method, but Paste is a little buggy.
+                // We'll try our best since that works on native, but we should warn users away from doing so.
+                bevy_log::warn_once!("Directly applying a Paste edit is not recommended, as it cannot defer asynchronous clipboard reads.
+                    For proper handling of async clipboard operations, use `EditableText::apply_pending_edits` instead.");
+
+                let mut read = clipboard.fetch_text();
+                poll_and_apply_paste(&mut read, driver, max_characters, char_filter);
             }
             TextEdit::Insert(text) => {
-                if !text.chars().all(char_filter) {
-                    return;
-                }
-                if let Some(max) = max_characters {
-                    let select_len = driver
-                        .editor
-                        .selected_text()
-                        .map(str::chars)
-                        .map(Iterator::count)
-                        .unwrap_or(0);
-                    if max
-                        < driver.editor.text().chars().count() - select_len + text.chars().count()
-                    {
-                        return;
-                    }
-                }
-                driver.insert_or_replace_selection(text.as_str());
+                let _ = insert_filtered(driver, text.as_str(), max_characters, char_filter);
             }
             TextEdit::Backspace => driver.backdelete(),
             TextEdit::BackspaceWord => driver.backdelete_word(),
@@ -316,5 +283,76 @@ impl TextEdit {
                 }
             }
         }
+    }
+}
+
+/// Reason an [`insert_filtered`] call was rejected.
+///
+/// The two branches matter to callers (paste warns on [`CharFilter`](Self::CharFilter) but
+/// not on [`MaxLength`](Self::MaxLength)), so a bool return wouldn't suffice.
+enum InsertRejection {
+    /// At least one character failed the user-supplied filter.
+    CharFilter,
+    /// The insertion would exceed `max_characters`.
+    MaxLength,
+}
+
+/// Insert (or replace the current selection with) `text`, subject to the char filter and
+/// `max_characters`.
+///
+/// Shared by [`TextEdit::Insert`] and [`TextEdit::Paste`] paths to ensure consistent behavior.
+fn insert_filtered(
+    driver: &mut PlainEditorDriver<TextBrush>,
+    text: &str,
+    max_characters: Option<usize>,
+    char_filter: impl Fn(char) -> bool,
+) -> Result<(), InsertRejection> {
+    if !text.chars().all(char_filter) {
+        return Err(InsertRejection::CharFilter);
+    }
+    if let Some(max) = max_characters {
+        let select_len = driver
+            .editor
+            .selected_text()
+            .map(str::chars)
+            .map(Iterator::count)
+            .unwrap_or(0);
+        if max < driver.editor.text().chars().count() - select_len + text.chars().count() {
+            return Err(InsertRejection::MaxLength);
+        }
+    }
+    driver.insert_or_replace_selection(text);
+    Ok(())
+}
+
+/// Polls a clipboard read and, if ready, applies the resulting text as a paste.
+///
+/// Returns `true` when the read has resolved (applied, filter-rejected, or errored)
+/// and the caller should move on.
+/// Returns `false` when the read is still pending
+/// and the caller should hold onto the [`ClipboardRead`] to poll again on a later frame.
+pub(crate) fn poll_and_apply_paste(
+    read: &mut ClipboardRead,
+    driver: &mut PlainEditorDriver<TextBrush>,
+    max_characters: Option<usize>,
+    char_filter: impl Fn(char) -> bool,
+) -> bool {
+    match read.poll_result() {
+        Some(Ok(text)) => {
+            if matches!(
+                insert_filtered(driver, &text, max_characters, char_filter),
+                Err(InsertRejection::CharFilter)
+            ) {
+                bevy_log::debug!(
+                    "Paste rejected: clipboard contents contained characters not allowed by the char filter."
+                );
+            }
+            true
+        }
+        Some(Err(e)) => {
+            bevy_log::warn!("Failed to read clipboard for paste: {e:?}");
+            true
+        }
+        None => false,
     }
 }
