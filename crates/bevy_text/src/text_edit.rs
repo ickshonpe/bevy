@@ -213,44 +213,32 @@ impl TextEdit {
                 }
             }
             TextEdit::Paste => {
-                #[cfg(target_arch = "wasm32")]
-                {
-                    bevy_log::warn!(
-                        "Paste is not yet supported on wasm: clipboard reads are \
-                         asynchronous but paste requires an immediate result."
-                    );
-                    return;
-                }
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    let text = match clipboard.fetch_text().poll_result() {
-                        Some(Ok(text)) => text,
-                        Some(Err(e)) => {
-                            bevy_log::warn!("Failed to read clipboard for paste: {e:?}");
-                            return;
-                        }
-                        None => return,
-                    };
-                    if !text.chars().all(char_filter) {
-                        bevy_log::warn!("Paste rejected: clipboard contents contained characters not allowed by the char filter.");
+                let text = match clipboard.fetch_text().poll_result() {
+                    Some(Ok(text)) => text,
+                    Some(Err(e)) => {
+                        bevy_log::warn!("Failed to read clipboard for paste: {e:?}");
                         return;
                     }
-                    if let Some(max) = max_characters {
-                        let select_len = driver
-                            .editor
-                            .selected_text()
-                            .map(str::chars)
-                            .map(Iterator::count)
-                            .unwrap_or(0);
-                        if max
-                            < driver.editor.text().chars().count() - select_len
-                                + text.chars().count()
-                        {
-                            return;
-                        }
-                    }
-                    driver.insert_or_replace_selection(&text);
+                    None => return,
+                };
+                if !text.chars().all(char_filter) {
+                    bevy_log::warn!("Paste rejected: clipboard contents contained characters not allowed by the char filter.");
+                    return;
                 }
+                if let Some(max) = max_characters {
+                    let select_len = driver
+                        .editor
+                        .selected_text()
+                        .map(str::chars)
+                        .map(Iterator::count)
+                        .unwrap_or(0);
+                    if max
+                        < driver.editor.text().chars().count() - select_len + text.chars().count()
+                    {
+                        return;
+                    }
+                }
+                driver.insert_or_replace_selection(&text);
             }
             TextEdit::Insert(text) => {
                 if !text.chars().all(char_filter) {
