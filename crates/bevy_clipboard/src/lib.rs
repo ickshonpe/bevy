@@ -205,7 +205,9 @@ impl Clipboard {
                         Ok(text) => text.as_string().ok_or(ClipboardError::ConversionFailure),
                         Err(_) => Err(ClipboardError::ContentNotAvailable),
                     };
-                    shared.lock().unwrap().replace(text);
+                    if let Ok(mut guard) = shared.lock() {
+                        guard.replace(text);
+                    }
                 });
                 ClipboardRead::Pending(shared_clone)
             } else {
