@@ -73,7 +73,7 @@ This is the complete `bevy` cargo feature list, without "profiles" or "collectio
 |bevy_camera|Provides camera and visibility types, as well as culling primitives.|
 |bevy_camera_controller|Provides a collection of prebuilt camera controllers|
 |bevy_ci_testing|Enable systems that allow for automated testing on CI|
-|bevy_clipboard|Clipboard resource and managment. See `system_clipboard` for OS-integrated clipboard support.|
+|bevy_clipboard|Clipboard resource and management. See `system_clipboard` for OS-integrated clipboard support.|
 |bevy_color|Provides shared color types and operations|
 |bevy_core_pipeline|Provides cameras and other basic render pipeline features|
 |bevy_debug_stepping|Enable stepping-based debugging of Bevy systems|
