@@ -152,7 +152,7 @@ fn try_imagedata_from_image(image: &Image) -> Result<arboard::ImageData<'_>, Cli
 /// Use [`Clipboard::fetch_text`] to read text from the clipboard,
 /// and [`Clipboard::set_text`] to write text to the clipboard.
 ///
-/// # Warning
+/// ## Warning: `system_clipboard` support is off-by-default
 ///
 /// When the `system_clipboard` feature is disabled, operations read from and write to
 /// an in-process [`String`] buffer rather than the clipboard provided by the operating system.
@@ -162,6 +162,16 @@ fn try_imagedata_from_image(image: &Image) -> Result<arboard::ImageData<'_>, Cli
 ///
 /// The fallback is intended to allow clipboard functionality on platforms where `arboard` is not available (e.g. Android, iOS),
 /// and to allow applications to have basic clipboard-like functionality without requiring enhanced permissions.
+///
+/// ## Warning: multithreading deadlock risks
+///
+/// As the [`arboard`] documentation [warns](https://docs.rs/arboard/latest/arboard/struct.Clipboard.html#windows),
+/// accessing the system clipboard on Windows can cause deadlocks if multiple threads or processes attempt to access it simultaneously.
+/// Typical usage of the [`Clipboard`] resource should not encounter this issue: Bevy's copy of the [`Clipboard`] resource is unique,
+/// and both reading from and writing to it requires exclusive access, enforced by Rust's borrowing rules.
+///
+/// However, care should be taken to avoid cloning the [`Clipboard`] resource, duplicating it between worlds, reading from it in parallel,
+/// or otherwise sharing it across threads, as this could lead to multiple instances attempting to access the clipboard simultaneously and causing a deadlock.
 #[derive(Resource)]
 pub struct Clipboard {
     #[cfg(all(any(unix, windows), feature = "system_clipboard"))]
