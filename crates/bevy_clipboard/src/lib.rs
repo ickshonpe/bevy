@@ -70,25 +70,29 @@ pub enum ClipboardRead<T = String> {
     #[cfg(target_arch = "wasm32")]
     /// The clipboard contents are being fetched asynchronously.
     Pending(Arc<Mutex<Option<Result<T, ClipboardError>>>>),
+    /// The clipboard contents have already been taken by a previous call to [`ClipboardRead::poll_result`].
+    Taken,
 }
 
 impl<T> ClipboardRead<T> {
     /// The result of an attempt to read from the clipboard, once ready.
-    /// If the result is still pending, returns `None`.
+    ///
+    /// Returns `None` if the result is still pending or has already been taken.
     pub fn poll_result(&mut self) -> Option<Result<T, ClipboardError>> {
         match self {
             #[cfg(target_arch = "wasm32")]
             Self::Pending(shared) => {
-                if let Some(contents) = shared.lock().ok().and_then(|mut inner| inner.take()) {
-                    *self = Self::Ready(Err(ClipboardError::ContentTaken));
-                    Some(contents)
-                } else {
-                    None
-                }
+                let contents = shared.lock().ok().and_then(|mut inner| inner.take())?;
+                *self = Self::Taken;
+                Some(contents)
             }
-            Self::Ready(inner) => {
-                Some(core::mem::replace(inner, Err(ClipboardError::ContentTaken)))
+            Self::Ready(_) => {
+                let Self::Ready(inner) = core::mem::replace(self, Self::Taken) else {
+                    unreachable!()
+                };
+                Some(inner)
             }
+            Self::Taken => None,
         }
     }
 }
@@ -334,9 +338,6 @@ pub enum ClipboardError {
     /// The data could not be converted to or from the required format.
     ConversionFailure,
 
-    /// The clipboard content was already taken from the `ClipboardRead`.
-    ContentTaken,
-
     /// An unknown error
     Unknown {
         /// String describing the error
@@ -358,9 +359,6 @@ impl core::fmt::Display for ClipboardError {
             }
             Self::ConversionFailure => {
                 write!(f, "data could not be converted to or from the required format")
-            }
-            Self::ContentTaken => {
-                write!(f, "clipboard content was already taken from this ClipboardRead")
             }
             Self::Unknown { description } => write!(f, "unknown clipboard error: {description}"),
         }
