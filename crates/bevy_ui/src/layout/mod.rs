@@ -130,7 +130,7 @@ pub fn ui_layout_system(
 
     #[cfg(feature = "ghost_nodes")]
     {
-        // Collect the parents of entities that had `GhostNode` added or removed since last layout update.
+        // Collect the closest non-ghost ancestor of entities that had `GhostNode` added or removed since last layout update.
         ui_surface.dirty_ghost_children_scratch.clear();
         for entity in added_ghost_node_query
             .iter()
