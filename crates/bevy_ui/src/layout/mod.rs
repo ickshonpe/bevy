@@ -143,10 +143,10 @@ pub fn ui_layout_system(
 
         for entity in removed_children.read() {
             ui_surface.try_remove_children(entity);
-            if ghost_node_query.contains(entity) {
-                if let Some(parent) = ui_children.get_parent(entity) {
-                    ui_surface.dirty_ghost_children_scratch.insert(parent);
-                }
+            if ghost_node_query.contains(entity)
+                && let Some(parent) = ui_children.get_parent(entity)
+            {
+                ui_surface.dirty_ghost_children_scratch.insert(parent);
             }
         }
     }
