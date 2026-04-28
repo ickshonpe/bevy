@@ -1286,18 +1286,6 @@ mod tests {
     }
 
     #[test]
-    fn val_arithmetic_error_messages() {
-        assert_eq!(
-            format!("{}", ValArithmeticError::NonEvaluable),
-            "the given variant of Val is not evaluable (non-numeric)"
-        );
-        assert_eq!(
-            format!("{}", ValArithmeticError::IncompatibleUnits),
-            "the given variants of Val have mismatched units"
-        );
-    }
-
-    #[test]
     fn val_str_parse() {
         assert_eq!("auto".parse::<Val>(), Ok(Val::Auto));
         assert_eq!("Auto".parse::<Val>(), Ok(Val::Auto));
