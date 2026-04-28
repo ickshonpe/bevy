@@ -166,6 +166,22 @@ impl Val {
     pub const DEFAULT: Self = Self::Auto;
     pub const ZERO: Self = Self::Px(0.0);
 
+    /// Returns `Val::Px(0.)` if `self` is `Val::Auto`, or `self` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use bevy_ui::{Val};
+    /// assert_eq!(Val::Auto.auto_to_zero(), Val::Px(0.));
+    /// assert_eq!(Val::Percent(1.).auto_to_zero(), Val::Percent(1.));
+    /// ```
+    pub const fn auto_to_px_zero(self) -> Val {
+        match self {
+            Val::Auto => Val::Px(0.),
+            _ => self,
+        }
+    }
+
     /// Returns a [`UiRect`] with its `left` equal to this value,
     /// and all other fields set to `Val::ZERO`.
     ///
@@ -302,7 +318,7 @@ impl Val {
         UiRect::vertical(self)
     }
 
-    /// Attempts to add two `Val`s.
+    /// Try to add two `Val`s.
     ///
     /// Returns [`ValArithmeticError::IncompatibleUnits`] if the units differ or both are `Val::Auto`.
     ///
@@ -326,7 +342,7 @@ impl Val {
         }
     }
 
-    /// Attempts to subtract one `Val` from another.
+    /// Try to subtract one `Val` from another.
     ///
     /// Returns [`ValArithmeticError::IncompatibleUnits`] if the units differ or both are `Val::Auto`.
     ///
