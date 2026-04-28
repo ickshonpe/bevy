@@ -242,12 +242,10 @@ fn on_pointer_click(
         return;
     };
 
-    println!("click count: {}", click.count);
-
     match click.count {
+        1 => {}
         2 => editable_text.queue_edit(TextEdit::SelectWordAtPoint(local_pos)),
-        3 => editable_text.queue_edit(TextEdit::SelectAll),
-        _ => {}
+        _ => editable_text.queue_edit(TextEdit::SelectAll),
     }
 
     click.propagate(false);
