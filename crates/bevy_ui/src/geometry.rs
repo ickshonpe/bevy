@@ -302,6 +302,18 @@ impl Val {
         UiRect::vertical(self)
     }
 
+    /// Attempts to add two `Val`s.
+    ///
+    /// Returns [`ValArithmeticError::IncompatibleUnits`] if the units differ or both are `Val::Auto`.
+    ///
+    /// ```
+    /// # use bevy_ui::{Val, ValArithmeticError};
+    /// assert_eq!(Val::Px(1.).try_add(Val::Px(2.)), Ok(Val::Px(3.)));
+    /// assert_eq!(
+    ///     Val::Px(1.).try_add(Val::Percent(2.)),
+    ///     Err(ValArithmeticError::IncompatibleUnits)
+    /// );
+    /// ```
     pub const fn try_add(self, val: Val) -> Result<Val, ValArithmeticError> {
         match (self, val) {
             (Val::Px(u), Val::Px(v)) => Ok(Val::Px(u + v)),
@@ -314,6 +326,18 @@ impl Val {
         }
     }
 
+    /// Attempts to subtract one `Val` from another.
+    ///
+    /// Returns [`ValArithmeticError::IncompatibleUnits`] if the units differ or both are `Val::Auto`.
+    ///
+    /// ```
+    /// # use bevy_ui::{Val, ValArithmeticError};
+    /// assert_eq!(Val::Px(3.).try_sub(Val::Px(2.)), Ok(Val::Px(1.)));
+    /// assert_eq!(
+    ///     Val::Px(1.).try_sub(Val::Percent(2.)),
+    ///     Err(ValArithmeticError::IncompatibleUnits)
+    /// );
+    /// ```
     pub const fn try_sub(self, val: Val) -> Result<Val, ValArithmeticError> {
         match (self, val) {
             (Val::Px(u), Val::Px(v)) => Ok(Val::Px(u - v)),
