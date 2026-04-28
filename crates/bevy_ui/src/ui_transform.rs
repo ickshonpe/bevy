@@ -84,7 +84,7 @@ impl Val2 {
     /// );
     /// ```
     pub fn try_add(self, other: Val2) -> Result<Self, ValArithmeticError> {
-        let (Ok(x), Ok(y)) = (self.x.try_add(other.x), other.y.try_add(other.y)) else {
+        let (Ok(x), Ok(y)) = (self.x.try_add(other.x), self.y.try_add(other.y)) else {
             return Err(ValArithmeticError::IncompatibleUnits);
         };
         Ok(Self { x, y })
