@@ -84,10 +84,7 @@ impl Val2 {
     /// );
     /// ```
     pub fn try_add(self, other: Val2) -> Result<Self, ValArithmeticError> {
-        let (Ok(x), Ok(y)) = (
-            self.x.auto_to_px_zero().try_add(other.x.auto_to_px_zero()),
-            other.y.auto_to_px_zero().try_add(other.y.auto_to_px_zero()),
-        ) else {
+        let (Ok(x), Ok(y)) = (self.x.try_add(other.x), other.y.try_add(other.y)) else {
             return Err(ValArithmeticError::IncompatibleUnits);
         };
         Ok(Self { x, y })
@@ -106,10 +103,7 @@ impl Val2 {
     /// );
     /// ```
     pub fn try_sub(self, other: Val2) -> Result<Self, ValArithmeticError> {
-        let (Ok(x), Ok(y)) = (
-            self.x.auto_to_px_zero().try_sub(other.x.auto_to_px_zero()),
-            other.y.auto_to_px_zero().try_sub(other.y.auto_to_px_zero()),
-        ) else {
+        let (Ok(x), Ok(y)) = (self.x.try_sub(other.x), self.y.try_sub(other.y)) else {
             return Err(ValArithmeticError::IncompatibleUnits);
         };
         Ok(Self { x, y })
