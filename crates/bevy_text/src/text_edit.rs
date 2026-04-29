@@ -154,7 +154,7 @@ pub enum TextEdit {
     /// A line here means a single row of glyphs, all sharing the same baseline.
     ///
     /// Typically generated in response to a triple-click within the text area.
-    SelectWordAtPoint(Vec2),
+    SelectLineAtPoint(Vec2),
     /// Selects the hard line at the given point.
     ///
     /// A “hard line” is the portion of text between explicit newline characters.
