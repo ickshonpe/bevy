@@ -243,7 +243,9 @@ fn on_pointer_click(
     };
 
     match click.count {
-        1 => {}
+        1 => {
+            // Single clicks are ignored. Presses set the cursor position and are handled by `on_pointer_press`.
+        }
         2 => editable_text.queue_edit(TextEdit::SelectWordAtPoint(local_pos)),
         _ => editable_text.queue_edit(TextEdit::SelectAll),
     }
