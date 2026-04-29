@@ -205,6 +205,8 @@ fn on_pointer_press(
 
 /// System that processes pointer click events into text edit actions for [`EditableText`] widgets.
 ///
+/// `Click`s follow `Press`, so multi-click `TextEdit`s are queued after those from the corresponding `Press`.
+///
 /// Note that this does not immediately apply the edits; they are queued up in [`EditableText::pending_edits`],
 /// and then applied later by the [`apply_text_edits`](`bevy_text::apply_text_edits`) system.
 fn on_pointer_click(
