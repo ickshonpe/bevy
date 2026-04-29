@@ -64,6 +64,7 @@ use crate::{
 };
 
 /// Maximum time between clicks for them to count as consecutive clicks.
+// TODO: add optional feature-flagged support for fetching this from the OS preferences
 pub const MULTI_CLICK_DURATION: Duration = Duration::from_millis(500);
 
 /// Stores the common data needed for all pointer events.
