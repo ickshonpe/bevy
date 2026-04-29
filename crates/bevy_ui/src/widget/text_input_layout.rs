@@ -485,21 +485,17 @@ fn bounding_box_to_rect(geom: BoundingBox) -> Rect {
 /// Scroll editable text to keep cursor in view after edits.
 pub fn scroll_editable_text(
     mut query: Query<
-        (&EditableText, &mut TextScroll, &ComputedNode),
+        (&mut TextScroll, &ComputedNode, &TextLayoutInfo),
         Changed<EditableTextGeneration>,
     >,
 ) {
-    for (editable_text, mut scroll, node) in query.iter_mut() {
+    for (mut scroll, node, layout) in query.iter_mut() {
         let view_size = node.content_box().size();
         if view_size.cmple(Vec2::ZERO).any() {
             continue;
         }
 
-        let Some(cursor) = editable_text
-            .editor
-            .cursor_geometry(1.0)
-            .map(bounding_box_to_rect)
-        else {
+        let Some(cursor) = layout.cursor else {
             continue;
         };
 
