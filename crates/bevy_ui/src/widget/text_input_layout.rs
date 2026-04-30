@@ -526,7 +526,7 @@ pub fn scroll_editable_text(
             .as_ref()
             .is_some_and(|input_focus| input_focus.get() == Some(entity))
         {
-            cursor.max.x
+            info.size.x.max(cursor.max.x)
         } else {
             info.size.x
         } - view_size.x)
