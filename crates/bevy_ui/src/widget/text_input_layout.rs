@@ -5,7 +5,7 @@ use crate::{ComputedNode, ComputedUiRenderTargetInfo, ContentSize, NodeMeasure};
 use bevy_asset::Assets;
 
 use bevy_ecs::{
-    change_detection::DetectChanges,
+    change_detection::{DetectChanges, DetectChangesMut},
     component::Component,
     entity::Entity,
     query::Changed,
@@ -503,24 +503,22 @@ pub fn scroll_editable_text(
             continue;
         };
 
-        let mut new_scroll = scroll.0;
-
-        if cursor.min.x < new_scroll.x {
-            new_scroll.x = cursor.min.x;
-        } else if new_scroll.x + view_size.x < cursor.max.x {
-            new_scroll.x = cursor.max.x - view_size.x;
+        fn scroll_axis(view_min: f32, view_size: f32, cursor_min: f32, cursor_size: f32) -> f32 {
+            if view_size < cursor_size || cursor_min < view_min {
+                cursor_min
+            } else if view_min + view_size < cursor_min + cursor_size {
+                cursor_min + cursor_size - view_size
+            } else {
+                view_min
+            }
         }
 
-        if cursor.min.y < new_scroll.y {
-            new_scroll.y = cursor.min.y;
-        } else if new_scroll.y + view_size.y < cursor.max.y {
-            new_scroll.y = cursor.max.y - view_size.y;
-        }
-
-        new_scroll = new_scroll.max(Vec2::ZERO);
-
-        if scroll.0 != new_scroll {
-            scroll.0 = new_scroll;
-        }
+        scroll.set_if_neq(TextScroll(
+            Vec2 {
+                x: scroll_axis(scroll.0.x, view_size.x, cursor.min.x, cursor.width()),
+                y: scroll_axis(scroll.0.y, view_size.y, cursor.min.y, cursor.height()),
+            }
+            .max(Vec2::ZERO),
+        ));
     }
 }
