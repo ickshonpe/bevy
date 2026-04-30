@@ -492,6 +492,7 @@ pub fn scroll_editable_text(
     for (editable_text, mut scroll, node) in query.iter_mut() {
         let view_size = node.content_box().size();
         if view_size.cmple(Vec2::ZERO).any() {
+            scroll.set_if_neq(TextScroll(Vec2::ZERO));
             continue;
         }
 
@@ -500,25 +501,62 @@ pub fn scroll_editable_text(
             .cursor_geometry(1.0)
             .map(bounding_box_to_rect)
         else {
+            scroll.set_if_neq(TextScroll(Vec2::ZERO));
             continue;
         };
 
-        fn scroll_axis(view_min: f32, view_size: f32, cursor_min: f32, cursor_size: f32) -> f32 {
-            if view_size < cursor_size || cursor_min < view_min {
-                cursor_min
-            } else if view_min + view_size < cursor_min + cursor_size {
-                cursor_min + cursor_size - view_size
-            } else {
-                view_min
-            }
-        }
+        let Some(layout) = editable_text.editor.try_layout() else {
+            scroll.set_if_neq(TextScroll(Vec2::ZERO));
+            continue;
+        };
+
+        let Some((line_min, line_max)) = find_visual_line_bounds(layout, cursor.center().y) else {
+            scroll.set_if_neq(TextScroll(Vec2::ZERO));
+            continue;
+        };
 
         scroll.set_if_neq(TextScroll(
             Vec2 {
-                x: scroll_axis(scroll.0.x, view_size.x, cursor.min.x, cursor.width()),
-                y: scroll_axis(scroll.0.y, view_size.y, cursor.min.y, cursor.height()),
+                x: scroll_axis(
+                    scroll.0.x,
+                    scroll.0.x + view_size.x,
+                    cursor.min.x,
+                    cursor.max.x,
+                ),
+                y: scroll_axis(scroll.0.y, scroll.0.y + view_size.y, line_min, line_max),
             }
             .max(Vec2::ZERO),
         ));
+
+        println!("scroll y = {}", scroll.0.y);
+    }
+}
+
+fn find_visual_line_bounds<B: parley::Brush>(
+    layout: &parley::Layout<B>,
+    y: f32,
+) -> Option<(f32, f32)> {
+    let mut min = 0.0;
+    for line in layout.lines() {
+        let max = min + line.metrics().line_height;
+        if y < max {
+            return Some((min, max));
+        }
+        min = max;
+    }
+    None
+}
+
+fn scroll_axis(v_min: f32, v_max: f32, t_min: f32, t_max: f32) -> f32 {
+    let v_size = v_max - v_min;
+    let t_size = t_max - t_min;
+    if v_size < t_size {
+        (t_min + t_max) / 2.
+    } else if t_min < v_min {
+        t_min
+    } else if v_max < t_max {
+        v_min - (t_max - v_max)
+    } else {
+        v_min
     }
 }
