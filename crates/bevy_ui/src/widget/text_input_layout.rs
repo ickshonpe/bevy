@@ -5,7 +5,7 @@ use crate::{ComputedNode, ComputedUiRenderTargetInfo, ContentSize, NodeMeasure};
 use bevy_asset::Assets;
 
 use bevy_ecs::{
-    change_detection::DetectChanges,
+    change_detection::{DetectChanges, DetectChangesMut},
     component::Component,
     entity::Entity,
     query::Changed,
@@ -484,39 +484,82 @@ fn bounding_box_to_rect(geom: BoundingBox) -> Rect {
 
 /// Scroll editable text to keep cursor in view after edits.
 pub fn scroll_editable_text(
+    rem_size: Res<RemSize>,
     mut query: Query<
-        (&mut TextScroll, &ComputedNode, &TextLayoutInfo),
+        (
+            &EditableText,
+            &mut TextScroll,
+            &ComputedNode,
+            &TextFont,
+            &ComputedUiRenderTargetInfo,
+        ),
         Changed<EditableTextGeneration>,
     >,
 ) {
-    for (mut scroll, node, layout) in query.iter_mut() {
+    for (editable_text, mut scroll, node, text_font, target) in query.iter_mut() {
         let view_size = node.content_box().size();
         if view_size.cmple(Vec2::ZERO).any() {
+            scroll.set_if_neq(TextScroll(Vec2::ZERO));
             continue;
         }
 
-        let Some(cursor) = layout.cursor else {
+        let Some(cursor) = editable_text
+            .editor
+            .cursor_geometry(
+                editable_text.cursor_width
+                    * text_font.font_size.eval(target.logical_size(), rem_size.0),
+            )
+            .map(bounding_box_to_rect)
+        else {
             continue;
         };
 
-        let mut new_scroll = scroll.0;
+        let Some(layout) = editable_text.editor.try_layout() else {
+            continue;
+        };
 
-        if cursor.min.x < new_scroll.x {
-            new_scroll.x = cursor.min.x;
-        } else if new_scroll.x + view_size.x < cursor.max.x {
-            new_scroll.x = cursor.max.x - view_size.x;
+        let Some((line_min, line_max)) = find_visual_line_bounds(layout, cursor.center().y) else {
+            continue;
+        };
+
+        scroll.set_if_neq(TextScroll(Vec2 {
+            x: scroll_axis(
+                scroll.0.x,
+                scroll.0.x + view_size.x,
+                cursor.min.x,
+                cursor.max.x,
+            )
+            .floor(),
+            y: scroll_axis(scroll.0.y, scroll.0.y + view_size.y, line_min, line_max).floor(),
+        }));
+    }
+}
+
+fn find_visual_line_bounds<B: parley::Brush>(
+    layout: &parley::Layout<B>,
+    y: f32,
+) -> Option<(f32, f32)> {
+    let mut min = 0.0;
+    for line in layout.lines() {
+        let max = min + line.metrics().line_height;
+        if y < max {
+            return Some((min, max));
         }
+        min = max;
+    }
+    None
+}
 
-        if cursor.min.y < new_scroll.y {
-            new_scroll.y = cursor.min.y;
-        } else if new_scroll.y + view_size.y < cursor.max.y {
-            new_scroll.y = cursor.max.y - view_size.y;
-        }
-
-        new_scroll = new_scroll.max(Vec2::ZERO);
-
-        if scroll.0 != new_scroll {
-            scroll.0 = new_scroll;
-        }
+fn scroll_axis(v_min: f32, v_max: f32, t_min: f32, t_max: f32) -> f32 {
+    let v_size = v_max - v_min;
+    let t_size = t_max - t_min;
+    if v_size < t_size {
+        t_min + (t_size - v_size) / 2.
+    } else if t_min < v_min {
+        t_min
+    } else if v_max < t_max {
+        t_max - v_size
+    } else {
+        v_min
     }
 }
