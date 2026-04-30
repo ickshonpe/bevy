@@ -8,7 +8,6 @@ use bevy_ecs::{
     change_detection::{DetectChanges, DetectChangesMut},
     component::Component,
     entity::Entity,
-    query::{Changed, Or},
     system::{Local, Query, Res, ResMut},
     world::Ref,
 };
@@ -303,11 +302,7 @@ pub fn update_editable_text_layout(
             let layout = driver.layout();
 
             info.scale_factor = layout.scale();
-            info.size = (
-                layout.width() / layout.scale(),
-                layout.height() / layout.scale(),
-            )
-                .into();
+            info.size = (layout.full_width(), layout.height()).into();
 
             info.preedit_underline_rects.clear();
             info.glyphs.clear();
@@ -485,17 +480,30 @@ fn bounding_box_to_rect(geom: BoundingBox) -> Rect {
 
 /// Scroll editable text to keep cursor in view after edits.
 pub fn scroll_editable_text(
-    mut query: Query<
-        (
-            &EditableText,
-            &mut TextScroll,
-            &ComputedNode,
-            &TextLayoutInfo,
-        ),
-        //Or<(Changed<EditableTextGeneration>, Changed<EditableText>)>,
-    >,
+    input_focus: Option<Res<InputFocus>>,
+    mut previous_focus: Local<Option<Entity>>,
+    mut query: Query<(
+        Entity,
+        Ref<EditableText>,
+        Ref<EditableTextGeneration>,
+        &mut TextScroll,
+        &ComputedNode,
+        &TextLayoutInfo,
+    )>,
 ) {
-    for (editable_text, mut scroll, node, info) in query.iter_mut() {
+    let current_focus = input_focus
+        .as_ref()
+        .and_then(|input_focus| input_focus.get());
+    let focus_changed = *previous_focus != current_focus;
+
+    for (entity, editable_text, generation, mut scroll, node, info) in query.iter_mut() {
+        if !(editable_text.is_changed()
+            || generation.is_changed()
+            || focus_changed && (Some(entity) == *previous_focus || Some(entity) == current_focus))
+        {
+            continue;
+        }
+
         let view_size = node.content_box().size();
         if view_size.cmple(Vec2::ZERO).any() {
             scroll.set_if_neq(TextScroll(Vec2::ZERO));
@@ -514,6 +522,16 @@ pub fn scroll_editable_text(
             continue;
         };
 
+        let max_scroll_x = (if input_focus
+            .as_ref()
+            .is_some_and(|input_focus| input_focus.get() == Some(entity))
+        {
+            cursor.max.x
+        } else {
+            info.size.x
+        } - view_size.x)
+            .max(0.);
+
         scroll.set_if_neq(TextScroll(Vec2 {
             x: scroll_axis(
                 scroll.0.x,
@@ -521,10 +539,13 @@ pub fn scroll_editable_text(
                 cursor.min.x,
                 cursor.max.x,
             )
+            .clamp(0., max_scroll_x)
             .floor(),
             y: scroll_axis(scroll.0.y, scroll.0.y + view_size.y, line_min, line_max).floor(),
         }));
     }
+
+    *previous_focus = current_focus;
 }
 
 fn find_visual_line_bounds<B: parley::Brush>(
