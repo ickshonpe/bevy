@@ -8,7 +8,7 @@ use bevy_ecs::{
     change_detection::{DetectChanges, DetectChangesMut},
     component::Component,
     entity::Entity,
-    query::Changed,
+    query::{Changed, Or},
     system::{Local, Query, Res, ResMut},
     world::Ref,
 };
@@ -453,18 +453,19 @@ pub fn update_editable_text_layout(
                 *cursor_timer = Duration::ZERO;
             }
 
-            if *cursor_timer < cursor_blink_period / 2 {
-                info.cursor = driver
-                    .editor
-                    .cursor_geometry(
-                        cursor_width * text_font.font_size.eval(target.logical_size(), rem_size.0),
-                    )
-                    .map(bounding_box_to_rect);
-            } else {
-                info.cursor = None;
-            }
+            info.cursor = driver
+                .editor
+                .cursor_geometry(
+                    cursor_width * text_font.font_size.eval(target.logical_size(), rem_size.0),
+                )
+                .map(bounding_box_to_rect)
+                .map(|rect| (*cursor_timer < cursor_blink_period / 2, rect));
         } else {
-            info.cursor = None;
+            info.cursor = driver
+                .editor
+                .cursor_geometry(0.)
+                .map(bounding_box_to_rect)
+                .map(|rect| (false, rect));
         }
     }
 }
@@ -484,33 +485,24 @@ fn bounding_box_to_rect(geom: BoundingBox) -> Rect {
 
 /// Scroll editable text to keep cursor in view after edits.
 pub fn scroll_editable_text(
-    rem_size: Res<RemSize>,
     mut query: Query<
         (
             &EditableText,
             &mut TextScroll,
             &ComputedNode,
-            &TextFont,
-            &ComputedUiRenderTargetInfo,
+            &TextLayoutInfo,
         ),
-        Changed<EditableTextGeneration>,
+        //Or<(Changed<EditableTextGeneration>, Changed<EditableText>)>,
     >,
 ) {
-    for (editable_text, mut scroll, node, text_font, target) in query.iter_mut() {
+    for (editable_text, mut scroll, node, info) in query.iter_mut() {
         let view_size = node.content_box().size();
         if view_size.cmple(Vec2::ZERO).any() {
             scroll.set_if_neq(TextScroll(Vec2::ZERO));
             continue;
         }
 
-        let Some(cursor) = editable_text
-            .editor
-            .cursor_geometry(
-                editable_text.cursor_width
-                    * text_font.font_size.eval(target.logical_size(), rem_size.0),
-            )
-            .map(bounding_box_to_rect)
-        else {
+        let Some(cursor) = info.cursor.map(|(_, rect)| rect) else {
             continue;
         };
 
