@@ -484,12 +484,19 @@ fn bounding_box_to_rect(geom: BoundingBox) -> Rect {
 
 /// Scroll editable text to keep cursor in view after edits.
 pub fn scroll_editable_text(
+    rem_size: Res<RemSize>,
     mut query: Query<
-        (&EditableText, &mut TextScroll, &ComputedNode),
+        (
+            &EditableText,
+            &mut TextScroll,
+            &ComputedNode,
+            &TextFont,
+            &ComputedUiRenderTargetInfo,
+        ),
         Changed<EditableTextGeneration>,
     >,
 ) {
-    for (editable_text, mut scroll, node) in query.iter_mut() {
+    for (editable_text, mut scroll, node, text_font, target) in query.iter_mut() {
         let view_size = node.content_box().size();
         if view_size.cmple(Vec2::ZERO).any() {
             scroll.set_if_neq(TextScroll(Vec2::ZERO));
@@ -498,37 +505,33 @@ pub fn scroll_editable_text(
 
         let Some(cursor) = editable_text
             .editor
-            .cursor_geometry(1.0)
+            .cursor_geometry(
+                editable_text.cursor_width
+                    * text_font.font_size.eval(target.logical_size(), rem_size.0),
+            )
             .map(bounding_box_to_rect)
         else {
-            scroll.set_if_neq(TextScroll(Vec2::ZERO));
             continue;
         };
 
         let Some(layout) = editable_text.editor.try_layout() else {
-            scroll.set_if_neq(TextScroll(Vec2::ZERO));
             continue;
         };
 
         let Some((line_min, line_max)) = find_visual_line_bounds(layout, cursor.center().y) else {
-            scroll.set_if_neq(TextScroll(Vec2::ZERO));
             continue;
         };
 
-        scroll.set_if_neq(TextScroll(
-            Vec2 {
-                x: scroll_axis(
-                    scroll.0.x,
-                    scroll.0.x + view_size.x,
-                    cursor.min.x,
-                    cursor.max.x,
-                ),
-                y: scroll_axis(scroll.0.y, scroll.0.y + view_size.y, line_min, line_max),
-            }
-            .max(Vec2::ZERO),
-        ));
-
-        println!("scroll y = {}", scroll.0.y);
+        scroll.set_if_neq(TextScroll(Vec2 {
+            x: scroll_axis(
+                scroll.0.x,
+                scroll.0.x + view_size.x,
+                cursor.min.x,
+                cursor.max.x,
+            )
+            .floor(),
+            y: scroll_axis(scroll.0.y, scroll.0.y + view_size.y, line_min, line_max).floor(),
+        }));
     }
 }
 
@@ -551,11 +554,11 @@ fn scroll_axis(v_min: f32, v_max: f32, t_min: f32, t_max: f32) -> f32 {
     let v_size = v_max - v_min;
     let t_size = t_max - t_min;
     if v_size < t_size {
-        (t_min + t_max) / 2.
+        t_min + (t_size - v_size) / 2.
     } else if t_min < v_min {
         t_min
     } else if v_max < t_max {
-        v_min - (t_max - v_max)
+        t_max - v_size
     } else {
         v_min
     }
