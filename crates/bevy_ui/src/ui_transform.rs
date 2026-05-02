@@ -167,7 +167,7 @@ impl UiTransform {
         }
     }
 
-    /// Create a new UI transfrom at the position `(x, y)`
+    /// Create a new UI transform at the position `(x, y)`
     pub const fn from_xy(x: Val, y: Val) -> Self {
         Self {
             translation: Val2::new(x, y),
