@@ -425,7 +425,8 @@ fn listen_for_ime_input_when_text_input_focused(
     window.ime_enabled = editable_text_focused;
 }
 
-/// Observer that clears in-progress IME composition when an [`EditableText`] loses focus.
+/// Observer that clears in-progress IME composition and collapses selection if an entity has [`SelectAllOnFocus`]
+/// when an [`EditableText`] loses focus.
 ///
 /// We need to clear the composition on focus loss because IME composition state is not automatically tied to widget focus;
 /// the IME remains active until explicitly disabled, even if the focused widget changes to another `EditableText` or to a non-`EditableText`.
@@ -436,10 +437,15 @@ fn listen_for_ime_input_when_text_input_focused(
 /// and no [`Ime::Disabled`] event is ever fired to trigger the cleanup in [`on_ime_input`].
 fn on_focus_lost_clear_ime(
     trigger: On<FocusLost>,
-    mut editable_text_query: Query<&mut EditableText>,
+    mut editable_text_query: Query<(&mut EditableText, Has<SelectAllOnFocus>)>,
 ) {
-    if let Ok(mut editable_text) = editable_text_query.get_mut(trigger.entity) {
+    if let Ok((mut editable_text, select_all_on_focus)) =
+        editable_text_query.get_mut(trigger.entity)
+    {
         editable_text.queue_edit(TextEdit::clear_ime_compose());
+        if select_all_on_focus {
+            editable_text.queue_edit(TextEdit::CollapseSelection);
+        }
     }
 }
 
