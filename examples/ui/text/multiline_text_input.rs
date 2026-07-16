@@ -6,7 +6,7 @@ use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::input_focus::tab_navigation::{TabGroup, TabIndex, TabNavigationPlugin};
 use bevy::input_focus::{AutoFocus, FocusCause, FocusedInput, InputFocus};
 use bevy::prelude::*;
-use bevy::text::{EditableText, EditableTextFilter, TextCursorStyle};
+use bevy::text::{EditableText, EditableTextFilter, TextCursorStyle, TextReadWriteMode};
 use bevy::ui_widgets::TextInput;
 use bevy::ui_widgets::{
     popover::{Popover, PopoverAlign, PopoverPlacement, PopoverSide},
@@ -35,6 +35,15 @@ struct SelectionRadiusInput;
 
 #[derive(Component)]
 struct JustifyLabel;
+
+#[derive(Component)]
+struct JustifyMenu;
+
+#[derive(Component)]
+struct ReadWriteLabel;
+
+#[derive(Component)]
+struct ReadWriteMenu;
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
@@ -92,6 +101,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             MultilineInput,
                             TabIndex(0),
                             AutoFocus,
+                            TextReadWriteMode::Editable,
                         ))
                         .observe(
                             |on: On<FocusedInput<KeyboardInput>>,
@@ -371,9 +381,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             |on: On<MenuEvent>,
                              mut popup: Single<
                                 (&mut Node, &mut MenuFocusState),
-                                With<MenuPopup>,
+                                (With<MenuPopup>, With<JustifyMenu>),
                             >,
-                             button: Single<Entity, With<MenuButton>>,
+                             button: Single<Entity, (With<MenuButton>, With<JustifyMenu>)>,
                              mut focus: ResMut<InputFocus>| {
                                 match on.action {
                                     MenuAction::Open(direction) => {
@@ -408,6 +418,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 },
                                 Button,
                                 MenuButton,
+                                JustifyMenu,
                                 TabIndex(4),
                                 BackgroundColor(DARK_SLATE_GRAY.into()),
                                 BorderColor::all(SLATE_300),
@@ -433,6 +444,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                         ..default()
                                     },
                                     MenuPopup::default(),
+                                    JustifyMenu,
                                     Popover {
                                         positions: vec![PopoverPlacement {
                                             side: PopoverSide::Top,
@@ -484,6 +496,137 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                                     With<JustifyLabel>,
                                                 >| {
                                                     layout.justify = justify;
+                                                    selected.0 = label.into();
+                                                },
+                                            );
+                                    }
+                                });
+                        });
+
+                    parent
+                        .spawn(Node::default())
+                        .observe(
+                            |on: On<MenuEvent>,
+                             mut popup: Single<
+                                (&mut Node, &mut MenuFocusState),
+                                (With<MenuPopup>, With<ReadWriteMenu>),
+                            >,
+                             button: Single<Entity, (With<MenuButton>, With<ReadWriteMenu>)>,
+                             mut focus: ResMut<InputFocus>| {
+                                match on.action {
+                                    MenuAction::Open(direction) => {
+                                        popup.0.display = Display::Flex;
+                                        *popup.1 = MenuFocusState::Opening(direction);
+                                    }
+                                    MenuAction::Toggle => {
+                                        if popup.0.display == Display::None {
+                                            popup.0.display = Display::Flex;
+                                            *popup.1 = MenuFocusState::Opening(
+                                                bevy::input_focus::tab_navigation::NavAction::First,
+                                            );
+                                        } else {
+                                            popup.0.display = Display::None;
+                                        }
+                                    }
+                                    MenuAction::CloseAll => {
+                                        popup.0.display = Display::None;
+                                    }
+                                    MenuAction::FocusRoot => {
+                                        focus.set(*button, FocusCause::Navigated);
+                                    }
+                                }
+                            },
+                        )
+                        .with_children(|parent| {
+                            parent.spawn((
+                                Node {
+                                    border: px(2.).all(),
+                                    padding: px(8.).horizontal(),
+                                    ..default()
+                                },
+                                Button,
+                                MenuButton,
+                                ReadWriteMenu,
+                                TabIndex(5),
+                                BackgroundColor(DARK_SLATE_GRAY.into()),
+                                BorderColor::all(SLATE_300),
+                                children![(
+                                    Text::new("TextReadWriteMode::Editable"),
+                                    TextFont {
+                                        font: asset_server.load("fonts/FiraMono-Medium.ttf").into(),
+                                        font_size: FontSize::Px(24.),
+                                        ..default()
+                                    },
+                                    ReadWriteLabel,
+                                )],
+                            ));
+
+                            parent
+                                .spawn((
+                                    Node {
+                                        display: Display::None,
+                                        flex_direction: FlexDirection::Column,
+                                        min_width: percent(100.),
+                                        border: px(2.).all(),
+                                        position_type: PositionType::Absolute,
+                                        ..default()
+                                    },
+                                    MenuPopup::default(),
+                                    ReadWriteMenu,
+                                    Popover {
+                                        positions: vec![PopoverPlacement {
+                                            side: PopoverSide::Top,
+                                            align: PopoverAlign::End,
+                                            gap: 2.,
+                                        }],
+                                        ..default()
+                                    },
+                                    GlobalZIndex(1),
+                                    BackgroundColor(DARK_SLATE_GRAY.into()),
+                                    BorderColor::all(SLATE_300),
+                                ))
+                                .with_children(|parent| {
+                                    for (label, mode) in [
+                                        (
+                                            "TextReadWriteMode::Editable",
+                                            TextReadWriteMode::Editable,
+                                        ),
+                                        (
+                                            "TextReadWriteMode::ReadOnly",
+                                            TextReadWriteMode::ReadOnly,
+                                        ),
+                                        ("TextReadWriteMode::Static", TextReadWriteMode::Static),
+                                    ] {
+                                        parent
+                                            .spawn((
+                                                Node {
+                                                    padding: px(8.).horizontal(),
+                                                    ..default()
+                                                },
+                                                MenuItem,
+                                                TabIndex(0),
+                                                children![(
+                                                    Text::new(label),
+                                                    TextFont {
+                                                        font: asset_server
+                                                            .load("fonts/FiraMono-Medium.ttf",)
+                                                            .into(),
+                                                        font_size: FontSize::Px(24.),
+                                                        ..default()
+                                                    },
+                                                )],
+                                            ))
+                                            .observe(
+                                                move |_: On<Activate>,
+                                                      mut read_write_mode: Single<
+                                                    &mut TextReadWriteMode,
+                                                    With<MultilineInput>,
+                                                >,
+                                                      mut selected: Single<
+                                                    &mut Text,
+                                                    With<ReadWriteLabel>,
+                                                >| {
+                                                    **read_write_mode = mode;
                                                     selected.0 = label.into();
                                                 },
                                             );
