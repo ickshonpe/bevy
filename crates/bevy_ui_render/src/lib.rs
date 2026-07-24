@@ -2058,42 +2058,49 @@ pub fn queue_uinodes(
     let mut current_phase = None;
 
     for (main_entity, extracted_sub_uinodes) in extracted_uinodes.uinodes.iter() {
-        for (render_entity, extracted_uinode) in extracted_sub_uinodes.iter() {
-            if current_camera_entity != extracted_uinode.extracted_camera_entity {
-                current_phase = render_views
-                    .get(extracted_uinode.extracted_camera_entity)
-                    .ok()
-                    .and_then(|(default_camera_view, ui_anti_alias)| {
-                        camera_views
-                            .get(default_camera_view.0)
-                            .ok()
-                            .and_then(|view| {
-                                transparent_render_phases
-                                    .get_mut(&view.retained_view_entity)
-                                    .map(|transparent_phase| {
-                                        (view, ui_anti_alias, transparent_phase)
-                                    })
-                            })
-                    });
-                current_camera_entity = extracted_uinode.extracted_camera_entity;
-            }
-
-            let Some((view, ui_anti_alias, transparent_phase)) = current_phase.as_mut() else {
-                continue;
-            };
-
-            let pipeline = pipelines.specialize(
-                &pipeline_cache,
-                &ui_pipeline,
-                UiPipelineKey {
-                    target_format: view.target_format,
-                    anti_alias: matches!(ui_anti_alias, None | Some(UiAntiAlias::On)),
+        let Some(extracted_camera_entity) = extracted_sub_uinodes
+            .iter()
+            .next()
+            .map(|(_, extracted_uinode)| extracted_uinode.extracted_camera_entity)
+        else {
+            continue;
+        };
+        if current_camera_entity != extracted_camera_entity {
+            current_phase = render_views.get(extracted_camera_entity).ok().and_then(
+                |(default_camera_view, ui_anti_alias)| {
+                    camera_views
+                        .get(default_camera_view.0)
+                        .ok()
+                        .and_then(|view| {
+                            transparent_render_phases
+                                .get_mut(&view.retained_view_entity)
+                                .map(|transparent_phase| {
+                                    let pipeline = pipelines.specialize(
+                                        &pipeline_cache,
+                                        &ui_pipeline,
+                                        UiPipelineKey {
+                                            target_format: view.target_format,
+                                            anti_alias: matches!(
+                                                ui_anti_alias,
+                                                None | Some(UiAntiAlias::On)
+                                            ),
+                                        },
+                                    );
+                                    (pipeline, transparent_phase)
+                                })
+                        })
                 },
             );
+            current_camera_entity = extracted_camera_entity;
+        }
 
+        let Some((pipeline, transparent_phase)) = current_phase.as_mut() else {
+            continue;
+        };
+        for (render_entity, extracted_uinode) in extracted_sub_uinodes.iter() {
             transparent_phase.add_transient(TransparentUi {
                 draw_function,
-                pipeline,
+                pipeline: *pipeline,
                 entity: (*render_entity, *main_entity),
                 sort_key: extracted_uinode.sort_key,
                 // batch_range will be calculated in prepare_uinodes
