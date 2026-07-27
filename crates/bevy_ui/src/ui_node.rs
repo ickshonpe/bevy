@@ -2981,6 +2981,7 @@ impl Default for LayoutConfig {
 /// order camera targeting the primary window.
 #[derive(Component, Clone, Debug, Reflect, Eq, PartialEq)]
 #[reflect(Component, Debug, PartialEq, Clone)]
+#[require(Node)]
 pub struct UiTargetCamera(pub Entity);
 
 impl UiTargetCamera {
