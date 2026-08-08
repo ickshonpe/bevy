@@ -382,7 +382,7 @@ pub fn clip_check_recursive(
         && transform.try_inverse().is_none_or(|affine| {
             !computed_node
                 .resolve_clip_rect(node.overflow, node.overflow_clip_margin)
-                .into_inner()
+                .as_inner()
                 .contains(affine.transform_point2(point.into_inner()))
         })
     {

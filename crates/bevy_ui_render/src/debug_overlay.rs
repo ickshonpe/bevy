@@ -240,7 +240,7 @@ pub fn extract_debug_overlay(
                         z_order,
                         clip: maybe_clip
                             .filter(|_| !debug_options.show_clipped)
-                            .map(|clip| clip.clip.into_inner()),
+                            .map(|clip| *clip.clip.as_inner()),
                         image: AssetId::default(),
                         transform: transform * Affine2::from_translation(rect.center()),
                         item: ExtractedUiItem::Node {
@@ -260,23 +260,23 @@ pub fn extract_debug_overlay(
                 );
         };
 
-        let border_box = uinode.border_box().into_inner();
+        let border_box = *uinode.border_box().as_inner();
 
         if debug_options.outline_border_box {
-            push_outline(border_box, uinode.border_radius().into_inner());
+            push_outline(border_box, *uinode.border_radius().as_inner());
         }
 
         if debug_options.outline_padding_box {
             let mut padding_box = border_box;
-            let node_border = uinode.border.into_inner();
+            let node_border = *uinode.border.as_inner();
             padding_box.min += node_border.min_inset;
             padding_box.max -= node_border.max_inset;
-            push_outline(padding_box, uinode.inner_radius().into_inner());
+            push_outline(padding_box, *uinode.inner_radius().as_inner());
         }
 
         if debug_options.outline_content_box {
             let mut content_box = border_box;
-            let content_inset = uinode.content_inset().into_inner();
+            let content_inset = *uinode.content_inset().as_inner();
             content_box.min += content_inset.min_inset;
             content_box.max -= content_inset.max_inset;
             push_outline(content_box, ResolvedBorderRadius::ZERO);
@@ -284,7 +284,7 @@ pub fn extract_debug_overlay(
 
         if debug_options.outline_scrollbars {
             if let Some((gutter, [thumb_min, thumb_max])) = uinode.horizontal_scrollbar() {
-                let gutter = gutter.into_inner();
+                let gutter = *gutter.as_inner();
                 push_outline(gutter, ResolvedBorderRadius::ZERO);
                 push_outline(
                     Rect {
@@ -295,7 +295,7 @@ pub fn extract_debug_overlay(
                 );
             }
             if let Some((gutter, [thumb_min, thumb_max])) = uinode.vertical_scrollbar() {
-                let gutter = gutter.into_inner();
+                let gutter = *gutter.as_inner();
                 push_outline(gutter, ResolvedBorderRadius::ZERO);
                 push_outline(
                     Rect {

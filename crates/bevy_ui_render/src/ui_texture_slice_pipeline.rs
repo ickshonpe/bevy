@@ -306,7 +306,8 @@ pub fn extract_ui_texture_slices(
             VisualBox::PaddingBox => uinode.padding_box(),
             VisualBox::BorderBox => uinode.border_box(),
         }
-        .into_inner();
+        .as_inner()
+        .to_owned();
 
         // Skip invisible images
         if !inherited_visibility.get()
@@ -373,7 +374,7 @@ pub fn extract_ui_texture_slices(
                         min: Vec2::ZERO,
                         max: visual_box.size(),
                     },
-                    clip: clip.map(|clip| clip.clip.into_inner()),
+                    clip: clip.map(|clip| *clip.clip.as_inner()),
                     image: image.image.id(),
                     image_scale_mode,
                     atlas_rect,

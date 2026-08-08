@@ -66,7 +66,7 @@ pub fn extract_text_cursor(
             continue;
         };
 
-        let content_box = uinode.content_box().into_inner();
+        let content_box = *uinode.content_box().as_inner();
         let transform = Affine2::from(global_transform)
             * Affine2::from_translation(
                 content_box.min - editable_text.map_or(Vec2::ZERO, |editor| editor.viewport.offset),
@@ -77,11 +77,9 @@ pub fn extract_text_cursor(
                 global_transform.affine().translation + content_box.center(),
                 content_box.size(),
             );
-            Some(maybe_clip.map_or(text_clip, |clip| {
-                clip.clip.into_inner().intersect(text_clip)
-            }))
+            Some(maybe_clip.map_or(text_clip, |clip| clip.clip.as_inner().intersect(text_clip)))
         } else {
-            maybe_clip.map(|clip| clip.clip.into_inner())
+            maybe_clip.map(|clip| *clip.clip.as_inner())
         };
 
         let mut focused = false;
@@ -266,7 +264,7 @@ pub fn extract_preedit_underlines(
             continue;
         };
 
-        let content_box = uinode.content_box().into_inner();
+        let content_box = *uinode.content_box().as_inner();
         let transform = Affine2::from(global_transform)
             * Affine2::from_translation(content_box.min - editable_text.viewport.offset);
 
@@ -274,9 +272,8 @@ pub fn extract_preedit_underlines(
             global_transform.affine().translation + content_box.center(),
             content_box.size(),
         );
-        let clip = Some(maybe_clip.map_or(text_clip, |clip| {
-            clip.clip.into_inner().intersect(text_clip)
-        }));
+        let clip =
+            Some(maybe_clip.map_or(text_clip, |clip| clip.clip.as_inner().intersect(text_clip)));
 
         let color = text_color.0.to_linear();
 

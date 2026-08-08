@@ -757,7 +757,7 @@ pub fn extract_uinode_background_colors(
                 commands.spawn_empty().id(),
                 ExtractedUiNode {
                     z_order: stack_index.0 as f32 + stack_z_offsets::BACKGROUND_COLOR,
-                    clip: clip.map(|clip| clip.clip.into_inner()),
+                    clip: clip.map(|clip| *clip.clip.as_inner()),
                     image: AssetId::default(),
                     transform: transform.into(),
                     item: ExtractedUiItem::Node {
@@ -769,8 +769,8 @@ pub fn extract_uinode_background_colors(
                         atlas_scaling: None,
                         flip_x: false,
                         flip_y: false,
-                        border: uinode.border().into_inner(),
-                        border_radius: uinode.border_radius().into_inner(),
+                        border: *uinode.border().as_inner(),
+                        border_radius: *uinode.border_radius().as_inner(),
                         node_type: NodeType::Rect,
                     },
                 },
@@ -784,7 +784,7 @@ pub fn extract_uinode_background_colors(
                 commands.spawn_empty().id(),
                 ExtractedUiNode {
                     z_order: stack_index.0 as f32 + stack_z_offsets::BACKGROUND_COLOR,
-                    clip: clip.map(|clip| clip.clip.into_inner()),
+                    clip: clip.map(|clip| *clip.clip.as_inner()),
                     image: AssetId::default(),
                     transform: transform.into(),
                     item: ExtractedUiItem::Node {
@@ -797,7 +797,7 @@ pub fn extract_uinode_background_colors(
                         flip_x: false,
                         flip_y: false,
                         border: BorderRect::ZERO,
-                        border_radius: uinode.border_radius().into_inner(),
+                        border_radius: *uinode.border_radius().as_inner(),
                         node_type: NodeType::Inverted,
                     },
                 },
@@ -848,7 +848,8 @@ pub fn extract_uinode_images(
             VisualBox::PaddingBox => uinode.padding_box(),
             VisualBox::BorderBox => uinode.border_box(),
         }
-        .into_inner();
+        .as_inner()
+        .to_owned();
         // Skip invisible images
         if !inherited_visibility.get()
             || image.color.is_fully_transparent()
@@ -912,7 +913,7 @@ pub fn extract_uinode_images(
                 commands.spawn_empty().id(),
                 ExtractedUiNode {
                     z_order: stack_index.0 as f32 + stack_z_offsets::IMAGE,
-                    clip: clip.map(|clip| clip.clip.into_inner()),
+                    clip: clip.map(|clip| *clip.clip.as_inner()),
                     image: image.image.id(),
                     transform: Affine2::from(*transform)
                         * Affine2::from_translation(visual_box.center()),
@@ -923,7 +924,7 @@ pub fn extract_uinode_images(
                         flip_x: image.flip_x,
                         flip_y: image.flip_y,
                         border: BorderRect::ZERO,
-                        border_radius: uinode.border_radius.into_inner(),
+                        border_radius: *uinode.border_radius.as_inner(),
                         node_type: NodeType::Rect,
                     },
                 },
@@ -978,7 +979,7 @@ pub fn extract_uinode_borders(
         };
 
         // Don't extract borders with zero width along all edges
-        if computed_node.border().into_inner() != BorderRect::ZERO
+        if *computed_node.border().as_inner() != BorderRect::ZERO
             && let Some(border_color) = maybe_border_color
         {
             let border_colors = [
@@ -1017,7 +1018,7 @@ pub fn extract_uinode_borders(
                 let node = ExtractedUiNode {
                     z_order: stack_index.0 as f32 + stack_z_offsets::BORDER,
                     image,
-                    clip: maybe_clip.map(|clip| clip.clip.into_inner()),
+                    clip: maybe_clip.map(|clip| *clip.clip.as_inner()),
                     transform: transform.into(),
                     item: ExtractedUiItem::Node {
                         color,
@@ -1028,8 +1029,8 @@ pub fn extract_uinode_borders(
                         atlas_scaling: None,
                         flip_x: false,
                         flip_y: false,
-                        border: computed_node.border().into_inner(),
-                        border_radius: computed_node.border_radius().into_inner(),
+                        border: *computed_node.border().as_inner(),
+                        border_radius: *computed_node.border_radius().as_inner(),
                         node_type: NodeType::Border(border_flags),
                     },
                 };
@@ -1060,7 +1061,7 @@ pub fn extract_uinode_borders(
                     ExtractedUiNode {
                         z_order: stack_index.0 as f32 + stack_z_offsets::BORDER,
                         image,
-                        clip: maybe_clip.map(|clip| clip.clip.into_inner()),
+                        clip: maybe_clip.map(|clip| *clip.clip.as_inner()),
                         transform: transform.into(),
                         item: ExtractedUiItem::Node {
                             color: outline.color.into(),
@@ -1072,7 +1073,7 @@ pub fn extract_uinode_borders(
                             flip_x: false,
                             flip_y: false,
                             border: BorderRect::all(computed_node.outline_width().into_inner()),
-                            border_radius: computed_node.outline_radius().into_inner(),
+                            border_radius: *computed_node.outline_radius().as_inner(),
                             node_type: NodeType::Border(shader_flags::BORDER_ALL),
                         },
                     },
@@ -1329,7 +1330,7 @@ pub fn extract_viewport_nodes(
                 commands.spawn_empty().id(),
                 ExtractedUiNode {
                     z_order: stack_index.0 as f32 + stack_z_offsets::IMAGE,
-                    clip: clip.map(|clip| clip.clip.into_inner()),
+                    clip: clip.map(|clip| *clip.clip.as_inner()),
                     image: image.id(),
                     transform: transform.into(),
                     item: ExtractedUiItem::Node {
@@ -1341,8 +1342,8 @@ pub fn extract_viewport_nodes(
                         atlas_scaling: None,
                         flip_x: false,
                         flip_y: false,
-                        border: uinode.border().into_inner(),
-                        border_radius: uinode.border_radius().into_inner(),
+                        border: *uinode.border().as_inner(),
+                        border_radius: *uinode.border_radius().as_inner(),
                         node_type: NodeType::Rect,
                     },
                 },
@@ -1404,7 +1405,7 @@ pub fn extract_text_sections(
             continue;
         };
 
-        let content_box = uinode.content_box().into_inner();
+        let content_box = *uinode.content_box().as_inner();
         let transform = Affine2::from(*global_transform)
             * Affine2::from_translation(
                 content_box.min - editable_text.map_or(Vec2::ZERO, |text| text.viewport.offset),
@@ -1415,11 +1416,9 @@ pub fn extract_text_sections(
                 global_transform.affine().translation + content_box.center(),
                 content_box.size(),
             );
-            Some(maybe_clip.map_or(text_clip, |clip| {
-                clip.clip.into_inner().intersect(text_clip)
-            }))
+            Some(maybe_clip.map_or(text_clip, |clip| clip.clip.as_inner().intersect(text_clip)))
         } else {
-            maybe_clip.map(|clip| clip.clip.into_inner())
+            maybe_clip.map(|clip| *clip.clip.as_inner())
         };
 
         let mut color = text_color.0.to_linear();
@@ -1555,7 +1554,7 @@ pub fn extract_text_shadows(
             continue;
         };
 
-        let content_box = uinode.content_box().into_inner();
+        let content_box = *uinode.content_box().as_inner();
         let node_transform = Affine2::from(*global_transform)
             * Affine2::from_translation(
                 content_box.min
@@ -1571,11 +1570,9 @@ pub fn extract_text_shadows(
                 global_transform.affine().translation + content_box.center(),
                 content_box.size(),
             );
-            Some(maybe_clip.map_or(text_clip, |clip| {
-                clip.clip.into_inner().intersect(text_clip)
-            }))
+            Some(maybe_clip.map_or(text_clip, |clip| clip.clip.as_inner().intersect(text_clip)))
         } else {
-            maybe_clip.map(|clip| clip.clip.into_inner())
+            maybe_clip.map(|clip| *clip.clip.as_inner())
         };
 
         for (
@@ -1751,7 +1748,7 @@ pub fn extract_text_decorations(
             continue;
         };
 
-        let content_box = uinode.content_box().into_inner();
+        let content_box = *uinode.content_box().as_inner();
         let transform = Affine2::from(global_transform)
             * Affine2::from_translation(
                 content_box.min - editable_text.map_or(Vec2::ZERO, |text| text.viewport.offset),
@@ -1762,11 +1759,9 @@ pub fn extract_text_decorations(
                 global_transform.affine().translation + content_box.center(),
                 content_box.size(),
             );
-            Some(maybe_clip.map_or(text_clip, |clip| {
-                clip.clip.into_inner().intersect(text_clip)
-            }))
+            Some(maybe_clip.map_or(text_clip, |clip| clip.clip.as_inner().intersect(text_clip)))
         } else {
-            maybe_clip.map(|clip| clip.clip.into_inner())
+            maybe_clip.map(|clip| *clip.clip.as_inner())
         };
 
         for run in text_layout_info.run_geometry.iter() {

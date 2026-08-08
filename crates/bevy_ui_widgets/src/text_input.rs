@@ -280,11 +280,9 @@ fn on_pointer_press(
             press.pointer_location.position * target.scale_factor().into_inner() / ui_scale.0,
         );
         node.content_box()
-            .into_inner()
+            .as_inner()
             .contains(local_pos)
-            .then(|| {
-                local_pos - node.content_box().into_inner().min + editable_text.viewport.offset
-            })
+            .then(|| local_pos - node.content_box().as_inner().min + editable_text.viewport.offset)
     }) else {
         return;
     };
@@ -351,10 +349,10 @@ fn on_pointer_drag(
         return;
     };
 
-    let clamped_local_point = node.content_box().into_inner().clamp_point(local_point);
+    let clamped_local_point = node.content_box().as_inner().clamp_point(local_point);
     let current_offset = editable_text.viewport.offset;
     editable_text.queue_edit(TextEdit::ExtendSelectionToPoint(
-        clamped_local_point - node.content_box().into_inner().min + current_offset,
+        clamped_local_point - node.content_box().as_inner().min + current_offset,
     ));
 }
 
@@ -409,7 +407,7 @@ pub(crate) fn text_input_autoscroll_system(
         return;
     };
 
-    let clamped_local_point = node.content_box().into_inner().clamp_point(local_point);
+    let clamped_local_point = node.content_box().as_inner().clamp_point(local_point);
 
     // Signed per-axis distance of the pointer from the text viewport
     let signed_distance = local_point - clamped_local_point;
@@ -456,7 +454,7 @@ pub(crate) fn text_input_autoscroll_system(
 
     // Extend the selection using the post-scroll viewport offset.
     editable_text.queue_edit(TextEdit::ExtendSelectionToPoint(
-        clamped_local_point - node.content_box().into_inner().min + clamped_offset,
+        clamped_local_point - node.content_box().as_inner().min + clamped_offset,
     ));
 }
 
@@ -582,8 +580,7 @@ fn update_ime_position(
     // Use `y1` (bottom edge) so the OS-drawn candidate box sits below the current line
     // rather than overlapping it.
     let parley_local = Vec2::new(area.x0 as f32, area.y1 as f32);
-    let ui_local =
-        parley_local + node.content_box().into_inner().min - editable_text.viewport.offset;
+    let ui_local = parley_local + node.content_box().as_inner().min - editable_text.viewport.offset;
     window.ime_position = transform.affine().transform_point2(ui_local) * ui_scale.0
         / target.scale_factor().into_inner();
 }

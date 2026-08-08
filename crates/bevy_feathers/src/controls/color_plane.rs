@@ -23,9 +23,9 @@ use bevy_render::render_resource::AsBindGroup;
 use bevy_scene::prelude::*;
 use bevy_shader::{ShaderDefVal, ShaderRef};
 use bevy_ui::{
-    percent, px, AlignSelf, BorderColor, BorderRadius, ComputedNode, ComputedUiRenderTargetInfo,
-    Display, InteractionDisabled, Node, Outline, PositionType, UiGlobalTransform, UiRect, UiScale,
-    UiSystems, UiTransform, Val2,
+    percent, physical, px, AlignSelf, BorderColor, BorderRadius, ComputedNode,
+    ComputedUiRenderTargetInfo, Display, InteractionDisabled, Node, Outline, PositionType,
+    UiGlobalTransform, UiRect, UiScale, UiSystems, UiTransform, Val2,
 };
 use bevy_ui_render::{prelude::UiMaterial, ui_material::MaterialNode, UiMaterialPlugin};
 use bevy_ui_widgets::ValueChange;
@@ -308,7 +308,7 @@ fn emit_color_plane_value_change(
 ) {
     let Some(pos) = node.normalize_point(
         *transform,
-        pointer_position * node_target.scale_factor() / ui_scale,
+        physical(pointer_position * node_target.scale_factor().into_inner() / ui_scale),
     ) else {
         return;
     };

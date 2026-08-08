@@ -434,7 +434,7 @@ pub(crate) fn update_scrollbar_thumb(
             let border_radius = thumb.border_radius.resolve(
                 target_info.scale_factor(),
                 thumb_physical_size,
-                physical(target_info.physical_size().into_inner().as_vec2()),
+                physical(target_info.physical_size().as_inner().as_vec2()),
             );
             if thumb_node.border_radius != border_radius {
                 thumb_node.border_radius = border_radius;
@@ -444,7 +444,7 @@ pub(crate) fn update_scrollbar_thumb(
                 val.resolve(
                     target_info.scale_factor(),
                     thumb_physical_size.x(),
-                    physical(target_info.physical_size().into_inner().as_vec2()),
+                    physical(target_info.physical_size().as_inner().as_vec2()),
                 )
                 .unwrap_or(physical(0.))
                 .into_inner()
@@ -485,7 +485,7 @@ pub(crate) fn update_scrollbar_thumb(
                 * thumb_transform.compute_affine(
                     target_info.scale_factor(),
                     thumb_physical_size,
-                    physical(target_info.physical_size().into_inner().as_vec2()),
+                    physical(target_info.physical_size().as_inner().as_vec2()),
                 )
                 * Affine2::from_translation(thumb_center * target_info.scale_factor().into_inner());
 

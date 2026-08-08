@@ -21,7 +21,7 @@ use bevy_reflect::Reflect;
 use bevy_scene::prelude::*;
 use bevy_text::FontWeight;
 use bevy_ui::{
-    px, AlignItems, AlignSelf, BoxShadow, Display, FlexDirection, GlobalZIndex,
+    logical, px, AlignItems, AlignSelf, BoxShadow, Display, FlexDirection, GlobalZIndex,
     InteractionDisabled, JustifyContent, Node, OverrideClip, PositionType, Pressed, UiRect,
 };
 use bevy_ui_widgets::{
@@ -377,15 +377,15 @@ impl FeathersMenuPopup {
                     PopoverPlacement {
                         side: PopoverSide::Bottom,
                         align: PopoverAlign::Start,
-                        gap: 2.0,
+                        gap: logical(2.0),
                     },
                     PopoverPlacement {
                         side: PopoverSide::Top,
                         align: PopoverAlign::Start,
-                        gap: 2.0,
+                        gap: logical(2.0),
                     },
                 ],
-                window_margin: 10.0,
+                window_margin: logical(10.0),
             }
             OverrideClip
         }

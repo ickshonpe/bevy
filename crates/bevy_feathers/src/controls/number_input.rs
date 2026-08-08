@@ -952,8 +952,9 @@ fn scrubber_on_release(
 
             let Some(local_pos) = transform.try_inverse().map(|inverse| {
                 inverse.transform_point2(
-                    release.pointer_location.position * target.scale_factor() / ui_scale.0,
-                ) - node.content_box().min
+                    release.pointer_location.position * target.scale_factor().into_inner()
+                        / ui_scale.0,
+                ) - node.content_box().as_inner().min
                     + editable_text.viewport.offset
             }) else {
                 return;
@@ -995,7 +996,8 @@ fn scrubber_on_drag_start(
         && let Ok(node) = q_scrubber.get_mut(drag_start.event_target())
         && drag.mode == EditMode::Scrubbing
     {
-        let slider_size = (node.size().x * node.inverse_scale_factor).max(1.0) as f64;
+        let slider_size =
+            (node.size().x().to_logical(node.scale_factor()).into_inner()).max(1.0) as f64;
         drag_start.propagate(false);
         drag.base_value = *input_value;
         drag.max_distance = 0.0;

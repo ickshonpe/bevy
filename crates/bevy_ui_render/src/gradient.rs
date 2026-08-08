@@ -453,10 +453,10 @@ pub fn extract_gradients(
             *camera_entity = extracted_camera_entity;
         }
         let uinode_size = uinode.size.into_inner();
-        let border_radius = uinode.border_radius.into_inner();
-        let border = uinode.border.into_inner();
+        let border_radius = *uinode.border_radius.as_inner();
+        let border = *uinode.border.as_inner();
         let target_scale_factor = target.scale_factor().into_inner();
-        let target_physical_size = target.physical_size().into_inner().as_vec2();
+        let target_physical_size = target.physical_size().as_inner().as_vec2();
 
         for (gradients, node_type) in [
             (gradient.map(|g| &g.0), NodeType::Rect),
@@ -500,7 +500,7 @@ pub fn extract_gradients(
                                     min: Vec2::ZERO,
                                     max: uinode_size,
                                 },
-                                clip: clip.map(|clip| clip.clip.into_inner()),
+                                clip: clip.map(|clip| *clip.clip.as_inner()),
                                 node_type,
                                 border_radius,
                                 border,
@@ -541,7 +541,7 @@ pub fn extract_gradients(
                                         min: Vec2::ZERO,
                                         max: uinode_size,
                                     },
-                                    clip: clip.map(|clip| clip.clip.into_inner()),
+                                    clip: clip.map(|clip| *clip.clip.as_inner()),
                                     node_type,
                                     border_radius,
                                     border,
@@ -594,7 +594,7 @@ pub fn extract_gradients(
                                         min: Vec2::ZERO,
                                         max: uinode_size,
                                     },
-                                    clip: clip.map(|clip| clip.clip.into_inner()),
+                                    clip: clip.map(|clip| *clip.clip.as_inner()),
                                     node_type,
                                     border_radius,
                                     border,
@@ -656,7 +656,7 @@ pub fn extract_gradients(
                                         min: Vec2::ZERO,
                                         max: uinode_size,
                                     },
-                                    clip: clip.map(|clip| clip.clip.into_inner()),
+                                    clip: clip.map(|clip| *clip.clip.as_inner()),
                                     node_type,
                                     border_radius,
                                     border,

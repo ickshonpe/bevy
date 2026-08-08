@@ -303,10 +303,10 @@ pub fn extract_shadows(
             *camera_entity = extracted_camera_entity;
         }
 
-        let ui_physical_viewport_size = target.physical_size().into_inner().as_vec2();
+        let ui_physical_viewport_size = target.physical_size().as_inner().as_vec2();
         let scale_factor = target.scale_factor().into_inner();
         let uinode_size = uinode.size().into_inner();
-        let border_radius = uinode.border_radius.into_inner();
+        let border_radius = *uinode.border_radius.as_inner();
 
         for drop_shadow in box_shadow.iter() {
             if drop_shadow.color.is_fully_transparent() {
@@ -360,7 +360,7 @@ pub fn extract_shadows(
                         transform: Affine2::from(transform) * Affine2::from_translation(offset),
                         color: drop_shadow.color.into(),
                         bounds: shadow_size + 6. * blur_radius,
-                        clip: clip.map(|clip| clip.clip.into_inner()),
+                        clip: clip.map(|clip| *clip.clip.as_inner()),
                         radius,
                         blur_radius,
                         size: shadow_size,

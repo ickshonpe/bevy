@@ -290,7 +290,7 @@ fn pick_ui_text_section(
     text_block: &ComputedTextBlock,
 ) -> Option<Entity> {
     let local_point = global_transform.try_inverse().map(|transform| {
-        transform.transform_point2(point.into_inner()) - uinode.content_box().into_inner().min
+        transform.transform_point2(point.into_inner()) - uinode.content_box().as_inner().min
     })?;
     let section_index = text_layout_info
         .run_geometry

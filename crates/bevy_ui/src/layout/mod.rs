@@ -106,7 +106,7 @@ pub fn ui_layout_system(
             if computed_target.is_changed() || node.is_changed() || content_size.is_changed() {
                 let layout_context = LayoutContext::new(
                     computed_target.scale_factor,
-                    physical(computed_target.physical_size.into_inner().as_vec2()),
+                    physical(computed_target.physical_size.as_inner().as_vec2()),
                 );
                 if content_size.is_changed() && content_size.measure.is_none() {
                     ui_surface.try_remove_node_context(entity);
@@ -218,7 +218,7 @@ pub fn ui_layout_system(
 
         ui_surface.compute_layout(
             ui_root_entity,
-            computed_target.physical_size.into_inner(),
+            *computed_target.physical_size.as_inner(),
             &mut buffer_query,
             &mut font_system,
         );
@@ -228,7 +228,7 @@ pub fn ui_layout_system(
             ui_root_entity,
             &mut ui_surface,
             true,
-            physical(computed_target.physical_size().into_inner().as_vec2()),
+            physical(computed_target.physical_size().as_inner().as_vec2()),
             Affine2::IDENTITY,
             &mut node_update_query,
             &ui_children,

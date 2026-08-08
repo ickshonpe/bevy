@@ -181,8 +181,8 @@ impl ComputedNode {
         fn clamp_corner(r: Vec2, size: Vec2, offset: Vec2) -> Vec2 {
             r.min(0.5 * size + offset)
         }
-        let border = self.border.into_inner();
-        let border_radius = self.border_radius.into_inner();
+        let border = *self.border.as_inner();
+        let border_radius = *self.border_radius.as_inner();
         let b = Vec4::from((border.min_inset, border.max_inset));
         let s = self.size.into_inner() - b.xy() - b.zw();
         physical(ResolvedBorderRadius {
@@ -204,8 +204,8 @@ impl ComputedNode {
     /// Returns the combined inset on each edge including both padding and border thickness in physical pixels.
     #[inline]
     pub fn content_inset(&self) -> Physical<BorderRect> {
-        let mut content_inset = self.border.into_inner() + self.padding.into_inner();
-        content_inset.max_inset += self.scrollbar_size.into_inner();
+        let mut content_inset = *self.border.as_inner() + *self.padding.as_inner();
+        content_inset.max_inset += *self.scrollbar_size.as_inner();
         physical(content_inset)
     }
 
@@ -225,7 +225,7 @@ impl ComputedNode {
         else {
             return false;
         };
-        let border_radius = self.border_radius.into_inner();
+        let border_radius = *self.border_radius.as_inner();
         let [top, bottom] = if local_point.x < 0. {
             [border_radius.top_left, border_radius.bottom_left]
         } else {
@@ -268,8 +268,8 @@ impl ComputedNode {
 
         let clip_inset = match overflow_clip_margin.visual_box {
             VisualBox::BorderBox => BorderRect::ZERO,
-            VisualBox::ContentBox => self.content_inset().into_inner(),
-            VisualBox::PaddingBox => self.border.into_inner(),
+            VisualBox::ContentBox => *self.content_inset().as_inner(),
+            VisualBox::PaddingBox => *self.border.as_inner(),
         };
 
         clip_rect = clip_rect.inflate(
@@ -304,8 +304,8 @@ impl ComputedNode {
     /// This is the region inside the border containing the node's padding and content areas.
     #[inline]
     pub fn padding_box(&self) -> Physical<Rect> {
-        let mut out = self.border_box().into_inner();
-        let border = self.border.into_inner();
+        let mut out = *self.border_box().as_inner();
+        let border = *self.border.as_inner();
         out.min += border.min_inset;
         out.max -= border.max_inset;
         physical(out)
@@ -315,8 +315,8 @@ impl ComputedNode {
     /// This is the innermost region of the node, where its content is placed.
     #[inline]
     pub fn content_box(&self) -> Physical<Rect> {
-        let mut out = self.border_box().into_inner();
-        let content_inset = self.content_inset().into_inner();
+        let mut out = *self.border_box().as_inner();
+        let content_inset = *self.content_inset().as_inner();
         out.min += content_inset.min_inset;
         out.max -= content_inset.max_inset;
         physical(out)
@@ -339,11 +339,11 @@ impl ComputedNode {
     /// Compute the bounds of the horizontal scrollbar and the thumb
     /// in object-centered coordinates.
     pub fn horizontal_scrollbar(&self) -> Option<(Physical<Rect>, [Physical<f32>; 2])> {
-        let scrollbar_size = self.scrollbar_size.into_inner();
+        let scrollbar_size = *self.scrollbar_size.as_inner();
         if scrollbar_size.y <= 0. {
             return None;
         }
-        let content_inset = self.content_inset().into_inner();
+        let content_inset = *self.content_inset().as_inner();
         let half_size = 0.5 * self.size.into_inner();
         let min_x = -half_size.x + content_inset.min_inset.x;
         let max_x = half_size.x - content_inset.max_inset.x;
@@ -369,7 +369,7 @@ impl ComputedNode {
         if scrollbar_size.x <= 0. {
             return None;
         }
-        let content_inset = self.content_inset().into_inner();
+        let content_inset = *self.content_inset().as_inner();
         let half_size = 0.5 * self.size.into_inner();
         let min_x = half_size.x - content_inset.max_inset.x;
         let max_x = min_x + scrollbar_size.x;
@@ -3083,7 +3083,7 @@ impl ComputedUiRenderTargetInfo {
 
     /// Returns the size of the target camera's viewport in logical pixels.
     pub fn logical_size(&self) -> Logical<Vec2> {
-        physical(self.physical_size.into_inner().as_vec2()).to_logical(self.scale_factor)
+        physical(self.physical_size.as_inner().as_vec2()).to_logical(self.scale_factor)
     }
 }
 

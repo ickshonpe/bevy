@@ -393,7 +393,7 @@ pub fn text_system(
                 // With `NoWrap` set, no constraints are placed on the width of the text.
                 TextBounds::UNBOUNDED
             } else {
-                let content_box_size = node.content_box().into_inner().size();
+                let content_box_size = node.content_box().as_inner().size();
                 TextBounds::new(content_box_size.x, content_box_size.y)
             };
 

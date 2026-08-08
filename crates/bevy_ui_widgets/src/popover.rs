@@ -143,7 +143,7 @@ pub(crate) fn position_popover(
 
         // Computed node size includes the border, but since absolute positioning doesn't include
         // border we need to remove it from the calculations.
-        let parent_border = parent_node.border.into_inner();
+        let parent_border = *parent_node.border.as_inner();
         let parent_size =
             parent_node.size().into_inner() - parent_border.min_inset - parent_border.max_inset;
         let parent_rect = scale_rect(
@@ -257,7 +257,7 @@ pub(crate) fn position_popover(
             let resolved_translation = transform.translation.resolve(
                 computed_target.scale_factor(),
                 computed_node.size(),
-                physical(computed_target.physical_size().into_inner().as_vec2()),
+                physical(computed_target.physical_size().as_inner().as_vec2()),
             );
             let logical_translation = (resolved_translation
                 + physical(parent_matrix.inverse() * physical_translation))

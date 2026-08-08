@@ -281,7 +281,12 @@ fn sync_select_width(
     mut q_node: Query<&mut Node>,
 ) {
     for (select_ent, computed) in q_selects.iter() {
-        let width = (computed.size().x * computed.inverse_scale_factor()).round();
+        let width = computed
+            .size()
+            .x()
+            .to_logical(computed.scale_factor())
+            .into_inner()
+            .round();
         if width <= 0.0 {
             continue;
         }

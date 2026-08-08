@@ -101,13 +101,13 @@ fn update_clipping(
         //
         // `clip_inset` should always fit inside `node_rect`.
         // Even if `clip_inset` were to overflow, we won't return a degenerate result as `Rect::intersect` will clamp the intersection, leaving it empty.
-        let mut clip_rect = computed_node
+        let mut clip_rect = *computed_node
             .resolve_clip_rect(node.overflow, node.overflow_clip_margin)
-            .into_inner();
+            .as_inner();
         clip_rect.min += transform.translation;
         clip_rect.max += transform.translation;
         Some(maybe_inherited_clip.map_or(physical(clip_rect), |c| {
-            physical(c.into_inner().intersect(clip_rect))
+            physical(c.as_inner().intersect(clip_rect))
         }))
     };
 

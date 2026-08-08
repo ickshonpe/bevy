@@ -277,7 +277,7 @@ pub fn update_editable_text_styles(
 /// Syncs each [`EditableText`]'s viewport size with their `ComputedNode`'s content size before text edits are applied.
 pub fn sync_editable_text_viewports(mut query: Query<(&mut EditableText, &ComputedNode)>) {
     for (mut editable_text, computed_node) in &mut query {
-        let size = computed_node.content_box().into_inner().size();
+        let size = computed_node.content_box().as_inner().size();
         if editable_text.viewport.size != size {
             editable_text.viewport.size = size;
             editable_text.editor.set_width(Some(size.x));
