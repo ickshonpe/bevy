@@ -500,9 +500,12 @@ fn emit_slider_drag_value_change(
 ) {
     let is_vertical = slider.orientation.is_vertical(node);
 
-    let mut distance = distance / ui_scale.0;
+    let mut distance = distance;
     distance.y *= -1.;
-    let distance = transform.transform_vector2(distance);
+    let distance = transform
+        .transform_vector2(physical(distance) * node.scale_factor().into_inner() / ui_scale.0)
+        .to_logical(node.scale_factor())
+        .into_inner();
 
     // Find thumb size by searching descendants for the first entity with SliderThumb
     let thumb_size = q_children

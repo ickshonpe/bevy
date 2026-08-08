@@ -1059,7 +1059,7 @@ fn scrubber_on_drag(
         Option<&NumberInputWrap>,
     )>,
     mut q_text_input: Query<&mut DragState>,
-    mut q_scrubber: Query<&UiGlobalTransform>,
+    mut q_scrubber: Query<(&UiGlobalTransform, &ComputedNode)>,
     q_parent: Query<&ChildOf>,
     mut commands: Commands,
     ui_scale: Res<UiScale>,
@@ -1069,13 +1069,19 @@ fn scrubber_on_drag(
         && let Ok(&ChildOf(root_id)) = q_parent.get(text_id)
         && let Ok((soft_limit, hard_limit, precision, disabled, wrap)) = q_root.get(root_id)
         && let Ok(mut drag_state) = q_text_input.get_mut(text_id)
-        && let Ok(transform) = q_scrubber.get_mut(drag.entity)
+        && let Ok((transform, node)) = q_scrubber.get_mut(drag.entity)
         && drag_state.mode == EditMode::Scrubbing
     {
         drag_state.max_distance = drag_state.max_distance.max(drag.distance.length());
         drag.propagate(false);
         if !disabled && drag_state.max_distance > DRAG_THRESHOLD_DISTANCE {
-            let drag_delta = transform.transform_vector2(drag.delta / ui_scale.0).x;
+            let drag_delta = transform
+                .transform_vector2(
+                    physical(drag.delta) * node.scale_factor().into_inner() / ui_scale.0,
+                )
+                .to_logical(node.scale_factor())
+                .x()
+                .into_inner();
             let mut delta = drag_delta as f64 * drag_state.drag_speed;
             if keys.pressed(Key::Shift) {
                 delta *= 0.1;
