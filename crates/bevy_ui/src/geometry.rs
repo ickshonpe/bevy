@@ -9,151 +9,234 @@ use thiserror::Error;
 use bevy_reflect::{ReflectDeserialize, ReflectSerialize};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(transparent)]
 pub struct ScaleFactor(pub f32);
 
 /// Units in physical pixels
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-pub struct Physical(pub f32);
+#[repr(transparent)]
+pub struct Physical<T>(pub T);
 
-impl Physical {
-    pub fn to_logical(self, scale_factor: ScaleFactor) -> Logical {
+impl<T> Physical<T>
+where
+    T: Div<f32, Output = T>,
+{
+    #[inline]
+    pub fn to_logical(self, scale_factor: ScaleFactor) -> Logical<T> {
         Logical(self.0 / scale_factor.0)
     }
 }
 
 /// Units in logical pixels
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-pub struct Logical(pub f32);
+#[repr(transparent)]
+pub struct Logical<T>(pub T);
 
-impl Logical {
-    pub fn to_physical(self, scale_factor: ScaleFactor) -> Physical {
+impl<T> Logical<T>
+where
+    T: Mul<f32, Output = T>,
+{
+    #[inline]
+    pub fn to_physical(self, scale_factor: ScaleFactor) -> Physical<T> {
         Physical(self.0 * scale_factor.0)
     }
 }
 
-impl Add for Physical {
+impl<T> Add for Physical<T>
+where
+    T: Add<Output = T>,
+{
     type Output = Self;
 
+    #[inline]
     fn add(self, rhs: Self) -> Self::Output {
         Self(self.0 + rhs.0)
     }
 }
 
-impl AddAssign for Physical {
+impl<T> AddAssign for Physical<T>
+where
+    T: AddAssign,
+{
+    #[inline]
     fn add_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
     }
 }
 
-impl Sub for Physical {
+impl<T> Sub for Physical<T>
+where
+    T: Sub<Output = T>,
+{
     type Output = Self;
 
+    #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
         Self(self.0 - rhs.0)
     }
 }
 
-impl SubAssign for Physical {
+impl<T> SubAssign for Physical<T>
+where
+    T: SubAssign,
+{
+    #[inline]
     fn sub_assign(&mut self, rhs: Self) {
         self.0 -= rhs.0;
     }
 }
 
-impl Mul<f32> for Physical {
+impl<T> Mul<f32> for Physical<T>
+where
+    T: Mul<f32, Output = T>,
+{
     type Output = Self;
 
+    #[inline]
     fn mul(self, rhs: f32) -> Self::Output {
         Self(self.0 * rhs)
     }
 }
 
-impl MulAssign<f32> for Physical {
+impl<T> MulAssign<f32> for Physical<T>
+where
+    T: MulAssign<f32>,
+{
+    #[inline]
     fn mul_assign(&mut self, rhs: f32) {
         self.0 *= rhs;
     }
 }
 
-impl Div<f32> for Physical {
+impl<T> Div<f32> for Physical<T>
+where
+    T: Div<f32, Output = T>,
+{
     type Output = Self;
 
+    #[inline]
     fn div(self, rhs: f32) -> Self::Output {
         Self(self.0 / rhs)
     }
 }
 
-impl DivAssign<f32> for Physical {
+impl<T> DivAssign<f32> for Physical<T>
+where
+    T: DivAssign<f32>,
+{
+    #[inline]
     fn div_assign(&mut self, rhs: f32) {
         self.0 /= rhs;
     }
 }
 
-impl Neg for Physical {
+impl<T> Neg for Physical<T>
+where
+    T: Neg<Output = T>,
+{
     type Output = Self;
 
+    #[inline]
     fn neg(self) -> Self::Output {
         Self(-self.0)
     }
 }
 
-impl Add for Logical {
+impl<T> Add for Logical<T>
+where
+    T: Add<Output = T>,
+{
     type Output = Self;
 
+    #[inline]
     fn add(self, rhs: Self) -> Self::Output {
         Self(self.0 + rhs.0)
     }
 }
 
-impl AddAssign for Logical {
+impl<T> AddAssign for Logical<T>
+where
+    T: AddAssign,
+{
+    #[inline]
     fn add_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
     }
 }
 
-impl Sub for Logical {
+impl<T> Sub for Logical<T>
+where
+    T: Sub<Output = T>,
+{
     type Output = Self;
 
+    #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
         Self(self.0 - rhs.0)
     }
 }
 
-impl SubAssign for Logical {
+impl<T> SubAssign for Logical<T>
+where
+    T: SubAssign,
+{
+    #[inline]
     fn sub_assign(&mut self, rhs: Self) {
         self.0 -= rhs.0;
     }
 }
 
-impl Mul<f32> for Logical {
+impl<T> Mul<f32> for Logical<T>
+where
+    T: Mul<f32, Output = T>,
+{
     type Output = Self;
 
+    #[inline]
     fn mul(self, rhs: f32) -> Self::Output {
         Self(self.0 * rhs)
     }
 }
 
-impl MulAssign<f32> for Logical {
+impl<T> MulAssign<f32> for Logical<T>
+where
+    T: MulAssign<f32>,
+{
+    #[inline]
     fn mul_assign(&mut self, rhs: f32) {
         self.0 *= rhs;
     }
 }
 
-impl Div<f32> for Logical {
+impl<T> Div<f32> for Logical<T>
+where
+    T: Div<f32, Output = T>,
+{
     type Output = Self;
 
+    #[inline]
     fn div(self, rhs: f32) -> Self::Output {
         Self(self.0 / rhs)
     }
 }
 
-impl DivAssign<f32> for Logical {
+impl<T> DivAssign<f32> for Logical<T>
+where
+    T: DivAssign<f32>,
+{
+    #[inline]
     fn div_assign(&mut self, rhs: f32) {
         self.0 /= rhs;
     }
 }
 
-impl Neg for Logical {
+impl<T> Neg for Logical<T>
+where
+    T: Neg<Output = T>,
+{
     type Output = Self;
 
+    #[inline]
     fn neg(self) -> Self::Output {
         Self(-self.0)
     }
@@ -1490,11 +1573,17 @@ impl PartialEq for CornerRadius {
 #[cfg(test)]
 mod tests {
     use crate::geometry::*;
-    use bevy_math::vec2;
+    use bevy_math::{vec2, Vec2};
 
     #[test]
     fn physical_and_logical_arithmetic() {
         let scale_factor = ScaleFactor(2.);
+
+        assert_eq!(size_of::<ScaleFactor>(), size_of::<f32>());
+        assert_eq!(size_of::<Physical<f32>>(), size_of::<f32>());
+        assert_eq!(size_of::<Logical<f32>>(), size_of::<f32>());
+        assert_eq!(size_of::<Physical<Vec2>>(), size_of::<Vec2>());
+        assert_eq!(size_of::<Logical<Vec2>>(), size_of::<Vec2>());
 
         assert_eq!(Physical(4.).to_logical(scale_factor), Logical(2.));
         assert_eq!(Logical(2.).to_physical(scale_factor), Physical(4.));
@@ -1510,6 +1599,10 @@ mod tests {
         logical *= 4.;
         logical /= 2.;
         assert_eq!(-logical, Logical(-4.));
+
+        let mut physical = Physical(vec2(2., 4.)) + Physical(vec2(1., 2.));
+        physical *= 2.;
+        assert_eq!(physical.to_logical(scale_factor), Logical(vec2(3., 6.)));
     }
 
     #[test]
