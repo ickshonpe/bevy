@@ -305,9 +305,8 @@ pub fn extract_ui_texture_slices(
             VisualBox::ContentBox => uinode.content_box(),
             VisualBox::PaddingBox => uinode.padding_box(),
             VisualBox::BorderBox => uinode.border_box(),
-        }
-        .as_inner()
-        .to_owned();
+        };
+        let visual_box = *visual_box.as_inner();
 
         // Skip invisible images
         if !inherited_visibility.get()

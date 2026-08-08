@@ -13,7 +13,7 @@ use bevy_ecs::{
 use bevy_math::{Affine2, Rect, Vec2};
 use bevy_reflect::Reflect;
 use bevy_ui::{
-    physical, ui_layout_system, ComputedNode, ComputedUiRenderTargetInfo, Logical, Node,
+    logical, physical, ui_layout_system, ComputedNode, ComputedUiRenderTargetInfo, Logical, Node,
     PositionType, UiGlobalTransform, UiSystems, UiTransform, Val2,
 };
 
@@ -245,12 +245,11 @@ pub(crate) fn position_popover(
         // Update node properties, but only if they are different from before (to avoid setting
         // change detection bit).
         if best_occluded < f32::MAX {
-            let best_center = 0.5 * (best_rect.min + best_rect.max);
-            let current_center = physical(ui_global_transform.translation)
-                .to_logical(computed_node.scale_factor())
-                .into_inner();
+            let best_center = (logical(best_rect.min) + logical(best_rect.max)) * 0.5;
+            let current_center =
+                physical(ui_global_transform.translation).to_logical(computed_node.scale_factor());
             let physical_translation =
-                (best_center - current_center) * computed_target.scale_factor().into_inner();
+                (best_center - current_center).to_physical(computed_target.scale_factor());
             if parent_matrix.determinant() == 0.0 {
                 continue;
             }
@@ -260,7 +259,7 @@ pub(crate) fn position_popover(
                 physical(computed_target.physical_size().as_inner().as_vec2()),
             );
             let logical_translation = (resolved_translation
-                + physical(parent_matrix.inverse() * physical_translation))
+                + physical(parent_matrix.inverse() * physical_translation.into_inner()))
             .to_logical(computed_target.scale_factor())
             .into_inner();
             let ui_translation = Val2::px(logical_translation.x, logical_translation.y);
@@ -271,6 +270,7 @@ pub(crate) fn position_popover(
                 node.position_type = PositionType::Absolute;
             }
 
+            let physical_translation = physical_translation.into_inner();
             if physical_translation != Vec2::ZERO {
                 let mut affine = ui_global_transform.affine();
                 affine.translation += physical_translation;

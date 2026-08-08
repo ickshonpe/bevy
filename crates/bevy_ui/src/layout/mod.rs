@@ -295,7 +295,14 @@ pub fn ui_layout_system(
             // If IgnoreScroll is set, parent scroll position is ignored along the specified axes.
             let effective_parent_scroll = maybe_scroll_sticky
                 .map(|scroll_sticky| {
-                    physical(parent_scroll_position.into_inner() * Vec2::from(!scroll_sticky.0))
+                    let mut scroll_position = parent_scroll_position;
+                    if scroll_sticky.x {
+                        scroll_position.set_x(physical(0.));
+                    }
+                    if scroll_sticky.y {
+                        scroll_position.set_y(physical(0.));
+                    }
+                    scroll_position
                 })
                 .unwrap_or(parent_scroll_position);
 
@@ -359,31 +366,40 @@ pub fn ui_layout_system(
 
             if let Some(outline) = maybe_outline {
                 // don't trigger change detection unless the outline actually changed
-                let new_outline_width = physical(if style.display != Display::None {
-                    outline
+                let new_outline_width = if style.display != Display::None {
+                    let width = outline
                         .width
                         .resolve(node.scale_factor, node.size().x(), target_size)
-                        .unwrap_or(physical(0.))
-                        .into_inner()
-                        .max(0.)
+                        .unwrap_or_default();
+                    if width > physical(0.) {
+                        width
+                    } else {
+                        physical(0.)
+                    }
                 } else {
-                    0.
-                });
+                    physical(0.)
+                };
 
                 if node.outline_width != new_outline_width {
                     node.outline_width = new_outline_width;
                 }
 
-                let new_outline_offset = physical(
-                    outline
-                        .offset
-                        .resolve(node.scale_factor, node.size().x(), target_size)
-                        .unwrap_or(physical(0.))
-                        .into_inner()
-                        // Clamp outline offsets to at least the length of the node's shorter side
-                        // Negative offset outlines can be useful to create thing like in-set focus indicators
-                        .max(-0.5 * node.size.into_inner().min_element()),
-                );
+                let new_outline_offset = outline
+                    .offset
+                    .resolve(node.scale_factor, node.size().x(), target_size)
+                    .unwrap_or_default();
+                // Clamp outline offsets to at least the length of the node's shorter side
+                // Negative offset outlines can be useful to create thing like in-set focus indicators
+                let min_offset = if node.size.x() < node.size.y() {
+                    node.size.x() * -0.5
+                } else {
+                    node.size.y() * -0.5
+                };
+                let new_outline_offset = if new_outline_offset > min_offset {
+                    new_outline_offset
+                } else {
+                    min_offset
+                };
                 if node.outline_offset != new_outline_offset {
                     node.outline_offset = new_outline_offset;
                 }

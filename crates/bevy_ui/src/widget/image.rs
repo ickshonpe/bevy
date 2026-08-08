@@ -1,6 +1,6 @@
 use crate::{
-    ComputedUiRenderTargetInfo, ContentSize, Measure, MeasureArgs, Node, NodeMeasure, ResolvedAxis,
-    VisualBox,
+    logical, ComputedUiRenderTargetInfo, ContentSize, Measure, MeasureArgs, Node, NodeMeasure,
+    ResolvedAxis, VisualBox,
 };
 use bevy_asset::{AsAssetId, AssetId, Assets, Handle};
 use bevy_color::Color;
@@ -404,7 +404,9 @@ pub fn update_image_content_size_system(
                 image_size.size = size;
                 content_size.set(NodeMeasure::Image(ImageMeasure {
                     // multiply the image size by the scale factor to get the physical size
-                    size: size.as_vec2() * computed_target.scale_factor().into_inner(),
+                    size: logical(size.as_vec2())
+                        .to_physical(computed_target.scale_factor())
+                        .into_inner(),
                     visual_box: image.visual_box,
                 }));
             }

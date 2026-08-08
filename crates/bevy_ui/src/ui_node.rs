@@ -272,11 +272,12 @@ impl ComputedNode {
             VisualBox::PaddingBox => *self.border.as_inner(),
         };
 
-        clip_rect = clip_rect.inflate(
-            logical(overflow_clip_margin.margin.into_inner().max(0.))
-                .to_physical(self.scale_factor)
-                .into_inner(),
-        );
+        let margin = if overflow_clip_margin.margin > logical(0.) {
+            overflow_clip_margin.margin
+        } else {
+            logical(0.)
+        };
+        clip_rect = clip_rect.inflate(margin.to_physical(self.scale_factor).into_inner());
 
         clip_rect.min += clip_inset.min_inset;
         clip_rect.max -= clip_inset.max_inset;
@@ -3103,7 +3104,7 @@ mod tests {
     use crate::Overflow;
     use crate::OverflowClipMargin;
     use crate::VisualBox;
-    use crate::{logical, physical, scale_factor};
+    use crate::{logical, physical, scale_factor, Physical};
     use bevy_math::{Rect, Vec2};
     use bevy_sprite::BorderRect;
 
@@ -3143,7 +3144,7 @@ mod tests {
         };
 
         let (gutter, thumb) = node.horizontal_scrollbar().unwrap();
-        let (gutter, thumb) = (gutter.into_inner(), thumb.map(|value| value.into_inner()));
+        let (gutter, thumb) = (gutter.into_inner(), thumb.map(Physical::into_inner));
         assert_eq!(
             gutter,
             Rect {
@@ -3154,7 +3155,7 @@ mod tests {
         assert_eq!(thumb, [-50., 31.]);
 
         let (gutter, thumb) = node.vertical_scrollbar().unwrap();
-        let (gutter, thumb) = (gutter.into_inner(), thumb.map(|value| value.into_inner()));
+        let (gutter, thumb) = (gutter.into_inner(), thumb.map(Physical::into_inner));
         assert_eq!(
             gutter,
             Rect {
@@ -3178,7 +3179,7 @@ mod tests {
         assert_eq!(None, node.vertical_scrollbar());
 
         let (gutter, thumb) = node.horizontal_scrollbar().unwrap();
-        let (gutter, thumb) = (gutter.into_inner(), thumb.map(|value| value.into_inner()));
+        let (gutter, thumb) = (gutter.into_inner(), thumb.map(Physical::into_inner));
         assert_eq!(
             gutter,
             Rect {
@@ -3190,7 +3191,7 @@ mod tests {
 
         node.scroll_position.set_x(physical(100.));
         let (gutter, thumb) = node.horizontal_scrollbar().unwrap();
-        let (gutter, thumb) = (gutter.into_inner(), thumb.map(|value| value.into_inner()));
+        let (gutter, thumb) = (gutter.into_inner(), thumb.map(Physical::into_inner));
         assert_eq!(
             gutter,
             Rect {
@@ -3214,7 +3215,7 @@ mod tests {
         assert_eq!(None, node.horizontal_scrollbar());
 
         let (gutter, thumb) = node.vertical_scrollbar().unwrap();
-        let (gutter, thumb) = (gutter.into_inner(), thumb.map(|value| value.into_inner()));
+        let (gutter, thumb) = (gutter.into_inner(), thumb.map(Physical::into_inner));
         assert_eq!(
             gutter,
             Rect {
@@ -3226,7 +3227,7 @@ mod tests {
 
         node.scroll_position.set_y(physical(100.));
         let (gutter, thumb) = node.vertical_scrollbar().unwrap();
-        let (gutter, thumb) = (gutter.into_inner(), thumb.map(|value| value.into_inner()));
+        let (gutter, thumb) = (gutter.into_inner(), thumb.map(Physical::into_inner));
         assert_eq!(
             gutter,
             Rect {

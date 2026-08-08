@@ -26,7 +26,7 @@ use bevy_text::{
 use bevy_time::{Real, Time};
 use bevy_ui::widget::{sync_editable_text_viewports, update_editable_text_layout};
 use bevy_ui::{
-    widget::TextNodeFlags, ComputedNode, ComputedUiRenderTargetInfo, ContentSize, Node,
+    physical, widget::TextNodeFlags, ComputedNode, ComputedUiRenderTargetInfo, ContentSize, Node,
     UiGlobalTransform, UiScale,
 };
 use bevy_ui::{InteractionDisabled, UiSystems};
@@ -277,7 +277,9 @@ fn on_pointer_press(
 
     let Some(local_pos) = transform.try_inverse().and_then(|inverse| {
         let local_pos = inverse.transform_point2(
-            press.pointer_location.position * target.scale_factor().into_inner() / ui_scale.0,
+            (physical(press.pointer_location.position) * target.scale_factor().into_inner()
+                / ui_scale.0)
+                .into_inner(),
         );
         node.content_box()
             .as_inner()
@@ -343,7 +345,9 @@ fn on_pointer_drag(
 
     let Some(local_point) = transform.try_inverse().map(|inverse| {
         inverse.transform_point2(
-            drag.pointer_location.position * target.scale_factor().into_inner() / ui_scale.0,
+            (physical(drag.pointer_location.position) * target.scale_factor().into_inner()
+                / ui_scale.0)
+                .into_inner(),
         )
     }) else {
         return;
@@ -402,7 +406,10 @@ pub(crate) fn text_input_autoscroll_system(
     }
 
     let Some(local_point) = transform.try_inverse().map(|inverse| {
-        inverse.transform_point2(pointer_position * target.scale_factor().into_inner() / ui_scale.0)
+        inverse.transform_point2(
+            (physical(pointer_position) * target.scale_factor().into_inner() / ui_scale.0)
+                .into_inner(),
+        )
     }) else {
         return;
     };
@@ -581,8 +588,9 @@ fn update_ime_position(
     // rather than overlapping it.
     let parley_local = Vec2::new(area.x0 as f32, area.y1 as f32);
     let ui_local = parley_local + node.content_box().as_inner().min - editable_text.viewport.offset;
-    window.ime_position = transform.affine().transform_point2(ui_local) * ui_scale.0
-        / target.scale_factor().into_inner();
+    window.ime_position = (physical(transform.affine().transform_point2(ui_local)) * ui_scale.0)
+        .to_logical(target.scale_factor())
+        .into_inner();
 }
 
 /// System that enables or disables IME on the primary window based on whether the focused entity
@@ -882,7 +890,7 @@ mod tests {
             .spawn((
                 editable_text,
                 ComputedNode {
-                    size: bevy_ui::physical(Vec2::splat(100.0)),
+                    size: physical(Vec2::splat(100.0)),
                     ..Default::default()
                 },
                 ComputedUiRenderTargetInfo::default(),

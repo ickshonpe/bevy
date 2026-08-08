@@ -32,9 +32,9 @@ use bevy_render::{GpuResourceAppExt, RenderStartup};
 use bevy_shader::Shader;
 use bevy_sprite::BorderRect;
 use bevy_ui::{
-    physical, scale_factor, BackgroundGradient, BorderGradient, ColorStop, ComputedStackIndex,
+    physical, BackgroundGradient, BorderGradient, ColorStop, ComputedStackIndex,
     ComputedUiRenderTargetInfo, ConicGradient, Gradient, InterpolationColorSpace, LinearGradient,
-    RadialGradient, ResolvedBorderRadius, Val,
+    Physical, RadialGradient, ResolvedBorderRadius, ScaleFactor, Val,
 };
 use bevy_utils::default;
 use bytemuck::{Pod, Zeroable};
@@ -289,9 +289,9 @@ fn interpolate_color_stops(stops: &mut [(LinearRgba, f32, f32)], min: f32, max: 
 
 fn compute_color_stops(
     stops: &[ColorStop],
-    scale_factor: f32,
-    length: f32,
-    target_size: Vec2,
+    scale_factor: ScaleFactor,
+    length: Physical<f32>,
+    target_size: Physical<Vec2>,
     scratch: &mut Vec<(LinearRgba, f32, f32)>,
 ) -> Vec<(LinearRgba, f32, f32)> {
     let mut extracted_color_stops = vec![];
@@ -299,11 +299,7 @@ fn compute_color_stops(
     // resolve the physical distances of explicit stops and sort them
     scratch.extend(stops.iter().filter_map(|stop| {
         stop.point
-            .resolve(
-                bevy_ui::scale_factor(scale_factor),
-                physical(length),
-                physical(target_size),
-            )
+            .resolve(scale_factor, length, target_size)
             .ok()
             .map(|physical_point| {
                 (
@@ -314,6 +310,8 @@ fn compute_color_stops(
             })
     }));
     scratch.sort_by_key(|(_, point, _)| FloatOrd(*point));
+
+    let length = length.into_inner();
 
     let min = scratch
         .first()
@@ -452,11 +450,11 @@ pub fn extract_gradients(
         if let Some((camera_entity, _)) = extracted_gradients.items.get_mut(&main_entity) {
             *camera_entity = extracted_camera_entity;
         }
-        let uinode_size = uinode.size.into_inner();
+        let uinode_size = uinode.size;
         let border_radius = *uinode.border_radius.as_inner();
         let border = *uinode.border.as_inner();
-        let target_scale_factor = target.scale_factor().into_inner();
-        let target_physical_size = target.physical_size().as_inner().as_vec2();
+        let target_scale_factor = target.scale_factor();
+        let target_physical_size = physical(target.physical_size().as_inner().as_vec2());
 
         for (gradients, node_type) in [
             (gradient.map(|g| &g.0), NodeType::Rect),
@@ -474,7 +472,8 @@ pub fn extract_gradients(
 
                 if let Some(color) = gradient.get_single() {
                     // With a single color stop there's no gradient, fill the node with the color
-                    let length = compute_gradient_line_length(0.0, uinode_size);
+                    let length =
+                        physical(compute_gradient_line_length(0.0, uinode_size.into_inner()));
                     let extracted_stops = compute_color_stops(
                         &[
                             ColorStop::new(color, Val::Percent(0.0)),
@@ -498,7 +497,7 @@ pub fn extract_gradients(
                                 stops: extracted_stops,
                                 rect: Rect {
                                     min: Vec2::ZERO,
-                                    max: uinode_size,
+                                    max: uinode_size.into_inner(),
                                 },
                                 clip: clip.map(|clip| *clip.clip.as_inner()),
                                 node_type,
@@ -516,7 +515,10 @@ pub fn extract_gradients(
                         angle,
                         stops,
                     }) => {
-                        let length = compute_gradient_line_length(*angle, uinode_size);
+                        let length = physical(compute_gradient_line_length(
+                            *angle,
+                            uinode_size.into_inner(),
+                        ));
 
                         let extracted_stops = compute_color_stops(
                             stops,
@@ -539,7 +541,7 @@ pub fn extract_gradients(
                                     stops: extracted_stops,
                                     rect: Rect {
                                         min: Vec2::ZERO,
-                                        max: uinode_size,
+                                        max: uinode_size.into_inner(),
                                     },
                                     clip: clip.map(|clip| *clip.clip.as_inner()),
                                     node_type,
@@ -556,20 +558,17 @@ pub fn extract_gradients(
                         shape,
                         stops,
                     }) => {
-                        let c = center.resolve(
-                            scale_factor(target_scale_factor),
-                            physical(uinode_size),
-                            physical(target_physical_size),
-                        );
+                        let c =
+                            center.resolve(target_scale_factor, uinode_size, target_physical_size);
 
                         let size = shape.resolve(
                             c,
-                            scale_factor(target_scale_factor),
-                            physical(uinode_size),
-                            physical(target_physical_size),
+                            target_scale_factor,
+                            uinode_size,
+                            target_physical_size,
                         );
 
-                        let length = size.x().into_inner();
+                        let length = size.x();
 
                         let computed_stops = compute_color_stops(
                             stops,
@@ -592,7 +591,7 @@ pub fn extract_gradients(
                                     stops: computed_stops,
                                     rect: Rect {
                                         min: Vec2::ZERO,
-                                        max: uinode_size,
+                                        max: uinode_size.into_inner(),
                                     },
                                     clip: clip.map(|clip| *clip.clip.as_inner()),
                                     node_type,
@@ -612,11 +611,8 @@ pub fn extract_gradients(
                         position: center,
                         stops,
                     }) => {
-                        let g_start = center.resolve(
-                            scale_factor(target_scale_factor),
-                            physical(uinode_size),
-                            physical(target_physical_size),
-                        );
+                        let g_start =
+                            center.resolve(target_scale_factor, uinode_size, target_physical_size);
 
                         // sort the explicit stops
                         sorted_stops.extend(stops.iter().filter_map(|stop| {
@@ -654,7 +650,7 @@ pub fn extract_gradients(
                                     stops: extracted_color_stops,
                                     rect: Rect {
                                         min: Vec2::ZERO,
-                                        max: uinode_size,
+                                        max: uinode_size.into_inner(),
                                     },
                                     clip: clip.map(|clip| *clip.clip.as_inner()),
                                     node_type,

@@ -36,9 +36,10 @@ use bevy_text::{
     TextLayout, TextReadWriteMode,
 };
 use bevy_ui::{
-    percent, px, widget::Text, AlignItems, AlignSelf, BackgroundGradient, ColorStop, ComputedNode,
-    ComputedUiRenderTargetInfo, Display, Gradient, InteractionDisabled, InterpolationColorSpace,
-    JustifyContent, LinearGradient, Node, PositionType, UiGlobalTransform, UiRect, UiScale,
+    percent, physical, px, widget::Text, AlignItems, AlignSelf, BackgroundGradient, ColorStop,
+    ComputedNode, ComputedUiRenderTargetInfo, Display, Gradient, InteractionDisabled,
+    InterpolationColorSpace, JustifyContent, LinearGradient, Node, PositionType, UiGlobalTransform,
+    UiRect, UiScale,
 };
 use bevy_ui_widgets::ValueChange;
 
@@ -952,8 +953,10 @@ fn scrubber_on_release(
 
             let Some(local_pos) = transform.try_inverse().map(|inverse| {
                 inverse.transform_point2(
-                    release.pointer_location.position * target.scale_factor().into_inner()
-                        / ui_scale.0,
+                    (physical(release.pointer_location.position)
+                        * target.scale_factor().into_inner()
+                        / ui_scale.0)
+                        .into_inner(),
                 ) - node.content_box().as_inner().min
                     + editable_text.viewport.offset
             }) else {
@@ -996,8 +999,12 @@ fn scrubber_on_drag_start(
         && let Ok(node) = q_scrubber.get_mut(drag_start.event_target())
         && drag.mode == EditMode::Scrubbing
     {
-        let slider_size =
-            (node.size().x().to_logical(node.scale_factor()).into_inner()).max(1.0) as f64;
+        let slider_size = node
+            .size()
+            .x()
+            .to_logical(node.scale_factor())
+            .into_inner()
+            .max(1.0) as f64;
         drag_start.propagate(false);
         drag.base_value = *input_value;
         drag.max_distance = 0.0;

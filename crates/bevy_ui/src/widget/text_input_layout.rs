@@ -1,7 +1,7 @@
 use core::hash::BuildHasher;
 use core::time::Duration;
 
-use crate::{ComputedNode, ComputedUiRenderTargetInfo, ContentSize, NodeMeasure};
+use crate::{logical, ComputedNode, ComputedUiRenderTargetInfo, ContentSize, NodeMeasure};
 use bevy_asset::Assets;
 
 use bevy_ecs::{
@@ -144,22 +144,28 @@ pub fn update_editable_text_content_size(
                     .scale(font_size)
                     .advance_width(glyph_id);
                 if advance.is_finite() {
-                    width = Some(advance.max(0.0));
+                    width = Some(logical(advance.max(0.0)));
                     parley::fontique::QueryStatus::Stop
                 } else {
                     parley::fontique::QueryStatus::Continue
                 }
             });
 
-            width.map(|width| width * visible_width * target.scale_factor().into_inner())
+            width.map(|width| {
+                (width * visible_width)
+                    .to_physical(target.scale_factor())
+                    .into_inner()
+            })
         });
 
         let height = editable_text.visible_lines.map(|visible_lines| {
-            let logical_line_height = match *line_height {
+            let logical_line_height = logical(match *line_height {
                 LineHeight::Px(px) => px,
                 LineHeight::RelativeToFont(scale) => scale * font_size,
-            };
-            visible_lines * logical_line_height * target.scale_factor().into_inner()
+            });
+            (logical_line_height * visible_lines)
+                .to_physical(target.scale_factor())
+                .into_inner()
         });
 
         if width.is_some() || height.is_some() {

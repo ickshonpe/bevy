@@ -1,6 +1,6 @@
 use crate::{
-    physical, ui_transform::UiGlobalTransform, ComputedNode, ComputedUiTargetCamera, Node,
-    OverrideClip, Physical, UiStack,
+    logical, physical, scale_factor, ui_transform::UiGlobalTransform, ComputedNode,
+    ComputedUiTargetCamera, Node, OverrideClip, Physical, UiStack,
 };
 use bevy_camera::{visibility::InheritedVisibility, Camera, NormalizedRenderTarget, RenderTarget};
 use bevy_ecs::{
@@ -222,18 +222,21 @@ pub fn ui_focus_system(
             };
             let window = windows.get(window_ref.entity()).ok()?;
 
-            let viewport_position = camera
-                .physical_viewport_rect()
-                .map(|rect| rect.min.as_vec2())
-                .unwrap_or_default();
+            let viewport_position = physical(
+                camera
+                    .physical_viewport_rect()
+                    .map(|rect| rect.min.as_vec2())
+                    .unwrap_or_default(),
+            );
             window
                 .physical_cursor_position()
+                .map(physical)
                 .or_else(|| {
                     touches_input
                         .first_pressed_position()
-                        .map(|pos| pos * window.scale_factor())
+                        .map(|pos| logical(pos).to_physical(scale_factor(window.scale_factor())))
                 })
-                .map(|cursor_position| (entity, physical(cursor_position - viewport_position)))
+                .map(|cursor_position| (entity, cursor_position - viewport_position))
         })
         .collect();
 

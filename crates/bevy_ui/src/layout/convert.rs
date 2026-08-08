@@ -17,7 +17,11 @@ impl Val {
         match self {
             Val::Auto => style_helpers::auto(),
             Val::Percent(value) => style_helpers::percent(value / 100.),
-            Val::Px(value) => style_helpers::length(context.scale_factor.into_inner() * value),
+            Val::Px(value) => style_helpers::length(
+                logical(value)
+                    .to_physical(context.scale_factor)
+                    .into_inner(),
+            ),
             Val::VMin(value) => {
                 style_helpers::length(context.physical_size.as_inner().min_element() * value / 100.)
             }
@@ -25,10 +29,10 @@ impl Val {
                 style_helpers::length(context.physical_size.as_inner().max_element() * value / 100.)
             }
             Val::Vw(value) => {
-                style_helpers::length(context.physical_size.x().into_inner() * value / 100.)
+                style_helpers::length((context.physical_size.x() * value / 100.).into_inner())
             }
             Val::Vh(value) => {
-                style_helpers::length(context.physical_size.y().into_inner() * value / 100.)
+                style_helpers::length((context.physical_size.y() * value / 100.).into_inner())
             }
         }
     }
@@ -37,7 +41,11 @@ impl Val {
         match self {
             Val::Auto => style_helpers::length(0.0_f32),
             Val::Percent(value) => style_helpers::percent(value / 100.),
-            Val::Px(value) => style_helpers::length(context.scale_factor.into_inner() * value),
+            Val::Px(value) => style_helpers::length(
+                logical(value)
+                    .to_physical(context.scale_factor)
+                    .into_inner(),
+            ),
             Val::VMin(value) => {
                 style_helpers::length(context.physical_size.as_inner().min_element() * value / 100.)
             }
@@ -45,10 +53,10 @@ impl Val {
                 style_helpers::length(context.physical_size.as_inner().max_element() * value / 100.)
             }
             Val::Vw(value) => {
-                style_helpers::length(context.physical_size.x().into_inner() * value / 100.)
+                style_helpers::length((context.physical_size.x() * value / 100.).into_inner())
             }
             Val::Vh(value) => {
-                style_helpers::length(context.physical_size.y().into_inner() * value / 100.)
+                style_helpers::length((context.physical_size.y() * value / 100.).into_inner())
             }
         }
     }

@@ -132,18 +132,18 @@ pub fn ui_picking(
                 })
         {
             let mut pointer_pos =
-                pointer_location.position * camera.target_scaling_factor().unwrap_or(1.);
+                physical(pointer_location.position) * camera.target_scaling_factor().unwrap_or(1.);
             if let Some(viewport) = camera.physical_viewport_rect() {
-                if !viewport.as_rect().contains(pointer_pos) {
+                if !viewport.as_rect().contains(pointer_pos.into_inner()) {
                     // The pointer is outside the viewport, skip it
                     continue;
                 }
-                pointer_pos -= viewport.min.as_vec2();
+                pointer_pos -= physical(viewport.min.as_vec2());
             }
             pointer_pos_by_camera
                 .entry(entity)
                 .or_default()
-                .insert(pointer_id, physical(pointer_pos));
+                .insert(pointer_id, pointer_pos);
         }
     }
 

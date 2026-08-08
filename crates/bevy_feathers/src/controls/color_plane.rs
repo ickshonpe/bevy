@@ -308,7 +308,7 @@ fn emit_color_plane_value_change(
 ) {
     let Some(pos) = node.normalize_point(
         *transform,
-        physical(pointer_position * node_target.scale_factor().into_inner() / ui_scale),
+        physical(pointer_position) * node_target.scale_factor().into_inner() / ui_scale,
     ) else {
         return;
     };

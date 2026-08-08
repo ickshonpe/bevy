@@ -36,14 +36,8 @@ pub const fn physical<T>(value: T) -> Physical<T> {
     Physical(value)
 }
 
-impl Physical<f32> {
-    pub const fn into_inner(self) -> f32 {
-        self.0
-    }
-}
-
-impl Physical<Vec2> {
-    pub const fn into_inner(self) -> Vec2 {
+impl<T: Copy> Physical<T> {
+    pub const fn into_inner(self) -> T {
         self.0
     }
 }
@@ -93,14 +87,8 @@ impl Physical<Vec2> {
 #[repr(transparent)]
 pub struct Logical<T>(T);
 
-impl Logical<f32> {
-    pub const fn into_inner(self) -> f32 {
-        self.0
-    }
-}
-
-impl Logical<Vec2> {
-    pub const fn into_inner(self) -> Vec2 {
+impl<T: Copy> Logical<T> {
+    pub const fn into_inner(self) -> T {
         self.0
     }
 }
@@ -1480,30 +1468,20 @@ impl UiPosition {
         physical_size: Physical<Vec2>,
         physical_target_size: Physical<Vec2>,
     ) -> Physical<Vec2> {
-        let physical_size = physical_size.into_inner();
         let d = self.anchor.map(|p| if 0. < p { -1. } else { 1. });
+        let offset_x = self
+            .x
+            .resolve(scale_factor, physical_size.x(), physical_target_size)
+            .unwrap_or_default();
+        let offset_y = self
+            .y
+            .resolve(scale_factor, physical_size.y(), physical_target_size)
+            .unwrap_or_default();
 
-        physical(
-            physical_size * self.anchor
-                + d * Vec2::new(
-                    self.x
-                        .resolve(
-                            scale_factor,
-                            physical(physical_size.x),
-                            physical_target_size,
-                        )
-                        .unwrap_or(physical(0.))
-                        .into_inner(),
-                    self.y
-                        .resolve(
-                            scale_factor,
-                            physical(physical_size.y),
-                            physical_target_size,
-                        )
-                        .unwrap_or(physical(0.))
-                        .into_inner(),
-                ),
-        )
+        physical(Vec2::new(
+            (physical_size.x() * self.anchor.x + offset_x * d.x).into_inner(),
+            (physical_size.y() * self.anchor.y + offset_y * d.y).into_inner(),
+        ))
     }
 }
 
@@ -1631,7 +1609,8 @@ impl CornerRadius {
         size: Physical<Vec2>,
         viewport_size: Physical<Vec2>,
     ) -> Physical<Vec2> {
-        let size = size.into_inner();
+        let physical_size = size;
+        let size = physical_size.into_inner();
         physical(match self {
             Self {
                 x: Val::Auto,
@@ -1652,10 +1631,10 @@ impl CornerRadius {
                     .clamp(0., 0.5 * size.min_element()),
             ),
             Self { x, y } => Vec2::new(
-                x.resolve(scale_factor, physical(size.x), viewport_size)
+                x.resolve(scale_factor, physical_size.x(), viewport_size)
                     .unwrap_or(physical(0.))
                     .into_inner(),
-                y.resolve(scale_factor, physical(size.y), viewport_size)
+                y.resolve(scale_factor, physical_size.y(), viewport_size)
                     .unwrap_or(physical(0.))
                     .into_inner(),
             )

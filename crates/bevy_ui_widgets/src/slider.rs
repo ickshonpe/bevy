@@ -311,43 +311,41 @@ pub(crate) fn slider_on_pointer_down(
             .find_map(|child_id| {
                 q_thumb.get(child_id).ok().map(|thumb| {
                     if is_vertical {
-                        thumb.size().y().into_inner()
+                        thumb.size().y()
                     } else {
-                        thumb.size().x().into_inner()
+                        thumb.size().x()
                     }
                 })
             })
-            .unwrap_or(0.0);
+            .unwrap_or_default();
 
         // Detect track click.
         let Some(normalized_pos) = node.normalize_point(
             *transform,
-            physical(
-                press.pointer_location.position * node_target.scale_factor().into_inner()
-                    / ui_scale.0,
-            ),
+            physical(press.pointer_location.position) * node_target.scale_factor().into_inner()
+                / ui_scale.0,
         ) else {
             return;
         };
         let track_size = if is_vertical {
-            node.size().y().into_inner() - thumb_size
+            node.size().y() - thumb_size
         } else {
-            node.size().x().into_inner() - thumb_size
+            node.size().x() - thumb_size
         };
 
         // Avoid division by zero
-        let click_val = if track_size > 0. {
+        let click_val = if track_size > physical(0.) {
             if is_vertical {
                 // For vertical sliders: bottom-to-top (0 at bottom, max at top)
                 // normalized_pos.y ranges from -0.5 (top) to +0.5 (bottom)
-                let y_from_bottom = (0.5 - normalized_pos.y) * node.size().y().into_inner();
+                let y_from_bottom = node.size().y() * (0.5 - normalized_pos.y);
                 let adjusted_y = y_from_bottom - thumb_size / 2.0;
-                adjusted_y * range.span() / track_size + range.start()
+                adjusted_y.into_inner() * range.span() / track_size.into_inner() + range.start()
             } else {
                 // For horizontal sliders: convert from center-origin to left-origin
-                let x_from_left = (normalized_pos.x + 0.5) * node.size().x().into_inner();
+                let x_from_left = node.size().x() * (normalized_pos.x + 0.5);
                 let adjusted_x = x_from_left - thumb_size / 2.0;
-                adjusted_x * range.span() / track_size + range.start()
+                adjusted_x.into_inner() * range.span() / track_size.into_inner() + range.start()
             }
         } else {
             range.center()
@@ -512,21 +510,21 @@ fn emit_slider_drag_value_change(
         .find_map(|child_id| {
             q_thumb.get(child_id).ok().map(|thumb| {
                 if is_vertical {
-                    thumb.size().y().into_inner()
+                    thumb.size().y()
                 } else {
-                    thumb.size().x().into_inner()
+                    thumb.size().x()
                 }
             })
         })
-        .unwrap_or(0.0);
+        .unwrap_or_default();
 
     let slider_size = if is_vertical {
-        physical(node.size().y().into_inner() - thumb_size)
+        (node.size().y() - thumb_size)
             .to_logical(node.scale_factor())
             .into_inner()
             .max(1.0)
     } else {
-        physical(node.size().x().into_inner() - thumb_size)
+        (node.size().x() - thumb_size)
             .to_logical(node.scale_factor())
             .into_inner()
             .max(1.0)

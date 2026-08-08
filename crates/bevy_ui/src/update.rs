@@ -106,8 +106,9 @@ fn update_clipping(
             .as_inner();
         clip_rect.min += transform.translation;
         clip_rect.max += transform.translation;
-        Some(maybe_inherited_clip.map_or(physical(clip_rect), |c| {
-            physical(c.as_inner().intersect(clip_rect))
+        let clip_rect = physical(clip_rect);
+        Some(maybe_inherited_clip.map_or(clip_rect, |c| {
+            physical(c.as_inner().intersect(*clip_rect.as_inner()))
         }))
     };
 
@@ -158,17 +159,17 @@ pub fn propagate_ui_target_cameras(
             .and_then(|camera| camera_query.get(camera).ok())
             .map(|camera| {
                 (
-                    camera.target_scaling_factor().unwrap_or(1.) * ui_scale.0,
-                    camera.physical_viewport_size().unwrap_or(UVec2::ZERO),
+                    scale_factor(camera.target_scaling_factor().unwrap_or(1.) * ui_scale.0),
+                    physical(camera.physical_viewport_size().unwrap_or(UVec2::ZERO)),
                 )
             })
-            .unwrap_or((1., UVec2::ZERO));
+            .unwrap_or((scale_factor(1.), physical(UVec2::ZERO)));
 
         commands
             .entity(root_entity)
             .try_insert(Propagate(ComputedUiRenderTargetInfo {
-                scale_factor: scale_factor(target_scale_factor),
-                physical_size: physical(physical_size),
+                scale_factor: target_scale_factor,
+                physical_size,
             }));
     }
 }

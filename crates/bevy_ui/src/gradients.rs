@@ -613,8 +613,8 @@ impl RadialGradientShape {
         physical_target_size: Physical<Vec2>,
     ) -> Physical<Vec2> {
         let position = position.into_inner();
-        let physical_size = physical_size.into_inner();
-        let half_size = 0.5 * physical_size;
+        let size = physical_size.into_inner();
+        let half_size = 0.5 * size;
         physical(match self {
             RadialGradientShape::ClosestSide => Vec2::splat(close_side2(position, half_size)),
             RadialGradientShape::FarthestSide => Vec2::splat(far_side2(position, half_size)),
@@ -628,29 +628,17 @@ impl RadialGradientShape {
             ),
             RadialGradientShape::Circle(radius) => Vec2::splat(
                 radius
-                    .resolve(
-                        scale_factor,
-                        physical(physical_size.x),
-                        physical_target_size,
-                    )
+                    .resolve(scale_factor, physical_size.x(), physical_target_size)
                     .unwrap_or(physical(0.))
                     .into_inner(),
             ),
             RadialGradientShape::Ellipse(x, y) => Vec2::new(
-                x.resolve(
-                    scale_factor,
-                    physical(physical_size.x),
-                    physical_target_size,
-                )
-                .unwrap_or(physical(0.))
-                .into_inner(),
-                y.resolve(
-                    scale_factor,
-                    physical(physical_size.y),
-                    physical_target_size,
-                )
-                .unwrap_or(physical(0.))
-                .into_inner(),
+                x.resolve(scale_factor, physical_size.x(), physical_target_size)
+                    .unwrap_or(physical(0.))
+                    .into_inner(),
+                y.resolve(scale_factor, physical_size.y(), physical_target_size)
+                    .unwrap_or(physical(0.))
+                    .into_inner(),
             ),
         })
     }

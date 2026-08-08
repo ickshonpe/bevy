@@ -14,7 +14,7 @@ use bevy_math::Vec2;
 use bevy_picking::{hover::Hovered, PickingSystems};
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_scene::prelude::*;
-use bevy_ui::{logical, px, BorderRadius, ComputedNode, Node, UiSystems, Val};
+use bevy_ui::{logical, physical, px, BorderRadius, ComputedNode, Node, UiSystems, Val};
 use bevy_ui_widgets::{ControlOrientation, Scrollbar, ScrollbarDragState, ScrollbarThumb};
 
 use crate::{cursor::EntityCursor, theme::ThemeBackgroundColor, tokens};
@@ -127,10 +127,14 @@ fn update_scrollbar_visibility(
         let Ok(area) = q_scroll_area.get(scrollbar.target) else {
             continue;
         };
-        let visible = (area.size().into_inner() - area.scrollbar_size.into_inner()).max(Vec2::ZERO);
+        let visible = physical(
+            (area.size() - area.scrollbar_size)
+                .into_inner()
+                .max(Vec2::ZERO),
+        );
         let overflows = match scrollbar.orientation {
-            ControlOrientation::Horizontal => area.content_size().x().into_inner() > visible.x,
-            ControlOrientation::Vertical => area.content_size().y().into_inner() > visible.y,
+            ControlOrientation::Horizontal => area.content_size().x() > visible.x(),
+            ControlOrientation::Vertical => area.content_size().y() > visible.y(),
         };
         let target = if overflows {
             Visibility::Inherited
