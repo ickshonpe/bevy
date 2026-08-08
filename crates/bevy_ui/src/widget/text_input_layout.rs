@@ -92,7 +92,9 @@ pub fn update_editable_text_content_size(
             continue;
         }
 
-        let font_size = text_font.font_size.eval(target.logical_size(), rem_size.0);
+        let font_size = text_font
+            .font_size
+            .eval(target.logical_size().into_inner(), rem_size.0);
 
         let width = editable_text.visible_width.and_then(|visible_width| {
             let font_context = &mut font_cx.context;
@@ -149,7 +151,7 @@ pub fn update_editable_text_content_size(
                 }
             });
 
-            width.map(|width| width * visible_width * target.scale_factor())
+            width.map(|width| width * visible_width * target.scale_factor().into_inner())
         });
 
         let height = editable_text.visible_lines.map(|visible_lines| {
@@ -157,7 +159,7 @@ pub fn update_editable_text_content_size(
                 LineHeight::Px(px) => px,
                 LineHeight::RelativeToFont(scale) => scale * font_size,
             };
-            visible_lines * logical_line_height * target.scale_factor()
+            visible_lines * logical_line_height * target.scale_factor().into_inner()
         });
 
         if width.is_some() || height.is_some() {
@@ -187,8 +189,12 @@ pub fn update_editable_text_styles(
     for (mut editable_text, text_font, line_height, target, text_layout) in
         editable_text_query.iter_mut()
     {
-        if f32::EPSILON < (target.scale_factor() - editable_text.editor.get_scale()).abs() {
-            editable_text.editor.set_scale(target.scale_factor());
+        if f32::EPSILON
+            < (target.scale_factor().into_inner() - editable_text.editor.get_scale()).abs()
+        {
+            editable_text
+                .editor
+                .set_scale(target.scale_factor().into_inner());
         }
 
         if text_font.is_changed()
@@ -202,7 +208,9 @@ pub fn update_editable_text_styles(
                 .editor
                 .edit_styles()
                 .insert(StyleProperty::FontSize(
-                    text_font.font_size.eval(target.logical_size(), rem_size.0),
+                    text_font
+                        .font_size
+                        .eval(target.logical_size().into_inner(), rem_size.0),
                 ));
         }
 
@@ -269,7 +277,7 @@ pub fn update_editable_text_styles(
 /// Syncs each [`EditableText`]'s viewport size with their `ComputedNode`'s content size before text edits are applied.
 pub fn sync_editable_text_viewports(mut query: Query<(&mut EditableText, &ComputedNode)>) {
     for (mut editable_text, computed_node) in &mut query {
-        let size = computed_node.content_box().size();
+        let size = computed_node.content_box().into_inner().size();
         if editable_text.viewport.size != size {
             editable_text.viewport.size = size;
             editable_text.editor.set_width(Some(size.x));
@@ -505,7 +513,10 @@ pub fn update_editable_text_layout(
             info.cursor = driver
                 .editor
                 .cursor_geometry(
-                    cursor_width * text_font.font_size.eval(target.logical_size(), rem_size.0),
+                    cursor_width
+                        * text_font
+                            .font_size
+                            .eval(target.logical_size().into_inner(), rem_size.0),
                 )
                 .map(bounding_box_to_rect)
                 .map(|rect| (*cursor_timer < cursor_blink_period / 2, rect));

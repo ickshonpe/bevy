@@ -1,5 +1,5 @@
 #[cfg(feature = "bevy_picking")]
-use crate::UiGlobalTransform;
+use crate::{physical, UiGlobalTransform};
 use crate::{ComputedNode, Node};
 use bevy_asset::Assets;
 #[cfg(feature = "bevy_picking")]
@@ -130,11 +130,18 @@ pub fn viewport_picking(
         };
 
         // Create a `Rect` in *physical* coordinates centered at the node's GlobalTransform
-        let node_rect =
-            Rect::from_center_size(global_transform.translation.trunc(), computed_node.size());
+        let node_rect = Rect::from_center_size(
+            global_transform.translation.trunc(),
+            computed_node.size().into_inner(),
+        );
         // Location::position uses *logical* coordinates
-        let top_left = node_rect.min * computed_node.inverse_scale_factor();
-        let logical_size = computed_node.size() * computed_node.inverse_scale_factor();
+        let top_left = physical(node_rect.min)
+            .to_logical(computed_node.scale_factor())
+            .into_inner();
+        let logical_size = computed_node
+            .size()
+            .to_logical(computed_node.scale_factor())
+            .into_inner();
 
         let Some(target) = render_target.as_image() else {
             continue;
@@ -184,7 +191,7 @@ pub fn update_viewport_render_target_size(
         let Some(image_handle) = render_target.as_image() else {
             continue;
         };
-        let size = size.as_uvec2().max(UVec2::ONE).to_extents();
+        let size = size.into_inner().as_uvec2().max(UVec2::ONE).to_extents();
         images.get_mut(image_handle).unwrap().resize(size);
     }
 }

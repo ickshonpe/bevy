@@ -442,6 +442,11 @@ pub fn extract_gradients(
         if let Some((camera_entity, _)) = extracted_gradients.items.get_mut(&main_entity) {
             *camera_entity = extracted_camera_entity;
         }
+        let uinode_size = uinode.size.into_inner();
+        let border_radius = uinode.border_radius.into_inner();
+        let border = uinode.border.into_inner();
+        let target_scale_factor = target.scale_factor().into_inner();
+        let target_physical_size = target.physical_size().into_inner().as_vec2();
 
         for (gradients, node_type) in [
             (gradient.map(|g| &g.0), NodeType::Rect),
@@ -459,15 +464,15 @@ pub fn extract_gradients(
 
                 if let Some(color) = gradient.get_single() {
                     // With a single color stop there's no gradient, fill the node with the color
-                    let length = compute_gradient_line_length(0.0, uinode.size);
+                    let length = compute_gradient_line_length(0.0, uinode_size);
                     let extracted_stops = compute_color_stops(
                         &[
                             ColorStop::new(color, Val::Percent(0.0)),
                             ColorStop::new(color, Val::Percent(100.0)),
                         ],
-                        target.scale_factor(),
+                        target_scale_factor,
                         length,
-                        target.physical_size().as_vec2(),
+                        target_physical_size,
                         &mut sorted_stops,
                     );
                     extracted_gradients
@@ -483,12 +488,12 @@ pub fn extract_gradients(
                                 stops: extracted_stops,
                                 rect: Rect {
                                     min: Vec2::ZERO,
-                                    max: uinode.size,
+                                    max: uinode_size,
                                 },
-                                clip: clip.map(|clip| clip.clip),
+                                clip: clip.map(|clip| clip.clip.into_inner()),
                                 node_type,
-                                border_radius: uinode.border_radius,
-                                border: uinode.border,
+                                border_radius,
+                                border,
                                 resolved_gradient: ResolvedGradient::Linear { angle: 0.0 },
                                 color_space: gradient.get_color_space(),
                             },
@@ -501,13 +506,13 @@ pub fn extract_gradients(
                         angle,
                         stops,
                     }) => {
-                        let length = compute_gradient_line_length(*angle, uinode.size);
+                        let length = compute_gradient_line_length(*angle, uinode_size);
 
                         let extracted_stops = compute_color_stops(
                             stops,
-                            target.scale_factor(),
+                            target_scale_factor,
                             length,
-                            target.physical_size().as_vec2(),
+                            target_physical_size,
                             &mut sorted_stops,
                         );
 
@@ -524,12 +529,12 @@ pub fn extract_gradients(
                                     stops: extracted_stops,
                                     rect: Rect {
                                         min: Vec2::ZERO,
-                                        max: uinode.size,
+                                        max: uinode_size,
                                     },
-                                    clip: clip.map(|clip| clip.clip),
+                                    clip: clip.map(|clip| clip.clip.into_inner()),
                                     node_type,
-                                    border_radius: uinode.border_radius,
-                                    border: uinode.border,
+                                    border_radius,
+                                    border,
                                     resolved_gradient: ResolvedGradient::Linear { angle: *angle },
                                     color_space: *color_space,
                                 },
@@ -541,26 +546,23 @@ pub fn extract_gradients(
                         shape,
                         stops,
                     }) => {
-                        let c = center.resolve(
-                            target.scale_factor(),
-                            uinode.size,
-                            target.physical_size().as_vec2(),
-                        );
+                        let c =
+                            center.resolve(target_scale_factor, uinode_size, target_physical_size);
 
                         let size = shape.resolve(
                             c,
-                            target.scale_factor(),
-                            uinode.size,
-                            target.physical_size().as_vec2(),
+                            target_scale_factor,
+                            uinode_size,
+                            target_physical_size,
                         );
 
                         let length = size.x;
 
                         let computed_stops = compute_color_stops(
                             stops,
-                            target.scale_factor(),
+                            target_scale_factor,
                             length,
-                            target.physical_size().as_vec2(),
+                            target_physical_size,
                             &mut sorted_stops,
                         );
 
@@ -577,12 +579,12 @@ pub fn extract_gradients(
                                     stops: computed_stops,
                                     rect: Rect {
                                         min: Vec2::ZERO,
-                                        max: uinode.size,
+                                        max: uinode_size,
                                     },
-                                    clip: clip.map(|clip| clip.clip),
+                                    clip: clip.map(|clip| clip.clip.into_inner()),
                                     node_type,
-                                    border_radius: uinode.border_radius,
-                                    border: uinode.border,
+                                    border_radius,
+                                    border,
                                     resolved_gradient: ResolvedGradient::Radial { center: c, size },
                                     color_space: *color_space,
                                 },
@@ -594,11 +596,8 @@ pub fn extract_gradients(
                         position: center,
                         stops,
                     }) => {
-                        let g_start = center.resolve(
-                            target.scale_factor(),
-                            uinode.size,
-                            target.physical_size().as_vec2(),
-                        );
+                        let g_start =
+                            center.resolve(target_scale_factor, uinode_size, target_physical_size);
 
                         // sort the explicit stops
                         sorted_stops.extend(stops.iter().filter_map(|stop| {
@@ -636,12 +635,12 @@ pub fn extract_gradients(
                                     stops: extracted_color_stops,
                                     rect: Rect {
                                         min: Vec2::ZERO,
-                                        max: uinode.size,
+                                        max: uinode_size,
                                     },
-                                    clip: clip.map(|clip| clip.clip),
+                                    clip: clip.map(|clip| clip.clip.into_inner()),
                                     node_type,
-                                    border_radius: uinode.border_radius,
-                                    border: uinode.border,
+                                    border_radius,
+                                    border,
                                     resolved_gradient: ResolvedGradient::Conic {
                                         start: *start,
                                         center: g_start,

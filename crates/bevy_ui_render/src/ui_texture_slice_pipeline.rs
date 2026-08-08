@@ -305,7 +305,8 @@ pub fn extract_ui_texture_slices(
             VisualBox::ContentBox => uinode.content_box(),
             VisualBox::PaddingBox => uinode.padding_box(),
             VisualBox::BorderBox => uinode.border_box(),
-        };
+        }
+        .into_inner();
 
         // Skip invisible images
         if !inherited_visibility.get()
@@ -372,13 +373,13 @@ pub fn extract_ui_texture_slices(
                         min: Vec2::ZERO,
                         max: visual_box.size(),
                     },
-                    clip: clip.map(|clip| clip.clip),
+                    clip: clip.map(|clip| clip.clip.into_inner()),
                     image: image.image.id(),
                     image_scale_mode,
                     atlas_rect,
                     flip_x: image.flip_x,
                     flip_y: image.flip_y,
-                    inverse_scale_factor: uinode.inverse_scale_factor,
+                    inverse_scale_factor: uinode.scale_factor().into_inner().recip(),
                 },
             );
     }

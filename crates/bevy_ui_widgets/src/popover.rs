@@ -13,8 +13,8 @@ use bevy_ecs::{
 use bevy_math::{Affine2, Rect, Vec2};
 use bevy_reflect::Reflect;
 use bevy_ui::{
-    ui_layout_system, ComputedNode, ComputedUiRenderTargetInfo, Node, PositionType,
-    UiGlobalTransform, UiSystems, UiTransform, Val2,
+    physical, ui_layout_system, ComputedNode, ComputedUiRenderTargetInfo, Logical, Node,
+    PositionType, UiGlobalTransform, UiSystems, UiTransform, Val2,
 };
 
 use crate::update_scrollbar_thumb;
@@ -76,7 +76,7 @@ pub struct PopoverPlacement {
 
     /// The size of the gap between the parent and the popover element, in logical pixels. This will
     /// offset the popover along the direction of `side`.
-    pub gap: f32,
+    pub gap: Logical<f32>,
 }
 
 /// Component which is inserted into a popover element to make it dynamically position relative to
@@ -88,7 +88,7 @@ pub struct Popover {
     pub positions: Vec<PopoverPlacement>,
 
     /// Indicates how close to the window edge the popup is allowed to go.
-    pub window_margin: f32,
+    pub window_margin: Logical<f32>,
 }
 
 impl Clone for Popover {
@@ -131,9 +131,9 @@ pub(crate) fn position_popover(
         // A rectangle which represents the area of the window.
         let window_rect = Rect {
             min: Vec2::ZERO,
-            max: computed_target.logical_size(),
+            max: computed_target.logical_size().into_inner(),
         }
-        .inflate(-popover.window_margin);
+        .inflate(-popover.window_margin.into_inner());
 
         // Compute the parent rectangle.
         let q_parent = qs_transform.p0();
@@ -143,11 +143,12 @@ pub(crate) fn position_popover(
 
         // Computed node size includes the border, but since absolute positioning doesn't include
         // border we need to remove it from the calculations.
+        let parent_border = parent_node.border.into_inner();
         let parent_size =
-            parent_node.size() - parent_node.border.min_inset - parent_node.border.max_inset;
+            parent_node.size().into_inner() - parent_border.min_inset - parent_border.max_inset;
         let parent_rect = scale_rect(
             Rect::from_center_size(parent_transform.translation, parent_size),
-            parent_node.inverse_scale_factor,
+            parent_node.scale_factor().into_inner().recip(),
         );
         let parent_matrix = parent_transform.affine().matrix2;
 
@@ -156,7 +157,10 @@ pub(crate) fn position_popover(
 
         // Loop through all the potential positions and find a good one.
         for position in &popover.positions {
-            let popover_size = computed_node.size() * computed_node.inverse_scale_factor;
+            let popover_size = computed_node
+                .size()
+                .to_logical(computed_node.scale_factor())
+                .into_inner();
             let mut rect = Rect::default();
 
             let target_width = popover_size.x;
@@ -165,22 +169,22 @@ pub(crate) fn position_popover(
             // Position along main axis.
             match position.side {
                 PopoverSide::Top => {
-                    rect.max.y = parent_rect.min.y - position.gap;
+                    rect.max.y = parent_rect.min.y - position.gap.into_inner();
                     rect.min.y = rect.max.y - popover_size.y;
                 }
 
                 PopoverSide::Bottom => {
-                    rect.min.y = parent_rect.max.y + position.gap;
+                    rect.min.y = parent_rect.max.y + position.gap.into_inner();
                     rect.max.y = rect.min.y + popover_size.y;
                 }
 
                 PopoverSide::Left => {
-                    rect.max.x = parent_rect.min.x - position.gap;
+                    rect.max.x = parent_rect.min.x - position.gap.into_inner();
                     rect.min.x = rect.max.x - popover_size.x;
                 }
 
                 PopoverSide::Right => {
-                    rect.min.x = parent_rect.max.x + position.gap;
+                    rect.min.x = parent_rect.max.x + position.gap.into_inner();
                     rect.max.x = rect.min.x + popover_size.x;
                 }
             }
@@ -242,21 +246,23 @@ pub(crate) fn position_popover(
         // change detection bit).
         if best_occluded < f32::MAX {
             let best_center = 0.5 * (best_rect.min + best_rect.max);
-            let current_center =
-                ui_global_transform.translation * computed_node.inverse_scale_factor;
+            let current_center = physical(ui_global_transform.translation)
+                .to_logical(computed_node.scale_factor())
+                .into_inner();
             let physical_translation =
-                (best_center - current_center) * computed_target.scale_factor();
+                (best_center - current_center) * computed_target.scale_factor().into_inner();
             if parent_matrix.determinant() == 0.0 {
                 continue;
             }
             let resolved_translation = transform.translation.resolve(
-                computed_target.scale_factor(),
-                computed_node.size(),
-                computed_target.physical_size().as_vec2(),
+                computed_target.scale_factor().into_inner(),
+                computed_node.size().into_inner(),
+                computed_target.physical_size().into_inner().as_vec2(),
             );
-            let logical_translation = (resolved_translation
-                + parent_matrix.inverse() * physical_translation)
-                / computed_target.scale_factor();
+            let logical_translation =
+                physical(resolved_translation + parent_matrix.inverse() * physical_translation)
+                    .to_logical(computed_target.scale_factor())
+                    .into_inner();
             let ui_translation = Val2::px(logical_translation.x, logical_translation.y);
             if transform.translation != ui_translation {
                 transform.translation = ui_translation;

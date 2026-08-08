@@ -17,7 +17,7 @@
 //! manual overrides can be specified using the
 //! [`DirectionalNavigationMap`](bevy_input_focus::directional_navigation::DirectionalNavigationMap).
 
-use crate::{ComputedNode, ComputedUiTargetCamera, UiGlobalTransform};
+use crate::{physical, ComputedNode, ComputedUiTargetCamera, UiGlobalTransform};
 use bevy_camera::visibility::InheritedVisibility;
 use bevy_ecs::{prelude::*, system::SystemParam};
 use bevy_math::{ops, CompassOctant, Vec2};
@@ -215,11 +215,17 @@ impl<'w, 's> AutoDirectionalNavigator<'w, 's> {
                         && tc == target_camera
                     {
                         let (scale, rotation, translation) = transform.to_scale_angle_translation();
-                        let scaled_size = computed.size() * computed.inverse_scale_factor() * scale;
+                        let scaled_size = computed
+                            .size()
+                            .to_logical(computed.scale_factor())
+                            .into_inner()
+                            * scale;
                         let rotated_size = get_rotated_bounds(scaled_size, rotation);
                         Some(FocusableArea {
                             entity,
-                            position: translation * computed.inverse_scale_factor(),
+                            position: physical(translation)
+                                .to_logical(computed.scale_factor())
+                                .into_inner(),
                             size: rotated_size,
                         })
                     } else {
@@ -244,13 +250,19 @@ impl<'w, 's> AutoDirectionalNavigator<'w, 's> {
             |(entity, computed_target_camera, computed, transform)| {
                 if let Some(target_camera) = computed_target_camera.get() {
                     let (scale, rotation, translation) = transform.to_scale_angle_translation();
-                    let scaled_size = computed.size() * computed.inverse_scale_factor() * scale;
+                    let scaled_size = computed
+                        .size()
+                        .to_logical(computed.scale_factor())
+                        .into_inner()
+                        * scale;
                     let rotated_size = get_rotated_bounds(scaled_size, rotation);
                     Some((
                         target_camera,
                         FocusableArea {
                             entity,
-                            position: translation * computed.inverse_scale_factor(),
+                            position: physical(translation)
+                                .to_logical(computed.scale_factor())
+                                .into_inner(),
                             size: rotated_size,
                         },
                     ))

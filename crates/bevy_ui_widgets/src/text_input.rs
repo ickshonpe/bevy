@@ -276,11 +276,15 @@ fn on_pointer_press(
     }
 
     let Some(local_pos) = transform.try_inverse().and_then(|inverse| {
-        let local_pos = inverse
-            .transform_point2(press.pointer_location.position * target.scale_factor() / ui_scale.0);
+        let local_pos = inverse.transform_point2(
+            press.pointer_location.position * target.scale_factor().into_inner() / ui_scale.0,
+        );
         node.content_box()
+            .into_inner()
             .contains(local_pos)
-            .then(|| local_pos - node.content_box().min + editable_text.viewport.offset)
+            .then(|| {
+                local_pos - node.content_box().into_inner().min + editable_text.viewport.offset
+            })
     }) else {
         return;
     };
@@ -340,16 +344,17 @@ fn on_pointer_drag(
     }
 
     let Some(local_point) = transform.try_inverse().map(|inverse| {
-        inverse
-            .transform_point2(drag.pointer_location.position * target.scale_factor() / ui_scale.0)
+        inverse.transform_point2(
+            drag.pointer_location.position * target.scale_factor().into_inner() / ui_scale.0,
+        )
     }) else {
         return;
     };
 
-    let clamped_local_point = node.content_box().clamp_point(local_point);
+    let clamped_local_point = node.content_box().into_inner().clamp_point(local_point);
     let current_offset = editable_text.viewport.offset;
     editable_text.queue_edit(TextEdit::ExtendSelectionToPoint(
-        clamped_local_point - node.content_box().min + current_offset,
+        clamped_local_point - node.content_box().into_inner().min + current_offset,
     ));
 }
 
@@ -399,12 +404,12 @@ pub(crate) fn text_input_autoscroll_system(
     }
 
     let Some(local_point) = transform.try_inverse().map(|inverse| {
-        inverse.transform_point2(pointer_position * target.scale_factor() / ui_scale.0)
+        inverse.transform_point2(pointer_position * target.scale_factor().into_inner() / ui_scale.0)
     }) else {
         return;
     };
 
-    let clamped_local_point = node.content_box().clamp_point(local_point);
+    let clamped_local_point = node.content_box().into_inner().clamp_point(local_point);
 
     // Signed per-axis distance of the pointer from the text viewport
     let signed_distance = local_point - clamped_local_point;
@@ -451,7 +456,7 @@ pub(crate) fn text_input_autoscroll_system(
 
     // Extend the selection using the post-scroll viewport offset.
     editable_text.queue_edit(TextEdit::ExtendSelectionToPoint(
-        clamped_local_point - node.content_box().min + clamped_offset,
+        clamped_local_point - node.content_box().into_inner().min + clamped_offset,
     ));
 }
 
@@ -577,9 +582,10 @@ fn update_ime_position(
     // Use `y1` (bottom edge) so the OS-drawn candidate box sits below the current line
     // rather than overlapping it.
     let parley_local = Vec2::new(area.x0 as f32, area.y1 as f32);
-    let ui_local = parley_local + node.content_box().min - editable_text.viewport.offset;
-    window.ime_position =
-        transform.affine().transform_point2(ui_local) * ui_scale.0 / target.scale_factor();
+    let ui_local =
+        parley_local + node.content_box().into_inner().min - editable_text.viewport.offset;
+    window.ime_position = transform.affine().transform_point2(ui_local) * ui_scale.0
+        / target.scale_factor().into_inner();
 }
 
 /// System that enables or disables IME on the primary window based on whether the focused entity
@@ -879,7 +885,7 @@ mod tests {
             .spawn((
                 editable_text,
                 ComputedNode {
-                    size: Vec2::splat(100.0),
+                    size: bevy_ui::physical(Vec2::splat(100.0)),
                     ..Default::default()
                 },
                 ComputedUiRenderTargetInfo::default(),

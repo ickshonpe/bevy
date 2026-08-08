@@ -1,6 +1,6 @@
 use crate::{
-    ComputedNode, ComputedUiRenderTargetInfo, ContentSize, FixedMeasure, Measure, MeasureArgs,
-    Node, NodeMeasure,
+    logical, ComputedNode, ComputedUiRenderTargetInfo, ContentSize, FixedMeasure, Logical, Measure,
+    MeasureArgs, Node, NodeMeasure,
 };
 use bevy_asset::Assets;
 use bevy_color::Color;
@@ -146,7 +146,7 @@ impl From<String> for Text {
 pub struct TextShadow {
     /// Shadow displacement in logical pixels
     /// With a value of zero the shadow will be hidden directly behind the text
-    pub offset: Vec2,
+    pub offset: Logical<Vec2>,
     /// Color of the shadow
     pub color: Color,
 }
@@ -154,7 +154,7 @@ pub struct TextShadow {
 impl Default for TextShadow {
     fn default() -> Self {
         Self {
-            offset: Vec2::splat(4.),
+            offset: logical(Vec2::splat(4.)),
             color: Color::linear_rgba(0., 0., 0., 0.75),
         }
     }
@@ -303,7 +303,9 @@ pub fn measure_text_system(
         // Note: the ComputedTextBlock::needs_rerender bool is cleared in create_text_measure().
         // 1e-5 epsilon to ignore tiny scale factor float errors
         if !(1e-5
-            < (computed_target.scale_factor() - computed_node.inverse_scale_factor.recip()).abs()
+            < (computed_target.scale_factor().into_inner()
+                - computed_node.scale_factor().into_inner())
+            .abs()
             || computed.needs_rerender(computed_target.is_changed(), rem_size.is_changed())
             || text.is_changed()
             || text_flags.needs_measure_fn
@@ -316,12 +318,12 @@ pub fn measure_text_system(
             entity,
             fonts.as_ref(),
             text_reader.iter(entity),
-            computed_target.scale_factor,
+            computed_target.scale_factor.into_inner(),
             &block,
             computed.as_mut(),
             &mut font_system,
             &mut layout_cx,
-            computed_target.logical_size(),
+            computed_target.logical_size().into_inner(),
             rem_size.0,
         ) {
             Ok(measure) => {
@@ -391,7 +393,7 @@ pub fn text_system(
                 // With `NoWrap` set, no constraints are placed on the width of the text.
                 TextBounds::UNBOUNDED
             } else {
-                let content_box_size = node.content_box().size();
+                let content_box_size = node.content_box().into_inner().size();
                 TextBounds::new(content_box_size.x, content_box_size.y)
             };
 

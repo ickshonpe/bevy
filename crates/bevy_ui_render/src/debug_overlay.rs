@@ -24,11 +24,13 @@ use bevy_math::Vec2;
 use bevy_reflect::Reflect;
 use bevy_render::Extract;
 use bevy_sprite::BorderRect;
+use bevy_ui::logical;
 use bevy_ui::ui_transform::UiGlobalTransform;
 use bevy_ui::CalculatedClip;
 use bevy_ui::ComputedNode;
 use bevy_ui::ComputedStackIndex;
 use bevy_ui::ComputedUiTargetCamera;
+use bevy_ui::Logical;
 use bevy_ui::ResolvedBorderRadius;
 use bevy_ui::UiStack;
 
@@ -50,7 +52,7 @@ pub struct UiDebugOptions {
     /// Show outlines for the scrollbar regions of UI nodes
     pub outline_scrollbars: bool,
     /// Width of the overlay's lines in logical pixels
-    pub line_width: f32,
+    pub line_width: Logical<f32>,
     /// Override Color for the overlay's lines
     pub line_color_override: Option<LinearRgba>,
     /// Show outlines for non-visible UI nodes
@@ -71,7 +73,7 @@ impl Default for UiDebugOptions {
     fn default() -> Self {
         Self {
             enabled: false,
-            line_width: 1.,
+            line_width: logical(1.),
             line_color_override: None,
             show_hidden: false,
             show_clipped: false,
@@ -118,7 +120,7 @@ pub struct GlobalUiDebugOptions {
     /// Show outlines for the scrollbar regions of UI nodes
     pub outline_scrollbars: bool,
     /// Width of the overlay's lines in logical pixels
-    pub line_width: f32,
+    pub line_width: Logical<f32>,
     /// Override Color for the overlay's lines
     pub line_color_override: Option<LinearRgba>,
     /// Show outlines for non-visible UI nodes
@@ -139,7 +141,7 @@ impl Default for GlobalUiDebugOptions {
     fn default() -> Self {
         Self {
             enabled: false,
-            line_width: 1.,
+            line_width: logical(1.),
             line_color_override: None,
             show_hidden: false,
             show_clipped: false,
@@ -213,7 +215,12 @@ pub fn extract_debug_overlay(
             .line_color_override
             .unwrap_or_else(|| Hsla::sequential_dispersed(entity.index_u32()).into());
         let z_order = (ui_stack.uinodes.len() as u32 + stack_index.0) as f32;
-        let border = BorderRect::all(debug_options.line_width / uinode.inverse_scale_factor());
+        let border = BorderRect::all(
+            debug_options
+                .line_width
+                .to_physical(uinode.scale_factor())
+                .into_inner(),
+        );
         let transform = transform.affine();
 
         let mut push_outline = |rect: Rect, radius: ResolvedBorderRadius| {
@@ -233,7 +240,7 @@ pub fn extract_debug_overlay(
                         z_order,
                         clip: maybe_clip
                             .filter(|_| !debug_options.show_clipped)
-                            .map(|clip| clip.clip),
+                            .map(|clip| clip.clip.into_inner()),
                         image: AssetId::default(),
                         transform: transform * Affine2::from_translation(rect.center()),
                         item: ExtractedUiItem::Node {
@@ -253,22 +260,23 @@ pub fn extract_debug_overlay(
                 );
         };
 
-        let border_box = Rect::from_center_size(Vec2::ZERO, uinode.size);
+        let border_box = uinode.border_box().into_inner();
 
         if debug_options.outline_border_box {
-            push_outline(border_box, uinode.border_radius());
+            push_outline(border_box, uinode.border_radius().into_inner());
         }
 
         if debug_options.outline_padding_box {
             let mut padding_box = border_box;
-            padding_box.min += uinode.border.min_inset;
-            padding_box.max -= uinode.border.max_inset;
-            push_outline(padding_box, uinode.inner_radius());
+            let node_border = uinode.border.into_inner();
+            padding_box.min += node_border.min_inset;
+            padding_box.max -= node_border.max_inset;
+            push_outline(padding_box, uinode.inner_radius().into_inner());
         }
 
         if debug_options.outline_content_box {
             let mut content_box = border_box;
-            let content_inset = uinode.content_inset();
+            let content_inset = uinode.content_inset().into_inner();
             content_box.min += content_inset.min_inset;
             content_box.max -= content_inset.max_inset;
             push_outline(content_box, ResolvedBorderRadius::ZERO);
@@ -276,21 +284,23 @@ pub fn extract_debug_overlay(
 
         if debug_options.outline_scrollbars {
             if let Some((gutter, [thumb_min, thumb_max])) = uinode.horizontal_scrollbar() {
+                let gutter = gutter.into_inner();
                 push_outline(gutter, ResolvedBorderRadius::ZERO);
                 push_outline(
                     Rect {
-                        min: Vec2::new(thumb_min, gutter.min.y),
-                        max: Vec2::new(thumb_max, gutter.max.y),
+                        min: Vec2::new(thumb_min.into_inner(), gutter.min.y),
+                        max: Vec2::new(thumb_max.into_inner(), gutter.max.y),
                     },
                     ResolvedBorderRadius::ZERO,
                 );
             }
             if let Some((gutter, [thumb_min, thumb_max])) = uinode.vertical_scrollbar() {
+                let gutter = gutter.into_inner();
                 push_outline(gutter, ResolvedBorderRadius::ZERO);
                 push_outline(
                     Rect {
-                        min: Vec2::new(gutter.min.x, thumb_min),
-                        max: Vec2::new(gutter.max.x, thumb_max),
+                        min: Vec2::new(gutter.min.x, thumb_min.into_inner()),
+                        max: Vec2::new(gutter.max.x, thumb_max.into_inner()),
                     },
                     ResolvedBorderRadius::ZERO,
                 );

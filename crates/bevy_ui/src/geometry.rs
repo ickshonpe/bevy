@@ -8,7 +8,8 @@ use thiserror::Error;
 #[cfg(feature = "serialize")]
 use bevy_reflect::{ReflectDeserialize, ReflectSerialize};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[repr(transparent)]
 pub struct ScaleFactor(f32);
 
@@ -25,7 +26,8 @@ impl ScaleFactor {
 }
 
 /// Units in physical pixels
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[repr(transparent)]
 pub struct Physical<T>(T);
 
@@ -38,6 +40,11 @@ impl<T> Physical<T> {
     #[inline]
     pub fn into_inner(self) -> T {
         self.0
+    }
+
+    #[inline]
+    pub const fn as_inner(&self) -> &T {
+        &self.0
     }
 }
 
@@ -53,12 +60,12 @@ where
 
 impl Physical<Vec2> {
     #[inline]
-    pub fn x(&self) -> Physical<f32> {
+    pub const fn x(&self) -> Physical<f32> {
         Physical(self.0.x)
     }
 
     #[inline]
-    pub fn y(&self) -> Physical<f32> {
+    pub const fn y(&self) -> Physical<f32> {
         Physical(self.0.y)
     }
 
@@ -74,7 +81,8 @@ impl Physical<Vec2> {
 }
 
 /// Units in logical pixels
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[repr(transparent)]
 pub struct Logical<T>(T);
 
@@ -87,6 +95,11 @@ impl<T> Logical<T> {
     #[inline]
     pub fn into_inner(self) -> T {
         self.0
+    }
+
+    #[inline]
+    pub const fn as_inner(&self) -> &T {
+        &self.0
     }
 }
 
@@ -102,12 +115,12 @@ where
 
 impl Logical<Vec2> {
     #[inline]
-    pub fn x(&self) -> Logical<f32> {
+    pub const fn x(&self) -> Logical<f32> {
         Logical(self.0.x)
     }
 
     #[inline]
-    pub fn y(&self) -> Logical<f32> {
+    pub const fn y(&self) -> Logical<f32> {
         Logical(self.0.y)
     }
 

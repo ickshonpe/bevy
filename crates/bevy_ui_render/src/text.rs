@@ -66,21 +66,22 @@ pub fn extract_text_cursor(
             continue;
         };
 
+        let content_box = uinode.content_box().into_inner();
         let transform = Affine2::from(global_transform)
             * Affine2::from_translation(
-                uinode.content_box().min
-                    - editable_text.map_or(Vec2::ZERO, |editor| editor.viewport.offset),
+                content_box.min - editable_text.map_or(Vec2::ZERO, |editor| editor.viewport.offset),
             );
 
         let clip = if editable_text.is_some() {
-            let content_box = uinode.content_box();
             let text_clip = Rect::from_center_size(
                 global_transform.affine().translation + content_box.center(),
                 content_box.size(),
             );
-            Some(maybe_clip.map_or(text_clip, |clip| clip.clip.intersect(text_clip)))
+            Some(maybe_clip.map_or(text_clip, |clip| {
+                clip.clip.into_inner().intersect(text_clip)
+            }))
         } else {
-            maybe_clip.map(|clip| clip.clip)
+            maybe_clip.map(|clip| clip.clip.into_inner())
         };
 
         let mut focused = false;
@@ -265,14 +266,17 @@ pub fn extract_preedit_underlines(
             continue;
         };
 
+        let content_box = uinode.content_box().into_inner();
         let transform = Affine2::from(global_transform)
-            * Affine2::from_translation(uinode.content_box().min - editable_text.viewport.offset);
+            * Affine2::from_translation(content_box.min - editable_text.viewport.offset);
 
         let text_clip = Rect::from_center_size(
-            global_transform.affine().translation + uinode.content_box().center(),
-            uinode.content_box().size(),
+            global_transform.affine().translation + content_box.center(),
+            content_box.size(),
         );
-        let clip = Some(maybe_clip.map_or(text_clip, |clip| clip.clip.intersect(text_clip)));
+        let clip = Some(maybe_clip.map_or(text_clip, |clip| {
+            clip.clip.into_inner().intersect(text_clip)
+        }));
 
         let color = text_color.0.to_linear();
 

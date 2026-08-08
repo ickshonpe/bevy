@@ -17,15 +17,19 @@ impl Val {
         match self {
             Val::Auto => style_helpers::auto(),
             Val::Percent(value) => style_helpers::percent(value / 100.),
-            Val::Px(value) => style_helpers::length(context.scale_factor * value),
+            Val::Px(value) => style_helpers::length(context.scale_factor.into_inner() * value),
             Val::VMin(value) => {
-                style_helpers::length(context.physical_size.min_element() * value / 100.)
+                style_helpers::length(context.physical_size.as_inner().min_element() * value / 100.)
             }
             Val::VMax(value) => {
-                style_helpers::length(context.physical_size.max_element() * value / 100.)
+                style_helpers::length(context.physical_size.as_inner().max_element() * value / 100.)
             }
-            Val::Vw(value) => style_helpers::length(context.physical_size.x * value / 100.),
-            Val::Vh(value) => style_helpers::length(context.physical_size.y * value / 100.),
+            Val::Vw(value) => {
+                style_helpers::length(context.physical_size.x().into_inner() * value / 100.)
+            }
+            Val::Vh(value) => {
+                style_helpers::length(context.physical_size.y().into_inner() * value / 100.)
+            }
         }
     }
 
@@ -33,15 +37,19 @@ impl Val {
         match self {
             Val::Auto => style_helpers::length(0.0_f32),
             Val::Percent(value) => style_helpers::percent(value / 100.),
-            Val::Px(value) => style_helpers::length(context.scale_factor * value),
+            Val::Px(value) => style_helpers::length(context.scale_factor.into_inner() * value),
             Val::VMin(value) => {
-                style_helpers::length(context.physical_size.min_element() * value / 100.)
+                style_helpers::length(context.physical_size.as_inner().min_element() * value / 100.)
             }
             Val::VMax(value) => {
-                style_helpers::length(context.physical_size.max_element() * value / 100.)
+                style_helpers::length(context.physical_size.as_inner().max_element() * value / 100.)
             }
-            Val::Vw(value) => style_helpers::length(context.physical_size.x * value / 100.),
-            Val::Vh(value) => style_helpers::length(context.physical_size.y * value / 100.),
+            Val::Vw(value) => {
+                style_helpers::length(context.physical_size.x().into_inner() * value / 100.)
+            }
+            Val::Vh(value) => {
+                style_helpers::length(context.physical_size.y().into_inner() * value / 100.)
+            }
         }
     }
 
@@ -71,7 +79,7 @@ pub fn from_node(node: &Node, context: &LayoutContext) -> taffy::style::Style {
             x: node.overflow.x.into(),
             y: node.overflow.y.into(),
         },
-        scrollbar_width: node.scrollbar_width * context.scale_factor,
+        scrollbar_width: node.scrollbar_width.into_inner() * context.scale_factor.into_inner(),
         position: node.position_type.into(),
         flex_direction: node.flex_direction.into(),
         flex_wrap: node.flex_wrap.into(),
@@ -510,7 +518,7 @@ mod tests {
             aspect_ratio: None,
             overflow: crate::Overflow::clip(),
             overflow_clip_margin: crate::OverflowClipMargin::default(),
-            scrollbar_width: 7.,
+            scrollbar_width: crate::logical(7.),
             column_gap: Val::ZERO,
             row_gap: Val::ZERO,
             grid_auto_flow: GridAutoFlow::ColumnDense,
@@ -533,7 +541,10 @@ mod tests {
             grid_column: GridPlacement::start(4),
             grid_row: GridPlacement::span(3),
         };
-        let viewport_values = LayoutContext::new(1.0, Vec2::new(800., 600.));
+        let viewport_values = LayoutContext::new(
+            crate::scale_factor(1.0),
+            crate::physical(Vec2::new(800., 600.)),
+        );
         let taffy_style = from_node(&node, &viewport_values);
         assert_eq!(taffy_style.display, taffy::style::Display::Flex);
         assert_eq!(taffy_style.box_sizing, taffy::style::BoxSizing::ContentBox);
@@ -673,7 +684,10 @@ mod tests {
     #[test]
     fn test_into_length_percentage() {
         use taffy::style::LengthPercentage;
-        let context = LayoutContext::new(2.0, Vec2::new(800., 600.));
+        let context = LayoutContext::new(
+            crate::scale_factor(2.0),
+            crate::physical(Vec2::new(800., 600.)),
+        );
         let cases = [
             (Val::Auto, LengthPercentage::length(0.)),
             (Val::Percent(1.), LengthPercentage::percent(0.01)),

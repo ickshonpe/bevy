@@ -11,7 +11,9 @@ use bevy_input::mouse::MouseScrollPixelsPerLine;
 use bevy_math::{Affine2, Vec2};
 use bevy_picking::events::{Pointer, Scroll};
 use bevy_reflect::Reflect;
-use bevy_ui::{ComputedNode, Node, OverflowAxis, ScrollPosition, UiGlobalTransform};
+use bevy_ui::{
+    logical, physical, ComputedNode, Node, OverflowAxis, ScrollPosition, UiGlobalTransform,
+};
 
 use crate::ScrollIntoView;
 
@@ -29,8 +31,14 @@ fn scrollarea_on_scroll(
 ) {
     if let Ok((node, computed_node, mut scroll_pos)) = q_scroll_area.get_mut(scroll.entity) {
         scroll.propagate(false);
-        let visible_size = computed_node.size() * computed_node.inverse_scale_factor;
-        let content_size = computed_node.content_size() * computed_node.inverse_scale_factor;
+        let visible_size = computed_node
+            .size()
+            .to_logical(computed_node.scale_factor())
+            .into_inner();
+        let content_size = computed_node
+            .content_size()
+            .to_logical(computed_node.scale_factor())
+            .into_inner();
 
         let can_scroll_x = node.overflow.x == OverflowAxis::Scroll;
         let can_scroll_y = node.overflow.y == OverflowAxis::Scroll;
@@ -41,11 +49,13 @@ fn scrollarea_on_scroll(
         let max_range = (content_size - visible_size).max(Vec2::ZERO);
 
         if can_scroll_x {
-            scroll_pos.x = (scroll_pos.x - scroll_delta.x).clamp(0.0, max_range.x);
+            let x = (scroll_pos.x().into_inner() - scroll_delta.x).clamp(0.0, max_range.x);
+            scroll_pos.set_x(logical(x));
         }
 
         if can_scroll_y {
-            scroll_pos.y = (scroll_pos.y - scroll_delta.y).clamp(0.0, max_range.y);
+            let y = (scroll_pos.y().into_inner() - scroll_delta.y).clamp(0.0, max_range.y);
+            scroll_pos.set_y(logical(y));
         }
     }
 }
@@ -59,8 +69,13 @@ fn on_scroll_into_view(
     if let Ok((_target_node, target_transform, target_computed_node)) = q_node.get(scroll.entity) {
         scroll.propagate(false);
         let target_affine: Affine2 = target_transform.into();
-        let target_size = target_computed_node.size() * target_computed_node.inverse_scale_factor;
-        let target_pos = target_affine.translation * target_computed_node.inverse_scale_factor
+        let target_size = target_computed_node
+            .size()
+            .to_logical(target_computed_node.scale_factor())
+            .into_inner();
+        let target_pos = physical(target_affine.translation)
+            .to_logical(target_computed_node.scale_factor())
+            .into_inner()
             - target_size * 0.5;
 
         let Some(scroll_area_id) = q_parents
@@ -73,10 +88,13 @@ fn on_scroll_into_view(
         let (scroll_area_node, scroll_area_transform, scroll_area_computed_node) =
             q_node.get(scroll_area_id).unwrap();
         let scroll_area_affine: Affine2 = scroll_area_transform.into();
-        let scroll_area_size =
-            scroll_area_computed_node.size() * scroll_area_computed_node.inverse_scale_factor;
-        let scroll_area_pos = scroll_area_affine.translation
-            * scroll_area_computed_node.inverse_scale_factor
+        let scroll_area_size = scroll_area_computed_node
+            .size()
+            .to_logical(scroll_area_computed_node.scale_factor())
+            .into_inner();
+        let scroll_area_pos = physical(scroll_area_affine.translation)
+            .to_logical(scroll_area_computed_node.scale_factor())
+            .into_inner()
             - scroll_area_size * 0.5;
 
         // Get mutable access to the scroll position and content size info.
@@ -85,11 +103,13 @@ fn on_scroll_into_view(
         };
 
         // Position of the target relative to the scroll area's top-left.
-        let target_local_top_left = target_pos - scroll_area_pos + scroll_pos.0;
+        let target_local_top_left = target_pos - scroll_area_pos + scroll_pos.0.into_inner();
         let target_local_bottom_right = target_local_top_left + target_size;
 
-        let content_size = scroll_area_computed_node.content_size()
-            * scroll_area_computed_node.inverse_scale_factor;
+        let content_size = scroll_area_computed_node
+            .content_size()
+            .to_logical(scroll_area_computed_node.scale_factor())
+            .into_inner();
         let max_range = (content_size - scroll_area_size).max(Vec2::ZERO);
 
         let can_scroll_x = scroll_area_node.overflow.x == OverflowAxis::Scroll;
@@ -97,26 +117,28 @@ fn on_scroll_into_view(
 
         // Adjust by the minimal amount to make the target fully visible.
         if can_scroll_x {
-            let view_min = scroll_pos.x;
-            let view_max = scroll_pos.x + scroll_area_size.x;
+            let view_min = scroll_pos.x().into_inner();
+            let view_max = view_min + scroll_area_size.x;
 
             if target_local_top_left.x < view_min {
-                scroll_pos.x = target_local_top_left.x.clamp(0.0, max_range.x);
+                scroll_pos.set_x(logical(target_local_top_left.x.clamp(0.0, max_range.x)));
             } else if target_local_bottom_right.x > view_max {
-                scroll_pos.x =
-                    (target_local_bottom_right.x - scroll_area_size.x).clamp(0.0, max_range.x);
+                scroll_pos.set_x(logical(
+                    (target_local_bottom_right.x - scroll_area_size.x).clamp(0.0, max_range.x),
+                ));
             }
         }
 
         if can_scroll_y {
-            let view_min = scroll_pos.y;
-            let view_max = scroll_pos.y + scroll_area_size.y;
+            let view_min = scroll_pos.y().into_inner();
+            let view_max = view_min + scroll_area_size.y;
 
             if target_local_top_left.y < view_min {
-                scroll_pos.y = target_local_top_left.y.clamp(0.0, max_range.y);
+                scroll_pos.set_y(logical(target_local_top_left.y.clamp(0.0, max_range.y)));
             } else if target_local_bottom_right.y > view_max {
-                scroll_pos.y =
-                    (target_local_bottom_right.y - scroll_area_size.y).clamp(0.0, max_range.y);
+                scroll_pos.set_y(logical(
+                    (target_local_bottom_right.y - scroll_area_size.y).clamp(0.0, max_range.y),
+                ));
             }
         }
     }

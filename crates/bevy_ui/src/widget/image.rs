@@ -404,7 +404,7 @@ pub fn update_image_content_size_system(
                 image_size.size = size;
                 content_size.set(NodeMeasure::Image(ImageMeasure {
                     // multiply the image size by the scale factor to get the physical size
-                    size: size.as_vec2() * computed_target.scale_factor(),
+                    size: size.as_vec2() * computed_target.scale_factor().into_inner(),
                     visual_box: image.visual_box,
                 }));
             }

@@ -17,9 +17,10 @@ use bevy_math::{Affine2, Vec2};
 use bevy_picking::events::{Cancel, Drag, DragEnd, DragStart, Pointer, Press};
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_ui::{
-    prelude::BorderRect, ui_layout_system, BackgroundColor, BorderColor, BorderRadius,
-    ComputedNode, ComputedUiRenderTargetInfo, ComputedUiTargetCamera, FocusPolicy, ScrollPosition,
-    UiGlobalTransform, UiRect, UiScale, UiSystems, UiTransform, Val, ZIndex,
+    logical, physical, prelude::BorderRect, ui_layout_system, BackgroundColor, BorderColor,
+    BorderRadius, ComputedNode, ComputedUiRenderTargetInfo, ComputedUiTargetCamera, FocusPolicy,
+    Logical, ScrollPosition, UiGlobalTransform, UiRect, UiScale, UiSystems, UiTransform, Val,
+    ZIndex,
 };
 
 /// Used to select the orientation of a scrollbar, slider, or other oriented control.
@@ -75,7 +76,7 @@ pub struct Scrollbar {
     /// scrollbar axis. The scrollbar will resize the thumb entity based on the proportion of
     /// visible size to content size, but no smaller than this. This prevents the thumb from
     /// disappearing in cases where the ratio of content size to visible size is large.
-    pub min_thumb_length: f32,
+    pub min_thumb_length: Logical<f32>,
 }
 
 /// This component indicates that the entity is a scrollbar thumb (the moving, draggable part of
@@ -116,7 +117,11 @@ impl Scrollbar {
     /// * `target` - The scrollable entity that this scrollbar will control.
     /// * `orientation` - The orientation of the scrollbar (horizontal or vertical).
     /// * `min_thumb_length` - The minimum size of the scrollbar's thumb, in pixels.
-    pub fn new(target: Entity, orientation: ControlOrientation, min_thumb_length: f32) -> Self {
+    pub fn new(
+        target: Entity,
+        orientation: ControlOrientation,
+        min_thumb_length: Logical<f32>,
+    ) -> Self {
         Self {
             target,
             orientation,
@@ -157,7 +162,10 @@ fn scrollbar_on_pointer_down(
 
         let Some(normalized_pos) = node.normalize_point(
             *transform,
-            ev.event().pointer_location.position * node_target.scale_factor() / ui_scale.0,
+            physical(
+                ev.event().pointer_location.position * node_target.scale_factor().into_inner()
+                    / ui_scale.0,
+            ),
         ) else {
             return;
         };
@@ -171,8 +179,12 @@ fn scrollbar_on_pointer_down(
         // current scroll position, scroll forward by one step (visible size) otherwise scroll
         // back.
         let visible_size = (scroll_content.size() - scroll_content.scrollbar_size)
-            * scroll_content.inverse_scale_factor;
-        let content_size = scroll_content.content_size() * scroll_content.inverse_scale_factor;
+            .to_logical(scroll_content.scale_factor())
+            .into_inner();
+        let content_size = scroll_content
+            .content_size()
+            .to_logical(scroll_content.scale_factor())
+            .into_inner();
         let max_range = (content_size - visible_size).max(Vec2::ZERO);
 
         fn adjust_scroll_pos(scroll_pos: &mut f32, click_pos: f32, step: f32, range: f32) {
@@ -183,11 +195,15 @@ fn scrollbar_on_pointer_down(
         match scrollbar.orientation {
             ControlOrientation::Horizontal => {
                 let click_pos = (normalized_pos.x + 0.5) * content_size.x;
-                adjust_scroll_pos(&mut scroll_pos.x, click_pos, visible_size.x, max_range.x);
+                let mut value = scroll_pos.x().into_inner();
+                adjust_scroll_pos(&mut value, click_pos, visible_size.x, max_range.x);
+                scroll_pos.set_x(logical(value));
             }
             ControlOrientation::Vertical => {
                 let click_pos = (normalized_pos.y + 0.5) * content_size.y;
-                adjust_scroll_pos(&mut scroll_pos.y, click_pos, visible_size.y, max_range.y);
+                let mut value = scroll_pos.y().into_inner();
+                adjust_scroll_pos(&mut value, click_pos, visible_size.y, max_range.y);
+                scroll_pos.set_y(logical(value));
             }
         }
     }
@@ -206,8 +222,8 @@ fn scrollbar_on_drag_start(
         {
             drag.dragging = true;
             drag.drag_origin = match scrollbar.orientation {
-                ControlOrientation::Horizontal => scroll_area.x,
-                ControlOrientation::Vertical => scroll_area.y,
+                ControlOrientation::Horizontal => scroll_area.x().into_inner(),
+                ControlOrientation::Vertical => scroll_area.y().into_inner(),
             };
         }
     }
@@ -232,23 +248,33 @@ fn scrollbar_on_drag(
             let distance = ev.event().distance / ui_scale.0;
 
             let visible_size = (scroll_content.size() - scroll_content.scrollbar_size)
-                * scroll_content.inverse_scale_factor;
-            let content_size = scroll_content.content_size() * scroll_content.inverse_scale_factor;
+                .to_logical(scroll_content.scale_factor())
+                .into_inner();
+            let content_size = scroll_content
+                .content_size()
+                .to_logical(scroll_content.scale_factor())
+                .into_inner();
 
-            let scrollbar_size = (node.size() * node.inverse_scale_factor).max(Vec2::ONE);
+            let scrollbar_size = node
+                .size()
+                .to_logical(node.scale_factor())
+                .into_inner()
+                .max(Vec2::ONE);
 
             match scrollbar.orientation {
                 ControlOrientation::Horizontal => {
                     let range = (content_size.x - visible_size.x).max(0.);
-                    scroll_pos.x = (drag.drag_origin
-                        + (distance.x * content_size.x) / scrollbar_size.x)
-                        .clamp(0., range);
+                    scroll_pos.set_x(logical(
+                        (drag.drag_origin + (distance.x * content_size.x) / scrollbar_size.x)
+                            .clamp(0., range),
+                    ));
                 }
                 ControlOrientation::Vertical => {
                     let range = (content_size.y - visible_size.y).max(0.);
-                    scroll_pos.y = (drag.drag_origin
-                        + (distance.y * content_size.y) / scrollbar_size.y)
-                        .clamp(0., range);
+                    scroll_pos.set_y(logical(
+                        (drag.drag_origin + (distance.y * content_size.y) / scrollbar_size.y)
+                            .clamp(0., range),
+                    ));
                 }
             };
         }
@@ -303,13 +329,21 @@ pub(crate) fn update_scrollbar_thumb(
 
         // Size of the visible scrolling area.
         let visible_size = (scroll_area.1.size() - scroll_area.1.scrollbar_size)
-            * scroll_area.1.inverse_scale_factor;
+            .to_logical(scroll_area.1.scale_factor())
+            .into_inner();
 
         // Size of the scrolling content.
-        let content_size = scroll_area.1.content_size() * scroll_area.1.inverse_scale_factor;
+        let content_size = scroll_area
+            .1
+            .content_size()
+            .to_logical(scroll_area.1.scale_factor())
+            .into_inner();
 
         // Length of the scrollbar track.
-        let track_length = scrollbar_node.size() * scrollbar_node.inverse_scale_factor;
+        let track_length = scrollbar_node
+            .size()
+            .to_logical(scrollbar_node.scale_factor())
+            .into_inner();
 
         fn size_and_pos(
             content_size: f32,
@@ -362,8 +396,8 @@ pub(crate) fn update_scrollbar_thumb(
                         content_size.x,
                         visible_size.x,
                         track_length.x,
-                        scrollbar.min_thumb_length,
-                        scroll_area.0.x,
+                        scrollbar.min_thumb_length.into_inner(),
+                        scroll_area.0.x().into_inner(),
                     );
                     (
                         Vec2::new(thumb_size, track_length.y),
@@ -375,8 +409,8 @@ pub(crate) fn update_scrollbar_thumb(
                         content_size.y,
                         visible_size.y,
                         track_length.y,
-                        scrollbar.min_thumb_length,
-                        scroll_area.0.y,
+                        scrollbar.min_thumb_length.into_inner(),
+                        scroll_area.0.y().into_inner(),
                     );
                     (
                         Vec2::new(track_length.x, thumb_size),
@@ -385,32 +419,32 @@ pub(crate) fn update_scrollbar_thumb(
                 }
             };
 
-            let inverse_scale_factor = target_info.scale_factor().recip();
-            let thumb_physical_size = thumb_logical_size * target_info.scale_factor();
+            let target_scale_factor = target_info.scale_factor();
+            let thumb_physical_size = logical(thumb_logical_size).to_physical(target_scale_factor);
 
             if thumb_node.size != thumb_physical_size
                 || thumb_node.unrounded_size != thumb_physical_size
-                || thumb_node.inverse_scale_factor != inverse_scale_factor
+                || thumb_node.scale_factor != target_scale_factor
             {
                 thumb_node.size = thumb_physical_size;
                 thumb_node.unrounded_size = thumb_physical_size;
-                thumb_node.inverse_scale_factor = inverse_scale_factor;
+                thumb_node.scale_factor = target_scale_factor;
             }
 
             let border_radius = thumb.border_radius.resolve(
-                target_info.scale_factor(),
-                thumb_physical_size,
-                target_info.physical_size().as_vec2(),
+                target_info.scale_factor().into_inner(),
+                thumb_physical_size.into_inner(),
+                target_info.physical_size().into_inner().as_vec2(),
             );
-            if thumb_node.border_radius != border_radius {
-                thumb_node.border_radius = border_radius;
+            if thumb_node.border_radius != physical(border_radius) {
+                thumb_node.border_radius = physical(border_radius);
             }
 
             let resolve_border_val = |val: Val| {
                 val.resolve(
-                    target_info.scale_factor(),
-                    thumb_physical_size.x,
-                    target_info.physical_size().as_vec2(),
+                    target_info.scale_factor().into_inner(),
+                    thumb_physical_size.x().into_inner(),
+                    target_info.physical_size().into_inner().as_vec2(),
                 )
                 .unwrap_or(0.)
             };
@@ -426,29 +460,33 @@ pub(crate) fn update_scrollbar_thumb(
                 ),
             };
 
-            if thumb_node.size.x < resolved_border.min_inset.x + resolved_border.max_inset.x {
-                let r =
-                    thumb_node.size.x / (resolved_border.min_inset.x + resolved_border.max_inset.x);
+            if thumb_node.size.x().into_inner()
+                < resolved_border.min_inset.x + resolved_border.max_inset.x
+            {
+                let r = thumb_node.size.x().into_inner()
+                    / (resolved_border.min_inset.x + resolved_border.max_inset.x);
                 resolved_border.min_inset.x *= r;
                 resolved_border.max_inset.x *= r;
             }
 
-            if thumb_node.size.y < resolved_border.min_inset.y + resolved_border.max_inset.y {
-                let r =
-                    thumb_node.size.y / (resolved_border.min_inset.y + resolved_border.max_inset.y);
+            if thumb_node.size.y().into_inner()
+                < resolved_border.min_inset.y + resolved_border.max_inset.y
+            {
+                let r = thumb_node.size.y().into_inner()
+                    / (resolved_border.min_inset.y + resolved_border.max_inset.y);
                 resolved_border.min_inset.y *= r;
                 resolved_border.max_inset.y *= r;
             }
 
-            thumb_node.bypass_change_detection().border = resolved_border;
+            thumb_node.bypass_change_detection().border = physical(resolved_border);
 
             let new_transform = scrollbar_transform.affine()
                 * thumb_transform.compute_affine(
-                    target_info.scale_factor(),
-                    thumb_physical_size,
-                    target_info.physical_size().as_vec2(),
+                    target_info.scale_factor().into_inner(),
+                    thumb_physical_size.into_inner(),
+                    target_info.physical_size().into_inner().as_vec2(),
                 )
-                * Affine2::from_translation(thumb_center * target_info.scale_factor());
+                * Affine2::from_translation(thumb_center * target_info.scale_factor().into_inner());
 
             if thumb_global_transform.affine() != new_transform {
                 *thumb_global_transform = new_transform.into();

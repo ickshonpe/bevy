@@ -111,7 +111,8 @@ pub fn ui_picking(
     pickable_query: Query<&Pickable>,
 ) {
     // Map from each camera to its active pointers and their positions in viewport space
-    let mut pointer_pos_by_camera = HashMap::<Entity, HashMap<PointerId, Vec2>>::default();
+    let mut pointer_pos_by_camera =
+        HashMap::<Entity, HashMap<PointerId, Physical<Vec2>>>::default();
 
     for (pointer_id, pointer_location) in
         pointers.iter().filter_map(|(pointer, pointer_location)| {
@@ -142,7 +143,7 @@ pub fn ui_picking(
             pointer_pos_by_camera
                 .entry(entity)
                 .or_default()
-                .insert(pointer_id, pointer_pos);
+                .insert(pointer_id, physical(pointer_pos));
         }
     }
 
@@ -181,7 +182,7 @@ pub fn ui_picking(
             };
 
             // Nodes with Display::None have a (0., 0.) logical rect and can be ignored
-            if node.node.size() == Vec2::ZERO {
+            if node.node.size() == physical(Vec2::ZERO) {
                 continue;
             }
 
@@ -236,8 +237,10 @@ pub fn ui_picking(
                             target,
                             camera_entity,
                             node.pickable.cloned(),
-                            node.transform.inverse().transform_point2(*cursor_position)
-                                / node.node.size(),
+                            node.transform
+                                .inverse()
+                                .transform_point2(cursor_position.into_inner())
+                                / node.node.size().into_inner(),
                         ));
                 }
             }
@@ -282,13 +285,13 @@ pub fn ui_picking(
 fn pick_ui_text_section(
     uinode: &ComputedNode,
     global_transform: &UiGlobalTransform,
-    point: Vec2,
+    point: Physical<Vec2>,
     text_layout_info: &TextLayoutInfo,
     text_block: &ComputedTextBlock,
 ) -> Option<Entity> {
-    let local_point = global_transform
-        .try_inverse()
-        .map(|transform| transform.transform_point2(point) - uinode.content_box().min)?;
+    let local_point = global_transform.try_inverse().map(|transform| {
+        transform.transform_point2(point.into_inner()) - uinode.content_box().into_inner().min
+    })?;
     let section_index = text_layout_info
         .run_geometry
         .iter()

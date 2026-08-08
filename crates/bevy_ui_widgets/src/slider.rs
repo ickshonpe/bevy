@@ -24,8 +24,8 @@ use bevy_math::ops;
 use bevy_picking::events::{Cancel, Drag, DragEnd, DragStart, Pointer, Press, Release};
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_ui::{
-    ComputedNode, ComputedUiRenderTargetInfo, InteractionDisabled, Pressed, UiGlobalTransform,
-    UiScale,
+    physical, ComputedNode, ComputedUiRenderTargetInfo, InteractionDisabled, Pressed,
+    UiGlobalTransform, UiScale,
 };
 
 use crate::ValueChange;
@@ -50,7 +50,7 @@ impl SliderOrientation {
     /// using the node dimensions for auto-detection.
     pub fn is_vertical(self, node: &ComputedNode) -> bool {
         match self {
-            SliderOrientation::Auto => node.size().y > node.size().x,
+            SliderOrientation::Auto => node.size().y() > node.size().x(),
             SliderOrientation::Horizontal => false,
             SliderOrientation::Vertical => true,
         }
@@ -311,9 +311,9 @@ pub(crate) fn slider_on_pointer_down(
             .find_map(|child_id| {
                 q_thumb.get(child_id).ok().map(|thumb| {
                     if is_vertical {
-                        thumb.size().y
+                        thumb.size().y().into_inner()
                     } else {
-                        thumb.size().x
+                        thumb.size().x().into_inner()
                     }
                 })
             })
@@ -322,14 +322,17 @@ pub(crate) fn slider_on_pointer_down(
         // Detect track click.
         let Some(normalized_pos) = node.normalize_point(
             *transform,
-            press.pointer_location.position * node_target.scale_factor() / ui_scale.0,
+            physical(
+                press.pointer_location.position * node_target.scale_factor().into_inner()
+                    / ui_scale.0,
+            ),
         ) else {
             return;
         };
         let track_size = if is_vertical {
-            node.size().y - thumb_size
+            node.size().y().into_inner() - thumb_size
         } else {
-            node.size().x - thumb_size
+            node.size().x().into_inner() - thumb_size
         };
 
         // Avoid division by zero
@@ -337,12 +340,12 @@ pub(crate) fn slider_on_pointer_down(
             if is_vertical {
                 // For vertical sliders: bottom-to-top (0 at bottom, max at top)
                 // normalized_pos.y ranges from -0.5 (top) to +0.5 (bottom)
-                let y_from_bottom = (0.5 - normalized_pos.y) * node.size().y;
+                let y_from_bottom = (0.5 - normalized_pos.y) * node.size().y().into_inner();
                 let adjusted_y = y_from_bottom - thumb_size / 2.0;
                 adjusted_y * range.span() / track_size + range.start()
             } else {
                 // For horizontal sliders: convert from center-origin to left-origin
-                let x_from_left = (normalized_pos.x + 0.5) * node.size().x;
+                let x_from_left = (normalized_pos.x + 0.5) * node.size().x().into_inner();
                 let adjusted_x = x_from_left - thumb_size / 2.0;
                 adjusted_x * range.span() / track_size + range.start()
             }
@@ -509,18 +512,24 @@ fn emit_slider_drag_value_change(
         .find_map(|child_id| {
             q_thumb.get(child_id).ok().map(|thumb| {
                 if is_vertical {
-                    thumb.size().y
+                    thumb.size().y().into_inner()
                 } else {
-                    thumb.size().x
+                    thumb.size().x().into_inner()
                 }
             })
         })
         .unwrap_or(0.0);
 
     let slider_size = if is_vertical {
-        ((node.size().y - thumb_size) * node.inverse_scale_factor).max(1.0)
+        physical(node.size().y().into_inner() - thumb_size)
+            .to_logical(node.scale_factor())
+            .into_inner()
+            .max(1.0)
     } else {
-        ((node.size().x - thumb_size) * node.inverse_scale_factor).max(1.0)
+        physical(node.size().x().into_inner() - thumb_size)
+            .to_logical(node.scale_factor())
+            .into_inner()
+            .max(1.0)
     };
 
     let drag_distance = if is_vertical { distance.y } else { distance.x };

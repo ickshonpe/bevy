@@ -68,10 +68,10 @@ fn sync_bounds_and_transforms(
         }
 
         accessible.set_bounds(Rect::new(
-            -0.5 * node.size.x as f64,
-            -0.5 * node.size.y as f64,
-            0.5 * node.size.x as f64,
-            0.5 * node.size.y as f64,
+            -0.5 * node.size.x().into_inner() as f64,
+            -0.5 * node.size.y().into_inner() as f64,
+            0.5 * node.size.x().into_inner() as f64,
+            0.5 * node.size.y().into_inner() as f64,
         ));
 
         // If the node has an accessible parent, its transform in the accessibility tree must be relative to the parent.

@@ -303,8 +303,10 @@ pub fn extract_shadows(
             *camera_entity = extracted_camera_entity;
         }
 
-        let ui_physical_viewport_size = target.physical_size().as_vec2();
-        let scale_factor = target.scale_factor();
+        let ui_physical_viewport_size = target.physical_size().into_inner().as_vec2();
+        let scale_factor = target.scale_factor().into_inner();
+        let uinode_size = uinode.size().into_inner();
+        let border_radius = uinode.border_radius.into_inner();
 
         for drop_shadow in box_shadow.iter() {
             if drop_shadow.color.is_fully_transparent() {
@@ -321,18 +323,18 @@ pub fn extract_shadows(
                 Val::VMax(percent) => percent / 100. * ui_physical_viewport_size.max_element(),
             };
 
-            let spread_x = resolve_val(drop_shadow.spread_radius, uinode.size().x, scale_factor);
-            let spread_ratio = (spread_x + uinode.size().x) / uinode.size().x;
+            let spread_x = resolve_val(drop_shadow.spread_radius, uinode_size.x, scale_factor);
+            let spread_ratio = (spread_x + uinode_size.x) / uinode_size.x;
 
-            let spread = vec2(spread_x, uinode.size().y * spread_ratio - uinode.size().y);
+            let spread = vec2(spread_x, uinode_size.y * spread_ratio - uinode_size.y);
 
-            let blur_radius = resolve_val(drop_shadow.blur_radius, uinode.size().x, scale_factor);
+            let blur_radius = resolve_val(drop_shadow.blur_radius, uinode_size.x, scale_factor);
             let offset = vec2(
-                resolve_val(drop_shadow.x_offset, uinode.size().x, scale_factor),
-                resolve_val(drop_shadow.y_offset, uinode.size().y, scale_factor),
+                resolve_val(drop_shadow.x_offset, uinode_size.x, scale_factor),
+                resolve_val(drop_shadow.y_offset, uinode_size.y, scale_factor),
             );
 
-            let shadow_size = uinode.size() + spread;
+            let shadow_size = uinode_size + spread;
             if shadow_size.cmple(Vec2::ZERO).any() {
                 continue;
             }
@@ -340,10 +342,10 @@ pub fn extract_shadows(
             nodes_processed_this_frame.insert(main_entity);
 
             let radius = ResolvedBorderRadius {
-                top_left: uinode.border_radius.top_left * spread_ratio,
-                top_right: uinode.border_radius.top_right * spread_ratio,
-                bottom_left: uinode.border_radius.bottom_left * spread_ratio,
-                bottom_right: uinode.border_radius.bottom_right * spread_ratio,
+                top_left: border_radius.top_left * spread_ratio,
+                top_right: border_radius.top_right * spread_ratio,
+                bottom_left: border_radius.bottom_left * spread_ratio,
+                bottom_right: border_radius.bottom_right * spread_ratio,
             };
 
             extracted_box_shadows
@@ -358,7 +360,7 @@ pub fn extract_shadows(
                         transform: Affine2::from(transform) * Affine2::from_translation(offset),
                         color: drop_shadow.color.into(),
                         bounds: shadow_size + 6. * blur_radius,
-                        clip: clip.map(|clip| clip.clip),
+                        clip: clip.map(|clip| clip.clip.into_inner()),
                         radius,
                         blur_radius,
                         size: shadow_size,

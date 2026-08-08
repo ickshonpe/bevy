@@ -1,6 +1,6 @@
 use crate::{
-    ui_transform::UiGlobalTransform, ComputedNode, ComputedUiTargetCamera, Node, OverrideClip,
-    UiStack,
+    physical, ui_transform::UiGlobalTransform, ComputedNode, ComputedUiTargetCamera, Node,
+    OverrideClip, Physical, UiStack,
 };
 use bevy_camera::{visibility::InheritedVisibility, Camera, NormalizedRenderTarget, RenderTarget};
 use bevy_ecs::{
@@ -211,7 +211,7 @@ pub fn ui_focus_system(
     let mouse_clicked =
         mouse_button_input.just_pressed(MouseButton::Left) || touches_input.any_just_pressed();
 
-    let camera_cursor_positions: EntityHashMap<Vec2> = camera_query
+    let camera_cursor_positions: EntityHashMap<Physical<Vec2>> = camera_query
         .iter()
         .filter_map(|(entity, camera, render_target)| {
             // Interactions are only supported for cameras rendering to a window.
@@ -233,7 +233,7 @@ pub fn ui_focus_system(
                         .first_pressed_position()
                         .map(|pos| pos * window.scale_factor())
                 })
-                .map(|cursor_position| (entity, cursor_position - viewport_position))
+                .map(|cursor_position| (entity, physical(cursor_position - viewport_position)))
         })
         .collect();
 
@@ -368,7 +368,7 @@ pub fn ui_focus_system(
 /// Walk up the tree child-to-parent checking that `point` is not clipped by any ancestor node.
 /// If `entity` has an [`OverrideClip`] component it ignores any inherited clipping and returns true.
 pub fn clip_check_recursive(
-    point: Vec2,
+    point: Physical<Vec2>,
     entity: Entity,
     clipping_query: &Query<'_, '_, (&ComputedNode, &UiGlobalTransform, &Node)>,
     child_of_query: &Query<&ChildOf, Without<OverrideClip>>,
@@ -382,7 +382,8 @@ pub fn clip_check_recursive(
         && transform.try_inverse().is_none_or(|affine| {
             !computed_node
                 .resolve_clip_rect(node.overflow, node.overflow_clip_margin)
-                .contains(affine.transform_point2(point))
+                .into_inner()
+                .contains(affine.transform_point2(point.into_inner()))
         })
     {
         // The point is clipped (or transform not invertible) → ignore for picking

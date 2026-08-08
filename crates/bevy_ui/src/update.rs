@@ -2,9 +2,10 @@
 
 use crate::{
     experimental::{UiChildren, UiRootNodes},
+    physical, scale_factor,
     ui_transform::UiGlobalTransform,
     CalculatedClip, ComputedUiRenderTargetInfo, ComputedUiTargetCamera, DefaultUiCamera, Display,
-    Node, OverrideClip, UiScale, UiTargetCamera,
+    Node, OverrideClip, Physical, UiScale, UiTargetCamera,
 };
 
 use super::ComputedNode;
@@ -52,7 +53,7 @@ fn update_clipping(
         Has<OverrideClip>,
     )>,
     entity: Entity,
-    mut maybe_inherited_clip: Option<Rect>,
+    mut maybe_inherited_clip: Option<Physical<Rect>>,
 ) {
     let Ok((node, computed_node, transform, maybe_calculated_clip, has_override_clip)) =
         node_query.get_mut(entity)
@@ -67,7 +68,7 @@ fn update_clipping(
 
     // If `display` is None, clip the entire node and all its descendants by replacing the inherited clip with a default rect (which is empty)
     if node.display == Display::None {
-        maybe_inherited_clip = Some(Rect::default());
+        maybe_inherited_clip = Some(physical(Rect::default()));
     }
 
     // Update this node's CalculatedClip component
@@ -100,11 +101,14 @@ fn update_clipping(
         //
         // `clip_inset` should always fit inside `node_rect`.
         // Even if `clip_inset` were to overflow, we won't return a degenerate result as `Rect::intersect` will clamp the intersection, leaving it empty.
-        let mut clip_rect =
-            computed_node.resolve_clip_rect(node.overflow, node.overflow_clip_margin);
+        let mut clip_rect = computed_node
+            .resolve_clip_rect(node.overflow, node.overflow_clip_margin)
+            .into_inner();
         clip_rect.min += transform.translation;
         clip_rect.max += transform.translation;
-        Some(maybe_inherited_clip.map_or(clip_rect, |c| c.intersect(clip_rect)))
+        Some(maybe_inherited_clip.map_or(physical(clip_rect), |c| {
+            physical(c.into_inner().intersect(clip_rect))
+        }))
     };
 
     for child in ui_children.iter_ui_children(entity) {
@@ -150,7 +154,7 @@ pub fn propagate_ui_target_cameras(
             .entity(root_entity)
             .try_insert(Propagate(ComputedUiTargetCamera { camera }));
 
-        let (scale_factor, physical_size) = camera
+        let (target_scale_factor, physical_size) = camera
             .and_then(|camera| camera_query.get(camera).ok())
             .map(|camera| {
                 (
@@ -163,8 +167,8 @@ pub fn propagate_ui_target_cameras(
         commands
             .entity(root_entity)
             .try_insert(Propagate(ComputedUiRenderTargetInfo {
-                scale_factor,
-                physical_size,
+                scale_factor: scale_factor(target_scale_factor),
+                physical_size: physical(physical_size),
             }));
     }
 }
@@ -255,8 +259,8 @@ mod tests {
         assert_eq!(
             *world.get::<ComputedUiRenderTargetInfo>(uinode).unwrap(),
             ComputedUiRenderTargetInfo {
-                physical_size,
-                scale_factor,
+                physical_size: crate::physical(physical_size),
+                scale_factor: crate::scale_factor(scale_factor),
             }
         );
     }
@@ -329,8 +333,8 @@ mod tests {
             assert_eq!(
                 *world.get::<ComputedUiRenderTargetInfo>(uinode).unwrap(),
                 ComputedUiRenderTargetInfo {
-                    physical_size,
-                    scale_factor,
+                    physical_size: crate::physical(physical_size),
+                    scale_factor: crate::scale_factor(scale_factor),
                 }
             );
         }
@@ -387,7 +391,8 @@ mod tests {
             world
                 .get::<ComputedUiRenderTargetInfo>(uinode)
                 .unwrap()
-                .scale_factor,
+                .scale_factor
+                .into_inner(),
             scale1
         );
 
@@ -395,7 +400,8 @@ mod tests {
             world
                 .get::<ComputedUiRenderTargetInfo>(uinode)
                 .unwrap()
-                .physical_size,
+                .physical_size
+                .into_inner(),
             size1
         );
 
@@ -417,7 +423,8 @@ mod tests {
             world
                 .get::<ComputedUiRenderTargetInfo>(uinode)
                 .unwrap()
-                .scale_factor,
+                .scale_factor
+                .into_inner(),
             scale2
         );
 
@@ -425,7 +432,8 @@ mod tests {
             world
                 .get::<ComputedUiRenderTargetInfo>(uinode)
                 .unwrap()
-                .physical_size,
+                .physical_size
+                .into_inner(),
             size2
         );
 
@@ -524,7 +532,8 @@ mod tests {
             world
                 .get::<ComputedUiRenderTargetInfo>(uinode1)
                 .unwrap()
-                .scale_factor(),
+                .scale_factor()
+                .into_inner(),
             scale1
         );
 
@@ -532,7 +541,8 @@ mod tests {
             world
                 .get::<ComputedUiRenderTargetInfo>(uinode1)
                 .unwrap()
-                .physical_size(),
+                .physical_size()
+                .into_inner(),
             size1
         );
 
@@ -564,7 +574,8 @@ mod tests {
             world
                 .get::<ComputedUiRenderTargetInfo>(uinode1)
                 .unwrap()
-                .scale_factor(),
+                .scale_factor()
+                .into_inner(),
             scale2
         );
 
@@ -572,7 +583,8 @@ mod tests {
             world
                 .get::<ComputedUiRenderTargetInfo>(uinode1)
                 .unwrap()
-                .physical_size(),
+                .physical_size()
+                .into_inner(),
             size2
         );
 
@@ -633,7 +645,8 @@ mod tests {
             world
                 .get::<ComputedUiRenderTargetInfo>(uinode)
                 .unwrap()
-                .scale_factor,
+                .scale_factor
+                .into_inner(),
             scale
         );
 
@@ -641,7 +654,8 @@ mod tests {
             world
                 .get::<ComputedUiRenderTargetInfo>(uinode)
                 .unwrap()
-                .physical_size,
+                .physical_size
+                .into_inner(),
             size
         );
 
@@ -663,7 +677,8 @@ mod tests {
             world
                 .get::<ComputedUiRenderTargetInfo>(uinode)
                 .unwrap()
-                .scale_factor(),
+                .scale_factor()
+                .into_inner(),
             2.
         );
     }

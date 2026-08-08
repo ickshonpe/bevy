@@ -2,9 +2,10 @@
 use crate::experimental::GhostNode;
 use crate::{
     experimental::{UiChildren, UiRootNodes},
+    physical, scale_factor,
     ui_transform::{UiGlobalTransform, UiTransform},
     ComputedNode, ComputedUiRenderTargetInfo, ContentSize, Display, FixedNode, IgnoreScroll,
-    LayoutConfig, Node, Outline, OverflowAxis, ScrollPosition,
+    LayoutConfig, Node, Outline, OverflowAxis, Physical, ScaleFactor, ScrollPosition,
 };
 use bevy_ecs::{
     change_detection::{DetectChanges, DetectChangesMut},
@@ -31,18 +32,18 @@ pub mod debug;
 pub mod ui_surface;
 
 pub struct LayoutContext {
-    pub scale_factor: f32,
-    pub physical_size: Vec2,
+    pub scale_factor: ScaleFactor,
+    pub physical_size: Physical<Vec2>,
 }
 
 impl LayoutContext {
     pub const DEFAULT: Self = Self {
-        scale_factor: 1.0,
-        physical_size: Vec2::ZERO,
+        scale_factor: scale_factor(1.0),
+        physical_size: physical(Vec2::ZERO),
     };
     /// Create a new [`LayoutContext`] from the window's physical size and scale factor
     #[inline]
-    const fn new(scale_factor: f32, physical_size: Vec2) -> Self {
+    const fn new(scale_factor: ScaleFactor, physical_size: Physical<Vec2>) -> Self {
         Self {
             scale_factor,
             physical_size,
@@ -53,8 +54,8 @@ impl LayoutContext {
 #[cfg(test)]
 impl LayoutContext {
     pub const TEST_CONTEXT: Self = Self {
-        scale_factor: 1.0,
-        physical_size: Vec2::new(1000.0, 1000.0),
+        scale_factor: scale_factor(1.0),
+        physical_size: physical(Vec2::new(1000.0, 1000.0)),
     };
 }
 
@@ -105,7 +106,7 @@ pub fn ui_layout_system(
             if computed_target.is_changed() || node.is_changed() || content_size.is_changed() {
                 let layout_context = LayoutContext::new(
                     computed_target.scale_factor,
-                    computed_target.physical_size.as_vec2(),
+                    physical(computed_target.physical_size.into_inner().as_vec2()),
                 );
                 if content_size.is_changed() && content_size.measure.is_none() {
                     ui_surface.try_remove_node_context(entity);
@@ -217,7 +218,7 @@ pub fn ui_layout_system(
 
         ui_surface.compute_layout(
             ui_root_entity,
-            computed_target.physical_size,
+            computed_target.physical_size.into_inner(),
             &mut buffer_query,
             &mut font_system,
         );
@@ -227,11 +228,11 @@ pub fn ui_layout_system(
             ui_root_entity,
             &mut ui_surface,
             true,
-            computed_target.physical_size().as_vec2(),
+            computed_target.physical_size().into_inner().as_vec2(),
             Affine2::IDENTITY,
             &mut node_update_query,
             &ui_children,
-            computed_target.scale_factor.recip(),
+            computed_target.scale_factor.into_inner().recip(),
             Vec2::ZERO,
             Vec2::ZERO,
         );
@@ -300,18 +301,18 @@ pub fn ui_layout_system(
                 layout_location - effective_parent_scroll + 0.5 * (layout_size - parent_size);
 
             // only trigger change detection when the new values are different
-            if node.size != layout_size
-                || node.unrounded_size != unrounded_size
-                || node.inverse_scale_factor != inverse_target_scale_factor
+            if node.size != physical(layout_size)
+                || node.unrounded_size != physical(unrounded_size)
+                || node.scale_factor != scale_factor(inverse_target_scale_factor.recip())
             {
-                node.size = layout_size;
-                node.unrounded_size = unrounded_size;
-                node.inverse_scale_factor = inverse_target_scale_factor;
+                node.size = physical(layout_size);
+                node.unrounded_size = physical(unrounded_size);
+                node.scale_factor = scale_factor(inverse_target_scale_factor.recip());
             }
 
             let content_size = Vec2::new(layout.content_size.width, layout.content_size.height);
-            if node.content_size != content_size {
-                node.content_size = content_size;
+            if node.content_size != physical(content_size) {
+                node.content_size = physical(content_size);
             }
 
             let taffy_rect_to_border_rect = |rect: taffy::Rect<f32>| BorderRect {
@@ -320,12 +321,12 @@ pub fn ui_layout_system(
             };
 
             let new_border = taffy_rect_to_border_rect(layout.border);
-            if node.border != new_border {
-                node.border = new_border;
+            if node.border != physical(new_border) {
+                node.border = physical(new_border);
             }
             let new_padding = taffy_rect_to_border_rect(layout.padding);
-            if node.padding != new_padding {
-                node.padding = new_padding;
+            if node.padding != physical(new_padding) {
+                node.padding = physical(new_padding);
             }
 
             // Compute the node's new global transform
@@ -345,11 +346,11 @@ pub fn ui_layout_system(
             // unless the border radius actually changed
             let new_border_radius = style.border_radius.resolve(
                 inverse_target_scale_factor.recip(),
-                node.size,
+                node.size.into_inner(),
                 target_size,
             );
-            if node.border_radius != new_border_radius {
-                node.border_radius = new_border_radius;
+            if node.border_radius != physical(new_border_radius) {
+                node.border_radius = physical(new_border_radius);
             }
 
             if let Some(outline) = maybe_outline {
@@ -359,7 +360,7 @@ pub fn ui_layout_system(
                         .width
                         .resolve(
                             inverse_target_scale_factor.recip(),
-                            node.size().x,
+                            node.size().x().into_inner(),
                             target_size,
                         )
                         .unwrap_or(0.)
@@ -368,42 +369,42 @@ pub fn ui_layout_system(
                     0.
                 };
 
-                if node.outline_width != new_outline_width {
-                    node.outline_width = new_outline_width;
+                if node.outline_width != physical(new_outline_width) {
+                    node.outline_width = physical(new_outline_width);
                 }
 
                 let new_outline_offset = outline
                     .offset
                     .resolve(
                         inverse_target_scale_factor.recip(),
-                        node.size().x,
+                        node.size().x().into_inner(),
                         target_size,
                     )
                     .unwrap_or(0.)
                     // Clamp outline offsets to at least the length of the node's shorter side
                     // Negative offset outlines can be useful to create thing like in-set focus indicators
-                    .max(-0.5 * node.size.min_element());
-                if node.outline_offset != new_outline_offset {
-                    node.outline_offset = new_outline_offset;
+                    .max(-0.5 * node.size.into_inner().min_element());
+                if node.outline_offset != physical(new_outline_offset) {
+                    node.outline_offset = physical(new_outline_offset);
                 }
             }
 
             let new_scrollbar_size =
                 Vec2::new(layout.scrollbar_size.width, layout.scrollbar_size.height);
-            if node.scrollbar_size != new_scrollbar_size {
-                node.scrollbar_size = new_scrollbar_size;
+            if node.scrollbar_size != physical(new_scrollbar_size) {
+                node.scrollbar_size = physical(new_scrollbar_size);
             }
 
             let scroll_position: Vec2 = maybe_scroll_position
                 .map(|scroll_pos| {
                     Vec2::new(
                         if style.overflow.x == OverflowAxis::Scroll {
-                            scroll_pos.x * inverse_target_scale_factor.recip()
+                            scroll_pos.x().into_inner() * inverse_target_scale_factor.recip()
                         } else {
                             0.0
                         },
                         if style.overflow.y == OverflowAxis::Scroll {
-                            scroll_pos.y * inverse_target_scale_factor.recip()
+                            scroll_pos.y().into_inner() * inverse_target_scale_factor.recip()
                         } else {
                             0.0
                         },
@@ -412,13 +413,13 @@ pub fn ui_layout_system(
                 .unwrap_or_default();
 
             let max_possible_offset =
-                (content_size - layout_size + node.scrollbar_size).max(Vec2::ZERO);
+                (content_size - layout_size + node.scrollbar_size.into_inner()).max(Vec2::ZERO);
             let clamped_scroll_position = scroll_position.clamp(Vec2::ZERO, max_possible_offset);
 
             let physical_scroll_position = clamped_scroll_position.floor();
 
-            if node.scroll_position != physical_scroll_position {
-                node.scroll_position = physical_scroll_position;
+            if node.scroll_position != physical(physical_scroll_position) {
+                node.scroll_position = physical(physical_scroll_position);
             }
 
             for child_uinode in ui_children.iter_ui_children(entity) {
@@ -854,7 +855,8 @@ mod tests {
             .fold(
                 Option::<(Rect, bool)>::None,
                 |option_rect, (entity, node, transform)| {
-                    let current_rect = Rect::from_center_size(transform.translation, node.size());
+                    let current_rect =
+                        Rect::from_center_size(transform.translation, node.size().into_inner());
                     assert!(
                         current_rect.height().abs() + current_rect.width().abs() > 0.,
                         "root ui node {entity} doesn't have a logical size"
@@ -1234,9 +1236,21 @@ mod tests {
                 let world = app.world_mut();
                 let width_sum: f32 = children
                     .iter()
-                    .map(|child| world.get::<ComputedNode>(*child).unwrap().size.x)
+                    .map(|child| {
+                        world
+                            .get::<ComputedNode>(*child)
+                            .unwrap()
+                            .size
+                            .x()
+                            .into_inner()
+                    })
                     .sum();
-                let parent_width = world.get::<ComputedNode>(parent).unwrap().size.x;
+                let parent_width = world
+                    .get::<ComputedNode>(parent)
+                    .unwrap()
+                    .size
+                    .x()
+                    .into_inner();
                 assert!((width_sum - parent_width).abs() < 0.001);
                 assert!((width_sum - 320. * s).abs() <= 1.);
                 s += r;

@@ -452,11 +452,11 @@ pub fn extract_ui_material_nodes<M: UiMaterial>(
                     material: handle.id(),
                     rect: Rect {
                         min: Vec2::ZERO,
-                        max: computed_node.size(),
+                        max: computed_node.size().into_inner(),
                     },
-                    border: computed_node.border(),
-                    border_radius: computed_node.border_radius().into(),
-                    clip: clip.map(|clip| clip.clip),
+                    border: computed_node.border().into_inner(),
+                    border_radius: computed_node.border_radius().into_inner().into(),
+                    clip: clip.map(|clip| clip.clip.into_inner()),
                 },
             );
     }
