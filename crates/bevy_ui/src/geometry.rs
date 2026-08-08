@@ -10,12 +10,36 @@ use bevy_reflect::{ReflectDeserialize, ReflectSerialize};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(transparent)]
-pub struct ScaleFactor(pub f32);
+pub struct ScaleFactor(f32);
+
+#[inline]
+pub const fn scale_factor(value: f32) -> ScaleFactor {
+    ScaleFactor(value)
+}
+
+impl ScaleFactor {
+    #[inline]
+    pub const fn into_inner(self) -> f32 {
+        self.0
+    }
+}
 
 /// Units in physical pixels
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 #[repr(transparent)]
-pub struct Physical<T>(pub T);
+pub struct Physical<T>(T);
+
+#[inline]
+pub const fn physical<T>(value: T) -> Physical<T> {
+    Physical(value)
+}
+
+impl<T> Physical<T> {
+    #[inline]
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
 
 impl<T> Physical<T>
 where
@@ -52,7 +76,19 @@ impl Physical<Vec2> {
 /// Units in logical pixels
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 #[repr(transparent)]
-pub struct Logical<T>(pub T);
+pub struct Logical<T>(T);
+
+#[inline]
+pub const fn logical<T>(value: T) -> Logical<T> {
+    Logical(value)
+}
+
+impl<T> Logical<T> {
+    #[inline]
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
 
 impl<T> Logical<T>
 where
@@ -1621,7 +1657,7 @@ mod tests {
 
     #[test]
     fn physical_and_logical_arithmetic() {
-        let scale_factor = ScaleFactor(2.);
+        let scale = scale_factor(2.);
 
         assert_eq!(size_of::<ScaleFactor>(), size_of::<f32>());
         assert_eq!(size_of::<Physical<f32>>(), size_of::<f32>());
@@ -1629,38 +1665,42 @@ mod tests {
         assert_eq!(size_of::<Physical<Vec2>>(), size_of::<Vec2>());
         assert_eq!(size_of::<Logical<Vec2>>(), size_of::<Vec2>());
 
-        assert_eq!(Physical(4.).to_logical(scale_factor), Logical(2.));
-        assert_eq!(Logical(2.).to_physical(scale_factor), Physical(4.));
+        assert_eq!(physical(4.).to_logical(scale), logical(2.));
+        assert_eq!(logical(2.).to_physical(scale), physical(4.));
 
-        let mut physical = Physical(2.) + Physical(1.);
-        physical -= Physical(1.);
-        physical *= 4.;
-        physical /= 2.;
-        assert_eq!(-physical, Physical(-4.));
+        let mut physical_value = physical(2.) + physical(1.);
+        physical_value -= physical(1.);
+        physical_value *= 4.;
+        physical_value /= 2.;
+        assert_eq!(-physical_value, physical(-4.));
 
-        let mut logical = Logical(2.) + Logical(1.);
-        logical -= Logical(1.);
-        logical *= 4.;
-        logical /= 2.;
-        assert_eq!(-logical, Logical(-4.));
+        let mut logical_value = logical(2.) + logical(1.);
+        logical_value -= logical(1.);
+        logical_value *= 4.;
+        logical_value /= 2.;
+        assert_eq!(-logical_value, logical(-4.));
 
-        let mut physical = Physical(vec2(2., 4.));
-        assert_eq!(Physical(1.) + physical.x(), Physical(3.));
-        assert_eq!(physical.y(), Physical(4.));
-        physical.set_x(Physical(6.));
-        physical.set_y(Physical(8.));
-        assert_eq!(physical, Physical(vec2(6., 8.)));
+        let mut physical_vec = physical(vec2(2., 4.));
+        assert_eq!(physical(1.) + physical_vec.x(), physical(3.));
+        assert_eq!(physical_vec.y(), physical(4.));
+        physical_vec.set_x(physical(6.));
+        physical_vec.set_y(physical(8.));
+        assert_eq!(physical_vec, physical(vec2(6., 8.)));
 
-        let mut logical = Logical(vec2(2., 4.));
-        assert_eq!(Logical(1.) + logical.x(), Logical(3.));
-        assert_eq!(logical.y(), Logical(4.));
-        logical.set_x(Logical(6.));
-        logical.set_y(Logical(8.));
-        assert_eq!(logical, Logical(vec2(6., 8.)));
+        let mut logical_vec = logical(vec2(2., 4.));
+        assert_eq!(logical(1.) + logical_vec.x(), logical(3.));
+        assert_eq!(logical_vec.y(), logical(4.));
+        logical_vec.set_x(logical(6.));
+        logical_vec.set_y(logical(8.));
+        assert_eq!(logical_vec, logical(vec2(6., 8.)));
 
-        let mut physical = Physical(vec2(2., 4.)) + Physical(vec2(1., 2.));
-        physical *= 2.;
-        assert_eq!(physical.to_logical(scale_factor), Logical(vec2(3., 6.)));
+        let mut physical_vec = physical(vec2(2., 4.)) + physical(vec2(1., 2.));
+        physical_vec *= 2.;
+        assert_eq!(physical_vec.to_logical(scale), logical(vec2(3., 6.)));
+
+        assert_eq!(scale.into_inner(), 2.);
+        assert_eq!(physical(4.).into_inner(), 4.);
+        assert_eq!(logical(4.).into_inner(), 4.);
     }
 
     #[test]
