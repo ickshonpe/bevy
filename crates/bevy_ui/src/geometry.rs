@@ -36,12 +36,19 @@ pub const fn physical<T>(value: T) -> Physical<T> {
     Physical(value)
 }
 
-impl<T> Physical<T> {
-    #[inline]
-    pub fn into_inner(self) -> T {
+impl Physical<f32> {
+    pub const fn into_inner(self) -> f32 {
         self.0
     }
+}
 
+impl Physical<Vec2> {
+    pub const fn into_inner(self) -> Vec2 {
+        self.0
+    }
+}
+
+impl<T> Physical<T> {
     #[inline]
     pub const fn as_inner(&self) -> &T {
         &self.0
@@ -86,17 +93,24 @@ impl Physical<Vec2> {
 #[repr(transparent)]
 pub struct Logical<T>(T);
 
+impl Logical<f32> {
+    pub const fn into_inner(self) -> f32 {
+        self.0
+    }
+}
+
+impl Logical<Vec2> {
+    pub const fn into_inner(self) -> Vec2 {
+        self.0
+    }
+}
+
 #[inline]
 pub const fn logical<T>(value: T) -> Logical<T> {
     Logical(value)
 }
 
 impl<T> Logical<T> {
-    #[inline]
-    pub fn into_inner(self) -> T {
-        self.0
-    }
-
     #[inline]
     pub const fn as_inner(&self) -> &T {
         &self.0
