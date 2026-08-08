@@ -286,7 +286,7 @@ pub fn ui_layout_system(
                 return;
             };
 
-            let layout_size = Vec2::new(layout.size.width, layout.size.height);
+            let layout_size = physical(Vec2::new(layout.size.width, layout.size.height));
 
             // Taffy layout position of the top-left corner of the node, relative to its parent.
             let layout_location = Vec2::new(layout.location.x, layout.location.y);
@@ -297,15 +297,15 @@ pub fn ui_layout_system(
                 .unwrap_or(parent_scroll_position);
 
             // The position of the center of the node relative to its top-left corner.
-            let local_center =
-                layout_location - effective_parent_scroll + 0.5 * (layout_size - parent_size);
+            let local_center = layout_location - effective_parent_scroll
+                + 0.5 * (layout_size.into_inner() - parent_size);
 
             // only trigger change detection when the new values are different
-            if node.size != physical(layout_size)
+            if node.size != layout_size
                 || node.unrounded_size != physical(unrounded_size)
                 || node.scale_factor != scale_factor(inverse_target_scale_factor.recip())
             {
-                node.size = physical(layout_size);
+                node.size = layout_size;
                 node.unrounded_size = physical(unrounded_size);
                 node.scale_factor = scale_factor(inverse_target_scale_factor.recip());
             }
@@ -332,11 +332,8 @@ pub fn ui_layout_system(
             }
 
             // Compute the node's new global transform
-            let mut local_transform = transform.compute_affine(
-                node.scale_factor,
-                physical(layout_size),
-                physical(target_size),
-            );
+            let mut local_transform =
+                transform.compute_affine(node.scale_factor, layout_size, physical(target_size));
             local_transform.translation += local_center;
             inherited_transform *= local_transform;
 
@@ -407,8 +404,9 @@ pub fn ui_layout_system(
                 })
                 .unwrap_or_default();
 
-            let max_possible_offset =
-                (content_size - layout_size + node.scrollbar_size.into_inner()).max(Vec2::ZERO);
+            let max_possible_offset = (content_size - layout_size.into_inner()
+                + node.scrollbar_size.into_inner())
+            .max(Vec2::ZERO);
             let clamped_scroll_position = scroll_position.clamp(Vec2::ZERO, max_possible_offset);
 
             let physical_scroll_position = clamped_scroll_position.floor();
@@ -428,7 +426,7 @@ pub fn ui_layout_system(
                     node_update_query,
                     ui_children,
                     inverse_target_scale_factor,
-                    layout_size,
+                    layout_size.into_inner(),
                     physical_scroll_position,
                 );
             }
