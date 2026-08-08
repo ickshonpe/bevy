@@ -315,18 +315,20 @@ pub fn ui_layout_system(
                 node.content_size = physical(content_size);
             }
 
-            let taffy_rect_to_border_rect = |rect: taffy::Rect<f32>| BorderRect {
-                min_inset: Vec2::new(rect.left, rect.top),
-                max_inset: Vec2::new(rect.right, rect.bottom),
+            let taffy_rect_to_border_rect = |rect: taffy::Rect<f32>| {
+                physical(BorderRect {
+                    min_inset: Vec2::new(rect.left, rect.top),
+                    max_inset: Vec2::new(rect.right, rect.bottom),
+                })
             };
 
             let new_border = taffy_rect_to_border_rect(layout.border);
-            if node.border != physical(new_border) {
-                node.border = physical(new_border);
+            if node.border != new_border {
+                node.border = new_border;
             }
             let new_padding = taffy_rect_to_border_rect(layout.padding);
-            if node.padding != physical(new_padding) {
-                node.padding = physical(new_padding);
+            if node.padding != new_padding {
+                node.padding = new_padding;
             }
 
             // Compute the node's new global transform
