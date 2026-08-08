@@ -2,10 +2,10 @@
 use crate::experimental::GhostNode;
 use crate::{
     experimental::{UiChildren, UiRootNodes},
-    physical, scale_factor,
+    logical, physical, scale_factor,
     ui_transform::{UiGlobalTransform, UiTransform},
     ComputedNode, ComputedUiRenderTargetInfo, ContentSize, Display, FixedNode, IgnoreScroll,
-    LayoutConfig, Node, Outline, OverflowAxis, Physical, ScaleFactor, ScrollPosition,
+    LayoutConfig, Logical, Node, Outline, OverflowAxis, Physical, ScaleFactor, ScrollPosition,
 };
 use bevy_ecs::{
     change_detection::{DetectChanges, DetectChangesMut},
@@ -228,13 +228,13 @@ pub fn ui_layout_system(
             ui_root_entity,
             &mut ui_surface,
             true,
-            computed_target.physical_size().into_inner().as_vec2(),
+            physical(computed_target.physical_size().into_inner().as_vec2()),
             Affine2::IDENTITY,
             &mut node_update_query,
             &ui_children,
-            computed_target.scale_factor.into_inner().recip(),
-            Vec2::ZERO,
-            Vec2::ZERO,
+            computed_target.scale_factor,
+            physical(Vec2::ZERO),
+            physical(Vec2::ZERO),
         );
     }
 
@@ -244,7 +244,7 @@ pub fn ui_layout_system(
         entity: Entity,
         ui_surface: &mut UiSurface,
         inherited_use_rounding: bool,
-        target_size: Vec2,
+        target_size: Physical<Vec2>,
         mut inherited_transform: Affine2,
         node_update_query: &mut Query<(
             &mut ComputedNode,
@@ -258,9 +258,9 @@ pub fn ui_layout_system(
             Has<FixedNode>,
         )>,
         ui_children: &UiChildren,
-        inverse_target_scale_factor: f32,
-        parent_size: Vec2,
-        parent_scroll_position: Vec2,
+        target_scale_factor: ScaleFactor,
+        parent_size: Physical<Vec2>,
+        parent_scroll_position: Physical<Vec2>,
     ) {
         if let Ok((
             mut node,
@@ -285,34 +285,40 @@ pub fn ui_layout_system(
             let Ok((layout, unrounded_size)) = ui_surface.get_layout(entity, use_rounding) else {
                 return;
             };
+            let unrounded_size = physical(unrounded_size);
 
             let layout_size = physical(Vec2::new(layout.size.width, layout.size.height));
 
             // Taffy layout position of the top-left corner of the node, relative to its parent.
-            let layout_location = Vec2::new(layout.location.x, layout.location.y);
+            let layout_location = physical(Vec2::new(layout.location.x, layout.location.y));
 
             // If IgnoreScroll is set, parent scroll position is ignored along the specified axes.
             let effective_parent_scroll = maybe_scroll_sticky
-                .map(|scroll_sticky| parent_scroll_position * Vec2::from(!scroll_sticky.0))
+                .map(|scroll_sticky| {
+                    physical(parent_scroll_position.into_inner() * Vec2::from(!scroll_sticky.0))
+                })
                 .unwrap_or(parent_scroll_position);
 
             // The position of the center of the node relative to its top-left corner.
-            let local_center = layout_location - effective_parent_scroll
-                + 0.5 * (layout_size.into_inner() - parent_size);
+            let local_center =
+                layout_location - effective_parent_scroll + (layout_size - parent_size) * 0.5;
 
             // only trigger change detection when the new values are different
             if node.size != layout_size
-                || node.unrounded_size != physical(unrounded_size)
-                || node.scale_factor != scale_factor(inverse_target_scale_factor.recip())
+                || node.unrounded_size != unrounded_size
+                || node.scale_factor != target_scale_factor
             {
                 node.size = layout_size;
-                node.unrounded_size = physical(unrounded_size);
-                node.scale_factor = scale_factor(inverse_target_scale_factor.recip());
+                node.unrounded_size = unrounded_size;
+                node.scale_factor = target_scale_factor;
             }
 
-            let content_size = Vec2::new(layout.content_size.width, layout.content_size.height);
-            if node.content_size != physical(content_size) {
-                node.content_size = physical(content_size);
+            let content_size = physical(Vec2::new(
+                layout.content_size.width,
+                layout.content_size.height,
+            ));
+            if node.content_size != content_size {
+                node.content_size = content_size;
             }
 
             let taffy_rect_to_border_rect = |rect: taffy::Rect<f32>| {
@@ -333,8 +339,8 @@ pub fn ui_layout_system(
 
             // Compute the node's new global transform
             let mut local_transform =
-                transform.compute_affine(node.scale_factor, layout_size, physical(target_size));
-            local_transform.translation += local_center;
+                transform.compute_affine(node.scale_factor, layout_size, target_size);
+            local_transform.translation += local_center.into_inner();
             inherited_transform *= local_transform;
 
             if inherited_transform != **global_transform {
@@ -346,73 +352,84 @@ pub fn ui_layout_system(
             let new_border_radius =
                 style
                     .border_radius
-                    .resolve(node.scale_factor, node.size, physical(target_size));
+                    .resolve(node.scale_factor, node.size, target_size);
             if node.border_radius != new_border_radius {
                 node.border_radius = new_border_radius;
             }
 
             if let Some(outline) = maybe_outline {
                 // don't trigger change detection unless the outline actually changed
-                let new_outline_width = if style.display != Display::None {
+                let new_outline_width = physical(if style.display != Display::None {
                     outline
                         .width
-                        .resolve(node.scale_factor, node.size().x(), physical(target_size))
+                        .resolve(node.scale_factor, node.size().x(), target_size)
                         .unwrap_or(physical(0.))
                         .into_inner()
                         .max(0.)
                 } else {
                     0.
-                };
+                });
 
-                if node.outline_width != physical(new_outline_width) {
-                    node.outline_width = physical(new_outline_width);
+                if node.outline_width != new_outline_width {
+                    node.outline_width = new_outline_width;
                 }
 
-                let new_outline_offset = outline
-                    .offset
-                    .resolve(node.scale_factor, node.size().x(), physical(target_size))
-                    .unwrap_or(physical(0.))
-                    .into_inner()
-                    // Clamp outline offsets to at least the length of the node's shorter side
-                    // Negative offset outlines can be useful to create thing like in-set focus indicators
-                    .max(-0.5 * node.size.into_inner().min_element());
-                if node.outline_offset != physical(new_outline_offset) {
-                    node.outline_offset = physical(new_outline_offset);
+                let new_outline_offset = physical(
+                    outline
+                        .offset
+                        .resolve(node.scale_factor, node.size().x(), target_size)
+                        .unwrap_or(physical(0.))
+                        .into_inner()
+                        // Clamp outline offsets to at least the length of the node's shorter side
+                        // Negative offset outlines can be useful to create thing like in-set focus indicators
+                        .max(-0.5 * node.size.into_inner().min_element()),
+                );
+                if node.outline_offset != new_outline_offset {
+                    node.outline_offset = new_outline_offset;
                 }
             }
 
-            let new_scrollbar_size =
-                Vec2::new(layout.scrollbar_size.width, layout.scrollbar_size.height);
-            if node.scrollbar_size != physical(new_scrollbar_size) {
-                node.scrollbar_size = physical(new_scrollbar_size);
+            let new_scrollbar_size = physical(Vec2::new(
+                layout.scrollbar_size.width,
+                layout.scrollbar_size.height,
+            ));
+            if node.scrollbar_size != new_scrollbar_size {
+                node.scrollbar_size = new_scrollbar_size;
             }
 
-            let scroll_position: Vec2 = maybe_scroll_position
+            let scroll_position: Logical<Vec2> = maybe_scroll_position
                 .map(|scroll_pos| {
-                    Vec2::new(
+                    logical(Vec2::new(
                         if style.overflow.x == OverflowAxis::Scroll {
-                            scroll_pos.x().into_inner() * inverse_target_scale_factor.recip()
+                            scroll_pos.x().into_inner()
                         } else {
                             0.0
                         },
                         if style.overflow.y == OverflowAxis::Scroll {
-                            scroll_pos.y().into_inner() * inverse_target_scale_factor.recip()
+                            scroll_pos.y().into_inner()
                         } else {
                             0.0
                         },
-                    )
+                    ))
                 })
                 .unwrap_or_default();
+            let scroll_position = scroll_position.to_physical(target_scale_factor);
 
-            let max_possible_offset = (content_size - layout_size.into_inner()
-                + node.scrollbar_size.into_inner())
-            .max(Vec2::ZERO);
-            let clamped_scroll_position = scroll_position.clamp(Vec2::ZERO, max_possible_offset);
+            let max_possible_offset = physical(
+                (content_size - layout_size + node.scrollbar_size)
+                    .into_inner()
+                    .max(Vec2::ZERO),
+            );
+            let clamped_scroll_position = physical(
+                scroll_position
+                    .into_inner()
+                    .clamp(Vec2::ZERO, max_possible_offset.into_inner()),
+            );
 
-            let physical_scroll_position = clamped_scroll_position.floor();
+            let physical_scroll_position = physical(clamped_scroll_position.into_inner().floor());
 
-            if node.scroll_position != physical(physical_scroll_position) {
-                node.scroll_position = physical(physical_scroll_position);
+            if node.scroll_position != physical_scroll_position {
+                node.scroll_position = physical_scroll_position;
             }
 
             for child_uinode in ui_children.iter_ui_children(entity) {
@@ -425,8 +442,8 @@ pub fn ui_layout_system(
                     inherited_transform,
                     node_update_query,
                     ui_children,
-                    inverse_target_scale_factor,
-                    layout_size.into_inner(),
+                    target_scale_factor,
+                    layout_size,
                     physical_scroll_position,
                 );
             }
