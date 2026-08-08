@@ -27,6 +27,28 @@ where
     }
 }
 
+impl Physical<Vec2> {
+    #[inline]
+    pub fn x(&self) -> Physical<f32> {
+        Physical(self.0.x)
+    }
+
+    #[inline]
+    pub fn y(&self) -> Physical<f32> {
+        Physical(self.0.y)
+    }
+
+    #[inline]
+    pub fn set_x(&mut self, x: Physical<f32>) {
+        self.0.x = x.0;
+    }
+
+    #[inline]
+    pub fn set_y(&mut self, y: Physical<f32>) {
+        self.0.y = y.0;
+    }
+}
+
 /// Units in logical pixels
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 #[repr(transparent)]
@@ -39,6 +61,28 @@ where
     #[inline]
     pub fn to_physical(self, scale_factor: ScaleFactor) -> Physical<T> {
         Physical(self.0 * scale_factor.0)
+    }
+}
+
+impl Logical<Vec2> {
+    #[inline]
+    pub fn x(&self) -> Logical<f32> {
+        Logical(self.0.x)
+    }
+
+    #[inline]
+    pub fn y(&self) -> Logical<f32> {
+        Logical(self.0.y)
+    }
+
+    #[inline]
+    pub fn set_x(&mut self, x: Logical<f32>) {
+        self.0.x = x.0;
+    }
+
+    #[inline]
+    pub fn set_y(&mut self, y: Logical<f32>) {
+        self.0.y = y.0;
     }
 }
 
@@ -1599,6 +1643,20 @@ mod tests {
         logical *= 4.;
         logical /= 2.;
         assert_eq!(-logical, Logical(-4.));
+
+        let mut physical = Physical(vec2(2., 4.));
+        assert_eq!(Physical(1.) + physical.x(), Physical(3.));
+        assert_eq!(physical.y(), Physical(4.));
+        physical.set_x(Physical(6.));
+        physical.set_y(Physical(8.));
+        assert_eq!(physical, Physical(vec2(6., 8.)));
+
+        let mut logical = Logical(vec2(2., 4.));
+        assert_eq!(Logical(1.) + logical.x(), Logical(3.));
+        assert_eq!(logical.y(), Logical(4.));
+        logical.set_x(Logical(6.));
+        logical.set_y(Logical(8.));
+        assert_eq!(logical, Logical(vec2(6., 8.)));
 
         let mut physical = Physical(vec2(2., 4.)) + Physical(vec2(1., 2.));
         physical *= 2.;
