@@ -350,7 +350,7 @@ pub fn ui_layout_system(
             local_transform.translation += local_center.into_inner();
             inherited_transform *= local_transform;
 
-            if inherited_transform != **global_transform {
+            if inherited_transform != global_transform.affine() {
                 *global_transform = inherited_transform.into();
             }
 
@@ -881,8 +881,10 @@ mod tests {
             .fold(
                 Option::<(Rect, bool)>::None,
                 |option_rect, (entity, node, transform)| {
-                    let current_rect =
-                        Rect::from_center_size(transform.translation, node.size().into_inner());
+                    let current_rect = Rect::from_center_size(
+                        transform.translation().into_inner(),
+                        node.size().into_inner(),
+                    );
                     assert!(
                         current_rect.height().abs() + current_rect.width().abs() > 0.,
                         "root ui node {entity} doesn't have a logical size"

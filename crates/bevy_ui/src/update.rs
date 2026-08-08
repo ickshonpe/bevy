@@ -104,8 +104,8 @@ fn update_clipping(
         let mut clip_rect = *computed_node
             .resolve_clip_rect(node.overflow, node.overflow_clip_margin)
             .as_inner();
-        clip_rect.min += transform.translation;
-        clip_rect.max += transform.translation;
+        clip_rect.min += transform.translation().into_inner();
+        clip_rect.max += transform.translation().into_inner();
         let clip_rect = physical(clip_rect);
         Some(maybe_inherited_clip.map_or(clip_rect, |c| {
             physical(c.as_inner().intersect(*clip_rect.as_inner()))

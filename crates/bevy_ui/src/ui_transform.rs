@@ -1,5 +1,4 @@
 use crate::{physical, Physical, ScaleFactor, Val, ValArithmeticError, ValNum};
-use bevy_derive::Deref;
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::ReflectComponent;
 use bevy_math::Affine2;
@@ -213,7 +212,7 @@ impl Default for UiTransform {
 ///
 /// [`UiGlobalTransform`]s are updated from [`UiTransform`] and [`Node`](crate::ui_node::Node)
 ///  in [`ui_layout_system`](crate::layout::ui_layout_system)
-#[derive(Component, Debug, PartialEq, Clone, Copy, Reflect, Deref)]
+#[derive(Component, Debug, PartialEq, Clone, Copy, Reflect)]
 #[reflect(Component, Default, PartialEq, Debug, Clone)]
 #[cfg_attr(
     feature = "serialize",
@@ -232,20 +231,40 @@ impl UiGlobalTransform {
     /// If the transform is invertible returns its inverse.
     /// Otherwise returns `None`.
     #[inline]
-    pub fn try_inverse(&self) -> Option<Affine2> {
-        (self.matrix2.determinant() != 0.).then_some(self.inverse())
+    pub fn try_inverse(&self) -> Option<UiGlobalTransform> {
+        (self.0.matrix2.determinant() != 0.).then_some(Self(self.0.inverse()))
+    }
+
+    #[inline]
+    pub fn inverse(&self) -> Self {
+        Self(self.0.inverse())
+    }
+
+    #[inline]
+    pub fn transform_point2(&self, point: Physical<Vec2>) -> Physical<Vec2> {
+        physical(self.0.transform_point2(point.into_inner()))
+    }
+
+    #[inline]
+    pub fn transform_vector2(&self, vector: Physical<Vec2>) -> Physical<Vec2> {
+        physical(self.0.transform_vector2(vector.into_inner()))
+    }
+
+    #[inline]
+    pub fn translation(&self) -> Physical<Vec2> {
+        physical(self.0.translation)
     }
 
     /// Creates a `UiGlobalTransform` from the given 2D translation.
     #[inline]
-    pub fn from_translation(translation: Vec2) -> Self {
-        Self(Affine2::from_translation(translation))
+    pub fn from_translation(translation: Physical<Vec2>) -> Self {
+        Self(Affine2::from_translation(translation.into_inner()))
     }
 
     /// Creates a `UiGlobalTransform` from the given 2D translation.
     #[inline]
-    pub fn from_xy(x: f32, y: f32) -> Self {
-        Self::from_translation(Vec2::new(x, y))
+    pub fn from_xy(x: Physical<f32>, y: Physical<f32>) -> Self {
+        Self::from_translation(physical(Vec2::new(x.into_inner(), y.into_inner())))
     }
 
     /// Creates a `UiGlobalTransform` from the given rotation.
@@ -263,8 +282,9 @@ impl UiGlobalTransform {
     /// Extracts scale, angle and translation from self.
     /// The transform is expected to be non-degenerate and without shearing, or the output will be invalid.
     #[inline]
-    pub fn to_scale_angle_translation(&self) -> (Vec2, f32, Vec2) {
-        self.0.to_scale_angle_translation()
+    pub fn to_scale_angle_translation(&self) -> (Vec2, f32, Physical<Vec2>) {
+        let (scale, angle, raw_translation) = self.0.to_scale_angle_translation();
+        (scale, angle, physical(raw_translation))
     }
 
     /// Returns the transform as an [`Affine2`]
@@ -319,11 +339,11 @@ impl Mul<UiGlobalTransform> for Affine2 {
     }
 }
 
-impl Mul<Vec2> for UiGlobalTransform {
-    type Output = Vec2;
+impl Mul<Physical<Vec2>> for UiGlobalTransform {
+    type Output = Physical<Vec2>;
 
     #[inline]
-    fn mul(self, value: Vec2) -> Vec2 {
+    fn mul(self, value: Physical<Vec2>) -> Physical<Vec2> {
         self.transform_point2(value)
     }
 }

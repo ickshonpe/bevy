@@ -131,7 +131,7 @@ pub fn viewport_picking(
 
         // Create a `Rect` in *physical* coordinates centered at the node's GlobalTransform
         let node_rect = Rect::from_center_size(
-            global_transform.translation.trunc(),
+            global_transform.translation().into_inner().trunc(),
             computed_node.size().into_inner(),
         );
         // Location::position uses *logical* coordinates

@@ -221,7 +221,7 @@ impl ComputedNode {
     pub fn contains_point(&self, transform: UiGlobalTransform, point: Physical<Vec2>) -> bool {
         let Some(local_point) = transform
             .try_inverse()
-            .map(|transform| transform.transform_point2(point.into_inner()))
+            .map(|transform| transform.transform_point2(point).into_inner())
         else {
             return false;
         };
@@ -254,7 +254,7 @@ impl ComputedNode {
             .then(|| transform.try_inverse())
             .flatten()
             .map(|transform| {
-                transform.transform_point2(point.into_inner()) / self.size.into_inner()
+                transform.transform_point2(point).into_inner() / self.size.into_inner()
             })
     }
 

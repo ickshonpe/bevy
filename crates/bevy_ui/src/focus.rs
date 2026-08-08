@@ -386,7 +386,7 @@ pub fn clip_check_recursive(
             !computed_node
                 .resolve_clip_rect(node.overflow, node.overflow_clip_margin)
                 .as_inner()
-                .contains(affine.transform_point2(point.into_inner()))
+                .contains(affine.transform_point2(point).into_inner())
         })
     {
         // The point is clipped (or transform not invertible) → ignore for picking

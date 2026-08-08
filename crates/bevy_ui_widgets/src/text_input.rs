@@ -276,11 +276,12 @@ fn on_pointer_press(
     }
 
     let Some(local_pos) = transform.try_inverse().and_then(|inverse| {
-        let local_pos = inverse.transform_point2(
-            (physical(press.pointer_location.position) * target.scale_factor().into_inner()
-                / ui_scale.0)
-                .into_inner(),
-        );
+        let local_pos = inverse
+            .transform_point2(
+                physical(press.pointer_location.position) * target.scale_factor().into_inner()
+                    / ui_scale.0,
+            )
+            .into_inner();
         node.content_box()
             .as_inner()
             .contains(local_pos)
@@ -344,11 +345,12 @@ fn on_pointer_drag(
     }
 
     let Some(local_point) = transform.try_inverse().map(|inverse| {
-        inverse.transform_point2(
-            (physical(drag.pointer_location.position) * target.scale_factor().into_inner()
-                / ui_scale.0)
-                .into_inner(),
-        )
+        inverse
+            .transform_point2(
+                physical(drag.pointer_location.position) * target.scale_factor().into_inner()
+                    / ui_scale.0,
+            )
+            .into_inner()
     }) else {
         return;
     };
@@ -406,10 +408,11 @@ pub(crate) fn text_input_autoscroll_system(
     }
 
     let Some(local_point) = transform.try_inverse().map(|inverse| {
-        inverse.transform_point2(
-            (physical(pointer_position) * target.scale_factor().into_inner() / ui_scale.0)
-                .into_inner(),
-        )
+        inverse
+            .transform_point2(
+                physical(pointer_position) * target.scale_factor().into_inner() / ui_scale.0,
+            )
+            .into_inner()
     }) else {
         return;
     };

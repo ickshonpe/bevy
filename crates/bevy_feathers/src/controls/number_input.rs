@@ -952,12 +952,14 @@ fn scrubber_on_release(
             }
 
             let Some(local_pos) = transform.try_inverse().map(|inverse| {
-                inverse.transform_point2(
-                    (physical(release.pointer_location.position)
-                        * target.scale_factor().into_inner()
-                        / ui_scale.0)
-                        .into_inner(),
-                ) - node.content_box().as_inner().min
+                inverse
+                    .transform_point2(
+                        physical(release.pointer_location.position)
+                            * target.scale_factor().into_inner()
+                            / ui_scale.0,
+                    )
+                    .into_inner()
+                    - node.content_box().as_inner().min
                     + editable_text.viewport.offset
             }) else {
                 return;

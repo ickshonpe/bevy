@@ -147,7 +147,7 @@ pub(crate) fn position_popover(
         let parent_size =
             parent_node.size().into_inner() - parent_border.min_inset - parent_border.max_inset;
         let parent_rect = scale_rect(
-            Rect::from_center_size(parent_transform.translation, parent_size),
+            Rect::from_center_size(parent_transform.translation().into_inner(), parent_size),
             parent_node.scale_factor().into_inner().recip(),
         );
         let parent_matrix = parent_transform.affine().matrix2;
@@ -246,8 +246,9 @@ pub(crate) fn position_popover(
         // change detection bit).
         if best_occluded < f32::MAX {
             let best_center = (logical(best_rect.min) + logical(best_rect.max)) * 0.5;
-            let current_center =
-                physical(ui_global_transform.translation).to_logical(computed_node.scale_factor());
+            let current_center = ui_global_transform
+                .translation()
+                .to_logical(computed_node.scale_factor());
             let physical_translation =
                 (best_center - current_center).to_physical(computed_target.scale_factor());
             if parent_matrix.determinant() == 0.0 {
