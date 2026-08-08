@@ -527,7 +527,7 @@ pub struct Node {
     pub overflow: Overflow,
 
     /// How much space in logical pixels should be reserved for scrollbars when overflow is set to scroll or auto on an axis.
-    pub scrollbar_width: Logical<f32>,
+    pub scrollbar_width: f32,
 
     /// How the bounds of clipped content should be determined
     ///
@@ -859,7 +859,7 @@ impl Node {
         aspect_ratio: None,
         overflow: Overflow::DEFAULT,
         overflow_clip_margin: OverflowClipMargin::DEFAULT,
-        scrollbar_width: logical(0.),
+        scrollbar_width: 0.,
         row_gap: Val::ZERO,
         column_gap: Val::ZERO,
         grid_auto_flow: GridAutoFlow::DEFAULT,

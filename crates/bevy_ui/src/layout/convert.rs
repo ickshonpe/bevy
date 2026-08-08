@@ -1,10 +1,10 @@
 use taffy::style_helpers;
 
 use crate::{
-    AlignContent, AlignItems, AlignSelf, BoxSizing, Display, FlexDirection, FlexWrap, GridAutoFlow,
-    GridPlacement, GridTrack, GridTrackRepetition, InlineDirection, JustifyContent, JustifyItems,
-    JustifySelf, MaxTrackSizingFunction, MinTrackSizingFunction, Node, OverflowAxis, PositionType,
-    RepeatedGridTrack, UiRect, Val,
+    logical, AlignContent, AlignItems, AlignSelf, BoxSizing, Display, FlexDirection, FlexWrap,
+    GridAutoFlow, GridPlacement, GridTrack, GridTrackRepetition, InlineDirection, JustifyContent,
+    JustifyItems, JustifySelf, MaxTrackSizingFunction, MinTrackSizingFunction, Node, OverflowAxis,
+    PositionType, RepeatedGridTrack, UiRect, Val,
 };
 
 use super::LayoutContext;
@@ -79,7 +79,9 @@ pub fn from_node(node: &Node, context: &LayoutContext) -> taffy::style::Style {
             x: node.overflow.x.into(),
             y: node.overflow.y.into(),
         },
-        scrollbar_width: node.scrollbar_width.into_inner() * context.scale_factor.into_inner(),
+        scrollbar_width: logical(node.scrollbar_width)
+            .to_physical(context.scale_factor)
+            .into_inner(),
         position: node.position_type.into(),
         flex_direction: node.flex_direction.into(),
         flex_wrap: node.flex_wrap.into(),
@@ -518,7 +520,7 @@ mod tests {
             aspect_ratio: None,
             overflow: crate::Overflow::clip(),
             overflow_clip_margin: crate::OverflowClipMargin::default(),
-            scrollbar_width: crate::logical(7.),
+            scrollbar_width: 7.,
             column_gap: Val::ZERO,
             row_gap: Val::ZERO,
             grid_auto_flow: GridAutoFlow::ColumnDense,
