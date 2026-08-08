@@ -2,11 +2,162 @@ use bevy_math::{MismatchedUnitsError, StableInterpolate as _, TryStableInterpola
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 use bevy_text::FontSize;
 use bevy_utils::default;
-use core::ops::{Div, DivAssign, Mul, MulAssign, Neg};
+use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use thiserror::Error;
 
 #[cfg(feature = "serialize")]
 use bevy_reflect::{ReflectDeserialize, ReflectSerialize};
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ScaleFactor(pub f32);
+
+/// Units in physical pixels
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub struct Physical(pub f32);
+
+impl Physical {
+    pub fn to_logical(self, scale_factor: ScaleFactor) -> Logical {
+        Logical(self.0 / scale_factor.0)
+    }
+}
+
+/// Units in logical pixels
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub struct Logical(pub f32);
+
+impl Logical {
+    pub fn to_physical(self, scale_factor: ScaleFactor) -> Physical {
+        Physical(self.0 * scale_factor.0)
+    }
+}
+
+impl Add for Physical {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl AddAssign for Physical {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
+impl Sub for Physical {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl SubAssign for Physical {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 -= rhs.0;
+    }
+}
+
+impl Mul<f32> for Physical {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self(self.0 * rhs)
+    }
+}
+
+impl MulAssign<f32> for Physical {
+    fn mul_assign(&mut self, rhs: f32) {
+        self.0 *= rhs;
+    }
+}
+
+impl Div<f32> for Physical {
+    type Output = Self;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        Self(self.0 / rhs)
+    }
+}
+
+impl DivAssign<f32> for Physical {
+    fn div_assign(&mut self, rhs: f32) {
+        self.0 /= rhs;
+    }
+}
+
+impl Neg for Physical {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self(-self.0)
+    }
+}
+
+impl Add for Logical {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl AddAssign for Logical {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
+impl Sub for Logical {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl SubAssign for Logical {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 -= rhs.0;
+    }
+}
+
+impl Mul<f32> for Logical {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self(self.0 * rhs)
+    }
+}
+
+impl MulAssign<f32> for Logical {
+    fn mul_assign(&mut self, rhs: f32) {
+        self.0 *= rhs;
+    }
+}
+
+impl Div<f32> for Logical {
+    type Output = Self;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        Self(self.0 / rhs)
+    }
+}
+
+impl DivAssign<f32> for Logical {
+    fn div_assign(&mut self, rhs: f32) {
+        self.0 /= rhs;
+    }
+}
+
+impl Neg for Logical {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self(-self.0)
+    }
+}
 
 /// Represents the possible value types for layout properties.
 ///
@@ -1340,6 +1491,26 @@ impl PartialEq for CornerRadius {
 mod tests {
     use crate::geometry::*;
     use bevy_math::vec2;
+
+    #[test]
+    fn physical_and_logical_arithmetic() {
+        let scale_factor = ScaleFactor(2.);
+
+        assert_eq!(Physical(4.).to_logical(scale_factor), Logical(2.));
+        assert_eq!(Logical(2.).to_physical(scale_factor), Physical(4.));
+
+        let mut physical = Physical(2.) + Physical(1.);
+        physical -= Physical(1.);
+        physical *= 4.;
+        physical /= 2.;
+        assert_eq!(-physical, Physical(-4.));
+
+        let mut logical = Logical(2.) + Logical(1.);
+        logical -= Logical(1.);
+        logical *= 4.;
+        logical /= 2.;
+        assert_eq!(-logical, Logical(-4.));
+    }
 
     #[test]
     fn val_evaluate() {
