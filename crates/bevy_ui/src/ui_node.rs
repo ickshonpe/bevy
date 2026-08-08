@@ -2782,24 +2782,28 @@ impl BorderRadius {
     /// Returns the radii of the each corner in physical pixels.
     pub fn resolve(
         &self,
-        scale_factor: f32,
-        node_size: Vec2,
-        viewport_size: Vec2,
-    ) -> ResolvedBorderRadius {
-        ResolvedBorderRadius {
+        scale_factor: ScaleFactor,
+        node_size: Physical<Vec2>,
+        viewport_size: Physical<Vec2>,
+    ) -> Physical<ResolvedBorderRadius> {
+        physical(ResolvedBorderRadius {
             top_left: self
                 .top_left
-                .resolve(scale_factor, node_size, viewport_size),
+                .resolve(scale_factor, node_size, viewport_size)
+                .into_inner(),
             top_right: self
                 .top_right
-                .resolve(scale_factor, node_size, viewport_size),
+                .resolve(scale_factor, node_size, viewport_size)
+                .into_inner(),
             bottom_left: self
                 .bottom_left
-                .resolve(scale_factor, node_size, viewport_size),
+                .resolve(scale_factor, node_size, viewport_size)
+                .into_inner(),
             bottom_right: self
                 .bottom_right
-                .resolve(scale_factor, node_size, viewport_size),
-        }
+                .resolve(scale_factor, node_size, viewport_size)
+                .into_inner(),
+        })
     }
 }
 

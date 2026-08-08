@@ -776,21 +776,23 @@ impl Val {
     /// Returns a [`ValArithmeticError::NonEvaluable`] if the [`Val`] is impossible to resolve into a concrete value.
     pub const fn resolve(
         self,
-        scale_factor: f32,
-        physical_base_value: f32,
-        physical_target_size: Vec2,
-    ) -> Result<f32, ValArithmeticError> {
+        scale_factor: ScaleFactor,
+        physical_base_value: Physical<f32>,
+        physical_target_size: Physical<Vec2>,
+    ) -> Result<Physical<f32>, ValArithmeticError> {
+        let physical_base_value = *physical_base_value.as_inner();
+        let physical_target_size = physical_target_size.as_inner();
         match self {
-            Val::Percent(value) => Ok(physical_base_value * value / 100.0),
-            Val::Px(value) => Ok(value * scale_factor),
-            Val::Vw(value) => Ok(physical_target_size.x * value / 100.0),
-            Val::Vh(value) => Ok(physical_target_size.y * value / 100.0),
-            Val::VMin(value) => {
-                Ok(physical_target_size.x.min(physical_target_size.y) * value / 100.0)
-            }
-            Val::VMax(value) => {
-                Ok(physical_target_size.x.max(physical_target_size.y) * value / 100.0)
-            }
+            Val::Percent(value) => Ok(physical(physical_base_value * value / 100.0)),
+            Val::Px(value) => Ok(physical(value * scale_factor.into_inner())),
+            Val::Vw(value) => Ok(physical(physical_target_size.x * value / 100.0)),
+            Val::Vh(value) => Ok(physical(physical_target_size.y * value / 100.0)),
+            Val::VMin(value) => Ok(physical(
+                physical_target_size.x.min(physical_target_size.y) * value / 100.0,
+            )),
+            Val::VMax(value) => Ok(physical(
+                physical_target_size.x.max(physical_target_size.y) * value / 100.0,
+            )),
             Val::Auto => Err(ValArithmeticError::NonEvaluable),
         }
     }
@@ -1460,21 +1462,34 @@ impl UiPosition {
     /// Resolves the `Position` into physical coordinates.
     pub fn resolve(
         self,
-        scale_factor: f32,
-        physical_size: Vec2,
-        physical_target_size: Vec2,
-    ) -> Vec2 {
+        scale_factor: ScaleFactor,
+        physical_size: Physical<Vec2>,
+        physical_target_size: Physical<Vec2>,
+    ) -> Physical<Vec2> {
+        let physical_size = physical_size.into_inner();
         let d = self.anchor.map(|p| if 0. < p { -1. } else { 1. });
 
-        physical_size * self.anchor
-            + d * Vec2::new(
-                self.x
-                    .resolve(scale_factor, physical_size.x, physical_target_size)
-                    .unwrap_or(0.),
-                self.y
-                    .resolve(scale_factor, physical_size.y, physical_target_size)
-                    .unwrap_or(0.),
-            )
+        physical(
+            physical_size * self.anchor
+                + d * Vec2::new(
+                    self.x
+                        .resolve(
+                            scale_factor,
+                            physical(physical_size.x),
+                            physical_target_size,
+                        )
+                        .unwrap_or(physical(0.))
+                        .into_inner(),
+                    self.y
+                        .resolve(
+                            scale_factor,
+                            physical(physical_size.y),
+                            physical_target_size,
+                        )
+                        .unwrap_or(physical(0.))
+                        .into_inner(),
+                ),
+        )
     }
 }
 
@@ -1498,10 +1513,10 @@ impl From<(Val, Val)> for UiPosition {
 ///
 /// ```
 /// # use bevy_math::{Vec2, Vec2Swizzles};
-/// # use bevy_ui::{CornerRadius, Val};
+/// # use bevy_ui::{physical, scale_factor, CornerRadius, Val};
 /// let radius = Val::Px(10.0);
-/// let size = Vec2::new(100.0, 50.0);
-/// let viewport_size = Vec2::new(1920.0, 1080.0);
+/// let size = physical(Vec2::new(100.0, 50.0));
+/// let viewport_size = physical(Vec2::new(1920.0, 1080.0));
 ///
 /// let c1 = CornerRadius {
 ///     x: radius,
@@ -1511,14 +1526,14 @@ impl From<(Val, Val)> for UiPosition {
 ///     x: Val::ZERO,
 ///     y: radius,
 /// };
-/// let r = c1.resolve(1.0, size, viewport_size);
+/// let r = c1.resolve(scale_factor(1.0), size, viewport_size);
 /// assert_eq!(
 ///     r,
-///     c2.resolve(1.0, size, viewport_size).yx(),
+///     physical(c2.resolve(scale_factor(1.0), size, viewport_size).into_inner().yx()),
 /// );
 /// assert_eq!(
 ///     r,
-///     Vec2::new(10.0, 0.0),
+///     physical(Vec2::new(10.0, 0.0)),
 /// );
 /// ```
 #[derive(Debug, Clone, Copy, Reflect)]
@@ -1560,10 +1575,10 @@ impl CornerRadius {
     ///
     /// ```
     /// # use bevy_math::Vec2;
-    /// # use bevy_ui::{CornerRadius, Val};
+    /// # use bevy_ui::{physical, scale_factor, CornerRadius, Val};
     /// let radius = Val::Px(30.0);
-    /// let size = Vec2::new(100.0, 50.0);
-    /// let viewport_size = Vec2::new(1920.0, 1080.0);
+    /// let size = physical(Vec2::new(100.0, 50.0));
+    /// let viewport_size = physical(Vec2::new(1920.0, 1080.0));
     ///
     /// let c1 = CornerRadius::circular(radius);
     /// let c2 = CornerRadius {
@@ -1571,14 +1586,14 @@ impl CornerRadius {
     ///     y: radius,
     /// };
     ///
-    /// let r = c1.resolve(1.0, size, viewport_size);
+    /// let r = c1.resolve(scale_factor(1.0), size, viewport_size);
     /// assert_eq!(
     ///     r,
-    ///     c2.resolve(1.0, size, viewport_size),
+    ///     c2.resolve(scale_factor(1.0), size, viewport_size),
     /// );
     /// assert_eq!(
     ///     r,
-    ///     Vec2::splat(25.0)
+    ///     physical(Vec2::splat(25.0))
     /// );
     /// ```
     #[inline]
@@ -1596,8 +1611,14 @@ impl CornerRadius {
     }
 
     /// Resolves this corner radius into horizontal and vertical radii in physical pixels.
-    pub fn resolve(self, scale_factor: f32, size: Vec2, viewport_size: Vec2) -> Vec2 {
-        match self {
+    pub fn resolve(
+        self,
+        scale_factor: ScaleFactor,
+        size: Physical<Vec2>,
+        viewport_size: Physical<Vec2>,
+    ) -> Physical<Vec2> {
+        let size = size.into_inner();
+        physical(match self {
             Self {
                 x: Val::Auto,
                 y: Val::Auto,
@@ -1611,16 +1632,21 @@ impl CornerRadius {
                 y: radius,
             } => Vec2::splat(
                 radius
-                    .resolve(scale_factor, size.min_element(), viewport_size)
-                    .unwrap_or(0.)
+                    .resolve(scale_factor, physical(size.min_element()), viewport_size)
+                    .unwrap_or(physical(0.))
+                    .into_inner()
                     .clamp(0., 0.5 * size.min_element()),
             ),
             Self { x, y } => Vec2::new(
-                x.resolve(scale_factor, size.x, viewport_size).unwrap_or(0.),
-                y.resolve(scale_factor, size.y, viewport_size).unwrap_or(0.),
+                x.resolve(scale_factor, physical(size.x), viewport_size)
+                    .unwrap_or(physical(0.))
+                    .into_inner(),
+                y.resolve(scale_factor, physical(size.y), viewport_size)
+                    .unwrap_or(physical(0.))
+                    .into_inner(),
             )
             .clamp(Vec2::ZERO, 0.5 * size),
-        }
+        })
     }
 }
 
@@ -1718,109 +1744,135 @@ mod tests {
 
     #[test]
     fn val_evaluate() {
-        let size = 250.;
-        let viewport_size = vec2(1000., 500.);
-        let result = Val::Percent(80.).resolve(1., size, viewport_size).unwrap();
+        let size = physical(250.);
+        let viewport_size = physical(vec2(1000., 500.));
+        let result = Val::Percent(80.)
+            .resolve(scale_factor(1.), size, viewport_size)
+            .unwrap();
 
         assert_eq!(result, size * 0.8);
     }
 
     #[test]
     fn val_resolve_px() {
-        let size = 250.;
-        let viewport_size = vec2(1000., 500.);
-        let result = Val::Px(10.).resolve(1., size, viewport_size).unwrap();
+        let size = physical(250.);
+        let viewport_size = physical(vec2(1000., 500.));
+        let result = Val::Px(10.)
+            .resolve(scale_factor(1.), size, viewport_size)
+            .unwrap();
 
-        assert_eq!(result, 10.);
+        assert_eq!(result, physical(10.));
 
-        let result = Val::Px(10.).resolve(3., size, viewport_size).unwrap();
-        assert_eq!(result, 30.);
-        let result = Val::Px(10.).resolve(0.25, size, viewport_size).unwrap();
-        assert_eq!(result, 2.5);
+        let result = Val::Px(10.)
+            .resolve(scale_factor(3.), size, viewport_size)
+            .unwrap();
+        assert_eq!(result, physical(30.));
+        let result = Val::Px(10.)
+            .resolve(scale_factor(0.25), size, viewport_size)
+            .unwrap();
+        assert_eq!(result, physical(2.5));
     }
 
     #[test]
     fn corner_radius_resolve() {
-        let size = vec2(100., 50.);
-        let viewport_size = vec2(1000., 500.);
+        let size = physical(vec2(100., 50.));
+        let viewport_size = physical(vec2(1000., 500.));
 
         assert_eq!(
             CornerRadius {
                 x: Val::Px(100.),
                 y: Val::Auto,
             }
-            .resolve(1., size, viewport_size),
-            vec2(25., 25.)
+            .resolve(scale_factor(1.), size, viewport_size),
+            physical(vec2(25., 25.))
         );
         assert_eq!(
             CornerRadius {
                 x: Val::Px(40.),
                 y: Val::Px(40.),
             }
-            .resolve(1., size, viewport_size),
-            vec2(40., 25.)
+            .resolve(scale_factor(1.), size, viewport_size),
+            physical(vec2(40., 25.))
         );
         assert_eq!(
             CornerRadius {
                 x: Val::ZERO,
                 y: Val::Px(20.),
             }
-            .resolve(1., size, viewport_size),
-            vec2(0., 20.)
+            .resolve(scale_factor(1.), size, viewport_size),
+            physical(vec2(0., 20.))
         );
         assert_eq!(
-            CornerRadius::default().resolve(1., size, viewport_size),
-            vec2(0., 0.)
+            CornerRadius::default().resolve(scale_factor(1.), size, viewport_size),
+            physical(vec2(0., 0.))
         );
     }
 
     #[test]
     fn val_resolve_viewport_coords() {
-        let size = 250.;
-        let viewport_size = vec2(500., 500.);
+        let size = physical(250.);
+        let viewport_size = physical(vec2(500., 500.));
 
         for value in (-10..10).map(|value| value as f32) {
             // for a square viewport there should be no difference between `Vw` and `Vh` and between `Vmin` and `Vmax`.
             assert_eq!(
-                Val::Vw(value).resolve(1., size, viewport_size),
-                Val::Vh(value).resolve(1., size, viewport_size)
+                Val::Vw(value).resolve(scale_factor(1.), size, viewport_size),
+                Val::Vh(value).resolve(scale_factor(1.), size, viewport_size)
             );
             assert_eq!(
-                Val::VMin(value).resolve(1., size, viewport_size),
-                Val::VMax(value).resolve(1., size, viewport_size)
+                Val::VMin(value).resolve(scale_factor(1.), size, viewport_size),
+                Val::VMax(value).resolve(scale_factor(1.), size, viewport_size)
             );
             assert_eq!(
-                Val::VMin(value).resolve(1., size, viewport_size),
-                Val::Vw(value).resolve(1., size, viewport_size)
+                Val::VMin(value).resolve(scale_factor(1.), size, viewport_size),
+                Val::Vw(value).resolve(scale_factor(1.), size, viewport_size)
             );
         }
 
-        let viewport_size = vec2(1000., 500.);
+        let viewport_size = physical(vec2(1000., 500.));
         assert_eq!(
-            Val::Vw(100.).resolve(1., size, viewport_size).unwrap(),
-            1000.
+            Val::Vw(100.)
+                .resolve(scale_factor(1.), size, viewport_size)
+                .unwrap(),
+            physical(1000.)
         );
         assert_eq!(
-            Val::Vh(100.).resolve(1., size, viewport_size).unwrap(),
-            500.
-        );
-        assert_eq!(Val::Vw(60.).resolve(1., size, viewport_size).unwrap(), 600.);
-        assert_eq!(Val::Vh(40.).resolve(1., size, viewport_size).unwrap(), 200.);
-        assert_eq!(
-            Val::VMin(50.).resolve(1., size, viewport_size).unwrap(),
-            250.
+            Val::Vh(100.)
+                .resolve(scale_factor(1.), size, viewport_size)
+                .unwrap(),
+            physical(500.)
         );
         assert_eq!(
-            Val::VMax(75.).resolve(1., size, viewport_size).unwrap(),
-            750.
+            Val::Vw(60.)
+                .resolve(scale_factor(1.), size, viewport_size)
+                .unwrap(),
+            physical(600.)
+        );
+        assert_eq!(
+            Val::Vh(40.)
+                .resolve(scale_factor(1.), size, viewport_size)
+                .unwrap(),
+            physical(200.)
+        );
+        assert_eq!(
+            Val::VMin(50.)
+                .resolve(scale_factor(1.), size, viewport_size)
+                .unwrap(),
+            physical(250.)
+        );
+        assert_eq!(
+            Val::VMax(75.)
+                .resolve(scale_factor(1.), size, viewport_size)
+                .unwrap(),
+            physical(750.)
         );
     }
 
     #[test]
     fn val_auto_is_non_evaluable() {
-        let size = 250.;
-        let viewport_size = vec2(1000., 500.);
-        let resolve_auto = Val::Auto.resolve(1., size, viewport_size);
+        let size = physical(250.);
+        let viewport_size = physical(vec2(1000., 500.));
+        let resolve_auto = Val::Auto.resolve(scale_factor(1.), size, viewport_size);
 
         assert_eq!(resolve_auto, Err(ValArithmeticError::NonEvaluable));
     }

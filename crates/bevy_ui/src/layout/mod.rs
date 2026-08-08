@@ -331,9 +331,9 @@ pub fn ui_layout_system(
 
             // Compute the node's new global transform
             let mut local_transform = transform.compute_affine(
-                inverse_target_scale_factor.recip(),
-                layout_size,
-                target_size,
+                node.scale_factor,
+                physical(layout_size),
+                physical(target_size),
             );
             local_transform.translation += local_center;
             inherited_transform *= local_transform;
@@ -344,13 +344,12 @@ pub fn ui_layout_system(
 
             // We don't trigger change detection for changes to border radius
             // unless the border radius actually changed
-            let new_border_radius = style.border_radius.resolve(
-                inverse_target_scale_factor.recip(),
-                node.size.into_inner(),
-                target_size,
-            );
-            if node.border_radius != physical(new_border_radius) {
-                node.border_radius = physical(new_border_radius);
+            let new_border_radius =
+                style
+                    .border_radius
+                    .resolve(node.scale_factor, node.size, physical(target_size));
+            if node.border_radius != new_border_radius {
+                node.border_radius = new_border_radius;
             }
 
             if let Some(outline) = maybe_outline {
@@ -358,12 +357,9 @@ pub fn ui_layout_system(
                 let new_outline_width = if style.display != Display::None {
                     outline
                         .width
-                        .resolve(
-                            inverse_target_scale_factor.recip(),
-                            node.size().x().into_inner(),
-                            target_size,
-                        )
-                        .unwrap_or(0.)
+                        .resolve(node.scale_factor, node.size().x(), physical(target_size))
+                        .unwrap_or(physical(0.))
+                        .into_inner()
                         .max(0.)
                 } else {
                     0.
@@ -375,12 +371,9 @@ pub fn ui_layout_system(
 
                 let new_outline_offset = outline
                     .offset
-                    .resolve(
-                        inverse_target_scale_factor.recip(),
-                        node.size().x().into_inner(),
-                        target_size,
-                    )
-                    .unwrap_or(0.)
+                    .resolve(node.scale_factor, node.size().x(), physical(target_size))
+                    .unwrap_or(physical(0.))
+                    .into_inner()
                     // Clamp outline offsets to at least the length of the node's shorter side
                     // Negative offset outlines can be useful to create thing like in-set focus indicators
                     .max(-0.5 * node.size.into_inner().min_element());

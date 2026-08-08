@@ -1,4 +1,4 @@
-use crate::{UiPosition, Val, ValNum};
+use crate::{physical, Physical, ScaleFactor, UiPosition, Val, ValNum};
 use bevy_color::{Color, Srgba};
 use bevy_ecs::{component::Component, reflect::ReflectComponent};
 use bevy_math::Vec2;
@@ -607,13 +607,15 @@ impl RadialGradientShape {
     /// Resolve the physical dimensions of the end shape of the radial gradient
     pub fn resolve(
         self,
-        position: Vec2,
-        scale_factor: f32,
-        physical_size: Vec2,
-        physical_target_size: Vec2,
-    ) -> Vec2 {
+        position: Physical<Vec2>,
+        scale_factor: ScaleFactor,
+        physical_size: Physical<Vec2>,
+        physical_target_size: Physical<Vec2>,
+    ) -> Physical<Vec2> {
+        let position = position.into_inner();
+        let physical_size = physical_size.into_inner();
         let half_size = 0.5 * physical_size;
-        match self {
+        physical(match self {
             RadialGradientShape::ClosestSide => Vec2::splat(close_side2(position, half_size)),
             RadialGradientShape::FarthestSide => Vec2::splat(far_side2(position, half_size)),
             RadialGradientShape::ClosestCorner => Vec2::new(
@@ -626,16 +628,31 @@ impl RadialGradientShape {
             ),
             RadialGradientShape::Circle(radius) => Vec2::splat(
                 radius
-                    .resolve(scale_factor, physical_size.x, physical_target_size)
-                    .unwrap_or(0.),
+                    .resolve(
+                        scale_factor,
+                        physical(physical_size.x),
+                        physical_target_size,
+                    )
+                    .unwrap_or(physical(0.))
+                    .into_inner(),
             ),
             RadialGradientShape::Ellipse(x, y) => Vec2::new(
-                x.resolve(scale_factor, physical_size.x, physical_target_size)
-                    .unwrap_or(0.),
-                y.resolve(scale_factor, physical_size.y, physical_target_size)
-                    .unwrap_or(0.),
+                x.resolve(
+                    scale_factor,
+                    physical(physical_size.x),
+                    physical_target_size,
+                )
+                .unwrap_or(physical(0.))
+                .into_inner(),
+                y.resolve(
+                    scale_factor,
+                    physical(physical_size.y),
+                    physical_target_size,
+                )
+                .unwrap_or(physical(0.))
+                .into_inner(),
             ),
-        }
+        })
     }
 }
 

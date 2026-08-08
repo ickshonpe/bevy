@@ -255,14 +255,14 @@ pub(crate) fn position_popover(
                 continue;
             }
             let resolved_translation = transform.translation.resolve(
-                computed_target.scale_factor().into_inner(),
-                computed_node.size().into_inner(),
-                computed_target.physical_size().into_inner().as_vec2(),
+                computed_target.scale_factor(),
+                computed_node.size(),
+                physical(computed_target.physical_size().into_inner().as_vec2()),
             );
-            let logical_translation =
-                physical(resolved_translation + parent_matrix.inverse() * physical_translation)
-                    .to_logical(computed_target.scale_factor())
-                    .into_inner();
+            let logical_translation = (resolved_translation
+                + physical(parent_matrix.inverse() * physical_translation))
+            .to_logical(computed_target.scale_factor())
+            .into_inner();
             let ui_translation = Val2::px(logical_translation.x, logical_translation.y);
             if transform.translation != ui_translation {
                 transform.translation = ui_translation;

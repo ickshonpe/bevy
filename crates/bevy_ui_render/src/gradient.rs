@@ -32,9 +32,9 @@ use bevy_render::{GpuResourceAppExt, RenderStartup};
 use bevy_shader::Shader;
 use bevy_sprite::BorderRect;
 use bevy_ui::{
-    BackgroundGradient, BorderGradient, ColorStop, ComputedStackIndex, ComputedUiRenderTargetInfo,
-    ConicGradient, Gradient, InterpolationColorSpace, LinearGradient, RadialGradient,
-    ResolvedBorderRadius, Val,
+    physical, scale_factor, BackgroundGradient, BorderGradient, ColorStop, ComputedStackIndex,
+    ComputedUiRenderTargetInfo, ConicGradient, Gradient, InterpolationColorSpace, LinearGradient,
+    RadialGradient, ResolvedBorderRadius, Val,
 };
 use bevy_utils::default;
 use bytemuck::{Pod, Zeroable};
@@ -299,9 +299,19 @@ fn compute_color_stops(
     // resolve the physical distances of explicit stops and sort them
     scratch.extend(stops.iter().filter_map(|stop| {
         stop.point
-            .resolve(scale_factor, length, target_size)
+            .resolve(
+                bevy_ui::scale_factor(scale_factor),
+                physical(length),
+                physical(target_size),
+            )
             .ok()
-            .map(|physical_point| (stop.color.to_linear(), physical_point, stop.hint))
+            .map(|physical_point| {
+                (
+                    stop.color.to_linear(),
+                    physical_point.into_inner(),
+                    stop.hint,
+                )
+            })
     }));
     scratch.sort_by_key(|(_, point, _)| FloatOrd(*point));
 
@@ -546,17 +556,20 @@ pub fn extract_gradients(
                         shape,
                         stops,
                     }) => {
-                        let c =
-                            center.resolve(target_scale_factor, uinode_size, target_physical_size);
+                        let c = center.resolve(
+                            scale_factor(target_scale_factor),
+                            physical(uinode_size),
+                            physical(target_physical_size),
+                        );
 
                         let size = shape.resolve(
                             c,
-                            target_scale_factor,
-                            uinode_size,
-                            target_physical_size,
+                            scale_factor(target_scale_factor),
+                            physical(uinode_size),
+                            physical(target_physical_size),
                         );
 
-                        let length = size.x;
+                        let length = size.x().into_inner();
 
                         let computed_stops = compute_color_stops(
                             stops,
@@ -585,7 +598,10 @@ pub fn extract_gradients(
                                     node_type,
                                     border_radius,
                                     border,
-                                    resolved_gradient: ResolvedGradient::Radial { center: c, size },
+                                    resolved_gradient: ResolvedGradient::Radial {
+                                        center: c.into_inner(),
+                                        size: size.into_inner(),
+                                    },
                                     color_space: *color_space,
                                 },
                             );
@@ -596,8 +612,11 @@ pub fn extract_gradients(
                         position: center,
                         stops,
                     }) => {
-                        let g_start =
-                            center.resolve(target_scale_factor, uinode_size, target_physical_size);
+                        let g_start = center.resolve(
+                            scale_factor(target_scale_factor),
+                            physical(uinode_size),
+                            physical(target_physical_size),
+                        );
 
                         // sort the explicit stops
                         sorted_stops.extend(stops.iter().filter_map(|stop| {
@@ -643,7 +662,7 @@ pub fn extract_gradients(
                                     border,
                                     resolved_gradient: ResolvedGradient::Conic {
                                         start: *start,
-                                        center: g_start,
+                                        center: g_start.into_inner(),
                                     },
                                     color_space: *color_space,
                                 },
