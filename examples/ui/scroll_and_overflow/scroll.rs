@@ -66,19 +66,21 @@ fn on_scroll_handler(
         return;
     };
 
-    let max_offset = (computed.content_size() - computed.size()) * computed.inverse_scale_factor();
+    let max_offset =
+        (computed.content_size() - computed.size()).to_logical(computed.scale_factor());
 
     let delta = &mut scroll.delta;
     if node.overflow.x == OverflowAxis::Scroll && delta.x != 0. {
         // Is this node already scrolled all the way in the direction of the scroll?
         let max = if delta.x > 0. {
-            scroll_position.x >= max_offset.x
+            scroll_position.x() >= max_offset.x()
         } else {
-            scroll_position.x <= 0.
+            scroll_position.x() <= logical(0.)
         };
 
         if !max {
-            scroll_position.x += delta.x;
+            let x = scroll_position.x() + logical(delta.x);
+            scroll_position.set_x(x);
             // Consume the X portion of the scroll delta.
             delta.x = 0.;
         }
@@ -87,13 +89,14 @@ fn on_scroll_handler(
     if node.overflow.y == OverflowAxis::Scroll && delta.y != 0. {
         // Is this node already scrolled all the way in the direction of the scroll?
         let max = if delta.y > 0. {
-            scroll_position.y >= max_offset.y
+            scroll_position.y() >= max_offset.y()
         } else {
-            scroll_position.y <= 0.
+            scroll_position.y() <= logical(0.)
         };
 
         if !max {
-            scroll_position.y += delta.y;
+            let y = scroll_position.y() + logical(delta.y);
+            scroll_position.set_y(y);
             // Consume the Y portion of the scroll delta.
             delta.y = 0.;
         }
@@ -241,7 +244,7 @@ fn vertically_scrolling_list(font_handle: Handle<Font>) -> impl Bundle {
                     outline_padding_box: false,
                     outline_content_box: false,
                     outline_scrollbars: true,
-                    line_width: 2.,
+                    line_width: logical(2.),
                     line_color_override: None,
                     show_hidden: false,
                     show_clipped: true,

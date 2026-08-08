@@ -2548,9 +2548,9 @@ mod debug_outlines {
                         scrollbar_width: 20.,
                         ..default()
                     },
-                    ScrollPosition(Vec2::new(180., 180.)),
+                    ScrollPosition(logical(Vec2::new(180., 180.))),
                     UiDebugOptions {
-                        line_width: 3.,
+                        line_width: logical(3.),
                         outline_scrollbars: true,
                         show_hidden: false,
                         show_clipped: false,
@@ -2585,7 +2585,7 @@ mod debug_outlines {
                         ..default()
                     },
                     UiDebugOptions {
-                        line_width: 3.,
+                        line_width: logical(3.),
                         outline_scrollbars: true,
                         show_hidden: false,
                         show_clipped: false,
@@ -2619,9 +2619,9 @@ mod debug_outlines {
                         scrollbar_width: 20.,
                         ..default()
                     },
-                    ScrollPosition(Vec2::new(300., 0.)),
+                    ScrollPosition(logical(Vec2::new(300., 0.))),
                     UiDebugOptions {
-                        line_width: 3.,
+                        line_width: logical(3.),
                         outline_scrollbars: true,
                         show_hidden: false,
                         show_clipped: false,

@@ -497,7 +497,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                         positions: vec![PopoverPlacement {
                                             side: PopoverSide::Top,
                                             align: PopoverAlign::End,
-                                            gap: 2.,
+                                            gap: logical(2.),
                                         }],
                                         ..default()
                                     },
@@ -612,7 +612,11 @@ fn on_thumb_drag(
     let Ok(track_node) = track_query.get(*track) else {
         return;
     };
-    let track_height = track_node.size.y * track_node.inverse_scale_factor;
+    let track_height = track_node
+        .size()
+        .y()
+        .to_logical(track_node.scale_factor())
+        .into_inner();
     if track_height <= 0. {
         return;
     }

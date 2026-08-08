@@ -75,7 +75,7 @@ fn scroll_area_demo() -> impl Bundle {
                         ..default()
                     },
                     BackgroundColor(colors::GRAY1.into()),
-                    ScrollPosition(Vec2::new(0.0, 10.0)),
+                    ScrollPosition(logical(Vec2::new(0.0, 10.0))),
                     Children::spawn((
                         // The actual content of the scrolling area
                         Spawn(text_row("Alpha Wolf")),
@@ -105,7 +105,7 @@ fn scroll_area_demo() -> impl Bundle {
                 Scrollbar {
                     orientation: ControlOrientation::Vertical,
                     target: scroll_area_id,
-                    min_thumb_length: 8.0,
+                    min_thumb_length: logical(8.0),
                 },
                 Children::spawn(Spawn((
                     Hovered::default(),
@@ -129,7 +129,7 @@ fn scroll_area_demo() -> impl Bundle {
                 Scrollbar {
                     orientation: ControlOrientation::Horizontal,
                     target: scroll_area_id,
-                    min_thumb_length: 8.0,
+                    min_thumb_length: logical(8.0),
                 },
                 Children::spawn(Spawn((
                     Hovered::default(),

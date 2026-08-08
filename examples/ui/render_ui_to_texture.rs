@@ -89,7 +89,13 @@ fn setup(
                 .observe(
                     |drag: On<Pointer<Drag>>, mut nodes: Query<(&mut Node, &ComputedNode)>| {
                         let (mut node, computed) = nodes.get_mut(drag.entity).unwrap();
-                        node.left = px(drag.pointer_location.position.x - computed.size.x / 2.0);
+                        node.left = px(drag.pointer_location.position.x
+                            - computed
+                                .size()
+                                .x()
+                                .to_logical(computed.scale_factor())
+                                .into_inner()
+                                / 2.0);
                         node.top = px(drag.pointer_location.position.y - 50.0);
                     },
                 )

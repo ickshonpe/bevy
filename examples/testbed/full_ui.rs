@@ -458,14 +458,23 @@ pub fn update_scroll_position(
                 if let Ok((mut scroll_position, scroll_content)) =
                     scrolled_node_query.get_mut(*entity)
                 {
-                    let visible_size = scroll_content.size();
-                    let content_size = scroll_content.content_size();
+                    let visible_size = scroll_content
+                        .size()
+                        .to_logical(scroll_content.scale_factor());
+                    let content_size = scroll_content
+                        .content_size()
+                        .to_logical(scroll_content.scale_factor());
 
-                    let range = (content_size.y - visible_size.y).max(0.)
-                        * scroll_content.inverse_scale_factor;
+                    let range = (content_size.y() - visible_size.y()).into_inner().max(0.);
 
-                    scroll_position.x -= dx;
-                    scroll_position.y = (scroll_position.y - dy).clamp(0., range);
+                    let x = scroll_position.x() - logical(dx);
+                    let y = logical(
+                        (scroll_position.y() - logical(dy))
+                            .into_inner()
+                            .clamp(0., range),
+                    );
+                    scroll_position.set_x(x);
+                    scroll_position.set_y(y);
                 }
             }
         }

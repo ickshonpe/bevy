@@ -86,9 +86,16 @@ fn setup(mut commands: Commands, mut font_system: ResMut<FontCx>) {
                                 MouseScrollUnit::Line => on_scroll.y * 20.,
                                 MouseScrollUnit::Pixel => on_scroll.y,
                             };
-                            let range = (node.content_size.y - node.size.y).max(0.)
-                                * node.inverse_scale_factor;
-                            scroll_position.y = (scroll_position.y - dy).clamp(0., range);
+                            let range = (node.content_size().y() - node.size().y())
+                                .to_logical(node.scale_factor())
+                                .into_inner()
+                                .max(0.);
+                            let y = logical(
+                                (scroll_position.y() - logical(dy))
+                                    .into_inner()
+                                    .clamp(0., range),
+                            );
+                            scroll_position.set_y(y);
                         }
                     },
                 );

@@ -29,7 +29,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ))
         .with_children(|parent| {
             for overflow_clip_margin in [
-                OverflowClipMargin::border_box().with_margin(25.),
+                OverflowClipMargin::border_box().with_margin(logical(25.)),
                 OverflowClipMargin::border_box(),
                 OverflowClipMargin::padding_box(),
                 OverflowClipMargin::content_box(),

@@ -167,15 +167,15 @@ fn demo_column_1() -> impl Scene {
                     PopoverPlacement {
                         side: PopoverSide::Bottom,
                         align: PopoverAlign::End,
-                        gap: 2.0,
+                        gap: logical(2.0),
                     },
                     PopoverPlacement {
                         side: PopoverSide::Top,
                         align: PopoverAlign::End,
-                        gap: 2.0,
+                        gap: logical(2.0),
                     },
                 ],
-                window_margin: 10.0,
+                window_margin: logical(10.0),
             }
             Children [
                 (

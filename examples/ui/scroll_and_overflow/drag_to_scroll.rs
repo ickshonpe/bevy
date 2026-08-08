@@ -34,7 +34,7 @@ fn setup(mut commands: Commands) {
                 overflow: Overflow::scroll(),
                 ..Default::default()
             },
-            ScrollPosition(Vec2::ZERO),
+            ScrollPosition(logical(Vec2::ZERO)),
             ScrollableNode,
             ScrollStart(Vec2::ZERO),
         ))
@@ -46,7 +46,8 @@ fn setup(mut commands: Commands) {
                 With<ScrollableNode>,
             >| {
                 if let Ok((mut scroll_position, start)) = scroll_position_query.single_mut() {
-                    scroll_position.0 = (start.0 - drag.distance / ui_scale.0).max(Vec2::ZERO);
+                    scroll_position.0 =
+                        logical((start.0 - drag.distance / ui_scale.0).max(Vec2::ZERO));
                 }
             },
         )
@@ -57,7 +58,10 @@ fn setup(mut commands: Commands) {
                 With<ScrollableNode>,
             >| {
                 if let Ok((computed_node, mut start)) = scroll_position_query.single_mut() {
-                    start.0 = computed_node.scroll_position * computed_node.inverse_scale_factor;
+                    start.0 = computed_node
+                        .scroll_position
+                        .to_logical(computed_node.scale_factor())
+                        .into_inner();
                 }
             },
         )

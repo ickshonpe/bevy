@@ -844,15 +844,15 @@ fn spawn_menu(anchor: Entity, assets: Res<AssetServer>, mut commands: Commands) 
                     PopoverPlacement {
                         side: PopoverSide::Bottom,
                         align: PopoverAlign::Start,
-                        gap: 2.0,
+                        gap: logical(2.0),
                     },
                     PopoverPlacement {
                         side: PopoverSide::Top,
                         align: PopoverAlign::Start,
-                        gap: 2.0,
+                        gap: logical(2.0),
                     },
                 ],
-                window_margin: 10.0,
+                window_margin: logical(10.0),
             },
             OverrideClip,
             children![
