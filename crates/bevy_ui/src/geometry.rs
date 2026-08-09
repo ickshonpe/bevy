@@ -36,19 +36,6 @@ pub const fn physical<T>(value: T) -> Physical<T> {
     Physical(value)
 }
 
-impl<T: Copy> Physical<T> {
-    pub const fn into_inner(self) -> T {
-        self.0
-    }
-}
-
-impl<T> Physical<T> {
-    #[inline]
-    pub const fn as_inner(&self) -> &T {
-        &self.0
-    }
-}
-
 impl<T> Physical<T>
 where
     T: Div<f32, Output = T>,
@@ -59,50 +46,15 @@ where
     }
 }
 
-impl Physical<Vec2> {
-    #[inline]
-    pub const fn x(&self) -> Physical<f32> {
-        Physical(self.0.x)
-    }
-
-    #[inline]
-    pub const fn y(&self) -> Physical<f32> {
-        Physical(self.0.y)
-    }
-
-    #[inline]
-    pub fn set_x(&mut self, x: Physical<f32>) {
-        self.0.x = x.0;
-    }
-
-    #[inline]
-    pub fn set_y(&mut self, y: Physical<f32>) {
-        self.0.y = y.0;
-    }
-}
-
 /// Units in logical pixels
 #[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[repr(transparent)]
 pub struct Logical<T>(T);
 
-impl<T: Copy> Logical<T> {
-    pub const fn into_inner(self) -> T {
-        self.0
-    }
-}
-
 #[inline]
 pub const fn logical<T>(value: T) -> Logical<T> {
     Logical(value)
-}
-
-impl<T> Logical<T> {
-    #[inline]
-    pub const fn as_inner(&self) -> &T {
-        &self.0
-    }
 }
 
 impl<T> Logical<T>
@@ -115,227 +67,147 @@ where
     }
 }
 
-impl Logical<Vec2> {
-    #[inline]
-    pub const fn x(&self) -> Logical<f32> {
-        Logical(self.0.x)
-    }
+macro_rules! impl_unit_space {
+    ($unit_space:ident) => {
+        impl<T: Copy> $unit_space<T> {
+            pub const fn into_inner(self) -> T {
+                self.0
+            }
+        }
 
-    #[inline]
-    pub const fn y(&self) -> Logical<f32> {
-        Logical(self.0.y)
-    }
+        impl<T> $unit_space<T> {
+            #[inline]
+            pub const fn as_inner(&self) -> &T {
+                &self.0
+            }
+        }
 
-    #[inline]
-    pub fn set_x(&mut self, x: Logical<f32>) {
-        self.0.x = x.0;
-    }
+        impl $unit_space<Vec2> {
+            #[inline]
+            pub const fn x(&self) -> $unit_space<f32> {
+                $unit_space(self.0.x)
+            }
 
-    #[inline]
-    pub fn set_y(&mut self, y: Logical<f32>) {
-        self.0.y = y.0;
-    }
+            #[inline]
+            pub const fn y(&self) -> $unit_space<f32> {
+                $unit_space(self.0.y)
+            }
+
+            #[inline]
+            pub fn set_x(&mut self, x: $unit_space<f32>) {
+                self.0.x = x.0;
+            }
+
+            #[inline]
+            pub fn set_y(&mut self, y: $unit_space<f32>) {
+                self.0.y = y.0;
+            }
+        }
+
+        impl<T> Add for $unit_space<T>
+        where
+            T: Add<Output = T>,
+        {
+            type Output = Self;
+
+            #[inline]
+            fn add(self, rhs: Self) -> Self::Output {
+                Self(self.0 + rhs.0)
+            }
+        }
+
+        impl<T> AddAssign for $unit_space<T>
+        where
+            T: AddAssign,
+        {
+            #[inline]
+            fn add_assign(&mut self, rhs: Self) {
+                self.0 += rhs.0;
+            }
+        }
+
+        impl<T> Sub for $unit_space<T>
+        where
+            T: Sub<Output = T>,
+        {
+            type Output = Self;
+
+            #[inline]
+            fn sub(self, rhs: Self) -> Self::Output {
+                Self(self.0 - rhs.0)
+            }
+        }
+
+        impl<T> SubAssign for $unit_space<T>
+        where
+            T: SubAssign,
+        {
+            #[inline]
+            fn sub_assign(&mut self, rhs: Self) {
+                self.0 -= rhs.0;
+            }
+        }
+
+        impl<T> Mul<f32> for $unit_space<T>
+        where
+            T: Mul<f32, Output = T>,
+        {
+            type Output = Self;
+
+            #[inline]
+            fn mul(self, rhs: f32) -> Self::Output {
+                Self(self.0 * rhs)
+            }
+        }
+
+        impl<T> MulAssign<f32> for $unit_space<T>
+        where
+            T: MulAssign<f32>,
+        {
+            #[inline]
+            fn mul_assign(&mut self, rhs: f32) {
+                self.0 *= rhs;
+            }
+        }
+
+        impl<T> Div<f32> for $unit_space<T>
+        where
+            T: Div<f32, Output = T>,
+        {
+            type Output = Self;
+
+            #[inline]
+            fn div(self, rhs: f32) -> Self::Output {
+                Self(self.0 / rhs)
+            }
+        }
+
+        impl<T> DivAssign<f32> for $unit_space<T>
+        where
+            T: DivAssign<f32>,
+        {
+            #[inline]
+            fn div_assign(&mut self, rhs: f32) {
+                self.0 /= rhs;
+            }
+        }
+
+        impl<T> Neg for $unit_space<T>
+        where
+            T: Neg<Output = T>,
+        {
+            type Output = Self;
+
+            #[inline]
+            fn neg(self) -> Self::Output {
+                Self(-self.0)
+            }
+        }
+    };
 }
 
-impl<T> Add for Physical<T>
-where
-    T: Add<Output = T>,
-{
-    type Output = Self;
-
-    #[inline]
-    fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0)
-    }
-}
-
-impl<T> AddAssign for Physical<T>
-where
-    T: AddAssign,
-{
-    #[inline]
-    fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
-    }
-}
-
-impl<T> Sub for Physical<T>
-where
-    T: Sub<Output = T>,
-{
-    type Output = Self;
-
-    #[inline]
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0)
-    }
-}
-
-impl<T> SubAssign for Physical<T>
-where
-    T: SubAssign,
-{
-    #[inline]
-    fn sub_assign(&mut self, rhs: Self) {
-        self.0 -= rhs.0;
-    }
-}
-
-impl<T> Mul<f32> for Physical<T>
-where
-    T: Mul<f32, Output = T>,
-{
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, rhs: f32) -> Self::Output {
-        Self(self.0 * rhs)
-    }
-}
-
-impl<T> MulAssign<f32> for Physical<T>
-where
-    T: MulAssign<f32>,
-{
-    #[inline]
-    fn mul_assign(&mut self, rhs: f32) {
-        self.0 *= rhs;
-    }
-}
-
-impl<T> Div<f32> for Physical<T>
-where
-    T: Div<f32, Output = T>,
-{
-    type Output = Self;
-
-    #[inline]
-    fn div(self, rhs: f32) -> Self::Output {
-        Self(self.0 / rhs)
-    }
-}
-
-impl<T> DivAssign<f32> for Physical<T>
-where
-    T: DivAssign<f32>,
-{
-    #[inline]
-    fn div_assign(&mut self, rhs: f32) {
-        self.0 /= rhs;
-    }
-}
-
-impl<T> Neg for Physical<T>
-where
-    T: Neg<Output = T>,
-{
-    type Output = Self;
-
-    #[inline]
-    fn neg(self) -> Self::Output {
-        Self(-self.0)
-    }
-}
-
-impl<T> Add for Logical<T>
-where
-    T: Add<Output = T>,
-{
-    type Output = Self;
-
-    #[inline]
-    fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0)
-    }
-}
-
-impl<T> AddAssign for Logical<T>
-where
-    T: AddAssign,
-{
-    #[inline]
-    fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
-    }
-}
-
-impl<T> Sub for Logical<T>
-where
-    T: Sub<Output = T>,
-{
-    type Output = Self;
-
-    #[inline]
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0)
-    }
-}
-
-impl<T> SubAssign for Logical<T>
-where
-    T: SubAssign,
-{
-    #[inline]
-    fn sub_assign(&mut self, rhs: Self) {
-        self.0 -= rhs.0;
-    }
-}
-
-impl<T> Mul<f32> for Logical<T>
-where
-    T: Mul<f32, Output = T>,
-{
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, rhs: f32) -> Self::Output {
-        Self(self.0 * rhs)
-    }
-}
-
-impl<T> MulAssign<f32> for Logical<T>
-where
-    T: MulAssign<f32>,
-{
-    #[inline]
-    fn mul_assign(&mut self, rhs: f32) {
-        self.0 *= rhs;
-    }
-}
-
-impl<T> Div<f32> for Logical<T>
-where
-    T: Div<f32, Output = T>,
-{
-    type Output = Self;
-
-    #[inline]
-    fn div(self, rhs: f32) -> Self::Output {
-        Self(self.0 / rhs)
-    }
-}
-
-impl<T> DivAssign<f32> for Logical<T>
-where
-    T: DivAssign<f32>,
-{
-    #[inline]
-    fn div_assign(&mut self, rhs: f32) {
-        self.0 /= rhs;
-    }
-}
-
-impl<T> Neg for Logical<T>
-where
-    T: Neg<Output = T>,
-{
-    type Output = Self;
-
-    #[inline]
-    fn neg(self) -> Self::Output {
-        Self(-self.0)
-    }
-}
+impl_unit_space!(Physical);
+impl_unit_space!(Logical);
 
 /// Represents the possible value types for layout properties.
 ///
