@@ -644,18 +644,18 @@ pub enum ValArithmeticError {
 }
 
 impl Val {
-    /// Resolves this [`Val`] to a value in physical pixels from the given `scale_factor`, `physical_base_value`,
-    /// and `physical_target_size` context values.
+    /// Resolves this [`Val`] to a value in physical pixels from the given `scale_factor`, `base_value`,
+    /// and `target_size` context values.
     ///
     /// Returns a [`ValArithmeticError::NonEvaluable`] if the [`Val`] is impossible to resolve into a concrete value.
     pub const fn resolve(
         self,
         scale_factor: ScaleFactor,
-        physical_base_value: Physical<f32>,
-        physical_target_size: Physical<Vec2>,
+        base_value: Physical<f32>,
+        target_size: Physical<Vec2>,
     ) -> Result<Physical<f32>, ValArithmeticError> {
-        let physical_base_value = *physical_base_value.as_inner();
-        let physical_target_size = physical_target_size.as_inner();
+        let physical_base_value = *base_value.as_inner();
+        let physical_target_size = target_size.as_inner();
         match self {
             Val::Percent(value) => Ok(physical(physical_base_value * value / 100.0)),
             Val::Px(value) => Ok(physical(value * scale_factor.into_inner())),
