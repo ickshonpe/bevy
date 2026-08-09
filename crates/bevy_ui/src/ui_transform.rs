@@ -1,4 +1,4 @@
-use crate::{physical, Physical, ScaleFactor, Val, ValArithmeticError, ValNum};
+use crate::{logical, physical, Logical, Physical, ScaleFactor, Val, ValArithmeticError, ValNum};
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::ReflectComponent;
 use bevy_math::Affine2;
@@ -248,6 +248,11 @@ impl UiGlobalTransform {
     #[inline]
     pub fn transform_vector2(&self, vector: Physical<Vec2>) -> Physical<Vec2> {
         physical(self.0.transform_vector2(vector.into_inner()))
+    }
+
+    #[inline]
+    pub fn transform_logical_vector2(&self, vector: Logical<Vec2>) -> Logical<Vec2> {
+        logical(self.0.transform_vector2(vector.into_inner()))
     }
 
     #[inline]
