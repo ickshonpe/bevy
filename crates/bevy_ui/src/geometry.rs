@@ -38,6 +38,11 @@ impl ScaleFactor {
 #[repr(transparent)]
 pub struct TargetLogical<T>(T);
 
+#[inline]
+pub const fn target_logical<T>(value: T) -> TargetLogical<T> {
+    TargetLogical(value)
+}
+
 impl<T> TargetLogical<T>
 where
     T: Div<f32, Output = T> + Mul<f32, Output = T>,
