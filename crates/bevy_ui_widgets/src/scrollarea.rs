@@ -44,20 +44,16 @@ fn scrollarea_on_scroll(
         let scroll_delta = scroll.to_pixels(&scroll_conversion_ratio);
         let scroll_delta = logical(Vec2::new(scroll_delta.x, scroll_delta.y));
 
-        let max_range = (content_size - visible_size).into_inner().max(Vec2::ZERO);
+        let max_range = (content_size - visible_size).max(logical(Vec2::ZERO));
 
         if can_scroll_x {
-            let x = (scroll_pos.x() - scroll_delta.x())
-                .into_inner()
-                .clamp(0.0, max_range.x);
-            scroll_pos.set_x(logical(x));
+            let x = (scroll_pos.x() - scroll_delta.x()).clamp(logical(0.0), max_range.x());
+            scroll_pos.set_x(x);
         }
 
         if can_scroll_y {
-            let y = (scroll_pos.y() - scroll_delta.y())
-                .into_inner()
-                .clamp(0.0, max_range.y);
-            scroll_pos.set_y(logical(y));
+            let y = (scroll_pos.y() - scroll_delta.y()).clamp(logical(0.0), max_range.y());
+            scroll_pos.set_y(y);
         }
     }
 }
@@ -107,9 +103,7 @@ fn on_scroll_into_view(
         let content_size = scroll_area_computed_node
             .content_size()
             .to_logical(scroll_area_computed_node.scale_factor());
-        let max_range = (content_size - scroll_area_size)
-            .into_inner()
-            .max(Vec2::ZERO);
+        let max_range = (content_size - scroll_area_size).max(logical(Vec2::ZERO));
 
         let can_scroll_x = scroll_area_node.overflow.x == OverflowAxis::Scroll;
         let can_scroll_y = scroll_area_node.overflow.y == OverflowAxis::Scroll;
@@ -120,18 +114,12 @@ fn on_scroll_into_view(
             let view_max = view_min + scroll_area_size.x();
 
             if target_local_top_left.x() < view_min {
-                scroll_pos.set_x(logical(
-                    target_local_top_left
-                        .x()
-                        .into_inner()
-                        .clamp(0.0, max_range.x),
-                ));
+                scroll_pos.set_x(target_local_top_left.x().clamp(logical(0.0), max_range.x()));
             } else if target_local_bottom_right.x() > view_max {
-                scroll_pos.set_x(logical(
+                scroll_pos.set_x(
                     (target_local_bottom_right.x() - scroll_area_size.x())
-                        .into_inner()
-                        .clamp(0.0, max_range.x),
-                ));
+                        .clamp(logical(0.0), max_range.x()),
+                );
             }
         }
 
@@ -140,18 +128,12 @@ fn on_scroll_into_view(
             let view_max = view_min + scroll_area_size.y();
 
             if target_local_top_left.y() < view_min {
-                scroll_pos.set_y(logical(
-                    target_local_top_left
-                        .y()
-                        .into_inner()
-                        .clamp(0.0, max_range.y),
-                ));
+                scroll_pos.set_y(target_local_top_left.y().clamp(logical(0.0), max_range.y()));
             } else if target_local_bottom_right.y() > view_max {
-                scroll_pos.set_y(logical(
+                scroll_pos.set_y(
                     (target_local_bottom_right.y() - scroll_area_size.y())
-                        .into_inner()
-                        .clamp(0.0, max_range.y),
-                ));
+                        .clamp(logical(0.0), max_range.y()),
+                );
             }
         }
     }

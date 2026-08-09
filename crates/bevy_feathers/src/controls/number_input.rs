@@ -36,8 +36,8 @@ use bevy_text::{
     TextLayout, TextReadWriteMode,
 };
 use bevy_ui::{
-    percent, physical, px, widget::Text, AlignItems, AlignSelf, BackgroundGradient, ColorStop,
-    ComputedNode, ComputedUiRenderTargetInfo, Display, Gradient, InteractionDisabled,
+    logical, percent, physical, px, widget::Text, AlignItems, AlignSelf, BackgroundGradient,
+    ColorStop, ComputedNode, ComputedUiRenderTargetInfo, Display, Gradient, InteractionDisabled,
     InterpolationColorSpace, JustifyContent, LinearGradient, Node, PositionType, UiGlobalTransform,
     UiRect, UiScale,
 };
@@ -1005,8 +1005,8 @@ fn scrubber_on_drag_start(
             .size()
             .x()
             .to_logical(node.scale_factor())
-            .into_inner()
-            .max(1.0) as f64;
+            .max(logical(1.0))
+            .into_inner() as f64;
         drag_start.propagate(false);
         drag.base_value = *input_value;
         drag.max_distance = 0.0;

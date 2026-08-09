@@ -24,7 +24,7 @@ use bevy_math::ops;
 use bevy_picking::events::{Cancel, Drag, DragEnd, DragStart, Pointer, Press, Release};
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_ui::{
-    physical, ComputedNode, ComputedUiRenderTargetInfo, InteractionDisabled, Pressed,
+    logical, physical, ComputedNode, ComputedUiRenderTargetInfo, InteractionDisabled, Pressed,
     UiGlobalTransform, UiScale,
 };
 
@@ -524,13 +524,13 @@ fn emit_slider_drag_value_change(
     let slider_size = if is_vertical {
         (node.size().y() - thumb_size)
             .to_logical(node.scale_factor())
+            .max(logical(1.0))
             .into_inner()
-            .max(1.0)
     } else {
         (node.size().x() - thumb_size)
             .to_logical(node.scale_factor())
+            .max(logical(1.0))
             .into_inner()
-            .max(1.0)
     };
 
     let drag_distance = if is_vertical { distance.y } else { distance.x };

@@ -178,31 +178,34 @@ fn scrollbar_on_pointer_down(
         // current scroll position, scroll forward by one step (visible size) otherwise scroll
         // back.
         let visible_size = (scroll_content.size() - scroll_content.scrollbar_size)
-            .to_logical(scroll_content.scale_factor())
-            .into_inner();
+            .to_logical(scroll_content.scale_factor());
         let content_size = scroll_content
             .content_size()
-            .to_logical(scroll_content.scale_factor())
-            .into_inner();
-        let max_range = (content_size - visible_size).max(Vec2::ZERO);
+            .to_logical(scroll_content.scale_factor());
+        let max_range = (content_size - visible_size).max(logical(Vec2::ZERO));
 
-        fn adjust_scroll_pos(scroll_pos: &mut f32, click_pos: f32, step: f32, range: f32) {
-            *scroll_pos =
-                (*scroll_pos + if click_pos > *scroll_pos { step } else { -step }).clamp(0., range);
+        fn adjust_scroll_pos(
+            scroll_pos: Logical<f32>,
+            click_pos: Logical<f32>,
+            step: Logical<f32>,
+            range: Logical<f32>,
+        ) -> Logical<f32> {
+            (scroll_pos + if click_pos > scroll_pos { step } else { -step })
+                .clamp(logical(0.), range)
         }
 
         match scrollbar.orientation {
             ControlOrientation::Horizontal => {
-                let click_pos = (normalized_pos.x + 0.5) * content_size.x;
-                let mut value = scroll_pos.x().into_inner();
-                adjust_scroll_pos(&mut value, click_pos, visible_size.x, max_range.x);
-                scroll_pos.set_x(logical(value));
+                let click_pos = content_size.x() * (normalized_pos.x + 0.5);
+                let value =
+                    adjust_scroll_pos(scroll_pos.x(), click_pos, visible_size.x(), max_range.x());
+                scroll_pos.set_x(value);
             }
             ControlOrientation::Vertical => {
-                let click_pos = (normalized_pos.y + 0.5) * content_size.y;
-                let mut value = scroll_pos.y().into_inner();
-                adjust_scroll_pos(&mut value, click_pos, visible_size.y, max_range.y);
-                scroll_pos.set_y(logical(value));
+                let click_pos = content_size.y() * (normalized_pos.y + 0.5);
+                let value =
+                    adjust_scroll_pos(scroll_pos.y(), click_pos, visible_size.y(), max_range.y());
+                scroll_pos.set_y(value);
             }
         }
     }
@@ -252,27 +255,25 @@ fn scrollbar_on_drag(
                 .content_size()
                 .to_logical(scroll_content.scale_factor());
 
-            let scrollbar_size = logical(
-                node.size()
-                    .to_logical(node.scale_factor())
-                    .into_inner()
-                    .max(Vec2::ONE),
-            );
+            let scrollbar_size = node
+                .size()
+                .to_logical(node.scale_factor())
+                .max(logical(Vec2::ONE));
 
             match scrollbar.orientation {
                 ControlOrientation::Horizontal => {
-                    let range = (content_size.x() - visible_size.x()).into_inner().max(0.);
+                    let range = (content_size.x() - visible_size.x()).max(logical(0.));
                     let value = drag.drag_origin
                         + distance.x()
                             * (content_size.x().into_inner() / scrollbar_size.x().into_inner());
-                    scroll_pos.set_x(logical(value.into_inner().clamp(0., range)));
+                    scroll_pos.set_x(value.clamp(logical(0.), range));
                 }
                 ControlOrientation::Vertical => {
-                    let range = (content_size.y() - visible_size.y()).into_inner().max(0.);
+                    let range = (content_size.y() - visible_size.y()).max(logical(0.));
                     let value = drag.drag_origin
                         + distance.y()
                             * (content_size.y().into_inner() / scrollbar_size.y().into_inner());
-                    scroll_pos.set_y(logical(value.into_inner().clamp(0., range)));
+                    scroll_pos.set_y(value.clamp(logical(0.), range));
                 }
             };
         }

@@ -88,13 +88,8 @@ fn setup(mut commands: Commands, mut font_system: ResMut<FontCx>) {
                             };
                             let range = (node.content_size().y() - node.size().y())
                                 .to_logical(node.scale_factor())
-                                .into_inner()
-                                .max(0.);
-                            let y = logical(
-                                (scroll_position.y() - logical(dy))
-                                    .into_inner()
-                                    .clamp(0., range),
-                            );
+                                .max(logical(0.));
+                            let y = (scroll_position.y() - logical(dy)).clamp(logical(0.), range);
                             scroll_position.set_y(y);
                         }
                     },

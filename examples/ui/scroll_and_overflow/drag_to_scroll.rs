@@ -46,8 +46,8 @@ fn setup(mut commands: Commands) {
                 With<ScrollableNode>,
             >| {
                 if let Ok((mut scroll_position, start)) = scroll_position_query.single_mut() {
-                    scroll_position.0 =
-                        logical((start.0 - drag.distance / ui_scale.0).max(Vec2::ZERO));
+                    scroll_position.0 = logical(start.0 - drag.distance / ui_scale.0)
+                        .max(logical(Vec2::ZERO));
                 }
             },
         )

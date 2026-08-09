@@ -127,11 +127,7 @@ fn update_scrollbar_visibility(
         let Ok(area) = q_scroll_area.get(scrollbar.target) else {
             continue;
         };
-        let visible = physical(
-            (area.size() - area.scrollbar_size)
-                .into_inner()
-                .max(Vec2::ZERO),
-        );
+        let visible = (area.size() - area.scrollbar_size).max(physical(Vec2::ZERO));
         let overflows = match scrollbar.orientation {
             ControlOrientation::Horizontal => area.content_size().x() > visible.x(),
             ControlOrientation::Vertical => area.content_size().y() > visible.y(),

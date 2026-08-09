@@ -1,6 +1,6 @@
 #[cfg(feature = "bevy_picking")]
-use crate::{physical, UiGlobalTransform};
-use crate::{ComputedNode, Node};
+use crate::UiGlobalTransform;
+use crate::{physical, ComputedNode, Node};
 use bevy_asset::Assets;
 #[cfg(feature = "bevy_picking")]
 use bevy_camera::Camera;
@@ -19,7 +19,7 @@ use bevy_ecs::{
     system::{Commands, Res},
 };
 use bevy_image::{Image, ToExtents};
-use bevy_math::UVec2;
+use bevy_math::Vec2;
 #[cfg(feature = "bevy_picking")]
 use bevy_picking::{
     events::PointerState,
@@ -191,7 +191,11 @@ pub fn update_viewport_render_target_size(
         let Some(image_handle) = render_target.as_image() else {
             continue;
         };
-        let size = size.into_inner().as_uvec2().max(UVec2::ONE).to_extents();
+        let size = size
+            .max(physical(Vec2::ONE))
+            .into_inner()
+            .as_uvec2()
+            .to_extents();
         images.get_mut(image_handle).unwrap().resize(size);
     }
 }

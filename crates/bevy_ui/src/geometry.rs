@@ -696,10 +696,10 @@ impl Val {
             Val::Vw(value) => Ok(physical(physical_target_size.x * value / 100.0)),
             Val::Vh(value) => Ok(physical(physical_target_size.y * value / 100.0)),
             Val::VMin(value) => Ok(physical(
-                physical_target_size.x.min(physical_target_size.y) * value / 100.0,
+                target_size.x().min(target_size.y()).into_inner() * value / 100.0,
             )),
             Val::VMax(value) => Ok(physical(
-                physical_target_size.x.max(physical_target_size.y) * value / 100.0,
+                target_size.x().max(target_size.y()).into_inner() * value / 100.0,
             )),
             Val::Auto => Err(ValArithmeticError::NonEvaluable),
         }
@@ -1515,13 +1515,11 @@ impl CornerRadius {
         size: Physical<Vec2>,
         viewport_size: Physical<Vec2>,
     ) -> Physical<Vec2> {
-        let physical_size = size;
-        let size = physical_size.into_inner();
-        physical(match self {
+        match self {
             Self {
                 x: Val::Auto,
                 y: Val::Auto,
-            } => Vec2::ZERO,
+            } => physical(Vec2::ZERO),
             Self {
                 x: radius,
                 y: Val::Auto,
@@ -1529,23 +1527,23 @@ impl CornerRadius {
             | Self {
                 x: Val::Auto,
                 y: radius,
-            } => Vec2::splat(
+            } => physical(Vec2::splat(
                 radius
-                    .resolve(scale_factor, physical(size.min_element()), viewport_size)
+                    .resolve(scale_factor, size.x().min(size.y()), viewport_size)
                     .unwrap_or(physical(0.))
-                    .into_inner()
-                    .clamp(0., 0.5 * size.min_element()),
-            ),
-            Self { x, y } => Vec2::new(
-                x.resolve(scale_factor, physical_size.x(), viewport_size)
+                    .clamp(physical(0.), size.x().min(size.y()) * 0.5)
+                    .into_inner(),
+            )),
+            Self { x, y } => physical(Vec2::new(
+                x.resolve(scale_factor, size.x(), viewport_size)
                     .unwrap_or(physical(0.))
                     .into_inner(),
-                y.resolve(scale_factor, physical_size.y(), viewport_size)
+                y.resolve(scale_factor, size.y(), viewport_size)
                     .unwrap_or(physical(0.))
                     .into_inner(),
-            )
-            .clamp(Vec2::ZERO, 0.5 * size),
-        })
+            ))
+            .clamp(physical(Vec2::ZERO), size * 0.5),
+        }
     }
 }
 

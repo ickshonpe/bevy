@@ -465,14 +465,10 @@ pub fn update_scroll_position(
                         .content_size()
                         .to_logical(scroll_content.scale_factor());
 
-                    let range = (content_size.y() - visible_size.y()).into_inner().max(0.);
+                    let range = (content_size.y() - visible_size.y()).max(logical(0.));
 
                     let x = scroll_position.x() - logical(dx);
-                    let y = logical(
-                        (scroll_position.y() - logical(dy))
-                            .into_inner()
-                            .clamp(0., range),
-                    );
+                    let y = (scroll_position.y() - logical(dy)).clamp(logical(0.), range);
                     scroll_position.set_x(x);
                     scroll_position.set_y(y);
                 }

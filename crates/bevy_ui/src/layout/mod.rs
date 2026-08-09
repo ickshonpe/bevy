@@ -431,16 +431,10 @@ pub fn ui_layout_system(
                 .unwrap_or_default();
             let scroll_position = scroll_position.to_physical(target_scale_factor);
 
-            let max_possible_offset = physical(
-                (content_size - layout_size + node.scrollbar_size)
-                    .into_inner()
-                    .max(Vec2::ZERO),
-            );
-            let clamped_scroll_position = physical(
-                scroll_position
-                    .into_inner()
-                    .clamp(Vec2::ZERO, max_possible_offset.into_inner()),
-            );
+            let max_possible_offset =
+                (content_size - layout_size + node.scrollbar_size).max(physical(Vec2::ZERO));
+            let clamped_scroll_position =
+                scroll_position.clamp(physical(Vec2::ZERO), max_possible_offset);
 
             let physical_scroll_position = physical(clamped_scroll_position.into_inner().floor());
 
