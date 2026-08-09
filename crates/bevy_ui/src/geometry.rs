@@ -25,6 +25,8 @@ impl ScaleFactor {
     }
 }
 
+pub struct WindowLogical<T>(T);
+
 /// Units in physical pixels
 #[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -240,6 +242,7 @@ macro_rules! impl_unit_space {
     };
 }
 
+impl_unit_space!(WindowLogical);
 impl_unit_space!(Physical);
 impl_unit_space!(Logical);
 
