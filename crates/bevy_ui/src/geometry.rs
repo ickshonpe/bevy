@@ -8,6 +8,8 @@ use thiserror::Error;
 #[cfg(feature = "serialize")]
 use bevy_reflect::{ReflectDeserialize, ReflectSerialize};
 
+use crate::UiScale;
+
 #[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[repr(transparent)]
@@ -25,7 +27,25 @@ impl ScaleFactor {
     }
 }
 
-pub struct WindowLogical<T>(T);
+#[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[repr(transparent)]
+pub struct TargetLogical<T>(T);
+
+impl<T> TargetLogical<T>
+where
+    T: Div<f32, Output = T> + Mul<f32, Output = T>,
+{
+    #[inline]
+    pub fn to_logical(self, ui_scale: UiScale) -> Logical<T> {
+        Logical(self.0 / ui_scale.0)
+    }
+
+    #[inline]
+    pub fn to_physical(self, target_scale_factor: f32) -> Physical<T> {
+        physical(self.0 * target_scale_factor)
+    }
+}
 
 /// Units in physical pixels
 #[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd, Reflect)]
@@ -242,7 +262,7 @@ macro_rules! impl_unit_space {
     };
 }
 
-impl_unit_space!(WindowLogical);
+impl_unit_space!(TargetLogical);
 impl_unit_space!(Physical);
 impl_unit_space!(Logical);
 
