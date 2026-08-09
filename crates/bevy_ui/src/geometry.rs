@@ -54,7 +54,7 @@ where
 
     #[inline]
     pub fn to_physical(self, target_scale_factor: f32) -> Physical<T> {
-        physical(self.0 * target_scale_factor)
+        Physical(self.0 * target_scale_factor)
     }
 }
 
