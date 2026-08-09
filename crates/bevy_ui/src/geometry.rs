@@ -104,6 +104,40 @@ macro_rules! impl_unit_space {
             }
         }
 
+        impl $unit_space<f32> {
+            #[inline]
+            pub const fn min(self, rhs: Self) -> Self {
+                $unit_space(self.0.min(rhs.0))
+            }
+
+            #[inline]
+            pub const fn max(self, rhs: Self) -> Self {
+                $unit_space(self.0.max(rhs.0))
+            }
+
+            #[inline]
+            pub const fn clamp(self, min: Self, max: Self) -> Self {
+                $unit_space(self.0.clamp(min.0, max.0))
+            }
+        }
+
+        impl $unit_space<Vec2> {
+            #[inline]
+            pub fn min(self, rhs: Self) -> Self {
+                $unit_space(self.0.min(rhs.0))
+            }
+
+            #[inline]
+            pub fn max(self, rhs: Self) -> Self {
+                $unit_space(self.0.max(rhs.0))
+            }
+
+            #[inline]
+            pub fn clamp(self, min: Self, max: Self) -> Self {
+                $unit_space(self.0.clamp(min.0, max.0))
+            }
+        }
+
         impl<T> Add for $unit_space<T>
         where
             T: Add<Output = T>,
