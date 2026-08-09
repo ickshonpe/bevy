@@ -15,6 +15,12 @@ use crate::UiScale;
 #[repr(transparent)]
 pub struct ScaleFactor(f32);
 
+impl ScaleFactor {
+    pub const fn new(target_scale_factor: f32, ui_scale: UiScale) -> Self {
+        Self(target_scale_factor * ui_scale.0)
+    }
+}
+
 #[inline]
 pub const fn scale_factor(value: f32) -> ScaleFactor {
     ScaleFactor(value)
