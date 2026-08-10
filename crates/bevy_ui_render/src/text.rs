@@ -13,12 +13,14 @@ use bevy_ui::{
 };
 
 use crate::{
-    stack_z_offsets, ExtractedUiItem, ExtractedUiNode, ExtractedUiNodes, NodeType, UiCameraMap,
+    stack_z_offsets, ExtractedChangedMainEntities, ExtractedUiItem, ExtractedUiNode,
+    ExtractedUiNodes, NodeType, UiCameraMap,
 };
 
 pub fn extract_text_cursor(
     mut commands: Commands,
     extracted_uinodes: ResMut<ExtractedUiNodes>,
+    changed_entities: Res<ExtractedChangedMainEntities>,
     text_node_query: Extract<
         Query<(
             Entity,
@@ -36,12 +38,9 @@ pub fn extract_text_cursor(
     >,
     camera_map: Extract<UiCameraMap>,
     input_focus: Extract<Option<Res<InputFocus>>>,
-    mut changed_entities: Local<MainEntityHashSet>,
 ) {
     let extracted_uinodes = extracted_uinodes.into_inner();
     let mut camera_mapper = camera_map.get_mapper();
-
-    changed_entities.extend(extracted_uinodes.changed.keys().copied());
 
     for (
         entity,
@@ -56,7 +55,7 @@ pub fn extract_text_cursor(
         rwmode,
         editable_text,
     ) in changed_entities
-        .drain()
+        .iter()
         .filter_map(|main_entity| text_node_query.get(main_entity.entity()).ok())
     {
         // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
@@ -212,6 +211,7 @@ pub fn extract_text_cursor(
 pub fn extract_preedit_underlines(
     mut commands: Commands,
     extracted_uinodes: ResMut<ExtractedUiNodes>,
+    changed_entities: Res<ExtractedChangedMainEntities>,
     text_node_query: Extract<
         Query<
             (
@@ -230,12 +230,9 @@ pub fn extract_preedit_underlines(
         >,
     >,
     camera_map: Extract<UiCameraMap>,
-    mut changed_entities: Local<MainEntityHashSet>,
 ) {
     let extracted_uinodes = extracted_uinodes.into_inner();
     let mut camera_mapper = camera_map.get_mapper();
-
-    changed_entities.extend(extracted_uinodes.changed.keys().copied());
 
     for (
         entity,
@@ -249,7 +246,7 @@ pub fn extract_preedit_underlines(
         stack_index,
         editable_text,
     ) in changed_entities
-        .drain()
+        .iter()
         .filter_map(|main_entity| text_node_query.get(main_entity.entity()).ok())
     {
         if !inherited_visibility.get()

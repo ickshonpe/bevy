@@ -4,6 +4,7 @@ use super::ExtractedUiNodes;
 use super::NodeType;
 use super::UiCameraMap;
 use crate::shader_flags;
+use crate::ExtractedChangedMainEntities;
 use bevy_asset::AssetId;
 use bevy_camera::visibility::InheritedVisibility;
 use bevy_color::Hsla;
@@ -175,6 +176,7 @@ pub fn extract_debug_overlay(
     mut commands: Commands,
     debug_options: Extract<Res<GlobalUiDebugOptions>>,
     extracted_uinodes: ResMut<ExtractedUiNodes>,
+    changed_entities: Res<ExtractedChangedMainEntities>,
     uinode_query: Extract<
         Query<(
             Entity,
@@ -189,16 +191,13 @@ pub fn extract_debug_overlay(
     >,
     ui_stack: Extract<Res<UiStack>>,
     camera_map: Extract<UiCameraMap>,
-    mut changed_entities: Local<MainEntityHashSet>,
 ) {
     let extracted_uinodes = extracted_uinodes.into_inner();
     let mut camera_mapper = camera_map.get_mapper();
 
-    changed_entities.extend(extracted_uinodes.changed.keys().copied());
-
     for (entity, uinode, stack_index, transform, visibility, maybe_clip, computed_target, debug) in
         changed_entities
-            .drain()
+            .iter()
             .filter_map(|main_entity| uinode_query.get(main_entity.entity()).ok())
     {
         let debug_options = debug.copied().unwrap_or((*debug_options.as_ref()).into());

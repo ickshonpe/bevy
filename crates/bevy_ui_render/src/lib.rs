@@ -10,6 +10,7 @@
 pub mod box_shadow;
 mod gradient;
 mod image;
+use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::query::QueryData;
 use bevy_render::render_phase::DrawFunctionId;
 use bevy_render::render_resource::SpecializedRenderPipeline;
@@ -239,7 +240,9 @@ impl Plugin for UiRenderPlugin {
             .init_gpu_resource::<ImageNodeBindGroups>()
             .init_gpu_resource::<UiMeta>()
             .init_resource::<ExtractedUiNodes>()
+            .init_resource::<ExtractedChangedMainEntities>()
             .allow_ambiguous_resource::<ExtractedUiNodes>()
+            .allow_ambiguous_resource::<ExtractedChangedMainEntities>()
             .init_resource::<DrawFunctions<TransparentUi>>()
             .init_resource::<ViewSortedRenderPhases<TransparentUi>>()
             .allow_ambiguous_resource::<ViewSortedRenderPhases<TransparentUi>>()
@@ -438,6 +441,9 @@ pub struct ExtractedGlyph {
     pub rect: Rect,
 }
 
+#[derive(Resource, Deref, DerefMut, Default)]
+pub struct ExtractedChangedMainEntities(pub Vec<MainEntity>);
+
 /// The list of UI nodes, as well as the set of nodes that changed.
 ///
 /// This is a two-level data structure so that we can quickly remove all
@@ -473,6 +479,7 @@ type UiNodeQueryFilter = (
 pub fn extract_uinode_changes(
     mut commands: Commands,
     mut extracted_uinodes: ResMut<ExtractedUiNodes>,
+    mut extracted_changed: ResMut<ExtractedChangedMainEntities>,
     all_uinodes_query: Extract<Query<Entity, UiNodeQueryFilter>>,
     changed_uinodes_query: Extract<
         Query<
@@ -741,11 +748,17 @@ pub fn extract_uinode_changes(
             }
         }
     }
+
+    extracted_changed.0.clear();
+    extracted_changed
+        .0
+        .extend(extracted_uinodes.changed.keys().copied());
 }
 
 pub fn extract_uinode_background_colors(
     mut commands: Commands,
     extracted_uinodes: ResMut<ExtractedUiNodes>,
+    changed_entities: Res<ExtractedChangedMainEntities>,
     uinode_query: Extract<
         Query<(
             Entity,
@@ -760,12 +773,9 @@ pub fn extract_uinode_background_colors(
         )>,
     >,
     camera_map: Extract<UiCameraMap>,
-    mut changed_entities: Local<MainEntityHashSet>,
 ) {
     let extracted_uinodes = extracted_uinodes.into_inner();
     let mut camera_mapper = camera_map.get_mapper();
-
-    changed_entities.extend(extracted_uinodes.changed.keys().copied());
 
     for (
         entity,
@@ -778,7 +788,7 @@ pub fn extract_uinode_background_colors(
         background_color,
         maybe_outer_color,
     ) in changed_entities
-        .drain()
+        .iter()
         .filter_map(|main_entity| uinode_query.get(main_entity.entity()).ok())
     {
         // Skip invisible backgrounds
@@ -855,6 +865,7 @@ pub fn extract_uinode_background_colors(
 pub fn extract_uinode_images(
     mut commands: Commands,
     extracted_uinodes: ResMut<ExtractedUiNodes>,
+    changed_entities: Res<ExtractedChangedMainEntities>,
     texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
     uinode_query: Extract<
         Query<(
@@ -870,12 +881,9 @@ pub fn extract_uinode_images(
         )>,
     >,
     camera_map: Extract<UiCameraMap>,
-    mut changed_entities: Local<MainEntityHashSet>,
 ) {
     let extracted_uinodes = extracted_uinodes.into_inner();
     let mut camera_mapper = camera_map.get_mapper();
-
-    changed_entities.extend(extracted_uinodes.changed.keys().copied());
 
     for (
         entity,
@@ -888,7 +896,7 @@ pub fn extract_uinode_images(
         image,
         image_size,
     ) in changed_entities
-        .drain()
+        .iter()
         .flat_map(|main_entity| uinode_query.get(main_entity.entity()).ok())
     {
         let visual_box = match image.visual_box {
@@ -978,6 +986,7 @@ pub fn extract_uinode_images(
 pub fn extract_uinode_borders(
     mut commands: Commands,
     extracted_uinodes: ResMut<ExtractedUiNodes>,
+    changed_entities: Res<ExtractedChangedMainEntities>,
     uinode_query: Extract<
         Query<(
             Entity,
@@ -992,13 +1001,10 @@ pub fn extract_uinode_borders(
         )>,
     >,
     camera_map: Extract<UiCameraMap>,
-    mut changed_entities: Local<MainEntityHashSet>,
 ) {
     let extracted_uinodes = extracted_uinodes.into_inner();
     let image = AssetId::<Image>::default();
     let mut camera_mapper = camera_map.get_mapper();
-
-    changed_entities.extend(extracted_uinodes.changed.keys().copied());
 
     for (
         entity,
@@ -1011,7 +1017,7 @@ pub fn extract_uinode_borders(
         camera,
         (maybe_border_color, maybe_outline),
     ) in changed_entities
-        .drain()
+        .iter()
         .filter_map(|main_entity| uinode_query.get(main_entity.entity()).ok())
     {
         // Skip invisible borders and removed nodes
@@ -1352,6 +1358,7 @@ pub fn wipe_phase_items_if_camera_component_changed<E, C>(
 pub fn extract_viewport_nodes(
     mut commands: Commands,
     extracted_uinodes: ResMut<ExtractedUiNodes>,
+    changed_entities: Res<ExtractedChangedMainEntities>,
     camera_query: Extract<Query<(&Camera, &RenderTarget)>>,
     uinode_query: Extract<
         Query<(
@@ -1366,12 +1373,9 @@ pub fn extract_viewport_nodes(
         )>,
     >,
     camera_map: Extract<UiCameraMap>,
-    mut changed_entities: Local<MainEntityHashSet>,
 ) {
     let extracted_uinodes = extracted_uinodes.into_inner();
     let mut camera_mapper = camera_map.get_mapper();
-
-    changed_entities.extend(extracted_uinodes.changed.keys().copied());
 
     for (
         entity,
@@ -1383,7 +1387,7 @@ pub fn extract_viewport_nodes(
         camera,
         viewport_node,
     ) in changed_entities
-        .drain()
+        .iter()
         .filter_map(|main_entity| uinode_query.get(main_entity.entity()).ok())
     {
         // Skip invisible images
@@ -1436,6 +1440,7 @@ pub fn extract_viewport_nodes(
 pub fn extract_text_sections(
     mut commands: Commands,
     extracted_uinodes: ResMut<ExtractedUiNodes>,
+    changed_entities: Res<ExtractedChangedMainEntities>,
     uinode_query: Extract<
         Query<(
             Entity,
@@ -1454,12 +1459,9 @@ pub fn extract_text_sections(
     >,
     text_styles: Extract<Query<&TextColor>>,
     camera_map: Extract<UiCameraMap>,
-    mut changed_entities: Local<MainEntityHashSet>,
 ) {
     let extracted_uinodes = extracted_uinodes.into_inner();
     let mut camera_mapper = camera_map.get_mapper();
-
-    changed_entities.extend(extracted_uinodes.changed.keys().copied());
 
     let mut glyphs = vec![];
 
@@ -1477,7 +1479,7 @@ pub fn extract_text_sections(
         editable_text,
         cursor_style,
     ) in changed_entities
-        .drain()
+        .iter()
         .filter_map(|main_entity| uinode_query.get(main_entity.entity()).ok())
     {
         // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
@@ -1587,6 +1589,7 @@ pub fn extract_text_sections(
 pub fn extract_text_shadows(
     mut commands: Commands,
     extracted_uinodes: ResMut<ExtractedUiNodes>,
+    changed_entities: Res<ExtractedChangedMainEntities>,
     uinode_query: Extract<
         Query<(
             Entity,
@@ -1604,12 +1607,9 @@ pub fn extract_text_shadows(
     >,
     text_decoration_query: Extract<Query<(Has<Strikethrough>, Has<Underline>)>>,
     camera_map: Extract<UiCameraMap>,
-    mut changed_entities: Local<MainEntityHashSet>,
 ) {
     let extracted_uinodes = extracted_uinodes.into_inner();
     let mut camera_mapper = camera_map.get_mapper();
-
-    changed_entities.extend(extracted_uinodes.changed.keys().copied());
 
     let mut glyphs = vec![];
 
@@ -1626,7 +1626,7 @@ pub fn extract_text_shadows(
         computed_block,
         editable_text,
     ) in changed_entities
-        .drain()
+        .iter()
         .filter_map(|main_entity| uinode_query.get(main_entity.entity()).ok())
     {
         // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
@@ -1767,6 +1767,7 @@ pub fn extract_text_shadows(
 pub fn extract_text_decorations(
     mut commands: Commands,
     extracted_uinodes: ResMut<ExtractedUiNodes>,
+    changed_entities: Res<ExtractedChangedMainEntities>,
     uinode_query: Extract<
         Query<(
             Entity,
@@ -1790,12 +1791,9 @@ pub fn extract_text_decorations(
         )>,
     >,
     camera_map: Extract<UiCameraMap>,
-    mut changed_entities: Local<MainEntityHashSet>,
 ) {
     let extracted_uinodes = extracted_uinodes.into_inner();
     let mut camera_mapper = camera_map.get_mapper();
-
-    changed_entities.extend(extracted_uinodes.changed.keys().copied());
 
     for (
         entity,
@@ -1809,7 +1807,7 @@ pub fn extract_text_decorations(
         text_layout_info,
         editable_text,
     ) in changed_entities
-        .drain()
+        .iter()
         .filter_map(|main_entity| uinode_query.get(main_entity.entity()).ok())
     {
         // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
