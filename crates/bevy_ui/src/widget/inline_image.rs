@@ -31,9 +31,9 @@ pub struct InlineImage {
     ///
     /// This defaults to a [`TRANSPARENT_IMAGE_HANDLE`], which points to a fully transparent 1x1 texture.
     pub image: Handle<Image>,
-    /// Provide a fixed width in logical pixels, otherwise the width will be determined auomatically from the image.
+    /// Set a fixed width in logical pixels for the image's inline box target.
     pub width: Option<f32>,
-    /// Provide a fixed height in logical pixels, otherwise the height will be determined auomatically from the image.
+    /// Set a fixed height in logical pixels for the image's inline box target.
     pub height: Option<f32>,
     /// Flip the image on the x-axis.
     pub flip_x: bool,
