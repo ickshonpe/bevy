@@ -49,6 +49,20 @@ impl Default for InlineImage {
             image: TRANSPARENT_IMAGE_HANDLE,
             width: None,
             height: None,
+            flip_x: false,
+            flip_y: false,
+        }
+    }
+}
+
+impl InlineImage {
+    /// Calculate the inline box size from the
+    pub fn resolve_inline_box_size(&self, image_size: Vec2) -> Vec2 {
+        match (self.width, self.height) {
+            (Some(w), Some(h)) => Vec2::new(w, h),
+            (Some(w), None) => Vec2::new(w, image_size.y * (w / image_size.x)),
+            (None, Some(h)) => Vec2::new(image_size.x * (h / image_size.y), h),
+            _ => image_size,
         }
     }
 }
@@ -73,7 +87,7 @@ pub fn update_inline_image_boxes(
         if let Some(image_asset) = image_assets.get(&inline_image.image) {
             inline_box.set_if_neq(InlineBox {
                 kind: bevy_text::InlineBoxKind::InFlow,
-                size: image_asset.size().as_vec2(),
+                size: inline_image.resolve_inline_box_size(image_asset.size().as_vec2()),
             });
         } else {
             inline_box.set_if_neq(InlineBox {
@@ -81,5 +95,53 @@ pub fn update_inline_image_boxes(
                 size: Vec2::ZERO,
             });
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_inline_box_size() {
+        let image = InlineImage {
+            width: Some(20.),
+            height: Some(10.),
+            ..Default::default()
+        };
+        assert_eq!(
+            image.resolve_inline_box_size(Vec2::new(5., 10.)),
+            Vec2::new(20., 10.)
+        );
+
+        let image = InlineImage {
+            width: Some(10.),
+            height: None,
+            ..Default::default()
+        };
+        assert_eq!(
+            image.resolve_inline_box_size(Vec2::new(5., 10.)),
+            Vec2::new(10., 20.)
+        );
+
+        let image = InlineImage {
+            width: None,
+            height: Some(10.),
+            ..Default::default()
+        };
+        assert_eq!(
+            image.resolve_inline_box_size(Vec2::new(5., 10.)),
+            Vec2::new(5., 10.)
+        );
+
+        let image = InlineImage {
+            width: None,
+            height: None,
+            ..Default::default()
+        };
+        assert_eq!(
+            image.resolve_inline_box_size(Vec2::new(5., 10.)),
+            Vec2::new(5., 10.)
+        );
     }
 }
