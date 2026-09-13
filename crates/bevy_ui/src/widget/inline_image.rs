@@ -31,6 +31,14 @@ pub struct InlineImage {
     ///
     /// This defaults to a [`TRANSPARENT_IMAGE_HANDLE`], which points to a fully transparent 1x1 texture.
     pub image: Handle<Image>,
+    /// Provide a fixed width in logical pixels, otherwise the width will be determined auomatically from the image.
+    pub width: Option<f32>,
+    /// Provide a fixed height in logical pixels, otherwise the height will be determined auomatically from the image.
+    pub height: Option<f32>,
+    /// Flip the image on the x-axis.
+    pub flip_x: bool,
+    /// Flip the image on the y-axis.
+    pub flip_y: bool,
 }
 
 impl Default for InlineImage {
@@ -39,6 +47,8 @@ impl Default for InlineImage {
         InlineImage {
             color: Color::WHITE,
             image: TRANSPARENT_IMAGE_HANDLE,
+            width: None,
+            height: None,
         }
     }
 }
