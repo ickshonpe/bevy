@@ -56,7 +56,7 @@ impl Default for InlineImage {
 }
 
 impl InlineImage {
-    /// Calculate the inline box size from the
+    /// Resolve the inline box size. Preserves the image's aspect ratio if dimensions unset.
     pub fn resolve_inline_box_size(&self, image_size: Vec2) -> Vec2 {
         match (self.width, self.height) {
             (Some(w), Some(h)) => Vec2::new(w, h),
