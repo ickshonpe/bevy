@@ -28,11 +28,15 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             (InlineImage {
                 color: bevy::color::palettes::css::RED.into(),
                 image: asset_server.load("branding/bevy_logo_dark.png"),
+                height: Some(20.),
+                ..default()
             },),
             (TextSpan::new("[span between images]"),),
             (InlineImage {
                 color: bevy::color::palettes::css::YELLOW.into(),
-                image: asset_server.load("branding/bevy_logo_dark.png"),
+                image: asset_server.load("branding/bevy_bird_dark.png"),
+                width: Some(20.),
+                ..default()
             },),
             (TextSpan::new("[span after image]"),),
         ],
