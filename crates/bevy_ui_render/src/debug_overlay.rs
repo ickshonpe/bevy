@@ -223,7 +223,8 @@ pub fn extract_debug_overlay(
             extracted_uinodes
                 .uinodes
                 .entry(entity.into())
-                .or_default()
+                .or_insert_with(|| (extracted_camera_entity, Default::default()))
+                .1
                 .insert(
                     commands.spawn_empty().id(),
                     ExtractedUiNode {
@@ -235,11 +236,8 @@ pub fn extract_debug_overlay(
                             },
                             sub_layer: 0,
                         },
-                        clip: maybe_clip
-                            .filter(|_| !debug_options.show_clipped)
-                            .map(|clip| clip.clip),
+                        clip: maybe_clip.filter(|_| !debug_options.show_clipped).cloned(),
                         image: AssetId::default(),
-                        extracted_camera_entity,
                         transform: transform * Affine2::from_translation(rect.center()),
                         item: ExtractedUiItem::Node {
                             color,

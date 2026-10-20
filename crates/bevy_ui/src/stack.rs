@@ -1,11 +1,11 @@
 //! This module contains the systems that update the stored UI nodes stack
 
-use crate::{
-    experimental::{UiChildren, UiRootNodes},
-    GlobalZIndex, ZIndex,
-};
+use crate::{GlobalZIndex, ZIndex};
 use bevy_derive::{Deref, DerefMut};
-use bevy_ecs::{entity::EntityHashSet, prelude::*};
+use bevy_ecs::{
+    entity::{EntityHashMap, EntityHashSet},
+    prelude::*,
+};
 use bevy_reflect::std_traits::ReflectDefault;
 use bevy_reflect::Reflect;
 
@@ -32,19 +32,14 @@ pub struct LocalUiStack(pub Vec<Entity>);
 #[reflect(Resource, Default)]
 pub struct UiStack(pub Vec<Entity>);
 
-#[derive(Default)]
-pub(crate) struct ChildBufferCache {
-    pub inner: Vec<Vec<(Entity, i32)>>,
-}
-
-impl ChildBufferCache {
-    fn pop(&mut self) -> Vec<(Entity, i32)> {
-        self.inner.pop().unwrap_or_default()
-    }
-
-    fn push(&mut self, vec: Vec<(Entity, i32)>) {
-        self.inner.push(vec);
-    }
+/// A `StackRoot` can be either a root UI node, or a parented UI node with a `GlobalZIndex` component.
+/// The stack root and its descendants, up to any nested `StackRoots`, occupy a contiguous range in the render stack.
+#[derive(Ord, PartialOrd, PartialEq, Eq)]
+pub(crate) struct StackRoot {
+    global_z: i32,
+    local_z: i32,
+    new_or_changed: bool,
+    previous_index: usize,
 }
 
 /// Generates the render stack for UI nodes.
@@ -54,54 +49,73 @@ impl ChildBufferCache {
 /// filtering branches by `Without<GlobalZIndex>`so that we don't revisit nodes.
 pub fn ui_stack_system(
     mut commands: Commands,
-    mut cache: Local<ChildBufferCache>,
+    mut cache: Local<Vec<(Entity, i32)>>,
+    mut stack_roots: Local<Vec<(Entity, StackRoot)>>,
+    mut stack_root_order: Local<EntityHashMap<usize>>,
+    mut visited_stack_roots: Local<EntityHashSet>,
     mut new_local_stack: Local<Vec<Entity>>,
-    mut root_nodes: Local<Vec<(Entity, (i32, i32))>>,
-    mut visited_root_nodes: Local<EntityHashSet>,
-    ui_root_nodes: UiRootNodes,
-    root_node_query: Query<(Entity, Option<&GlobalZIndex>, Option<&ZIndex>)>,
+    ui_root_nodes: Query<Entity, (With<ComputedStackIndex>, Without<ChildOf>)>,
+    root_node_query: Query<(Entity, Option<Ref<GlobalZIndex>>, Option<Ref<ZIndex>>)>,
     zindex_global_node_query: Query<
-        (Entity, &GlobalZIndex, Option<&ZIndex>),
+        (Entity, Ref<GlobalZIndex>, Option<Ref<ZIndex>>),
         With<ComputedStackIndex>,
     >,
-    ui_children: UiChildren,
+    ui_children: Query<&Children, With<ComputedStackIndex>>,
     zindex_query: Query<Option<&ZIndex>, (With<ComputedStackIndex>, Without<GlobalZIndex>)>,
     mut update_query: Query<&mut ComputedStackIndex>,
     mut local_ui_stack_query: Query<(Entity, &mut LocalUiStack)>,
     mut ui_stack: ResMut<UiStack>,
 ) {
-    visited_root_nodes.clear();
+    stack_root_order.clear();
+    for (order, entity) in ui_stack.0.iter().enumerate() {
+        stack_root_order.insert(*entity, order);
+    }
     ui_stack.0.clear();
+    visited_stack_roots.clear();
 
-    for (id, maybe_global_zindex, maybe_zindex) in root_node_query.iter_many(ui_root_nodes.iter()) {
-        root_nodes.push((
+    for (id, maybe_global_zindex, maybe_zindex) in
+        root_node_query.iter_many(ui_root_nodes.iter()).matched()
+    {
+        let previous = stack_root_order.get(&id).copied();
+        stack_roots.push((
             id,
-            (
-                maybe_global_zindex.map(|zindex| zindex.0).unwrap_or(0),
-                maybe_zindex.map(|zindex| zindex.0).unwrap_or(0),
-            ),
+            StackRoot {
+                global_z: maybe_global_zindex.map(|z| z.0).unwrap_or(0),
+                local_z: maybe_zindex.map(|z| z.0).unwrap_or(0),
+                new_or_changed: previous.is_none()
+                    || maybe_global_zindex.as_ref().is_some_and(Ref::is_changed)
+                    || maybe_zindex.as_ref().is_some_and(Ref::is_changed),
+                previous_index: previous.unwrap_or(usize::MAX),
+            },
         ));
-        visited_root_nodes.insert(id);
+        visited_stack_roots.insert(id);
     }
 
     for (id, global_zindex, maybe_zindex) in zindex_global_node_query.iter() {
-        if visited_root_nodes.contains(&id) {
+        if visited_stack_roots.contains(&id) {
             continue;
         }
 
-        root_nodes.push((
+        let previous = stack_root_order.get(&id).copied();
+        stack_roots.push((
             id,
-            (
-                global_zindex.0,
-                maybe_zindex.map(|zindex| zindex.0).unwrap_or(0),
-            ),
+            StackRoot {
+                global_z: global_zindex.0,
+                local_z: maybe_zindex.map(|z| z.0).unwrap_or(0),
+                new_or_changed: previous.is_none()
+                    || global_zindex.is_changed()
+                    || maybe_zindex.as_ref().is_some_and(Ref::is_changed),
+                previous_index: previous.unwrap_or(usize::MAX),
+            },
         ));
-        visited_root_nodes.insert(id);
+        visited_stack_roots.insert(id);
     }
 
-    root_nodes.sort_by_key(|(_, z)| *z);
+    // An unstable sort is sufficient here. Roots that are equal must be new, and we
+    // only care about maintaining stability across frames.
+    stack_roots.sort_unstable_by(|(_, a), (_, b)| a.cmp(b));
 
-    for (root_index, (root_entity, _)) in root_nodes.drain(..).enumerate() {
+    for (root_index, (root_entity, _)) in stack_roots.drain(..).enumerate() {
         ui_stack.0.push(root_entity);
         new_local_stack.clear();
         update_uistack_recursive(
@@ -133,37 +147,50 @@ pub fn ui_stack_system(
     }
 
     for (entity, _) in local_ui_stack_query {
-        if !visited_root_nodes.contains(&entity) {
+        if !visited_stack_roots.contains(&entity) {
             commands.entity(entity).remove::<LocalUiStack>();
         }
     }
 }
 
 fn update_uistack_recursive(
-    cache: &mut ChildBufferCache,
+    child_buffer: &mut Vec<(Entity, i32)>,
     node_entity: Entity,
-    ui_children: &UiChildren,
+    ui_children: &Query<&Children, With<ComputedStackIndex>>,
     zindex_query: &Query<Option<&ZIndex>, (With<ComputedStackIndex>, Without<GlobalZIndex>)>,
     ui_stack: &mut Vec<Entity>,
 ) {
     ui_stack.push(node_entity);
 
-    let mut child_buffer = cache.pop();
+    let start = child_buffer.len();
     child_buffer.extend(
         ui_children
-            .iter_ui_children(node_entity)
-            .filter_map(|child_entity| {
+            .get(node_entity)
+            .into_iter()
+            .flatten()
+            .filter_map(|&child_entity| {
                 zindex_query
                     .get(child_entity)
                     .ok()
                     .map(|zindex| (child_entity, zindex.map(|zindex| zindex.0).unwrap_or(0)))
             }),
     );
-    child_buffer.sort_by_key(|k| k.1);
-    for (child_entity, _) in child_buffer.drain(..) {
-        update_uistack_recursive(cache, child_entity, ui_children, zindex_query, ui_stack);
+    let end = child_buffer.len();
+
+    child_buffer[start..end].sort_by_key(|child| child.1);
+
+    for index in start..end {
+        let child_entity = child_buffer[index].0;
+        update_uistack_recursive(
+            child_buffer,
+            child_entity,
+            ui_children,
+            zindex_query,
+            ui_stack,
+        );
     }
-    cache.push(child_buffer);
+
+    child_buffer.truncate(start);
 }
 
 #[cfg(test)]
@@ -171,6 +198,7 @@ mod tests {
     use bevy_ecs::{
         component::Component,
         entity::Entity,
+        hierarchy::ChildOf,
         query::Changed,
         schedule::Schedule,
         system::Commands,
@@ -393,5 +421,148 @@ mod tests {
         for entity in &ui_stack_roots.0 {
             assert_eq!(world.get::<LocalUiStack>(*entity).unwrap().len(), 1);
         }
+    }
+
+    #[test]
+    fn order_of_stack_roots_should_be_preserved_between_frames() {
+        #[derive(Component)]
+        struct Marker;
+        let mut world = World::default();
+        world.init_resource::<UiStack>();
+
+        let mut schedule = Schedule::default();
+        schedule.add_systems(ui_stack_system);
+
+        for _ in 0..10 {
+            world.spawn((Node::default(), GlobalZIndex(0)));
+        }
+
+        schedule.run(&mut world);
+
+        let uinodes = world.resource::<UiStack>().0.clone();
+
+        for marked_entity in uinodes.iter().take(3) {
+            world.entity_mut(*marked_entity).insert(Marker);
+        }
+
+        schedule.run(&mut world);
+
+        assert_eq!(uinodes, world.resource::<UiStack>().0);
+    }
+
+    #[test]
+    fn last_updated_stack_root_should_be_on_top() {
+        let mut world = World::default();
+        world.init_resource::<UiStack>();
+
+        let mut schedule = Schedule::default();
+        schedule.add_systems(ui_stack_system);
+
+        for _ in 0..10 {
+            world.spawn((Node::default(), GlobalZIndex(0)));
+        }
+
+        schedule.run(&mut world);
+
+        let first = world.resource::<UiStack>().0[0];
+
+        world.entity_mut(first).insert(GlobalZIndex(0));
+
+        schedule.run(&mut world);
+
+        assert_eq!(first, *world.resource::<UiStack>().0.last().unwrap());
+
+        let first = world.resource::<UiStack>().0[0];
+
+        world.entity_mut(first).insert(ZIndex(0));
+
+        schedule.run(&mut world);
+
+        assert_eq!(first, *world.resource::<UiStack>().0.last().unwrap());
+    }
+
+    #[test]
+    fn order_of_parented_stack_roots_should_be_preserved_between_frames() {
+        #[derive(Component)]
+        struct Marker;
+        let mut world = World::default();
+        world.init_resource::<UiStack>();
+
+        let mut schedule = Schedule::default();
+        schedule.add_systems(ui_stack_system);
+
+        let parent = world.spawn(Node::default()).id();
+        for _ in 0..10 {
+            world.spawn((Node::default(), GlobalZIndex(0), ChildOf(parent)));
+        }
+
+        schedule.run(&mut world);
+
+        let uinodes = world.resource::<UiStack>().0.clone();
+
+        for marked_entity in uinodes.iter().filter(|entity| **entity != parent).take(3) {
+            world.entity_mut(*marked_entity).insert(Marker);
+        }
+
+        schedule.run(&mut world);
+
+        assert_eq!(uinodes, world.resource::<UiStack>().0);
+    }
+
+    #[test]
+    fn growing_local_stack_preserves_other_stack_indices() {
+        let mut world = World::default();
+        world.init_resource::<UiStack>();
+        let mut schedule = Schedule::default();
+        schedule.add_systems(ui_stack_system);
+
+        let first = world.spawn((Node::default(), GlobalZIndex(-1))).id();
+        let second = world.spawn(Node::default()).id();
+        let child = world.spawn((Node::default(), ChildOf(second))).id();
+        schedule.run(&mut world);
+        world.clear_trackers();
+
+        let added = world.spawn((Node::default(), ChildOf(first))).id();
+        schedule.run(&mut world);
+
+        let mut changed = world.query_filtered::<Entity, Changed<ComputedStackIndex>>();
+        assert!(!changed
+            .iter(&world)
+            .any(|entity| entity == second || entity == child));
+        assert_eq!(world.get::<LocalUiStack>(first).unwrap().0, [first, added]);
+        assert_eq!(
+            world.get::<LocalUiStack>(second).unwrap().0,
+            [second, child]
+        );
+    }
+
+    #[test]
+    fn local_stack_removed_when_node_stops_being_a_stack_root() {
+        let mut world = World::default();
+        world.init_resource::<UiStack>();
+        let mut schedule = Schedule::default();
+        schedule.add_systems(ui_stack_system);
+
+        let parent = world.spawn(Node::default()).id();
+        let child = world
+            .spawn((Node::default(), GlobalZIndex(1), ChildOf(parent)))
+            .id();
+        schedule.run(&mut world);
+        schedule.run(&mut world);
+        assert_eq!(world.get::<LocalUiStack>(child).unwrap().0, [child]);
+
+        world.entity_mut(child).remove::<GlobalZIndex>();
+        schedule.run(&mut world);
+        assert!(world.get::<LocalUiStack>(child).is_none());
+        assert_eq!(
+            world.get::<LocalUiStack>(parent).unwrap().0,
+            [parent, child]
+        );
+        assert_eq!(world.resource::<UiStack>().0, [parent]);
+
+        world.entity_mut(child).remove::<ChildOf>();
+        schedule.run(&mut world);
+        assert_eq!(world.get::<LocalUiStack>(child).unwrap().0, [child]);
+        assert_eq!(world.get::<LocalUiStack>(parent).unwrap().0, [parent]);
     }
 }

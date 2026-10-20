@@ -6,7 +6,7 @@ use bevy_input_focus::InputFocus;
 use bevy_math::{Affine2, Rect, Vec2};
 use bevy_render::Extract;
 use bevy_sprite::BorderRect;
-use bevy_text::{EditableText, TextColor, TextCursorStyle, TextLayoutInfo};
+use bevy_text::{EditableText, TextColor, TextCursorStyle, TextLayoutInfo, TextReadWriteMode};
 use bevy_ui::{
     CalculatedClip, ComputedNode, ComputedStackIndex, ComputedUiTargetCamera, ResolvedBorderRadius,
     UiGlobalTransform,
@@ -16,6 +16,24 @@ use crate::{
     stack_z_offsets, ExtractedUiItem, ExtractedUiNode, ExtractedUiNodes, NodeType, UiCameraMap,
     UiSortKey,
 };
+
+pub(crate) fn calculate_text_scroll_clip(
+    editable_text: Option<&EditableText>,
+    maybe_clip: Option<&CalculatedClip>,
+    uinode: &ComputedNode,
+    global_transform: &UiGlobalTransform,
+) -> Option<CalculatedClip> {
+    if editable_text.is_some() {
+        Some(
+            maybe_clip
+                .cloned()
+                .unwrap_or_default()
+                .with_rect(uinode.content_box(), global_transform),
+        )
+    } else {
+        maybe_clip.cloned()
+    }
+}
 
 pub fn extract_text_cursor(
     mut commands: Commands,
@@ -31,6 +49,7 @@ pub fn extract_text_cursor(
             &ComputedUiTargetCamera,
             &TextLayoutInfo,
             &TextCursorStyle,
+            &TextReadWriteMode,
             Option<&EditableText>,
         )>,
     >,
@@ -50,6 +69,7 @@ pub fn extract_text_cursor(
         target_camera,
         text_layout_info,
         cursor_style,
+        rwmode,
         editable_text,
     ) in extracted_uinodes
         .changed
@@ -71,16 +91,7 @@ pub fn extract_text_cursor(
                     - editable_text.map_or(Vec2::ZERO, |editor| editor.viewport.offset),
             );
 
-        let clip = if editable_text.is_some() {
-            let content_box = uinode.content_box();
-            let text_clip = Rect::from_center_size(
-                global_transform.affine().translation + content_box.center(),
-                content_box.size(),
-            );
-            Some(maybe_clip.map_or(text_clip, |clip| clip.clip.intersect(text_clip)))
-        } else {
-            maybe_clip.map(|clip| clip.clip)
-        };
+        let clip = calculate_text_scroll_clip(editable_text, maybe_clip, uinode, global_transform);
 
         let mut focused = false;
 
@@ -90,13 +101,16 @@ pub fn extract_text_cursor(
             focused = true;
         }
 
-        let sc = if focused {
+        let sc = if focused && *rwmode == TextReadWriteMode::Editable {
             cursor_style.selection_color
         } else {
             cursor_style.unfocused_selection_color
         };
 
-        if !text_layout_info.selection_rects.is_empty() && !sc.is_fully_transparent() {
+        if !text_layout_info.selection_rects.is_empty()
+            && !sc.is_fully_transparent()
+            && *rwmode != TextReadWriteMode::Static
+        {
             let selection_color = sc.to_linear();
             let selection_radius = cursor_style.selection_radius.clamp(0.0, 0.5);
 
@@ -146,7 +160,8 @@ pub fn extract_text_cursor(
                 extracted_uinodes
                     .uinodes
                     .entry(entity.into())
-                    .or_default()
+                    .or_insert_with(|| (extracted_camera_entity, Default::default()))
+                    .1
                     .insert(
                         commands.spawn_empty().id(),
                         ExtractedUiNode {
@@ -154,9 +169,8 @@ pub fn extract_text_cursor(
                                 stack_index: *stack_index,
                                 sub_layer: stack_z_offsets::TEXT_SELECTION,
                             },
-                            clip,
+                            clip: clip.clone(),
                             image: AssetId::default(),
-                            extracted_camera_entity,
                             transform: transform * Affine2::from_translation(selection.center()),
                             item: ExtractedUiItem::Node {
                                 color: selection_color,
@@ -179,11 +193,13 @@ pub fn extract_text_cursor(
         if let Some((true, cursor_rect)) = text_layout_info.cursor
             && !cursor_rect.is_empty()
             && !cursor_style.color.is_fully_transparent()
+            && *rwmode != TextReadWriteMode::Static
         {
             extracted_uinodes
                 .uinodes
                 .entry(entity.into())
-                .or_default()
+                .or_insert_with(|| (extracted_camera_entity, Default::default()))
+                .1
                 .insert(
                     commands.spawn_empty().id(),
                     ExtractedUiNode {
@@ -191,9 +207,8 @@ pub fn extract_text_cursor(
                             stack_index: *stack_index,
                             sub_layer: stack_z_offsets::TEXT_CURSOR,
                         },
-                        clip,
+                        clip: clip.clone(),
                         image: AssetId::default(),
-                        extracted_camera_entity,
                         transform: transform * Affine2::from_translation(cursor_rect.center()),
                         item: ExtractedUiItem::Node {
                             color: cursor_style.color.to_linear(),
@@ -269,11 +284,8 @@ pub fn extract_preedit_underlines(
         let transform = Affine2::from(global_transform)
             * Affine2::from_translation(uinode.content_box().min - editable_text.viewport.offset);
 
-        let text_clip = Rect::from_center_size(
-            global_transform.affine().translation + uinode.content_box().center(),
-            uinode.content_box().size(),
-        );
-        let clip = Some(maybe_clip.map_or(text_clip, |clip| clip.clip.intersect(text_clip)));
+        let clip =
+            calculate_text_scroll_clip(Some(editable_text), maybe_clip, uinode, global_transform);
 
         let color = text_color.0.to_linear();
 
@@ -281,7 +293,8 @@ pub fn extract_preedit_underlines(
             extracted_uinodes
                 .uinodes
                 .entry(entity.into())
-                .or_default()
+                .or_insert_with(|| (extracted_camera_entity, Default::default()))
+                .1
                 .insert(
                     commands.spawn_empty().id(),
                     ExtractedUiNode {
@@ -289,9 +302,8 @@ pub fn extract_preedit_underlines(
                             stack_index: *stack_index,
                             sub_layer: stack_z_offsets::TEXT_STRIKETHROUGH,
                         },
-                        clip,
+                        clip: clip.clone(),
                         image: AssetId::default(),
-                        extracted_camera_entity,
                         transform: transform * Affine2::from_translation(rect.center()),
                         item: ExtractedUiItem::Node {
                             color,

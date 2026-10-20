@@ -28,9 +28,7 @@ use bevy_derive::{Deref, DerefMut};
 use bevy_picking::PickingSystems;
 use bevy_reflect::{std_traits::ReflectDefault, Reflect};
 mod accessibility;
-// This module is not re-exported, but is instead made public.
-// This is intended to discourage accidental use of the experimental API.
-pub mod experimental;
+pub use accessibility::AccessibilityUiSystems;
 mod focus;
 mod geometry;
 mod layout;
@@ -42,7 +40,7 @@ pub use focus::*;
 pub use geometry::*;
 pub use gradients::*;
 pub use interaction_states::{
-    Checkable, Checked, InteractionDisabled, Pressed, Selectable, Selected,
+    Checkable, Checked, Expandable, Expanded, InteractionDisabled, Pressed, Selectable, Selected,
 };
 pub use layout::*;
 pub use measurement::*;
@@ -60,6 +58,12 @@ pub mod prelude {
     pub use crate::picking_backend::{UiPickingCamera, UiPickingPlugin, UiPickingSettings};
     #[doc(hidden)]
     pub use crate::widget::{Text, TextShadow, TextUiReader, TextUiWriter};
+    #[expect(
+        deprecated,
+        reason = "Should be removed after 0.20 is released when Button & Interaction are removed."
+    )]
+    #[doc(hidden)]
+    pub use crate::{widget::Button, Interaction};
     #[doc(hidden)]
     pub use {
         crate::{
@@ -67,12 +71,12 @@ pub mod prelude {
             gradients::*,
             ui_node::*,
             ui_transform::*,
-            widget::{Button, ImageNode, Label, NodeImageMode, ViewportNode},
-            Interaction, UiScale,
+            widget::{ImageNode, InlineImage, Label, NodeImageMode, ViewportNode},
+            UiScale,
         },
         // `bevy_sprite` re-exports for texture slicing
         bevy_sprite::{BorderRect, SliceScaleMode, SpriteImageMode, TextureSlicer},
-        bevy_text::TextBackgroundColor,
+        bevy_text::{EmSize, RemSize, TextBackgroundColor},
     };
 }
 
@@ -80,11 +84,10 @@ use bevy_app::{prelude::*, AnimationSystems, HierarchyPropagatePlugin, Propagate
 use bevy_camera::CameraUpdateSystems;
 use bevy_ecs::prelude::*;
 use bevy_input::InputSystems;
-use bevy_transform::TransformSystems;
-use layout::ui_surface::UiSurface;
+use layout::clipping::update_clipping_system;
 use stack::ui_stack_system;
 pub use stack::{ComputedStackIndex, LocalUiStack, UiStack};
-use update::{propagate_ui_target_cameras, update_clipping_system};
+use update::propagate_ui_target_cameras;
 
 /// The basic plugin for Bevy UI
 #[derive(Default)]
@@ -107,7 +110,11 @@ pub enum UiSystems {
     ///
     /// Runs in [`PostUpdate`].
     Layout,
-    /// UI systems ordered after [`UiSystems::Layout`].
+    /// After this, UI clipping has been updated.
+    ///
+    /// Runs in [`PostUpdate`]
+    Clipping,
+    /// UI systems ordered after `UiSystems::Layout` and `UiSystems::Clipping`.
     ///
     /// Runs in [`PostUpdate`].
     PostLayout,
@@ -141,9 +148,13 @@ struct AmbiguousWithUpdateText2dLayout;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<UiSurface>()
-            .init_resource::<UiScale>()
+        app.init_resource::<UiScale>()
             .init_resource::<UiStack>()
+            .init_resource::<UiRoots>()
+            .register_required_components::<
+                bevy_text::EditableText,
+                widget::EditableTextContentSizeState,
+            >()
             .configure_sets(
                 PostUpdate,
                 (
@@ -152,9 +163,10 @@ impl Plugin for UiPlugin {
                     UiSystems::Propagate,
                     UiSystems::Content,
                     UiSystems::Layout,
+                    UiSystems::Clipping,
                     UiSystems::PostLayout,
                 )
-                    .chain(),
+                    .chain_weak(),
             )
             .configure_sets(
                 PostUpdate,
@@ -182,21 +194,25 @@ impl Plugin for UiPlugin {
                 widget::viewport_picking.in_set(PickingSystems::PostInput),
             );
 
-        ui_layout_system
-            .in_set(UiSystems::Layout)
-            .before(TransformSystems::Propagate)
-            // Text and Text2D operate on disjoint sets of entities
-            .ambiguous_with(bevy_sprite::update_text2d_layout);
-
         app.add_systems(
             PostUpdate,
             (
-                propagate_ui_target_cameras.in_set(UiSystems::Prepare),
-                ui_layout_system
-                    .in_set(UiSystems::Layout)
-                    .ambiguous_with(bevy_sprite::update_text2d_layout),
-                ui_stack_system.chain().in_set(UiSystems::Stack),
-                update_clipping_system.in_set(UiSystems::PostLayout),
+                propagate_ui_target_cameras
+                    .in_set(UiSystems::Prepare)
+                    .before(bevy_app::TransformGizmoRenderStep),
+                clear_transient_dirty_flags.in_set(UiSystems::Prepare),
+                (
+                    update_ui_roots,
+                    sync_taffy_styles_with_nodes,
+                    mark_dirty_ui_trees,
+                    ui_layout_system.ambiguous_with(bevy_sprite::update_text2d_layout),
+                    update_computed_nodes,
+                    update_border_radius,
+                )
+                    .chain()
+                    .in_set(UiSystems::Layout),
+                ui_stack_system.in_set(UiSystems::Stack),
+                update_clipping_system.in_set(UiSystems::Clipping),
                 // Potential conflicts: `Assets<Image>`
                 // They run independently since `widget::image_node_system` will only ever observe
                 // its own ImageNode, and `widget::text_system` & `bevy_text::update_text2d_layout`
@@ -223,6 +239,10 @@ impl Plugin for UiPlugin {
             .add_observer(interaction_states::on_remove_checkable)
             .add_observer(interaction_states::on_add_checked)
             .add_observer(interaction_states::on_remove_checked)
+            .add_observer(interaction_states::on_add_expandable)
+            .add_observer(interaction_states::on_remove_expandable)
+            .add_observer(interaction_states::on_add_expanded)
+            .add_observer(interaction_states::on_remove_expanded)
             .add_observer(interaction_states::on_add_selectable)
             .add_observer(interaction_states::on_remove_selectable)
             .add_observer(interaction_states::on_add_selected)
@@ -236,8 +256,10 @@ fn build_text_interop(app: &mut App) {
     app.add_systems(
         PostUpdate,
         (
+            widget::update_inline_image_boxes
+                .before(detect_text_needs_rerender)
+                .in_set(UiSystems::Content),
             widget::measure_text_system
-                .chain()
                 .after(detect_text_needs_rerender)
                 .after(bevy_text::load_font_assets_into_font_collection)
                 .in_set(UiSystems::Content)
@@ -269,7 +291,7 @@ fn build_text_interop(app: &mut App) {
                 .ambiguous_with(widget::measure_text_system)
                 .ambiguous_with(bevy_sprite::update_text2d_layout),
             widget::sync_editable_text_viewports
-                .after(UiSystems::Layout)
+                .after(UiSystems::Clipping)
                 .before(EditableTextSystems),
             widget::update_editable_text_layout
                 .in_set(UiSystems::PostLayout)
@@ -284,6 +306,9 @@ fn build_text_interop(app: &mut App) {
                 .ambiguous_with(widget::text_system)
                 .ambiguous_with(bevy_sprite::update_text2d_layout)
                 .ambiguous_with(bevy_sprite::calculate_bounds_text2d),
+            sync_font_size_to_em_size
+                .in_set(UiSystems::Content)
+                .after(bevy_text::load_font_assets_into_font_collection),
         ),
     );
 
