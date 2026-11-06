@@ -3,7 +3,7 @@ use bevy::prelude::*;
 
 const ALIGN_ITEMS_COLOR: Color = Color::srgb(1., 0.066, 0.349);
 const JUSTIFY_CONTENT_COLOR: Color = Color::srgb(0.102, 0.522, 1.);
-const MARGIN: Val = Val::Px(12.);
+const MARGIN: Val = Val::px(12.);
 
 fn main() {
     App::new()

@@ -97,18 +97,18 @@ fn calc_layout_resolves_percentages_and_updates_context() {
     let root = app
         .world_mut()
         .spawn(Node {
-            width: Val::Px(400.0),
-            height: Val::Px(100.0),
+            width: Val::px(400.0),
+            height: Val::px(100.0),
             ..default()
         })
         .id();
-    let width = Val::Percent(50.0) - Val::Em(1.0) - Val::Rem(1.0);
+    let width = Val::percent(50.0) - Val::em(1.0) - Val::rem(1.0);
     let child = app
         .world_mut()
         .spawn((
             Node {
                 width: width.clone(),
-                height: Val::Px(10.0) + Val::Px(10.0),
+                height: Val::px(10.0) + Val::px(10.0),
                 ..default()
             },
             EmSize(10.0),
@@ -121,7 +121,7 @@ fn calc_layout_resolves_percentages_and_updates_context() {
         Vec2::new(170.0, 20.0)
     );
 
-    app.world_mut().get_mut::<Node>(root).unwrap().width = Val::Px(600.0);
+    app.world_mut().get_mut::<Node>(root).unwrap().width = Val::px(600.0);
     app.world_mut().get_mut::<EmSize>(child).unwrap().0 = 30.0;
     app.world_mut().resource_mut::<RemSize>().0 = 40.0;
     app.update();
@@ -133,6 +133,7 @@ fn calc_layout_resolves_percentages_and_updates_context() {
     let style = app.world().get::<TaffyStyle>(child).unwrap();
     assert_eq!(
         style.calcs[0]
+            .0
             .resolve(600.0, &ValContext::default())
             .unwrap(),
         230.0
@@ -148,7 +149,7 @@ fn calc_layout_resolves_percentages_and_updates_context() {
         style: &style.style,
     };
     assert_eq!(measure_args.resolve_width().preferred, Some(230.0));
-    app.world_mut().get_mut::<Node>(child).unwrap().width = Val::Px(90.0);
+    app.world_mut().get_mut::<Node>(child).unwrap().width = Val::px(90.0);
     app.update();
     assert_eq!(
         app.world().get::<ComputedNode>(child).unwrap().size().x,
@@ -168,25 +169,25 @@ fn calc_layout_handles_containers_and_parent_width_based_padding() {
     let root = app
         .world_mut()
         .spawn(Node {
-            width: Val::Px(400.0),
-            height: Val::Px(200.0),
+            width: Val::px(400.0),
+            height: Val::px(200.0),
             ..default()
         })
         .id();
     let child = app
         .world_mut()
         .spawn(Node {
-            width: CalcOp::Clamp(Val::Px(100.0), Val::Percent(80.0), Val::Px(300.0)).into(),
-            height: Val::Percent(50.0) - Val::Px(10.0),
-            padding: UiRect::all(Val::Percent(5.0) + Val::Px(2.0)),
+            width: CalcOp::Clamp(Val::px(100.0), Val::percent(80.0), Val::px(300.0)).into(),
+            height: Val::percent(50.0) - Val::px(10.0),
+            padding: UiRect::all(Val::percent(5.0) + Val::px(2.0)),
             ..default()
         })
         .id();
     let grandchild = app
         .world_mut()
         .spawn(Node {
-            width: Val::Percent(100.0) - Val::Px(6.0),
-            height: Val::Px(10.0),
+            width: Val::percent(100.0) - Val::px(6.0),
+            height: Val::px(10.0),
             ..default()
         })
         .id();
@@ -223,15 +224,15 @@ fn ui_nodes_with_percent_100_dimensions_should_fill_their_parent() {
     let world = app.world_mut();
     let ui_root = world
         .spawn(Node {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
+            width: Val::percent(100.),
+            height: Val::percent(100.),
             ..default()
         })
         .id();
     let ui_child = world
         .spawn(Node {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
+            width: Val::percent(100.),
+            height: Val::percent(100.),
             ..default()
         })
         .id();
@@ -413,8 +414,8 @@ fn ui_root_node_should_act_like_position_absolute() {
     world.spawn(Node {
         // test should pass without explicitly requiring position_type to be set to Absolute
         // position_type: PositionType::Absolute,
-        width: Val::Px(size),
-        height: Val::Px(size),
+        width: Val::px(size),
+        height: Val::px(size),
         ..default()
     });
 
@@ -422,8 +423,8 @@ fn ui_root_node_should_act_like_position_absolute() {
 
     world.spawn(Node {
         // position_type: PositionType::Absolute,
-        width: Val::Px(size),
-        height: Val::Px(size),
+        width: Val::px(size),
+        height: Val::px(size),
         ..default()
     });
 
@@ -431,8 +432,8 @@ fn ui_root_node_should_act_like_position_absolute() {
 
     world.spawn(Node {
         // position_type: PositionType::Absolute,
-        width: Val::Px(size),
-        height: Val::Px(size),
+        width: Val::px(size),
+        height: Val::px(size),
         ..default()
     });
 
@@ -515,8 +516,8 @@ fn ui_node_should_properly_update_when_changing_target_camera() {
                 .insert(UiTargetCamera(target_camera_entity))
                 .insert(Node {
                     position_type: PositionType::Absolute,
-                    top: Val::Px(pos.y),
-                    left: Val::Px(pos.x),
+                    top: Val::px(pos.y),
+                    left: Val::px(pos.x),
                     ..default()
                 });
         }
@@ -568,8 +569,8 @@ fn ui_node_should_properly_update_when_changing_target_camera() {
     world.spawn((
         Node {
             position_type: PositionType::Absolute,
-            top: Val::Px(0.),
-            left: Val::Px(0.),
+            top: Val::px(0.),
+            left: Val::px(0.),
             ..default()
         },
         MovingUiNode,
@@ -669,8 +670,8 @@ fn fixed_root_is_a_root_node() {
     let fixed_entity = world
         .spawn((
             Node {
-                width: Val::Percent(50.),
-                height: Val::Percent(50.),
+                width: Val::percent(50.),
+                height: Val::percent(50.),
                 ..default()
             },
             FixedNode,
@@ -698,16 +699,16 @@ fn swap_fixed_nodes() {
 
     let a = world
         .spawn(Node {
-            width: Val::Percent(20.),
-            height: Val::Percent(20.),
+            width: Val::percent(20.),
+            height: Val::percent(20.),
             ..default()
         })
         .id();
     let b = world
         .spawn((
             Node {
-                width: Val::Percent(50.),
-                height: Val::Percent(50.),
+                width: Val::percent(50.),
+                height: Val::percent(50.),
                 ..default()
             },
             ChildOf(a),
@@ -830,30 +831,30 @@ fn fixed_node_children() {
 
     let a = world
         .spawn(Node {
-            width: Val::Percent(50.),
-            height: Val::Percent(50.),
+            width: Val::percent(50.),
+            height: Val::percent(50.),
             ..default()
         })
         .id();
     let b = world
         .spawn(Node {
-            width: Val::Percent(50.),
-            height: Val::Percent(50.),
+            width: Val::percent(50.),
+            height: Val::percent(50.),
             ..default()
         })
         .id();
     let c = world
         .spawn(Node {
-            width: Val::Percent(50.),
-            height: Val::Percent(50.),
+            width: Val::percent(50.),
+            height: Val::percent(50.),
             ..default()
         })
         .id();
     let p = world
         .spawn(Node {
             flex_direction: FlexDirection::Column,
-            width: Val::Px(200.),
-            height: Val::Px(100.),
+            width: Val::px(200.),
+            height: Val::px(100.),
             ..default()
         })
         .add_children(&[a, b, c])
@@ -1345,15 +1346,15 @@ fn ui_rounding_test() {
         .spawn(Node {
             display: Display::Grid,
             grid_template_columns: RepeatedGridTrack::min_content(2),
-            margin: UiRect::all(Val::Px(4.0)),
+            margin: UiRect::all(Val::px(4.0)),
             ..default()
         })
         .with_children(|commands| {
             for _ in 0..2 {
                 commands.spawn(Node {
                     display: Display::Grid,
-                    width: Val::Px(160.),
-                    height: Val::Px(160.),
+                    width: Val::px(160.),
+                    height: Val::px(160.),
                     ..default()
                 });
             }
@@ -1417,15 +1418,15 @@ fn no_camera_ui() {
 
     let ui_root = world
         .spawn(Node {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
+            width: Val::percent(100.),
+            height: Val::percent(100.),
             ..default()
         })
         .id();
     let ui_child = world
         .spawn(Node {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
+            width: Val::percent(100.),
+            height: Val::percent(100.),
             ..default()
         })
         .id();
@@ -1441,8 +1442,8 @@ fn rem_sized_node_is_rem_sized() {
     let world = app.world_mut();
     let ui_root = world
         .spawn(Node {
-            width: Val::Rem(3.),
-            height: Val::Rem(2.),
+            width: Val::rem(3.),
+            height: Val::rem(2.),
             ..default()
         })
         .id();
@@ -1478,8 +1479,8 @@ fn em_and_rem_sized_nodes_are_updated_on_changes_to_em_and_rem_sizes() {
     let ui_root = world
         .spawn((
             Node {
-                width: Val::Rem(20.),
-                height: Val::Em(30.),
+                width: Val::rem(20.),
+                height: Val::em(30.),
                 ..default()
             },
             TextFont::default().with_font_size(5.),
@@ -1489,8 +1490,8 @@ fn em_and_rem_sized_nodes_are_updated_on_changes_to_em_and_rem_sizes() {
     let child = world
         .spawn((
             Node {
-                width: Val::Em(5.),
-                height: Val::Rem(4.),
+                width: Val::em(5.),
+                height: Val::rem(4.),
                 ..default()
             },
             TextFont::default().with_font_size(15.),
@@ -2025,8 +2026,8 @@ fn clipping_updates_on_layout_changes() {
     let parent = app
         .world_mut()
         .spawn((Node {
-            width: Val::Px(60.),
-            height: Val::Px(20.),
+            width: Val::px(60.),
+            height: Val::px(20.),
             overflow: Overflow::clip(),
             ..default()
         },))
@@ -2037,7 +2038,7 @@ fn clipping_updates_on_layout_changes() {
 
     let initial_clip = app.world().get::<CalculatedClip>(child).unwrap().clone();
 
-    app.world_mut().get_mut::<Node>(parent).unwrap().width = Val::Px(80.);
+    app.world_mut().get_mut::<Node>(parent).unwrap().width = Val::px(80.);
     app.update();
 
     assert_ne!(

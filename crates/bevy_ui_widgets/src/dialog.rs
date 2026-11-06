@@ -200,7 +200,7 @@ fn dialog_drag(
 
     const SCREEN_EDGE_MARGIN: f32 = 16.;
 
-    // `distance` is in logical pixels; a `Val::Px` translation is scaled by
+    // `distance` is in logical pixels; a `Val::px` translation is scaled by
     // `UiScale`, so divide that out. Then clamp to the screen region using
     // the start of the pointer pos as an offset from screen bounds.
     let clamped_offset = (drag.distance / ui_scale.0).clamp(
@@ -210,8 +210,8 @@ fn dialog_drag(
     if let Ok(mut transform) = q_transform.get_mut(dialog) {
         let start = state.start_dialog_translation.clone();
         transform.translation = Val2::new(
-            start.x + Val::Px(clamped_offset.x),
-            start.y + Val::Px(clamped_offset.y),
+            start.x + Val::px(clamped_offset.x),
+            start.y + Val::px(clamped_offset.y),
         );
     }
 }

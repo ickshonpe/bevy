@@ -957,7 +957,7 @@ pub const DEFAULT_REM_SIZE_PX: f32 = 20.0;
 /// The root font size, in logical pixels.
 ///
 /// `Rem` units always resolve against this one global resource, including
-/// `FontSize::Rem`, `LetterSpacing::Rem` and `Val::Rem`.
+/// `FontSize::Rem`, `LetterSpacing::Rem` and `Val::rem`.
 #[derive(Resource, Copy, Clone, Debug, PartialEq, Deref, DerefMut, Reflect)]
 pub struct RemSize(pub f32);
 
@@ -967,7 +967,7 @@ impl Default for RemSize {
     }
 }
 
-/// The font size, in logical pixels, used to resolve `Val::Em` values in a UI node.
+/// The font size, in logical pixels, used to resolve `Val::em` values in a UI node.
 ///
 /// `Em` units are relative to the font size of the node they sit on, and this is that
 /// font size made concrete. Required by `Node`, so every UI node has one.
@@ -976,7 +976,7 @@ impl Default for RemSize {
 /// `RemSize` or render-target info changes; until then any value you place on it persists.
 /// If it does not have a `TextFont`, the value is yours to set, for example by an app-level
 /// propagation system. `EmSize` defaults to [`DEFAULT_REM_SIZE_PX`], which matches the default
-/// [`RemSize`] but does not track changes to it. Use `Val::Rem` instead for values that
+/// [`RemSize`] but does not track changes to it. Use `Val::rem` instead for values that
 /// should follow the root font size.
 ///
 /// Removing a `TextFont` leaves the last derived value in place.

@@ -1,7 +1,7 @@
 //! Shows an "anchor layout" style of ui layout
 use bevy::prelude::*;
 
-const MARGIN: Val = Val::Px(12.);
+const MARGIN: Val = Val::px(12.);
 
 fn main() {
     App::new()

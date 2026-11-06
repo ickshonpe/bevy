@@ -102,12 +102,12 @@ fn setup(mut commands: Commands) {
     commands
         .spawn((
             Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
+                width: Val::percent(100.0),
+                height: Val::percent(100.0),
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
-                row_gap: Val::Px(28.0),
+                row_gap: Val::px(28.0),
                 ..default()
             },
             Pickable::IGNORE,
@@ -126,7 +126,7 @@ fn setup(mut commands: Commands) {
                 Node {
                     flex_direction: FlexDirection::Row,
                     align_items: AlignItems::Center,
-                    column_gap: Val::Px(10.0),
+                    column_gap: Val::px(10.0),
                     ..default()
                 },
                 Pickable::IGNORE,
@@ -140,8 +140,8 @@ fn setup(mut commands: Commands) {
 
                 row.spawn((
                     Node {
-                        width: Val::Px(TRACK_WIDTH),
-                        height: Val::Px(TRACK_HEIGHT),
+                        width: Val::px(TRACK_WIDTH),
+                        height: Val::px(TRACK_HEIGHT),
                         position_type: PositionType::Relative,
                         align_items: AlignItems::Center,
                         ..default()
@@ -153,10 +153,10 @@ fn setup(mut commands: Commands) {
                     track.spawn((
                         SliderFill,
                         Node {
-                            width: Val::Px(fill_width(SLIDER_DEFAULT_VALUE)),
-                            height: Val::Px(FILL_HEIGHT),
+                            width: Val::px(fill_width(SLIDER_DEFAULT_VALUE)),
+                            height: Val::px(FILL_HEIGHT),
                             position_type: PositionType::Absolute,
-                            left: Val::Px(0.0),
+                            left: Val::px(0.0),
                             ..default()
                         },
                         BackgroundColor(COLOR_FILL),
@@ -167,11 +167,11 @@ fn setup(mut commands: Commands) {
                         .spawn((
                             SliderThumb,
                             Node {
-                                width: Val::Px(THUMB_SIZE),
-                                height: Val::Px(THUMB_SIZE),
+                                width: Val::px(THUMB_SIZE),
+                                height: Val::px(THUMB_SIZE),
                                 position_type: PositionType::Absolute,
-                                left: Val::Px(thumb_left(SLIDER_DEFAULT_VALUE)),
-                                border_radius: BorderRadius::all(Val::Px(4.0)),
+                                left: Val::px(thumb_left(SLIDER_DEFAULT_VALUE)),
+                                border_radius: BorderRadius::all(Val::px(4.0)),
                                 ..default()
                             },
                             BackgroundColor(COLOR_THUMB_IDLE),
@@ -209,7 +209,7 @@ fn setup(mut commands: Commands) {
             root.spawn((
                 Node {
                     flex_direction: FlexDirection::Row,
-                    column_gap: Val::Px(16.0),
+                    column_gap: Val::px(16.0),
                     ..default()
                 },
                 Pickable::IGNORE,
@@ -223,7 +223,7 @@ fn setup(mut commands: Commands) {
             root.spawn((
                 Node {
                     flex_direction: FlexDirection::Row,
-                    column_gap: Val::Px(20.0),
+                    column_gap: Val::px(20.0),
                     align_items: AlignItems::Center,
                     ..default()
                 },
@@ -233,8 +233,8 @@ fn setup(mut commands: Commands) {
                 row.spawn((
                     ToggleButton,
                     Node {
-                        padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
-                        border_radius: BorderRadius::all(Val::Px(6.0)),
+                        padding: UiRect::axes(Val::px(20.0), Val::px(10.0)),
+                        border_radius: BorderRadius::all(Val::px(6.0)),
                         ..default()
                     },
                     BackgroundColor(COLOR_TOGGLE_ON),
@@ -253,8 +253,8 @@ fn setup(mut commands: Commands) {
                 row.spawn((
                     ResetButton,
                     Node {
-                        padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
-                        border_radius: BorderRadius::all(Val::Px(6.0)),
+                        padding: UiRect::axes(Val::px(20.0), Val::px(10.0)),
+                        border_radius: BorderRadius::all(Val::px(6.0)),
                         ..default()
                     },
                     BackgroundColor(COLOR_RESET_IDLE),
@@ -287,8 +287,8 @@ fn spawn_decoy_button(parent: &mut ChildSpawnerCommands, label: &str) {
         .spawn((
             DecoyButton,
             Node {
-                padding: UiRect::axes(Val::Px(24.0), Val::Px(14.0)),
-                border_radius: BorderRadius::all(Val::Px(6.0)),
+                padding: UiRect::axes(Val::px(24.0), Val::px(14.0)),
+                border_radius: BorderRadius::all(Val::px(6.0)),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 ..default()
@@ -369,11 +369,11 @@ fn sync_thumb_and_label(
     mut thumb: Single<&mut Node, With<SliderThumb>>,
     mut value_label: Single<&mut Text, With<SliderLabel>>,
 ) {
-    thumb.left = Val::Px(thumb_left(value.0));
+    thumb.left = Val::px(thumb_left(value.0));
     value_label.0 = format!("Value: {:.2}", value.0);
 }
 
 /// Resizes the fill bar to match the current slider value.
 fn sync_fill(value: Res<SliderValue>, mut fill: Single<&mut Node, With<SliderFill>>) {
-    fill.width = Val::Px(fill_width(value.0));
+    fill.width = Val::px(fill_width(value.0));
 }

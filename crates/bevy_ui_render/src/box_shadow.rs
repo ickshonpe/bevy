@@ -29,7 +29,7 @@ use bevy_render::{GpuResourceAppExt, RenderApp, RenderStartup};
 use bevy_shader::{Shader, ShaderDefVal};
 use bevy_ui::{
     BoxShadow, CalculatedClip, ComputedNode, ComputedStackIndex, ComputedUiRenderTargetInfo,
-    ComputedUiTargetCamera, ResolvedBorderRadius, UiGlobalTransform, Val, ValContext,
+    ComputedUiTargetCamera, ResolvedBorderRadius, UiGlobalTransform, Val, ValContext, ValRef,
 };
 use bevy_utils::default;
 use bytemuck::{Pod, Zeroable};
@@ -313,9 +313,9 @@ pub fn extract_shadows(
                 continue;
             }
 
-            let resolve_val = |val: &Val, base, scale_factor| match val {
-                Val::Auto => 0.,
-                Val::Calc(_) => val
+            let resolve_val = |val: &Val, base, scale_factor| match val.unpack() {
+                ValRef::Auto => 0.,
+                ValRef::Calc(_) => val
                     .resolve(
                         base,
                         &ValContext {
@@ -326,14 +326,14 @@ pub fn extract_shadows(
                         },
                     )
                     .unwrap_or(0.),
-                Val::Px(px) => px * scale_factor,
-                Val::Percent(percent) => percent / 100. * base,
-                Val::Vw(percent) => percent / 100. * ui_physical_viewport_size.x,
-                Val::Vh(percent) => percent / 100. * ui_physical_viewport_size.y,
-                Val::VMin(percent) => percent / 100. * ui_physical_viewport_size.min_element(),
-                Val::VMax(percent) => percent / 100. * ui_physical_viewport_size.max_element(),
-                Val::Em(em) => em * uinode.em_size.0 * scale_factor,
-                Val::Rem(rem) => rem * uinode.rem_size.0 * scale_factor,
+                ValRef::Px(px) => px * scale_factor,
+                ValRef::Percent(percent) => percent / 100. * base,
+                ValRef::Vw(percent) => percent / 100. * ui_physical_viewport_size.x,
+                ValRef::Vh(percent) => percent / 100. * ui_physical_viewport_size.y,
+                ValRef::VMin(percent) => percent / 100. * ui_physical_viewport_size.min_element(),
+                ValRef::VMax(percent) => percent / 100. * ui_physical_viewport_size.max_element(),
+                ValRef::Em(em) => em * uinode.em_size.0 * scale_factor,
+                ValRef::Rem(rem) => rem * uinode.rem_size.0 * scale_factor,
             };
 
             let spread_x = resolve_val(&drop_shadow.spread_radius, uinode.size().x, scale_factor);

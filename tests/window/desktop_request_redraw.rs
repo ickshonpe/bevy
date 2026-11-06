@@ -56,8 +56,8 @@ fn setup(
 
     let node = Node {
         display: Display::Block,
-        padding: UiRect::all(Val::Px(10.0)),
-        row_gap: Val::Px(10.0),
+        padding: UiRect::all(Val::px(10.0)),
+        row_gap: Val::px(10.0),
         ..Default::default()
     };
 

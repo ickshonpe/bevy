@@ -334,7 +334,7 @@ fn compute_color_stops(
 
     // Fill the extracted color stops buffer
     extracted_color_stops.extend(stops.iter().map(|stop| {
-        if stop.point == Val::Auto {
+        if stop.point == Val::AUTO {
             (stop.color.to_linear(), f32::NAN, stop.hint)
         } else {
             sorted_stops_drain.next().unwrap()
@@ -474,8 +474,8 @@ pub fn extract_gradients(
                     let length = compute_gradient_line_length(0.0, uinode.size);
                     let extracted_stops = compute_color_stops(
                         &[
-                            ColorStop::new(color, Val::Percent(0.0)),
-                            ColorStop::new(color, Val::Percent(100.0)),
+                            ColorStop::new(color, Val::percent(0.0)),
+                            ColorStop::new(color, Val::percent(100.0)),
                         ],
                         target.scale_factor(),
                         length,

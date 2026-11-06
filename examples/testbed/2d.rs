@@ -641,10 +641,10 @@ mod color_consistency {
         commands.spawn((
             Node {
                 position_type: PositionType::Absolute,
-                bottom: Val::Px(0.0),
-                left: Val::Px(0.0),
-                width: Val::Percent(33.3),
-                height: Val::Px(STRIP_HEIGHT),
+                bottom: Val::px(0.0),
+                left: Val::px(0.0),
+                width: Val::percent(33.3),
+                height: Val::px(STRIP_HEIGHT),
                 ..default()
             },
             BackgroundColor(TEST_COLOR),

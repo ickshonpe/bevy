@@ -40,7 +40,7 @@ impl ColorStop {
     pub fn auto(color: impl Into<Color>) -> Self {
         Self {
             color: color.into(),
-            point: Val::Auto,
+            point: Val::AUTO,
             hint: 0.5,
         }
     }
@@ -49,7 +49,7 @@ impl ColorStop {
     pub fn px<V: ValNum>(color: impl Into<Color>, px: V) -> Self {
         Self {
             color: color.into(),
-            point: Val::Px(px.val_num_f32()),
+            point: Val::px(px.val_num_f32()),
             hint: 0.5,
         }
     }
@@ -58,7 +58,7 @@ impl ColorStop {
     pub fn percent<V: ValNum>(color: impl Into<Color>, percent: V) -> Self {
         Self {
             color: color.into(),
-            point: Val::Percent(percent.val_num_f32()),
+            point: Val::percent(percent.val_num_f32()),
             hint: 0.5,
         }
     }
@@ -84,7 +84,7 @@ impl From<Color> for ColorStop {
     fn from(color: Color) -> Self {
         Self {
             color,
-            point: Val::Auto,
+            point: Val::AUTO,
             hint: 0.5,
         }
     }
@@ -94,7 +94,7 @@ impl From<Srgba> for ColorStop {
     fn from(color: Srgba) -> Self {
         Self {
             color: color.into(),
-            point: Val::Auto,
+            point: Val::AUTO,
             hint: 0.5,
         }
     }
@@ -104,7 +104,7 @@ impl Default for ColorStop {
     fn default() -> Self {
         Self {
             color: Color::WHITE,
-            point: Val::Auto,
+            point: Val::AUTO,
             hint: 0.5,
         }
     }

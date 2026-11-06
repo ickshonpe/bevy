@@ -293,8 +293,8 @@ pub fn debug_draw(
                 .insert((
                     Node {
                         position_type: PositionType::Absolute,
-                        left: Val::Px(pointer_pos.x + 5.0) / scale.0,
-                        top: Val::Px(pointer_pos.y + 5.0) / scale.0,
+                        left: Val::px(pointer_pos.x + 5.0) / scale.0,
+                        top: Val::px(pointer_pos.y + 5.0) / scale.0,
                         padding: UiRect::px(10.0, 10.0, 8.0, 6.0),
                         ..Default::default()
                     },

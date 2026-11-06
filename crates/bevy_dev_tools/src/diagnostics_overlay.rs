@@ -18,11 +18,11 @@ use bevy_ui::prelude::*;
 
 /// Initial offset from the top left corner of the window
 /// for the diagnostics overlay
-const INITIAL_OFFSET: Val = Val::Px(32.);
+const INITIAL_OFFSET: Val = Val::px(32.);
 /// Alpha value for [`BackgroundColor`] of the overlay
 const BACKGROUND_COLOR_ALPHA: f32 = 0.75;
 /// Row and column gap for the diagnostics overlay
-const ROW_COLUMN_GAP: Val = Val::Px(4.);
+const ROW_COLUMN_GAP: Val = Val::px(4.);
 /// Padding for cels of the diagnostics overlay
 const DEFAULT_PADDING: UiRect = UiRect::px(4., 4., 4., 4.);
 /// Initial Z-index for the [`DiagnosticsOverlayPlane`]
@@ -272,8 +272,8 @@ fn build_plane(mut commands: Commands) {
     commands.spawn((
         DiagnosticsOverlayPlane,
         Node {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
+            width: Val::percent(100.),
+            height: Val::percent(100.),
             ..Default::default()
         },
         Pickable {
@@ -389,7 +389,7 @@ fn build_overlay(
             (
                 Node {
                     padding: DEFAULT_PADDING,
-                    border_radius: BorderRadius::top(Val::Px(4.)),
+                    border_radius: BorderRadius::top(Val::px(4.)),
                     ..Default::default()
                 },
                 DiagnosticsOverlayHeader,
@@ -413,7 +413,7 @@ fn build_overlay(
                     row_gap: ROW_COLUMN_GAP,
                     column_gap: ROW_COLUMN_GAP,
                     padding: DEFAULT_PADDING,
-                    border_radius: BorderRadius::bottom(Val::Px(4.)),
+                    border_radius: BorderRadius::bottom(Val::px(4.)),
                     ..Default::default()
                 },
                 DiagnosticsOverlayContents,
@@ -439,18 +439,18 @@ fn drag_by_header(
             panic!("DiagnosticsOverlayHeader has been tempered with. Parent was not a DiagnosticsOverlay.");
         };
         let delta = event.delta;
-        let Val::Px(top) = &mut node.top else {
+        let ValRef::Px(top) = node.top.unpack() else {
             panic!(
-                "DiagnosticsOverlay has been tempered with. Node must have `top` using `Val::Px`."
+                "DiagnosticsOverlay has been tempered with. Node must have `top` using `Val::px`."
             );
         };
-        *top += delta.y;
-        let Val::Px(left) = &mut node.left else {
+        node.top = Val::px(top + delta.y);
+        let ValRef::Px(left) = node.left.unpack() else {
             panic!(
-                "DiagnosticsOverlay has been tempered with. Node must have `left` using `Val::Px`."
+                "DiagnosticsOverlay has been tempered with. Node must have `left` using `Val::px`."
             );
         };
-        *left += delta.x;
+        node.left = Val::px(left + delta.x);
     }
 }
 

@@ -161,8 +161,8 @@ fn update_drag_proxies(
         let position =
             (location.position - viewport_rect.min) / scale + proxy.offset - overlay_origin;
         node.position_type = PositionType::Absolute;
-        node.left = Val::Px(position.x);
-        node.top = Val::Px(position.y);
+        node.left = Val::px(position.x);
+        node.top = Val::px(position.y);
     }
 }
 
@@ -313,8 +313,8 @@ mod tests {
         );
         let node = app.world().entity(proxy).get::<Node>().unwrap();
         assert_eq!(node.position_type, PositionType::Absolute);
-        assert_eq!(node.left, Val::Px(50.0));
-        assert_eq!(node.top, Val::Px(80.0));
+        assert_eq!(node.left, Val::px(50.0));
+        assert_eq!(node.top, Val::px(80.0));
     }
 
     #[test]

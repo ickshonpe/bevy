@@ -3853,7 +3853,7 @@ mod font_relative_units {
                     children![(
                         Node {
                             padding: UiRect::all(em(1)),
-                            flex_basis: Val::Auto,
+                            flex_basis: Val::AUTO,
                             border_radius: em(1).into(),
                             border: em(0.5).into(),
                             ..default()

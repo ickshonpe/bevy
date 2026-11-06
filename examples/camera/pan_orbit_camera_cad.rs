@@ -242,7 +242,7 @@ E           - Toggle explode
             ..default()
         },
         Node {
-            margin: UiRect::all(Val::Px(20.0)),
+            margin: UiRect::all(Val::px(20.0)),
             flex_direction: FlexDirection::Column,
             ..Default::default()
         },

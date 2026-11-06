@@ -203,25 +203,25 @@ fn ui() -> impl Scene {
     bsn! {
         Node
         Children [
-            @button() Node { width: Val::Px(200.) }
+            @button() Node { width: Val::px(200.) }
             --
-            @button() Node { width: Val::Px(200.) }
+            @button() Node { width: Val::px(200.) }
             --
-            @button() Node { width: Val::Px(200.) }
+            @button() Node { width: Val::px(200.) }
             --
-            @button() Node { width: Val::Px(200.) }
+            @button() Node { width: Val::px(200.) }
             --
-            @button() Node { width: Val::Px(200.) }
+            @button() Node { width: Val::px(200.) }
             --
-            @button() Node { width: Val::Px(200.) }
+            @button() Node { width: Val::px(200.) }
             --
-            @button() Node { width: Val::Px(200.) }
+            @button() Node { width: Val::px(200.) }
             --
-            @button() Node { width: Val::Px(200.) }
+            @button() Node { width: Val::px(200.) }
             --
-            @button() Node { width: Val::Px(200.) }
+            @button() Node { width: Val::px(200.) }
             --
-            @button() Node { width: Val::Px(200.) }
+            @button() Node { width: Val::px(200.) }
         ]
     }
 }
@@ -230,25 +230,25 @@ fn ui_loaded_asset() -> impl Scene {
     bsn! {
         Node
         Children [
-            :"button.bsn" Node { width: Val::Px(200.) }
+            :"button.bsn" Node { width: Val::px(200.) }
             --
-            :"button.bsn" Node { width: Val::Px(200.) }
+            :"button.bsn" Node { width: Val::px(200.) }
             --
-            :"button.bsn" Node { width: Val::Px(200.) }
+            :"button.bsn" Node { width: Val::px(200.) }
             --
-            :"button.bsn" Node { width: Val::Px(200.) }
+            :"button.bsn" Node { width: Val::px(200.) }
             --
-            :"button.bsn" Node { width: Val::Px(200.) }
+            :"button.bsn" Node { width: Val::px(200.) }
             --
-            :"button.bsn" Node { width: Val::Px(200.) }
+            :"button.bsn" Node { width: Val::px(200.) }
             --
-            :"button.bsn" Node { width: Val::Px(200.) }
+            :"button.bsn" Node { width: Val::px(200.) }
             --
-            :"button.bsn" Node { width: Val::Px(200.) }
+            :"button.bsn" Node { width: Val::px(200.) }
             --
-            :"button.bsn" Node { width: Val::Px(200.) }
+            :"button.bsn" Node { width: Val::px(200.) }
             --
-            :"button.bsn" Node { width: Val::Px(200.) }
+            :"button.bsn" Node { width: Val::px(200.) }
         ]
     }
 }
@@ -271,9 +271,9 @@ fn button() -> impl Scene {
     bsn! {
         Button
         Node {
-            width: Val::Px(150.0),
-            height: Val::Px(65.0),
-            border: UiRect::all(Val::Px(5.0)),
+            width: Val::px(150.0),
+            height: Val::px(65.0),
+            border: UiRect::all(Val::px(5.0)),
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
         }
@@ -305,9 +305,9 @@ fn raw_button() -> impl Bundle {
     (
         Button,
         Node {
-            width: Val::Px(200.0),
-            height: Val::Px(65.0),
-            border: UiRect::all(Val::Px(5.0)),
+            width: Val::px(200.0),
+            height: Val::px(65.0),
+            border: UiRect::all(Val::px(5.0)),
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
             ..Default::default()

@@ -173,7 +173,7 @@ pub fn sync_font_size_to_em_size(
     >,
     rem_size: Res<RemSize>,
 ) {
-    // `Val::Rem` resolves from rem size so need to recalc when this changes
+    // `Val::rem` resolves from rem size so need to recalc when this changes
     let rem_size_changed = rem_size.is_changed();
 
     for (mut em_size, text_font, computed_ui_render_target_info) in em_size_query.iter_mut() {

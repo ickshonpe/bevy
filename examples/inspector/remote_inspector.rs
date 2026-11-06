@@ -98,7 +98,7 @@ fn inspector_ui() -> impl Scene {
                 Children [
                     @entity_tree_panel()
                     Node {
-                        width: Val::Auto,
+                        width: Val::AUTO,
                     }
                 ]
                 --
@@ -108,7 +108,7 @@ fn inspector_ui() -> impl Scene {
                 Children [
                     @details_panel()
                     Node {
-                        width: Val::Auto,
+                        width: Val::AUTO,
                     }
                 ]
             ]

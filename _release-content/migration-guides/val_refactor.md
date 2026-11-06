@@ -10,3 +10,19 @@ pull_requests: [26409]
   arguments. The basis for percent values remains a separate argument.
 - `Val` has been moved from the `bevy_ui` crate's `geometry` module to a new module `val`.
 - `TaffyStyle` no longer implements `Clone`.
+- `Val` is no longer an `enum`. It is packed into eight bytes so that it can hold expressions.
+  Construct values with `Val::AUTO`, `Val::px`, `Val::percent`, `Val::vw`, `Val::vh`, `Val::vmin`,
+  `Val::vmax`, `Val::em` and `Val::rem`, and match on them through `Val::unpack`, which returns a
+  `ValRef` enum with the former variants:
+
+  ```rust
+  // 0.18
+  if let Val::Px(px) = node.width {
+      node.width = Val::Px(px + 10.0);
+  }
+
+  // 0.19
+  if let ValRef::Px(px) = node.width.unpack() {
+      node.width = Val::px(px + 10.0);
+  }
+  ```

@@ -1813,7 +1813,7 @@ fn spawn_widget(world: &mut World, row: Entity, entry: &FieldEntry) -> Option<Fi
                     on(inspector_field_color_changed)
                 },
             )?;
-            let text = spawn_text_input(world, cell, Val::Auto, 1.0)?;
+            let text = spawn_text_input(world, cell, Val::AUTO, 1.0)?;
             world
                 .entity_mut(text)
                 .observe(inspector_field_hex_entered)

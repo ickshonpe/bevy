@@ -17,7 +17,7 @@ use bevy_reflect::{ReflectDeserialize, ReflectSerialize};
 /// ```
 /// # use bevy_ui::{UiRect, Val};
 /// #
-/// let margin = UiRect::all(Val::Auto); // Centers the UI element
+/// let margin = UiRect::all(Val::AUTO); // Centers the UI element
 /// ```
 ///
 /// ## Padding
@@ -28,10 +28,10 @@ use bevy_reflect::{ReflectDeserialize, ReflectSerialize};
 /// # use bevy_ui::{UiRect, Val};
 /// #
 /// let padding = UiRect {
-///     left: Val::Px(10.0),
-///     right: Val::Px(20.0),
-///     top: Val::Px(30.0),
-///     bottom: Val::Px(40.0),
+///     left: Val::px(10.0),
+///     right: Val::px(20.0),
+///     top: Val::px(30.0),
+///     bottom: Val::px(40.0),
 /// };
 /// ```
 ///
@@ -43,10 +43,10 @@ use bevy_reflect::{ReflectDeserialize, ReflectSerialize};
 /// # use bevy_ui::{UiRect, Val};
 /// #
 /// let border = UiRect {
-///     left: Val::Px(10.0),
-///     right: Val::Px(20.0),
-///     top: Val::Px(30.0),
-///     bottom: Val::Px(40.0),
+///     left: Val::px(10.0),
+///     right: Val::px(20.0),
+///     top: Val::px(30.0),
+///     bottom: Val::px(40.0),
 /// };
 /// ```
 #[derive(Clone, PartialEq, Debug, Reflect)]
@@ -70,7 +70,7 @@ pub struct UiRect {
 impl UiRect {
     pub const DEFAULT: Self = Self::ZERO;
     pub const ZERO: Self = Self::new(Val::ZERO, Val::ZERO, Val::ZERO, Val::ZERO);
-    pub const AUTO: Self = Self::new(Val::Auto, Val::Auto, Val::Auto, Val::Auto);
+    pub const AUTO: Self = Self::new(Val::AUTO, Val::AUTO, Val::AUTO, Val::AUTO);
 
     /// Creates a new [`UiRect`] from the values specified.
     ///
@@ -80,16 +80,16 @@ impl UiRect {
     /// # use bevy_ui::{UiRect, Val};
     /// #
     /// let ui_rect = UiRect::new(
-    ///     Val::Px(10.0),
-    ///     Val::Px(20.0),
-    ///     Val::Px(30.0),
-    ///     Val::Px(40.0),
+    ///     Val::px(10.0),
+    ///     Val::px(20.0),
+    ///     Val::px(30.0),
+    ///     Val::px(40.0),
     /// );
     ///
-    /// assert_eq!(ui_rect.left, Val::Px(10.0));
-    /// assert_eq!(ui_rect.right, Val::Px(20.0));
-    /// assert_eq!(ui_rect.top, Val::Px(30.0));
-    /// assert_eq!(ui_rect.bottom, Val::Px(40.0));
+    /// assert_eq!(ui_rect.left, Val::px(10.0));
+    /// assert_eq!(ui_rect.right, Val::px(20.0));
+    /// assert_eq!(ui_rect.top, Val::px(30.0));
+    /// assert_eq!(ui_rect.bottom, Val::px(40.0));
     /// ```
     pub const fn new(left: Val, right: Val, top: Val, bottom: Val) -> Self {
         UiRect {
@@ -107,12 +107,12 @@ impl UiRect {
     /// ```
     /// # use bevy_ui::{UiRect, Val};
     /// #
-    /// let ui_rect = UiRect::all(Val::Px(10.0));
+    /// let ui_rect = UiRect::all(Val::px(10.0));
     ///
-    /// assert_eq!(ui_rect.left, Val::Px(10.0));
-    /// assert_eq!(ui_rect.right, Val::Px(10.0));
-    /// assert_eq!(ui_rect.top, Val::Px(10.0));
-    /// assert_eq!(ui_rect.bottom, Val::Px(10.0));
+    /// assert_eq!(ui_rect.left, Val::px(10.0));
+    /// assert_eq!(ui_rect.right, Val::px(10.0));
+    /// assert_eq!(ui_rect.top, Val::px(10.0));
+    /// assert_eq!(ui_rect.bottom, Val::px(10.0));
     /// ```
     pub fn all(value: Val) -> Self {
         UiRect {
@@ -125,7 +125,7 @@ impl UiRect {
 
     /// Creates a new [`UiRect`] from the values specified in logical pixels.
     ///
-    /// This is a shortcut for [`UiRect::new()`], applying [`Val::Px`] to all arguments.
+    /// This is a shortcut for [`UiRect::new()`], applying [`Val::px`] to all arguments.
     ///
     /// # Example
     ///
@@ -133,23 +133,23 @@ impl UiRect {
     /// # use bevy_ui::{UiRect, Val};
     /// #
     /// let ui_rect = UiRect::px(10., 20., 30., 40.);
-    /// assert_eq!(ui_rect.left, Val::Px(10.));
-    /// assert_eq!(ui_rect.right, Val::Px(20.));
-    /// assert_eq!(ui_rect.top, Val::Px(30.));
-    /// assert_eq!(ui_rect.bottom, Val::Px(40.));
+    /// assert_eq!(ui_rect.left, Val::px(10.));
+    /// assert_eq!(ui_rect.right, Val::px(20.));
+    /// assert_eq!(ui_rect.top, Val::px(30.));
+    /// assert_eq!(ui_rect.bottom, Val::px(40.));
     /// ```
     pub const fn px(left: f32, right: f32, top: f32, bottom: f32) -> Self {
         UiRect {
-            left: Val::Px(left),
-            right: Val::Px(right),
-            top: Val::Px(top),
-            bottom: Val::Px(bottom),
+            left: Val::px(left),
+            right: Val::px(right),
+            top: Val::px(top),
+            bottom: Val::px(bottom),
         }
     }
 
     /// Creates a new [`UiRect`] from the values specified in percentages.
     ///
-    /// This is a shortcut for [`UiRect::new()`], applying [`Val::Percent`] to all arguments.
+    /// This is a shortcut for [`UiRect::new()`], applying [`Val::percent`] to all arguments.
     ///
     /// # Example
     ///
@@ -157,17 +157,17 @@ impl UiRect {
     /// # use bevy_ui::{UiRect, Val};
     /// #
     /// let ui_rect = UiRect::percent(5., 10., 2., 1.);
-    /// assert_eq!(ui_rect.left, Val::Percent(5.));
-    /// assert_eq!(ui_rect.right, Val::Percent(10.));
-    /// assert_eq!(ui_rect.top, Val::Percent(2.));
-    /// assert_eq!(ui_rect.bottom, Val::Percent(1.));
+    /// assert_eq!(ui_rect.left, Val::percent(5.));
+    /// assert_eq!(ui_rect.right, Val::percent(10.));
+    /// assert_eq!(ui_rect.top, Val::percent(2.));
+    /// assert_eq!(ui_rect.bottom, Val::percent(1.));
     /// ```
     pub const fn percent(left: f32, right: f32, top: f32, bottom: f32) -> Self {
         UiRect {
-            left: Val::Percent(left),
-            right: Val::Percent(right),
-            top: Val::Percent(top),
-            bottom: Val::Percent(bottom),
+            left: Val::percent(left),
+            right: Val::percent(right),
+            top: Val::percent(top),
+            bottom: Val::percent(bottom),
         }
     }
 
@@ -179,10 +179,10 @@ impl UiRect {
     /// ```
     /// # use bevy_ui::{UiRect, Val};
     /// #
-    /// let ui_rect = UiRect::horizontal(Val::Px(10.0));
+    /// let ui_rect = UiRect::horizontal(Val::px(10.0));
     ///
-    /// assert_eq!(ui_rect.left, Val::Px(10.0));
-    /// assert_eq!(ui_rect.right, Val::Px(10.0));
+    /// assert_eq!(ui_rect.left, Val::px(10.0));
+    /// assert_eq!(ui_rect.right, Val::px(10.0));
     /// assert_eq!(ui_rect.top, Val::ZERO);
     /// assert_eq!(ui_rect.bottom, Val::ZERO);
     /// ```
@@ -202,12 +202,12 @@ impl UiRect {
     /// ```
     /// # use bevy_ui::{UiRect, Val};
     /// #
-    /// let ui_rect = UiRect::vertical(Val::Px(10.0));
+    /// let ui_rect = UiRect::vertical(Val::px(10.0));
     ///
     /// assert_eq!(ui_rect.left, Val::ZERO);
     /// assert_eq!(ui_rect.right, Val::ZERO);
-    /// assert_eq!(ui_rect.top, Val::Px(10.0));
-    /// assert_eq!(ui_rect.bottom, Val::Px(10.0));
+    /// assert_eq!(ui_rect.top, Val::px(10.0));
+    /// assert_eq!(ui_rect.bottom, Val::px(10.0));
     /// ```
     pub fn vertical(value: Val) -> Self {
         Self {
@@ -224,12 +224,12 @@ impl UiRect {
     /// ```
     /// # use bevy_ui::{UiRect, Val};
     /// #
-    /// let ui_rect = UiRect::axes(Val::Px(10.0), Val::Percent(15.0));
+    /// let ui_rect = UiRect::axes(Val::px(10.0), Val::percent(15.0));
     ///
-    /// assert_eq!(ui_rect.left, Val::Px(10.0));
-    /// assert_eq!(ui_rect.right, Val::Px(10.0));
-    /// assert_eq!(ui_rect.top, Val::Percent(15.0));
-    /// assert_eq!(ui_rect.bottom, Val::Percent(15.0));
+    /// assert_eq!(ui_rect.left, Val::px(10.0));
+    /// assert_eq!(ui_rect.right, Val::px(10.0));
+    /// assert_eq!(ui_rect.top, Val::percent(15.0));
+    /// assert_eq!(ui_rect.bottom, Val::percent(15.0));
     /// ```
     pub fn axes(horizontal: Val, vertical: Val) -> Self {
         Self {
@@ -248,9 +248,9 @@ impl UiRect {
     /// ```
     /// # use bevy_ui::{UiRect, Val};
     /// #
-    /// let ui_rect = UiRect::left(Val::Px(10.0));
+    /// let ui_rect = UiRect::left(Val::px(10.0));
     ///
-    /// assert_eq!(ui_rect.left, Val::Px(10.0));
+    /// assert_eq!(ui_rect.left, Val::px(10.0));
     /// assert_eq!(ui_rect.right, Val::ZERO);
     /// assert_eq!(ui_rect.top, Val::ZERO);
     /// assert_eq!(ui_rect.bottom, Val::ZERO);
@@ -270,10 +270,10 @@ impl UiRect {
     /// ```
     /// # use bevy_ui::{UiRect, Val};
     /// #
-    /// let ui_rect = UiRect::right(Val::Px(10.0));
+    /// let ui_rect = UiRect::right(Val::px(10.0));
     ///
     /// assert_eq!(ui_rect.left, Val::ZERO);
-    /// assert_eq!(ui_rect.right, Val::Px(10.0));
+    /// assert_eq!(ui_rect.right, Val::px(10.0));
     /// assert_eq!(ui_rect.top, Val::ZERO);
     /// assert_eq!(ui_rect.bottom, Val::ZERO);
     /// ```
@@ -292,11 +292,11 @@ impl UiRect {
     /// ```
     /// # use bevy_ui::{UiRect, Val};
     /// #
-    /// let ui_rect = UiRect::top(Val::Px(10.0));
+    /// let ui_rect = UiRect::top(Val::px(10.0));
     ///
     /// assert_eq!(ui_rect.left, Val::ZERO);
     /// assert_eq!(ui_rect.right, Val::ZERO);
-    /// assert_eq!(ui_rect.top, Val::Px(10.0));
+    /// assert_eq!(ui_rect.top, Val::px(10.0));
     /// assert_eq!(ui_rect.bottom, Val::ZERO);
     /// ```
     pub fn top(top: Val) -> Self {
@@ -314,12 +314,12 @@ impl UiRect {
     /// ```
     /// # use bevy_ui::{UiRect, Val};
     /// #
-    /// let ui_rect = UiRect::bottom(Val::Px(10.0));
+    /// let ui_rect = UiRect::bottom(Val::px(10.0));
     ///
     /// assert_eq!(ui_rect.left, Val::ZERO);
     /// assert_eq!(ui_rect.right, Val::ZERO);
     /// assert_eq!(ui_rect.top, Val::ZERO);
-    /// assert_eq!(ui_rect.bottom, Val::Px(10.0));
+    /// assert_eq!(ui_rect.bottom, Val::px(10.0));
     /// ```
     pub fn bottom(bottom: Val) -> Self {
         Self {
@@ -335,11 +335,11 @@ impl UiRect {
     /// ```
     /// # use bevy_ui::{UiRect, Val};
     /// #
-    /// let ui_rect = UiRect::all(Val::Px(20.0)).with_left(Val::Px(10.0));
-    /// assert_eq!(ui_rect.left, Val::Px(10.0));
-    /// assert_eq!(ui_rect.right, Val::Px(20.0));
-    /// assert_eq!(ui_rect.top, Val::Px(20.0));
-    /// assert_eq!(ui_rect.bottom, Val::Px(20.0));
+    /// let ui_rect = UiRect::all(Val::px(20.0)).with_left(Val::px(10.0));
+    /// assert_eq!(ui_rect.left, Val::px(10.0));
+    /// assert_eq!(ui_rect.right, Val::px(20.0));
+    /// assert_eq!(ui_rect.top, Val::px(20.0));
+    /// assert_eq!(ui_rect.bottom, Val::px(20.0));
     /// ```
     #[inline]
     pub fn with_left(mut self, left: Val) -> Self {
@@ -354,11 +354,11 @@ impl UiRect {
     /// ```
     /// # use bevy_ui::{UiRect, Val};
     /// #
-    /// let ui_rect = UiRect::all(Val::Px(20.0)).with_right(Val::Px(10.0));
-    /// assert_eq!(ui_rect.left, Val::Px(20.0));
-    /// assert_eq!(ui_rect.right, Val::Px(10.0));
-    /// assert_eq!(ui_rect.top, Val::Px(20.0));
-    /// assert_eq!(ui_rect.bottom, Val::Px(20.0));
+    /// let ui_rect = UiRect::all(Val::px(20.0)).with_right(Val::px(10.0));
+    /// assert_eq!(ui_rect.left, Val::px(20.0));
+    /// assert_eq!(ui_rect.right, Val::px(10.0));
+    /// assert_eq!(ui_rect.top, Val::px(20.0));
+    /// assert_eq!(ui_rect.bottom, Val::px(20.0));
     /// ```
     #[inline]
     pub fn with_right(mut self, right: Val) -> Self {
@@ -373,11 +373,11 @@ impl UiRect {
     /// ```
     /// # use bevy_ui::{UiRect, Val};
     /// #
-    /// let ui_rect = UiRect::all(Val::Px(20.0)).with_top(Val::Px(10.0));
-    /// assert_eq!(ui_rect.left, Val::Px(20.0));
-    /// assert_eq!(ui_rect.right, Val::Px(20.0));
-    /// assert_eq!(ui_rect.top, Val::Px(10.0));
-    /// assert_eq!(ui_rect.bottom, Val::Px(20.0));
+    /// let ui_rect = UiRect::all(Val::px(20.0)).with_top(Val::px(10.0));
+    /// assert_eq!(ui_rect.left, Val::px(20.0));
+    /// assert_eq!(ui_rect.right, Val::px(20.0));
+    /// assert_eq!(ui_rect.top, Val::px(10.0));
+    /// assert_eq!(ui_rect.bottom, Val::px(20.0));
     /// ```
     #[inline]
     pub fn with_top(mut self, top: Val) -> Self {
@@ -392,11 +392,11 @@ impl UiRect {
     /// ```
     /// # use bevy_ui::{UiRect, Val};
     /// #
-    /// let ui_rect = UiRect::all(Val::Px(20.0)).with_bottom(Val::Px(10.0));
-    /// assert_eq!(ui_rect.left, Val::Px(20.0));
-    /// assert_eq!(ui_rect.right, Val::Px(20.0));
-    /// assert_eq!(ui_rect.top, Val::Px(20.0));
-    /// assert_eq!(ui_rect.bottom, Val::Px(10.0));
+    /// let ui_rect = UiRect::all(Val::px(20.0)).with_bottom(Val::px(10.0));
+    /// assert_eq!(ui_rect.left, Val::px(20.0));
+    /// assert_eq!(ui_rect.right, Val::px(20.0));
+    /// assert_eq!(ui_rect.top, Val::px(20.0));
+    /// assert_eq!(ui_rect.bottom, Val::px(10.0));
     /// ```
     #[inline]
     pub fn with_bottom(mut self, bottom: Val) -> Self {
@@ -499,12 +499,12 @@ impl UiPosition {
 
     /// Creates a position in logical pixels from self with the given `x` and `y` coordinates
     pub fn at_px(self, x: f32, y: f32) -> Self {
-        self.at(Val::Px(x), Val::Px(y))
+        self.at(Val::px(x), Val::px(y))
     }
 
     /// Creates a percentage position from self with the given `x` and `y` coordinates
     pub fn at_percent(self, x: f32, y: f32) -> Self {
-        self.at(Val::Percent(x), Val::Percent(y))
+        self.at(Val::percent(x), Val::percent(y))
     }
 
     /// Creates a position from self with the given `anchor` point
@@ -591,7 +591,7 @@ impl From<(Val, Val)> for UiPosition {
 /// # use bevy_math::{Vec2, Vec2Swizzles};
 /// # use bevy_ui::{CornerRadius, Val, ValContext};
 /// # use bevy_text::{EmSize, RemSize};
-/// let radius = Val::Px(10.0);
+/// let radius = Val::px(10.0);
 /// let size = Vec2::new(100.0, 50.0);
 /// let viewport_size = Vec2::new(1920.0, 1080.0);
 /// let em_size = EmSize(20.0);
@@ -639,7 +639,7 @@ impl CornerRadius {
     /// A fully rounded corner with a circular radius of half the length of the node's shortest side.
     pub const MAX: Self = Self {
         x: Val::MAX,
-        y: Val::Auto,
+        y: Val::AUTO,
     };
 
     /// An elliptical corner with a horizontal radius of half the node's width and a vertical radius of half its height.
@@ -662,7 +662,7 @@ impl CornerRadius {
     /// # use bevy_math::Vec2;
     /// # use bevy_ui::{CornerRadius, Val, ValContext};
     /// # use bevy_text::{EmSize, RemSize};
-    /// let radius = Val::Px(30.0);
+    /// let radius = Val::px(30.0);
     /// let size = Vec2::new(100.0, 50.0);
     /// let viewport_size = Vec2::new(1920.0, 1080.0);
     /// let em_size = EmSize(20.0);
@@ -676,7 +676,7 @@ impl CornerRadius {
     ///
     /// let c1 = CornerRadius::circular(radius.clone());
     /// let c2 = CornerRadius {
-    ///     x: Val::Auto,
+    ///     x: Val::AUTO,
     ///     y: radius,
     /// };
     ///
@@ -694,7 +694,7 @@ impl CornerRadius {
     pub const fn circular(radius: Val) -> Self {
         Self {
             x: radius,
-            y: Val::Auto,
+            y: Val::AUTO,
         }
     }
 
@@ -708,7 +708,7 @@ impl CornerRadius {
     /// # use bevy_math::Vec2;
     /// # use bevy_ui::{CornerRadius, Val, ValContext};
     /// # use bevy_text::{EmSize, RemSize};
-    /// let radius = Val::Px(30.0);
+    /// let radius = Val::px(30.0);
     /// let size = Vec2::new(100.0, 50.0);
     /// let viewport_size = Vec2::new(1920.0, 1080.0);
     /// let em_size = EmSize(20.0);
@@ -752,27 +752,24 @@ impl CornerRadius {
 
     /// Resolves this corner radius into horizontal and vertical radii in physical pixels.
     pub fn resolve(&self, size: Vec2, context: &ValContext) -> Vec2 {
-        match self {
-            Self {
-                x: Val::Auto,
-                y: Val::Auto,
-            } => Vec2::ZERO,
-            Self {
-                x: radius,
-                y: Val::Auto,
+        match (self.x.unpack(), self.y.unpack()) {
+            (ValRef::Auto, ValRef::Auto) => Vec2::ZERO,
+            (_, ValRef::Auto) | (ValRef::Auto, _) => {
+                let radius = if matches!(self.y.unpack(), ValRef::Auto) {
+                    &self.x
+                } else {
+                    &self.y
+                };
+                Vec2::splat(
+                    radius
+                        .resolve(size.min_element(), context)
+                        .unwrap_or(0.)
+                        .clamp(0., 0.5 * size.min_element()),
+                )
             }
-            | Self {
-                x: Val::Auto,
-                y: radius,
-            } => Vec2::splat(
-                radius
-                    .resolve(size.min_element(), context)
-                    .unwrap_or(0.)
-                    .clamp(0., 0.5 * size.min_element()),
-            ),
-            Self { x, y } => Vec2::new(
-                x.resolve(size.x, context).unwrap_or(0.),
-                y.resolve(size.y, context).unwrap_or(0.),
+            _ => Vec2::new(
+                self.x.resolve(size.x, context).unwrap_or(0.),
+                self.y.resolve(size.y, context).unwrap_or(0.),
             )
             .clamp(Vec2::ZERO, 0.5 * size),
         }
@@ -808,11 +805,16 @@ impl From<[Val; 2]> for CornerRadius {
 
 impl PartialEq for CornerRadius {
     fn eq(&self, other: &Self) -> bool {
-        // `Val::Auto` is used to indicate that the radius on an axis is unset and that the value on the other axis should be interpreted as a circular radius.
-        // So  `CornerRadius { x: v, y: Val::AUTO } == CornerRadius { x: Val::Auto, y: v }`
-        match (self, other) {
-            (Self { x: r, y: Val::Auto }, Self { x: Val::Auto, y: s })
-            | (Self { x: Val::Auto, y: r }, Self { x: s, y: Val::Auto }) => r == s,
+        // `Val::AUTO` is used to indicate that the radius on an axis is unset and that the value on the other axis should be interpreted as a circular radius.
+        // So  `CornerRadius { x: v, y: Val::AUTO } == CornerRadius { x: Val::AUTO, y: v }`
+        match (
+            self.x.unpack(),
+            self.y.unpack(),
+            other.x.unpack(),
+            other.y.unpack(),
+        ) {
+            (_, ValRef::Auto, ValRef::Auto, _) => self.x == other.y,
+            (ValRef::Auto, _, _, ValRef::Auto) => self.y == other.x,
             _ => self.x == other.x && self.y == other.y,
         }
     }
@@ -832,16 +834,16 @@ mod tests {
 
         assert_eq!(
             CornerRadius {
-                x: Val::Px(100.),
-                y: Val::Auto,
+                x: Val::px(100.),
+                y: Val::AUTO,
             }
             .resolve(size, &context),
             vec2(25., 25.)
         );
         assert_eq!(
             CornerRadius {
-                x: Val::Px(40.),
-                y: Val::Px(40.),
+                x: Val::px(40.),
+                y: Val::px(40.),
             }
             .resolve(size, &context),
             vec2(40., 25.)
@@ -849,7 +851,7 @@ mod tests {
         assert_eq!(
             CornerRadius {
                 x: Val::ZERO,
-                y: Val::Px(20.),
+                y: Val::px(20.),
             }
             .resolve(size, &context),
             vec2(0., 20.)
@@ -868,8 +870,8 @@ mod tests {
 
     #[test]
     fn test_uirect_axes() {
-        let x = Val::Px(1.);
-        let y = Val::Vw(4.);
+        let x = Val::px(1.);
+        let y = Val::vw(4.);
         let r = UiRect::axes(x.clone(), y.clone());
         let h = UiRect::horizontal(x);
         let v = UiRect::vertical(y);
@@ -883,30 +885,30 @@ mod tests {
     #[test]
     fn uirect_px() {
         let r = UiRect::px(3., 5., 20., 999.);
-        assert_eq!(r.left, Val::Px(3.));
-        assert_eq!(r.right, Val::Px(5.));
-        assert_eq!(r.top, Val::Px(20.));
-        assert_eq!(r.bottom, Val::Px(999.));
+        assert_eq!(r.left, Val::px(3.));
+        assert_eq!(r.right, Val::px(5.));
+        assert_eq!(r.top, Val::px(20.));
+        assert_eq!(r.bottom, Val::px(999.));
     }
 
     #[test]
     fn uirect_percent() {
         let r = UiRect::percent(3., 5., 20., 99.);
-        assert_eq!(r.left, Val::Percent(3.));
-        assert_eq!(r.right, Val::Percent(5.));
-        assert_eq!(r.top, Val::Percent(20.));
-        assert_eq!(r.bottom, Val::Percent(99.));
+        assert_eq!(r.left, Val::percent(3.));
+        assert_eq!(r.right, Val::percent(5.));
+        assert_eq!(r.top, Val::percent(20.));
+        assert_eq!(r.bottom, Val::percent(99.));
     }
 
     #[test]
     fn corner_radius_partial_eq_with_auto() {
         assert_eq!(
-            CornerRadius::new(px(1.), Val::Auto),
-            CornerRadius::new(Val::Auto, px(1.)),
+            CornerRadius::new(px(1.), Val::AUTO),
+            CornerRadius::new(Val::AUTO, px(1.)),
         );
         assert_eq!(
-            CornerRadius::new(Val::Auto, percent(1.)),
-            CornerRadius::new(percent(1.), Val::Auto),
+            CornerRadius::new(Val::AUTO, percent(1.)),
+            CornerRadius::new(percent(1.), Val::AUTO),
         );
     }
 }

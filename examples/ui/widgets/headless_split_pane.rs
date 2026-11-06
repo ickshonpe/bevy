@@ -66,8 +66,8 @@ fn pane(size: f32, color: Color) -> impl Scene {
 
 fn handle(orientation: ControlOrientation) -> impl Scene {
     let (width, height, icon) = match orientation {
-        ControlOrientation::Horizontal => (px(6), Val::Auto, SystemCursorIcon::ColResize),
-        ControlOrientation::Vertical => (Val::Auto, px(6), SystemCursorIcon::RowResize),
+        ControlOrientation::Horizontal => (px(6), Val::AUTO, SystemCursorIcon::ColResize),
+        ControlOrientation::Vertical => (Val::AUTO, px(6), SystemCursorIcon::RowResize),
     };
     bsn! {
         SplitPaneHandle

@@ -68,7 +68,7 @@ use derive_more::derive::From;
 ///             color_texture: asset_server.load("some_image.png"),
 ///         })),
 ///         Node {
-///             width: Val::Percent(100.0),
+///             width: Val::percent(100.0),
 ///             ..Default::default()
 ///         },
 ///     ));

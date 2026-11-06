@@ -39,7 +39,7 @@ impl Default for FeathersDialogProps {
     fn default() -> Self {
         Self {
             contents: Box::new(bsn_list! {}),
-            width: Val::Auto,
+            width: Val::AUTO,
         }
     }
 }
@@ -118,7 +118,7 @@ impl Default for FeathersFloatingDialogProps {
         Self {
             title: String::new(),
             contents: Box::new(bsn_list! {}),
-            width: Val::Auto,
+            width: Val::AUTO,
             left: px(120),
             top: px(120),
         }

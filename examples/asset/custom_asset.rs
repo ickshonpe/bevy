@@ -39,8 +39,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
     let parent = commands
         .spawn(Node {
-            width: Val::Vw(100.0),
-            height: Val::Vh(100.0),
+            width: Val::vw(100.0),
+            height: Val::vh(100.0),
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
             ..Default::default()

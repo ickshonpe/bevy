@@ -61,11 +61,11 @@ pub struct ComputedNode {
     /// Inverse scale factor for this Node.
     /// Multiply physical coordinates by the inverse scale factor to give logical coordinates.
     pub inverse_scale_factor: f32,
-    /// The font size used to resolve this node's `Val::Em` lengths, in logical pixels.
+    /// The font size used to resolve this node's `Val::em` lengths, in logical pixels.
     ///
     /// Copied from the node's [`EmSize`] component during layout.
     pub em_size: EmSize,
-    /// The root font size used to resolve this node's `Val::Rem` lengths, in logical pixels.
+    /// The root font size used to resolve this node's `Val::rem` lengths, in logical pixels.
     ///
     /// Copied from the [`RemSize`] resource during layout.
     // Stored per node rather than read from the resource because `ComputedNode` is extracted
@@ -648,10 +648,10 @@ pub struct Node {
     /// # use bevy_ui::{Node, UiRect, Val};
     /// let node = Node {
     ///     margin: UiRect {
-    ///         left: Val::Percent(10.),
-    ///         right: Val::Percent(10.),
-    ///         top: Val::Percent(15.),
-    ///         bottom: Val::Percent(15.)
+    ///         left: Val::percent(10.),
+    ///         right: Val::percent(10.),
+    ///         top: Val::percent(15.),
+    ///         bottom: Val::percent(15.)
     ///     },
     ///     ..Default::default()
     /// };
@@ -670,10 +670,10 @@ pub struct Node {
     /// # use bevy_ui::{Node, UiRect, Val};
     /// let node = Node {
     ///     padding: UiRect {
-    ///         left: Val::Percent(1.),
-    ///         right: Val::Percent(2.),
-    ///         top: Val::Percent(3.),
-    ///         bottom: Val::Percent(4.)
+    ///         left: Val::percent(1.),
+    ///         right: Val::percent(2.),
+    ///         top: Val::percent(3.),
+    ///         bottom: Val::percent(4.)
     ///     },
     ///     ..Default::default()
     /// };
@@ -708,18 +708,18 @@ pub struct Node {
     /// fn setup_ui(mut commands: Commands) {
     ///     commands.spawn((
     ///         Node {
-    ///             width: Val::Px(100.),
-    ///             height: Val::Px(100.),
-    ///             border: UiRect::all(Val::Px(2.)),
+    ///             width: Val::px(100.),
+    ///             height: Val::px(100.),
+    ///             border: UiRect::all(Val::px(2.)),
     ///             border_radius: BorderRadius::new(
     ///                 // top left
-    ///                 Val::Px(10.),
+    ///                 Val::px(10.),
     ///                 // top right
-    ///                 Val::Px(20.),
+    ///                 Val::px(20.),
     ///                 // bottom right
-    ///                 Val::Px(30.),
+    ///                 Val::px(30.),
     ///                 // bottom left
-    ///                 Val::Px(40.),
+    ///                 Val::px(40.),
     ///             ),
     ///             ..Default::default()
     ///         },
@@ -760,14 +760,14 @@ pub struct Node {
 
     /// The size of the gutters between items in a vertical flexbox layout or between rows in a grid layout.
     ///
-    /// Note: Values of `Val::Auto` are not valid and are treated as zero.
+    /// Note: Values of `Val::AUTO` are not valid and are treated as zero.
     ///
     /// <https://developer.mozilla.org/en-US/docs/Web/CSS/row-gap>
     pub row_gap: Val,
 
     /// The size of the gutters between items in a horizontal flexbox layout or between column in a grid layout.
     ///
-    /// Note: Values of `Val::Auto` are not valid and are treated as zero.
+    /// Note: Values of `Val::AUTO` are not valid and are treated as zero.
     ///
     /// <https://developer.mozilla.org/en-US/docs/Web/CSS/column-gap>
     pub column_gap: Val,
@@ -817,10 +817,10 @@ impl Node {
         display: Display::DEFAULT,
         box_sizing: BoxSizing::DEFAULT,
         position_type: PositionType::DEFAULT,
-        left: Val::Auto,
-        right: Val::Auto,
-        top: Val::Auto,
-        bottom: Val::Auto,
+        left: Val::AUTO,
+        right: Val::AUTO,
+        top: Val::AUTO,
+        bottom: Val::AUTO,
         flex_direction: FlexDirection::DEFAULT,
         flex_wrap: FlexWrap::DEFAULT,
         align_items: AlignItems::Normal,
@@ -836,13 +836,13 @@ impl Node {
         border_radius: BorderRadius::DEFAULT,
         flex_grow: 0.0,
         flex_shrink: 1.0,
-        flex_basis: Val::Auto,
-        width: Val::Auto,
-        height: Val::Auto,
-        min_width: Val::Auto,
-        min_height: Val::Auto,
-        max_width: Val::Auto,
-        max_height: Val::Auto,
+        flex_basis: Val::AUTO,
+        width: Val::AUTO,
+        height: Val::AUTO,
+        min_width: Val::AUTO,
+        min_height: Val::AUTO,
+        max_width: Val::AUTO,
+        max_height: Val::AUTO,
         aspect_ratio: None,
         overflow: Overflow::DEFAULT,
         overflow_clip_margin: OverflowClipMargin::DEFAULT,
@@ -2662,12 +2662,12 @@ impl Default for BorderColor {
 /// fn setup_ui(mut commands: Commands) {
 ///     commands.spawn((
 ///         Node {
-///             width: Val::Px(100.),
-///             height: Val::Px(100.),
+///             width: Val::px(100.),
+///             height: Val::px(100.),
 ///             ..Default::default()
 ///         },
 ///         BackgroundColor(BLUE.into()),
-///         Outline::new(Val::Px(10.), Val::ZERO, RED.into())
+///         Outline::new(Val::px(10.), Val::ZERO, RED.into())
 ///     ));
 /// }
 /// ```
@@ -2692,7 +2692,7 @@ impl Default for BorderColor {
 ///         if let Some(mut outline) = maybe_outline {
 ///             outline.color = outline_color;
 ///         } else {
-///             commands.entity(entity).insert(Outline::new(Val::Px(10.), Val::ZERO, outline_color));
+///             commands.entity(entity).insert(Outline::new(Val::px(10.), Val::ZERO, outline_color));
 ///         }
 ///     }
 /// }
@@ -2730,8 +2730,8 @@ impl Default for Outline {
     fn default() -> Self {
         Self {
             color: Color::WHITE,
-            width: Val::Px(1.),
-            offset: Val::Px(0.),
+            width: Val::px(1.),
+            offset: Val::px(0.),
         }
     }
 }
@@ -2915,9 +2915,9 @@ impl<T: Into<Color>> From<T> for OuterColor {
 /// fn setup_ui(mut commands: Commands) {
 ///     commands.spawn((
 ///         Node {
-///             width: Val::Px(100.),
-///             height: Val::Px(100.),
-///             border: UiRect::all(Val::Px(2.)),
+///             width: Val::px(100.),
+///             height: Val::px(100.),
+///             border: UiRect::all(Val::px(2.)),
 ///             border_radius: BorderRadius {
 ///                 // rounded corners, x and y radii equal
 ///                 top_left: CornerRadius::circular(px(10.)),
@@ -3016,10 +3016,10 @@ impl BorderRadius {
     #[inline]
     pub const fn px(top_left: f32, top_right: f32, bottom_right: f32, bottom_left: f32) -> Self {
         Self {
-            top_left: CornerRadius::circular(Val::Px(top_left)),
-            top_right: CornerRadius::circular(Val::Px(top_right)),
-            bottom_right: CornerRadius::circular(Val::Px(bottom_right)),
-            bottom_left: CornerRadius::circular(Val::Px(bottom_left)),
+            top_left: CornerRadius::circular(Val::px(top_left)),
+            top_right: CornerRadius::circular(Val::px(top_right)),
+            bottom_right: CornerRadius::circular(Val::px(bottom_right)),
+            bottom_left: CornerRadius::circular(Val::px(bottom_left)),
         }
     }
 
@@ -3032,10 +3032,10 @@ impl BorderRadius {
         bottom_left: f32,
     ) -> Self {
         Self {
-            top_left: CornerRadius::circular(Val::Percent(top_left)),
-            top_right: CornerRadius::circular(Val::Percent(top_right)),
-            bottom_right: CornerRadius::circular(Val::Percent(bottom_right)),
-            bottom_left: CornerRadius::circular(Val::Percent(bottom_left)),
+            top_left: CornerRadius::circular(Val::percent(top_left)),
+            top_right: CornerRadius::circular(Val::percent(top_right)),
+            bottom_right: CornerRadius::circular(Val::percent(bottom_right)),
+            bottom_left: CornerRadius::circular(Val::percent(bottom_left)),
         }
     }
 
@@ -3343,10 +3343,10 @@ impl Default for ShadowStyle {
     fn default() -> Self {
         Self {
             color: Color::BLACK,
-            x_offset: Val::Percent(20.),
-            y_offset: Val::Percent(20.),
+            x_offset: Val::percent(20.),
+            y_offset: Val::percent(20.),
             spread_radius: Val::ZERO,
-            blur_radius: Val::Percent(10.),
+            blur_radius: Val::percent(10.),
         }
     }
 }
@@ -3533,7 +3533,7 @@ pub struct FixedNode;
 /// - `FixedNode` is ignored on a `GhostNode`.
 /// - `OverrideClip` is not ignored on a `GhostNode`.
 /// - Clipping propagates through `GhostNode`'s but their `Node::overflow` setting is ignored.
-/// - A `GhostNode`'s children's `Val::Percent` coords are resolved based on the the size of their nearest non-ghost ancestor,
+/// - A `GhostNode`'s children's `Val::percent` coords are resolved based on the the size of their nearest non-ghost ancestor,
 ///   skipping any intermediate ghosts, or the size of the viewport if they have no non-ghost ancestors.
 /// - A root `GhostNode`'s children are UI root nodes each with their own implicit viewport node.
 #[derive(Component, Debug, Copy, Clone, Reflect, Default)]

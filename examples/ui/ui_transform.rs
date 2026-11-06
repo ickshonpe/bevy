@@ -100,8 +100,10 @@ fn translation_system(
         if input.pressed(key_code) {
             for mut transform in translation_query.iter_mut() {
                 let d = direction * 50.0 * time.delta_secs();
-                let (Val::Px(x), Val::Px(y)) = (&transform.translation.x, &transform.translation.y)
-                else {
+                let (ValRef::Px(x), ValRef::Px(y)) = (
+                    transform.translation.x.unpack(),
+                    transform.translation.y.unpack(),
+                ) else {
                     continue;
                 };
                 let x = (x + d.x).clamp(-150., 150.);

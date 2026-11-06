@@ -28,7 +28,7 @@ use bevy_text::{FontSourceTemplate, FontWeight, LineBreak, TextLayout};
 use bevy_ui::{
     px, AlignItems, BorderRadius, BoxShadow, ComputedNode, Display, FlexDirection, GlobalZIndex,
     InlineDirection, InteractionDisabled, Node, OuterColor, Outline, Overflow, PositionType,
-    Selected, UiRect, UiSystems, Val,
+    Selected, UiRect, UiSystems, Val, ValRef,
 };
 use bevy_ui_widgets::{
     ControlOrientation, DragOverlayRoot, DragProxy, SelectedTab, Tab, TabActivation, TabDragMode,
@@ -370,9 +370,9 @@ pub struct FeathersTabDragProxy;
 
 /// Returns the height of a horizontal strip holding one row of tabs, so an empty strip matches.
 fn strip_min_height() -> Val {
-    match size::ROW_HEIGHT {
-        Val::Px(row) => px(STRIP_INSET + STRIP_BORDER + row),
-        other => other,
+    match size::ROW_HEIGHT.unpack() {
+        ValRef::Px(row) => px(STRIP_INSET + STRIP_BORDER + row),
+        _ => size::ROW_HEIGHT,
     }
 }
 
@@ -519,8 +519,8 @@ fn arrange_tab_lists(
 ) {
     for (list, tablist, children) in &lists {
         let (start_margin, end_margin) = match tablist.orientation {
-            ControlOrientation::Horizontal => (UiRect::right(px(4)), UiRect::left(Val::Auto)),
-            ControlOrientation::Vertical => (UiRect::bottom(px(4)), UiRect::top(Val::Auto)),
+            ControlOrientation::Horizontal => (UiRect::right(px(4)), UiRect::left(Val::AUTO)),
+            ControlOrientation::Vertical => (UiRect::bottom(px(4)), UiRect::top(Val::AUTO)),
         };
         for child in children.iter().copied() {
             if let Ok(mut node) = start.get_mut(child)
@@ -885,7 +885,7 @@ fn spawn_tab_drag_proxy(
         .unwrap_or_default();
     let length = |value: f32| match value > 0.0 {
         true => px(value),
-        false => Val::Auto,
+        false => Val::AUTO,
     };
     let proxy = commands.spawn_empty().id();
     let captions = children
@@ -936,7 +936,7 @@ fn spawn_tab_drag_proxy(
         Node {
             display: Display::Flex,
             position_type: PositionType::Absolute,
-            width: Val::Auto,
+            width: Val::AUTO,
             height: length(size.y),
             min_height: size::ROW_HEIGHT,
             align_items: AlignItems::Center,
@@ -1325,7 +1325,7 @@ mod tests {
         );
         assert!(ghost.contains::<BoxShadow>());
         let ghost_node = ghost.get::<Node>().unwrap();
-        assert_eq!(ghost_node.width, Val::Auto);
+        assert_eq!(ghost_node.width, Val::AUTO);
         assert_eq!(ghost_node.overflow, Overflow::visible());
         assert_eq!(
             ghost.get::<ThemeBackgroundColor>().unwrap().0,
@@ -1739,7 +1739,7 @@ mod tests {
         assert_eq!(kinds, ["start", "tab", "tab", "end"]);
         assert_eq!(
             world.entity(children[3]).get::<Node>().unwrap().margin,
-            UiRect::left(Val::Auto)
+            UiRect::left(Val::AUTO)
         );
         let is_tab = |entity: Entity| world.entity(entity).contains::<Tab>();
         assert_eq!(
@@ -1774,15 +1774,15 @@ mod tests {
         let world = app.world();
         let list = world.entity(list).get::<Node>().unwrap();
         let tab = world.entity(tab).get::<Node>().unwrap();
-        let (Val::Px(tab_height), Val::Px(min_height)) =
-            (tab.min_height.clone(), list.min_height.clone())
+        let (ValRef::Px(tab_height), ValRef::Px(min_height)) =
+            (tab.min_height.unpack(), list.min_height.unpack())
         else {
             panic!("expected pixel heights");
         };
-        let Val::Px(top) = list.padding.top else {
+        let ValRef::Px(top) = list.padding.top.unpack() else {
             panic!("expected pixel padding");
         };
-        let Val::Px(border) = list.border.top else {
+        let ValRef::Px(border) = list.border.top.unpack() else {
             panic!("expected pixel border");
         };
         assert_eq!(min_height, top + border + tab_height);

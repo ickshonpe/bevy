@@ -21,9 +21,9 @@ use taffy::{
 };
 
 use crate::{
-    layout::UiTreeDirty, val::CalcOp, ContentSize, FixedNode, GhostNode, IgnoreScroll,
-    LayoutConfig, LayoutError, Measure, MeasureArgs, Node, NodeMeasure, Outline, OverrideClip,
-    ScrollPosition, UiTransform, ValContext,
+    layout::UiTreeDirty, val::Calc, ContentSize, FixedNode, GhostNode, IgnoreScroll, LayoutConfig,
+    LayoutError, Measure, MeasureArgs, Node, NodeMeasure, Outline, OverrideClip, ScrollPosition,
+    UiTransform, ValContext,
 };
 
 #[expect(
@@ -41,17 +41,17 @@ unsafe impl Send for TaffyStyle {}
 unsafe impl Sync for TaffyStyle {}
 
 /// Cached Taffy `Style`, updated from an entity's `Node` component on changes.
-/// `Style` references `CalcOp`s using percentages that can't be resolved until layout using raw pointers.
+/// `Style` references `Calc`s using percentages that can't be resolved until layout using raw pointers.
 /// The `Vec` is used to keep the percentages alive because Taffy's `CompactLength` pointers are non-owning.
 
 #[derive(Default, Component)]
 pub struct TaffyStyle {
     /// Taffy `Style` converted from a `Node`.
     pub(crate) style: Style,
-    /// Owns the `CalcOp`s referenced by raw pointers in `style`.
+    /// Owns the `Calc`s referenced by raw pointers in `style`.
     /// Boxing keeps their addresses stable when the vector reallocates.
-    /// These `CalcOp`s are reduced to operations only using `Px` and `Percentage` before layout.
-    pub(crate) calcs: Vec<Box<CalcOp>>,
+    /// These `Calc`s are reduced to operations only using `Px` and `Percentage` before layout.
+    pub(crate) calcs: Vec<Box<Calc>>,
 }
 
 /// Resolves a calc pointer that taffy read back out of a [`TaffyStyle`] against the
@@ -62,8 +62,8 @@ pub struct TaffyStyle {
 )]
 pub(crate) fn resolve_calc(ptr: *const (), basis: f32) -> f32 {
     // SAFETY: Taffy hands back the pointer it was given, which points into a `Box<PercentageCalc>` owned by the same `TaffyStyle`
-    let calc = unsafe { &*ptr.cast::<CalcOp>() };
-    calc.resolve(basis, &ValContext::default()).unwrap()
+    let calc = unsafe { &*ptr.cast::<Calc>() };
+    calc.0.resolve(basis, &ValContext::default()).unwrap()
 }
 
 pub static VIEWPORT_NODE_TAFFY_STYLE: TaffyStyle = TaffyStyle {

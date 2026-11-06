@@ -21,12 +21,12 @@ use core::ops::Mul;
 )]
 pub struct Val2 {
     /// Translate the node along the x-axis.
-    /// `Val::Percent` values are resolved based on the computed width of the Ui Node.
-    /// `Val::Auto` is resolved to `0.`.
+    /// `Val::percent` values are resolved based on the computed width of the Ui Node.
+    /// `Val::AUTO` is resolved to `0.`.
     pub x: Val,
     /// Translate the node along the y-axis.
-    /// `Val::Percent` values are resolved based on the computed height of the UI Node.
-    /// `Val::Auto` is resolved to `0.`.
+    /// `Val::percent` values are resolved based on the computed height of the UI Node.
+    /// `Val::AUTO` is resolved to `0.`.
     pub y: Val,
 }
 
@@ -48,17 +48,17 @@ impl Val2 {
 
     /// Creates a new [`Val2`] where both components are in logical pixels
     pub fn px<X: ValNum, Y: ValNum>(x: X, y: Y) -> Self {
-        Self::new(Val::Px(x.val_num_f32()), Val::Px(y.val_num_f32()))
+        Self::new(Val::px(x.val_num_f32()), Val::px(y.val_num_f32()))
     }
 
     /// Creates a new [`Val2`] where both components are percentage values
     pub fn percent<X: ValNum, Y: ValNum>(x: X, y: Y) -> Self {
-        Self::new(Val::Percent(x.val_num_f32()), Val::Percent(y.val_num_f32()))
+        Self::new(Val::percent(x.val_num_f32()), Val::percent(y.val_num_f32()))
     }
 
     /// Resolves this [`Val2`] from the given `base_size` and `context`.
     ///
-    /// Component values of [`Val::Auto`] are resolved to 0.
+    /// Component values of [`Val::AUTO`] are resolved to 0.
     pub fn resolve(&self, base_size: Vec2, context: &ValContext) -> Vec2 {
         Vec2::new(
             self.x.resolve(base_size.x, context).unwrap_or(0.),
@@ -109,8 +109,9 @@ impl UiTransform {
     /// Creates a UI transform representing a rotation.
     pub const fn from_rotation(rotation: Rot2) -> Self {
         Self {
+            translation: Val2::ZERO,
+            scale: Vec2::ONE,
             rotation,
-            ..Self::IDENTITY
         }
     }
 
@@ -118,15 +119,17 @@ impl UiTransform {
     pub const fn from_translation(translation: Val2) -> Self {
         Self {
             translation,
-            ..Self::IDENTITY
+            scale: Vec2::ONE,
+            rotation: Rot2::IDENTITY,
         }
     }
 
     /// Creates a UI transform representing a scaling.
     pub const fn from_scale(scale: Vec2) -> Self {
         Self {
+            translation: Val2::ZERO,
             scale,
-            ..Self::IDENTITY
+            rotation: Rot2::IDENTITY,
         }
     }
 
@@ -134,7 +137,8 @@ impl UiTransform {
     pub const fn from_xy(x: Val, y: Val) -> Self {
         Self {
             translation: Val2::new(x, y),
-            ..Self::IDENTITY
+            scale: Vec2::ONE,
+            rotation: Rot2::IDENTITY,
         }
     }
 

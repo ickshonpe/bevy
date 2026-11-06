@@ -98,7 +98,7 @@ Scroll - Zoom";
             ..default()
         },
         Node {
-            margin: UiRect::all(Val::Px(20.0)),
+            margin: UiRect::all(Val::px(20.0)),
             ..Default::default()
         },
     ));

@@ -247,23 +247,27 @@ fn on_trigger_image_group(event: On<ImageGroupResize>, query: Query<&mut Node, W
     for mut node in query {
         match event.event() {
             ImageGroupResize::HeightGrow => {
-                if let Val::Percent(val) = &mut node.height {
-                    *val = (*val + MIN_RESIZE_VAL).min(IMAGE_GROUP_BOX_MAX_HEIGHT);
+                if let ValRef::Percent(val) = node.height.unpack() {
+                    node.height =
+                        Val::percent((val + MIN_RESIZE_VAL).min(IMAGE_GROUP_BOX_MAX_HEIGHT));
                 }
             }
             ImageGroupResize::HeightShrink => {
-                if let Val::Percent(val) = &mut node.height {
-                    *val = (*val - MIN_RESIZE_VAL).max(IMAGE_GROUP_BOX_MIN_HEIGHT);
+                if let ValRef::Percent(val) = node.height.unpack() {
+                    node.height =
+                        Val::percent((val - MIN_RESIZE_VAL).max(IMAGE_GROUP_BOX_MIN_HEIGHT));
                 }
             }
             ImageGroupResize::WidthGrow => {
-                if let Val::Percent(val) = &mut node.width {
-                    *val = (*val + MIN_RESIZE_VAL).min(IMAGE_GROUP_BOX_MAX_WIDTH);
+                if let ValRef::Percent(val) = node.width.unpack() {
+                    node.width =
+                        Val::percent((val + MIN_RESIZE_VAL).min(IMAGE_GROUP_BOX_MAX_WIDTH));
                 }
             }
             ImageGroupResize::WidthShrink => {
-                if let Val::Percent(val) = &mut node.width {
-                    *val = (*val - MIN_RESIZE_VAL).max(IMAGE_GROUP_BOX_MIN_WIDTH);
+                if let ValRef::Percent(val) = node.width.unpack() {
+                    node.width =
+                        Val::percent((val - MIN_RESIZE_VAL).max(IMAGE_GROUP_BOX_MIN_WIDTH));
                 }
             }
         }

@@ -555,13 +555,13 @@ pub struct MismatchedUnitsError;
 
 /// A trait that indicates that a value _may_ be interpolable via [`StableInterpolate`]. An
 /// interpolation may fail if the values have different units - for example, attempting to
-/// interpolate between [`Val::Px`] and [`Val::Percent`] will fail,
+/// interpolate between [`Val::px`] and [`Val::percent`] will fail,
 /// even though they are the same Rust type.
 ///
 /// Fallible interpolation can be used for animated transitions, which can be set up to fail
 /// gracefully if the values cannot be interpolated. For example, a transition could smoothly
-/// go from `Val::Px(10)` to `Val::Px(20)`, but if the user attempts to go from `Val::Px(10)` to
-/// `Val::Percent(10)`, the animation player can detect the failure and simply snap to the new
+/// go from `Val::px(10)` to `Val::px(20)`, but if the user attempts to go from `Val::px(10)` to
+/// `Val::percent(10)`, the animation player can detect the failure and simply snap to the new
 /// value without interpolating.
 ///
 /// An animation clip system can incorporate fallible interpolation to support a broad set of
@@ -578,8 +578,8 @@ pub struct MismatchedUnitsError;
 /// [`TryStableInterpolate`] is more conservative, and doesn't automatically convert between
 /// color spaces. This produces a color interpolation that has more predictable performance.
 ///
-/// [`Val::Px`]: https://docs.rs/bevy/latest/bevy/ui/enum.Val.html#variant.Px
-/// [`Val::Percent`]: https://docs.rs/bevy/latest/bevy/ui/enum.Val.html#variant.Percent
+/// [`Val::px`]: https://docs.rs/bevy/latest/bevy/ui/struct.Val.html#method.Px
+/// [`Val::percent`]: https://docs.rs/bevy/latest/bevy/ui/struct.Val.html#method.Percent
 /// [`Val`]: https://docs.rs/bevy/latest/bevy/ui/enum.Val.html
 /// [`Color`]: https://docs.rs/bevy/latest/bevy/color/enum.Color.html
 pub trait TryStableInterpolate: Clone {

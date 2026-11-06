@@ -224,8 +224,8 @@ fn setup(
                 let font_size = 20.;
                 p.spawn((
                     Node {
-                        width: Val::Px(font_size * FRAME_TIME_GRAPH_WIDTH_SCALE),
-                        height: Val::Px(font_size * FRAME_TIME_GRAPH_HEIGHT_SCALE),
+                        width: Val::px(font_size * FRAME_TIME_GRAPH_WIDTH_SCALE),
+                        height: Val::px(font_size * FRAME_TIME_GRAPH_HEIGHT_SCALE),
                         display: if overlay_config.frame_time_graph_config.enabled {
                             bevy_ui::Display::DEFAULT
                         } else {
@@ -301,8 +301,8 @@ fn toggle_display(
             .text_config
             .font_size
             .eval(text_node.1.logical_size(), *rem_size);
-        graph_node.width = Val::Px(font_size * FRAME_TIME_GRAPH_WIDTH_SCALE);
-        graph_node.height = Val::Px(font_size * FRAME_TIME_GRAPH_HEIGHT_SCALE);
+        graph_node.width = Val::px(font_size * FRAME_TIME_GRAPH_WIDTH_SCALE);
+        graph_node.height = Val::px(font_size * FRAME_TIME_GRAPH_HEIGHT_SCALE);
 
         graph_node.display = bevy_ui::Display::DEFAULT;
     } else {

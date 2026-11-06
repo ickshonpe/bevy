@@ -29,7 +29,7 @@ use bevy_platform::collections::HashMap;
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_ui::{
     px, ComputedNode, InteractionDisabled, JustifyContent, Node, PositionType, UiGlobalTransform,
-    UiScale, UiSystems, Val, ZIndex,
+    UiScale, UiSystems, Val, ValRef, ZIndex,
 };
 use bevy_window::SystemCursorIcon;
 
@@ -127,8 +127,8 @@ type Geometry<'a> = (
 );
 
 fn px_value(val: Val) -> f32 {
-    match val {
-        Val::Px(value) => value,
+    match val.unpack() {
+        ValRef::Px(value) => value,
         _ => 0.0,
     }
 }
