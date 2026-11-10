@@ -38,9 +38,8 @@ impl ValContext {
         rem_size: DEFAULT_REM_SIZE_PX,
     };
 
-    /// Create a new [`LayoutContext`] from the window's physical size and scale factor
     #[inline]
-    pub(super) const fn new(
+    pub const fn new(
         scale_factor: f32,
         physical_size: Vec2,
         em_size: EmSize,
@@ -151,6 +150,51 @@ pub enum ValRef<'a> {
     Rem(f32),
     /// An expression combining `Val`s with different units, such as `Val::percent(50.0) - Val::px(10.0)`.
     Calc(&'a Calc),
+    /// The smallest size that can fit the node's contents, taking all available
+    /// soft wrapping opportunities.
+    ///
+    /// Only supported on the `width`, `height` and `flex_basis` fields, behaves as `Auto` elsewhere.
+    MinContent,
+    /// The smallest size that can fit the node's contents, without taking any
+    /// soft wrapping opportunities.
+    ///
+    /// Only supported on the `width`, `height` and `flex_basis` fields, behaves as `Auto` elsewhere.
+    MaxContent,
+    /// Size the node to fit the available space, clamped between min-content and max-content.
+    ///
+    /// Only supported on the `width`, `height` and `flex_basis` fields, behaves as `Auto` elsewhere.
+    FitContent,
+    /// Sizes the box to fill the available space, subject to layout constraints.
+    /// (<https://www.w3.org/TR/css-sizing-4/#stretch-fit-sizing>)
+    ///
+    /// Compared to `Percent(100.)`, `Percent` sizes are relative to the parent's inner content size.
+    /// A `Node` with 100% width and 10px margins may overflow its parent, but
+    /// with `Stretch` the node's margins are accounted for when calculating its size.
+    /// For example, with 300px available space and 10px margins, `Stretch` requests a width of 280px.
+    ///
+    /// Only supported on the `width`, `height` and `flex_basis` fields, behaves as `Auto` elsewhere.
+    Stretch,
+    /// The size of the node's content determines its initial flex size, rather than its `width` when the
+    /// parent has `FlexDirection::Row`, or `height` when the parent has `FlexDirection::Column`.
+    ///
+    /// (<https://www.w3.org/TR/css-flexbox-1/#valdef-flex-basis-content>)
+    ///
+    /// Only supported on the `flex_basis` field, behaves as `Auto` elsewhere.
+    Content,
+}
+
+impl ValRef<'_> {
+    pub fn is_evaluable(&self) -> bool {
+        matches!(
+            self,
+            ValRef::Auto
+                | ValRef::MinContent
+                | ValRef::MaxContent
+                | ValRef::FitContent
+                | ValRef::Stretch
+                | ValRef::Content
+        )
+    }
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -230,8 +274,13 @@ impl core::fmt::Debug for Val {
 impl PartialEq for Val {
     fn eq(&self, other: &Self) -> bool {
         match (self.unpack(), other.unpack()) {
-            (ValRef::Auto, ValRef::Auto) => true,
             (ValRef::Calc(a), ValRef::Calc(b)) => a == b,
+            (ValRef::Auto, ValRef::Auto)
+            | (ValRef::MinContent, ValRef::MinContent)
+            | (ValRef::MaxContent, ValRef::MaxContent)
+            | (ValRef::FitContent, ValRef::FitContent)
+            | (ValRef::Stretch, ValRef::Stretch)
+            | (ValRef::Content, ValRef::Content) => true,
             _ => match (self.unit(), self.inner(), other.unit(), other.inner()) {
                 (Some(unit), Some(a), Some(other_unit), Some(b)) if unit == other_unit => a == b,
                 // All zero-value variants are considered equal.
@@ -439,7 +488,10 @@ impl Val {
         }
     }
 
-    /// Returns the `Val`'s raw inner value without its units, or `None` if it's `Auto` or an expression.
+    /// Returns the `Val`'s raw inner value without its units, or `None` if it's non-numeric or an expression.
+    ///
+    /// The number is meaningless without the variant it came from — `Val::Px(4.0)` and
+    /// `Val::Rem(4.0)` both return `4.0`. Use [`Val::resolve`] for a length in pixels.
     pub(crate) const fn inner(&self) -> Option<f32> {
         if self.tag() < UNIT_TAG {
             return None;
@@ -697,7 +749,15 @@ impl Mul<f32> for Val {
 
 impl MulAssign<f32> for Val {
     fn mul_assign(&mut self, rhs: f32) {
-        if matches!(self.unpack(), ValRef::Auto) {
+        if matches!(
+            self.unpack(),
+            ValRef::Auto
+                | ValRef::MinContent
+                | ValRef::MaxContent
+                | ValRef::FitContent
+                | ValRef::Stretch
+                | ValRef::Content
+        ) {
             return;
         }
         if rhs == 0.0 {
@@ -751,8 +811,8 @@ impl Val {
     /// Returns a [`ValArithmeticError::NonEvaluable`] if the [`Val`] is impossible to resolve into a concrete value.
     pub fn resolve(
         &self,
-        physical_base_value: f32,
         context: &ValContext,
+        physical_base_value: f32,
     ) -> Result<f32, ValArithmeticError> {
         match self.unpack() {
             ValRef::Percent(value) => Ok(physical_base_value * value / 100.0),
@@ -767,8 +827,8 @@ impl Val {
             }
             ValRef::Em(value) => Ok(value * context.em_size * context.scale_factor),
             ValRef::Rem(value) => Ok(value * context.rem_size * context.scale_factor),
-            ValRef::Auto => Err(ValArithmeticError::NonEvaluable),
             ValRef::Calc(op) => op.0.resolve(physical_base_value, context),
+            _ => Err(ValArithmeticError::NonEvaluable),
         }
     }
 }
@@ -785,7 +845,6 @@ impl TryFrom<Val> for FontSize {
     /// Expressions cannot be converted.
     fn try_from(val: Val) -> Result<Self, Self::Error> {
         Ok(match val.unpack() {
-            ValRef::Auto => FontSize::Rem(1.),
             ValRef::Px(px) => FontSize::Px(px),
             ValRef::Percent(percent) => FontSize::Rem(percent / 100.),
             ValRef::Vw(vw) => FontSize::Vw(vw),
@@ -795,6 +854,7 @@ impl TryFrom<Val> for FontSize {
             ValRef::Rem(rem) => FontSize::Rem(rem),
             ValRef::Em(em) => FontSize::Rem(em), // see comment above
             ValRef::Calc(_) => return Err(ValArithmeticError::NonEvaluable),
+            _ => FontSize::Rem(1.),
         })
     }
 }
@@ -939,7 +999,7 @@ impl CalcOp {
         physical_base_value: f32,
         context: &ValContext,
     ) -> Result<f32, ValArithmeticError> {
-        let resolve = |val: &Val| val.resolve(physical_base_value, context);
+        let resolve = |val: &Val| val.resolve(context, physical_base_value);
         let reduce = |terms: &[Val], init: f32, op: fn(f32, f32) -> f32| {
             terms
                 .iter()
@@ -1151,37 +1211,28 @@ mod tests {
         let viewport_size = vec2(1000., 500.);
         let em_size = EmSize(10.);
         let rem_size = RemSize(20.);
+        let mut context = ValContext::new(1., viewport_size, em_size, rem_size);
 
         assert_eq!(
-            Val::percent(80.)
-                .resolve(size, &ValContext::new(1., viewport_size, em_size, rem_size))
-                .unwrap(),
+            Val::percent(80.).resolve(&context, size).unwrap(),
             size * 0.8
         );
+
         // Check em and rem
+        assert_eq!(Val::em(2.).resolve(&context, size).unwrap(), em_size.0 * 2.);
         assert_eq!(
-            Val::em(2.)
-                .resolve(size, &ValContext::new(1., viewport_size, em_size, rem_size))
-                .unwrap(),
-            em_size.0 * 2.
-        );
-        assert_eq!(
-            Val::rem(5.)
-                .resolve(size, &ValContext::new(1., viewport_size, em_size, rem_size))
-                .unwrap(),
+            Val::rem(5.).resolve(&context, size).unwrap(),
             rem_size.0 * 5.
         );
+
         // Check scale_factor is considered
+        context.scale_factor = 2.;
         assert_eq!(
-            Val::em(2.)
-                .resolve(size, &ValContext::new(2., viewport_size, em_size, rem_size))
-                .unwrap(),
+            Val::em(2.).resolve(&context, size).unwrap(),
             em_size.0 * 2. * 2.
         );
         assert_eq!(
-            Val::rem(5.)
-                .resolve(size, &ValContext::new(2., viewport_size, em_size, rem_size))
-                .unwrap(),
+            Val::rem(5.).resolve(&context, size).unwrap(),
             rem_size.0 * 5. * 2.
         );
     }
@@ -1190,43 +1241,22 @@ mod tests {
     fn val_resolve_px() {
         let size = 250.;
         let viewport_size = vec2(1000., 500.);
+        let mut context = ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0));
 
-        let result = Val::px(10.)
-            .resolve(
-                size,
-                &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0)),
-            )
-            .unwrap();
+        let result = Val::px(10.).resolve(&context, size).unwrap();
         assert_eq!(result, 10.);
 
-        let result = Val::px(10.)
-            .resolve(
-                size,
-                &ValContext::new(3., viewport_size, EmSize(20.0), RemSize(20.0)),
-            )
-            .unwrap();
+        context.scale_factor = 3.;
+        let result = Val::px(10.).resolve(&context, size).unwrap();
         assert_eq!(result, 30.);
-        let result = Val::px(10.)
-            .resolve(
-                size,
-                &ValContext::new(0.25, viewport_size, EmSize(20.0), RemSize(20.0)),
-            )
-            .unwrap();
+        context.scale_factor = 0.25;
+        let result = Val::px(10.).resolve(&context, size).unwrap();
         assert_eq!(result, 2.5);
 
-        let result = Val::em(1.)
-            .resolve(
-                size,
-                &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0)),
-            )
-            .unwrap();
+        context.scale_factor = 1.;
+        let result = Val::em(1.).resolve(&context, size).unwrap();
         assert_eq!(result, 20.0);
-        let result = Val::rem(1.)
-            .resolve(
-                size,
-                &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0)),
-            )
-            .unwrap();
+        let result = Val::rem(1.).resolve(&context, size).unwrap();
         assert_eq!(result, 20.0);
     }
 
@@ -1240,106 +1270,40 @@ mod tests {
     fn val_resolve_viewport_coords() {
         let size = 250.;
         let viewport_size = vec2(500., 500.);
+        let context = ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0));
 
         for value in (-10..10).map(|value| value as f32) {
             // for a square viewport there should be no difference between `Vw` and `Vh` and between `Vmin` and `Vmax`.
             assert_eq!(
-                Val::vw(value).resolve(
-                    size,
-                    &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0))
-                ),
-                Val::vh(value).resolve(
-                    size,
-                    &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0))
-                )
+                Val::vw(value).resolve(&context, size),
+                Val::vh(value).resolve(&context, size)
             );
             assert_eq!(
-                Val::vmin(value).resolve(
-                    size,
-                    &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0))
-                ),
-                Val::vmax(value).resolve(
-                    size,
-                    &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0))
-                )
+                Val::vmin(value).resolve(&context, size),
+                Val::vmax(value).resolve(&context, size)
             );
             assert_eq!(
-                Val::vmin(value).resolve(
-                    size,
-                    &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0))
-                ),
-                Val::vw(value).resolve(
-                    size,
-                    &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0))
-                )
+                Val::vmin(value).resolve(&context, size),
+                Val::vw(value).resolve(&context, size)
             );
         }
 
         let viewport_size = vec2(1000., 500.);
-        assert_eq!(
-            Val::vw(100.)
-                .resolve(
-                    size,
-                    &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0))
-                )
-                .unwrap(),
-            1000.
-        );
-        assert_eq!(
-            Val::vh(100.)
-                .resolve(
-                    size,
-                    &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0))
-                )
-                .unwrap(),
-            500.
-        );
-        assert_eq!(
-            Val::vw(60.)
-                .resolve(
-                    size,
-                    &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0))
-                )
-                .unwrap(),
-            600.
-        );
-        assert_eq!(
-            Val::vh(40.)
-                .resolve(
-                    size,
-                    &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0))
-                )
-                .unwrap(),
-            200.
-        );
-        assert_eq!(
-            Val::vmin(50.)
-                .resolve(
-                    size,
-                    &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0))
-                )
-                .unwrap(),
-            250.
-        );
-        assert_eq!(
-            Val::vmax(75.)
-                .resolve(
-                    size,
-                    &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0))
-                )
-                .unwrap(),
-            750.
-        );
+        let context = ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0));
+        assert_eq!(Val::vw(100.).resolve(&context, size).unwrap(), 1000.);
+        assert_eq!(Val::vh(100.).resolve(&context, size).unwrap(), 500.);
+        assert_eq!(Val::vw(60.).resolve(&context, size).unwrap(), 600.);
+        assert_eq!(Val::vh(40.).resolve(&context, size).unwrap(), 200.);
+        assert_eq!(Val::vmin(50.).resolve(&context, size).unwrap(), 250.);
+        assert_eq!(Val::vmax(75.).resolve(&context, size).unwrap(), 750.);
     }
 
     #[test]
     fn val_auto_is_non_evaluable() {
         let size = 250.;
         let viewport_size = vec2(1000., 500.);
-        let resolve_auto = Val::AUTO.resolve(
-            size,
-            &ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0)),
-        );
+        let context = ValContext::new(1., viewport_size, EmSize(20.0), RemSize(20.0));
+        let resolve_auto = Val::AUTO.resolve(&context, size);
 
         assert_eq!(resolve_auto, Err(ValArithmeticError::NonEvaluable));
     }
@@ -1446,8 +1410,8 @@ mod tests {
         ));
         let resolve = |value: &Val| {
             value.resolve(
-                100.0,
                 &ValContext::new(1.0, Vec2::ZERO, EmSize(0.0), RemSize(0.0)),
+                100.0,
             )
         };
         assert_eq!(resolve(&min), Ok(10.0));
@@ -1461,8 +1425,8 @@ mod tests {
         assert_eq!(-Val::px(10.0).min(Val::px(20.0)), Val::px(-10.0));
         let resolve = |value: &Val, base: f32| {
             value.resolve(
-                base,
                 &ValContext::new(1.0, Vec2::ZERO, EmSize(0.0), RemSize(0.0)),
+                base,
             )
         };
         for expr in [
@@ -1490,8 +1454,8 @@ mod tests {
         let clamp = Val::percent(50.0).clamp(Val::px(100.0), Val::percent(20.0));
         let resolve = |value: &Val, base: f32| {
             value.resolve(
-                base,
                 &ValContext::new(1.0, Vec2::ZERO, EmSize(0.0), RemSize(0.0)),
+                base,
             )
         };
         for base in [50.0, 100.0, 150.0, 300.0, 1000.0] {
@@ -1520,8 +1484,8 @@ mod tests {
         );
         let resolve = |value: &Val, base: f32| {
             value.resolve(
-                base,
                 &ValContext::new(1.0, Vec2::ZERO, EmSize(0.0), RemSize(0.0)),
+                base,
             )
         };
         assert_eq!(resolve(&clamp, 100.0), Ok(100.0));
@@ -1572,13 +1536,14 @@ mod tests {
             Val::percent(50.0) - Val::px(10.0) + Val::em(2.0) + Val::rem(1.0) + Val::vw(1.0);
         let resolve = |value: &Val| {
             value.resolve(
-                400.0,
                 &ValContext::new(2.0, Vec2::new(1000.0, 500.0), EmSize(12.0), RemSize(20.0)),
+                400.0,
             )
         };
         assert_eq!(resolve(&value), Ok(278.0));
         assert_eq!(resolve(&(value.clone() * 2.0)), Ok(556.0));
         assert_eq!(resolve(&(value.clone() / 2.0)), Ok(139.0));
+        assert_eq!(value.clone() * 0.0, Val::ZERO);
         assert_eq!(resolve(&-value.clone()), Ok(-278.0));
         assert_eq!(
             resolve(&CalcOp::Min(smallvec![value.clone(), Val::px(100.0)]).into()),
@@ -1608,8 +1573,8 @@ mod tests {
     fn negative_scale_swaps_min_and_max() {
         let resolve = |value: Val| {
             value.resolve(
-                0.0,
                 &ValContext::new(1.0, Vec2::ZERO, EmSize(0.0), RemSize(0.0)),
+                0.0,
             )
         };
         let (a, b) = (Val::px(10.0), Val::px(20.0));
@@ -1688,7 +1653,7 @@ mod tests {
         assert_eq!(Val::AUTO.clamp(Val::px(5.0), Val::px(10.0)), Val::px(5.0));
         assert_eq!(
             (Val::percent(10.0) + Val::AUTO)
-                .resolve(100.0, &ValContext::default())
+                .resolve(&ValContext::default(), 100.0,)
                 .unwrap(),
             10.0
         );
@@ -1730,13 +1695,13 @@ mod tests {
         let resolve = |value: Val| {
             value
                 .resolve(
-                    100.0,
                     &ValContext::new(
                         1.0,
                         Default::default(),
                         Default::default(),
                         Default::default(),
                     ),
+                    100.0,
                 )
                 .unwrap()
         };
@@ -1752,13 +1717,13 @@ mod tests {
         let resolve = |value: Val| {
             value
                 .resolve(
-                    100.0,
                     &ValContext::new(
                         1.0,
                         Default::default(),
                         Default::default(),
                         Default::default(),
                     ),
+                    100.0,
                 )
                 .unwrap()
         };

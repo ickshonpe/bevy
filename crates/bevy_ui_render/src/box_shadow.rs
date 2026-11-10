@@ -314,16 +314,21 @@ pub fn extract_shadows(
             }
 
             let resolve_val = |val: &Val, base, scale_factor| match val.unpack() {
-                ValRef::Auto => 0.,
+                ValRef::Auto
+                | ValRef::MinContent
+                | ValRef::MaxContent
+                | ValRef::Stretch
+                | ValRef::Content
+                | ValRef::FitContent => 0.,
                 ValRef::Calc(_) => val
                     .resolve(
-                        base,
                         &ValContext {
                             scale_factor,
                             physical_size: ui_physical_viewport_size,
                             em_size: uinode.em_size.0,
                             rem_size: uinode.rem_size.0,
                         },
+                        base,
                     )
                     .unwrap_or(0.),
                 ValRef::Px(px) => px * scale_factor,

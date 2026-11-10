@@ -1,4 +1,4 @@
-use taffy::style_helpers;
+use taffy::{style_helpers, Dimension};
 
 use crate::{
     val::{Calc, CalcOp, ValContext, ValRef},
@@ -112,13 +112,16 @@ impl Val {
 
     /// Convert a `Val` to Taffy's packed `Dimension`.
     /// `Dimension` is a superset of `LengthPercentageAuto`, it also supports "min-content", "max-content", "fit-content", "stretch" and "content" values.
-    /// `bevy_ui` doesn't expose any of these additional values yet.
-    fn to_dimension(
-        &self,
-        context: &ValContext,
-        calcs: &mut Vec<Box<Calc>>,
-    ) -> taffy::style::Dimension {
-        self.to_length_percentage_auto(context, calcs).into()
+    fn to_dimension(&self, context: &ValContext, calcs: &mut Vec<Box<Calc>>) -> Dimension {
+        match self.unpack() {
+            ValRef::Auto => style_helpers::auto(),
+            ValRef::MinContent => Dimension::min_content(),
+            ValRef::MaxContent => Dimension::max_content(),
+            ValRef::FitContent => Dimension::fit_content(),
+            ValRef::Stretch => Dimension::stretch(),
+            ValRef::Content => Dimension::content(),
+            _ => self.to_length_percentage_auto(context, calcs).into(),
+        }
     }
 }
 
@@ -144,6 +147,7 @@ pub fn update_taffy_style_from_node(
 ) {
     let TaffyStyle { style, calcs } = taffy_style;
     calcs.clear();
+
     style.display = node.display.into();
     style.box_sizing = node.box_sizing.into();
     style.item_is_table = false;
@@ -624,7 +628,7 @@ mod tests {
             matches!(physical.unpack(), ValRef::Calc(_)),
             "got {physical:?}"
         );
-        assert_eq!(physical.resolve(100.0, &ValContext::DEFAULT), Ok(34.0));
+        assert_eq!(physical.resolve(&ValContext::DEFAULT, 100.0), Ok(34.0));
         assert_eq!(
             (Val::percent(50.0) - Val::px(10.0)).to_physical_except_percent(&context),
             Val::percent(50.0) - Val::px(20.0)
@@ -789,9 +793,9 @@ mod tests {
         );
         assert_eq!(style.flex_grow, 1.);
         assert_eq!(style.flex_shrink, 0.);
-        assert_eq!(style.flex_basis, taffy::style::Dimension::ZERO);
-        assert_eq!(style.size.width, taffy::style::Dimension::ZERO);
-        assert_eq!(style.size.height, taffy::style::Dimension::auto());
+        assert_eq!(style.flex_basis, Dimension::ZERO);
+        assert_eq!(style.size.width, Dimension::ZERO);
+        assert_eq!(style.size.height, Dimension::auto());
         assert_eq!(
             style.min_size.width,
             taffy::style::LengthPercentageAuto::ZERO
